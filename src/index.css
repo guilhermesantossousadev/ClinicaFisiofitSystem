@@ -1,0 +1,42 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 207 37% 23%;
+    --card: 0 0% 100%;
+    --card-foreground: 207 37% 23%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 207 37% 23%;
+    --primary: 204 68% 47%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 202 75% 95%;
+    --secondary-foreground: 207 54% 20%;
+    --muted: 203 37% 97%;
+    --muted-foreground: 210 17% 45%;
+    --accent: 170 66% 40%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 202 35% 90%;
+    --input: 202 35% 90%;
+    --ring: 204 68% 47%;
+    --radius: 0.875rem;
+  }
+  * { @apply border-border; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    @apply bg-background text-foreground;
+    min-width: 320px;
+    font-family: 'Manrope', system-ui, sans-serif;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4 { font-family: 'Manrope', system-ui, sans-serif; }
+  :focus-visible { outline: 3px solid rgb(39 136 201 / 35%); outline-offset: 3px; }
+  ::selection { background: #e6f7f3; color: #17324d; }
+}
