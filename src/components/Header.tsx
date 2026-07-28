@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Menu, X } from "lucide-react";
-import logo from "@/assets/logo-fisiofit.svg";
 
 const navLinks = [
   { label: "Início", path: "/" },
@@ -19,7 +18,7 @@ const Header = () => {
     <header className="sticky top-0 z-50 border-b border-line/80 bg-white/90 shadow-sm backdrop-blur-xl animate-slide-down">
       <div className="mx-auto flex min-h-[78px] max-w-7xl items-center justify-between gap-3 px-4 md:gap-6 md:px-8">
         <Link to="/" className="flex shrink-0 items-center gap-3" aria-label="Fisiofit — página inicial">
-          <img src={logo} alt="" className="h-11 w-11 md:h-12 md:w-12" />
+          <img src="/fisiofit-logo.jpg" alt="" className="h-11 w-11 rounded-full object-cover md:h-12 md:w-12" />
           <span className="hidden leading-none sm:block">
             <strong className="block text-lg font-extrabold tracking-[0.12em] text-navy">FISIOFIT</strong>
             <span className="mt-1.5 block text-[9px] font-bold tracking-[0.08em] text-muted-foreground">
@@ -49,7 +48,7 @@ const Header = () => {
         <div className="flex items-center gap-3">
           <Link
             to="/contato"
-            className="inline-flex min-h-12 items-center justify-center rounded-full bg-blue px-5 py-3 text-center text-xs font-extrabold text-white shadow-blue transition hover:-translate-y-0.5 hover:bg-blue-dark sm:px-7 sm:text-sm"
+            className="site-button px-5 text-xs sm:px-7 sm:text-sm"
           >
             Agendar avaliação
           </Link>
@@ -81,7 +80,7 @@ const Header = () => {
             <Link
               to="/contato"
               onClick={() => setMenuOpen(false)}
-              className="mt-2 rounded-full bg-blue px-5 py-3 text-center text-sm font-extrabold text-white"
+              className="site-button mt-2"
             >
               Agendar avaliação
             </Link>

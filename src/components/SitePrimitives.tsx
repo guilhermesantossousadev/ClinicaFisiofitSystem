@@ -24,7 +24,7 @@ export const CtaBand = ({ title, description, label = "Agendar avaliação" }: {
       <h2 className="max-w-2xl text-3xl font-black leading-tight tracking-[-0.035em] md:text-4xl">{title}</h2>
       <p className="mt-3 text-white/65">{description}</p>
     </div>
-    <Link to="/contato" className="shrink-0 rounded-full bg-blue px-6 py-3.5 text-sm font-extrabold shadow-blue transition hover:-translate-y-0.5 hover:bg-blue-dark">
+    <Link to="/contato" className="site-button shrink-0">
       {label}
     </Link>
   </div>

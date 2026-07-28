@@ -2,8 +2,8 @@ import { ArrowRight, Check, Move, PersonStanding, Plus } from "lucide-react";
 import { Link } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { CtaBand, Eyebrow } from "@/components/SitePrimitives";
-import heroImage from "@/assets/hero-fisiofit.png";
-import storyImage from "@/assets/studio-interior.jpg";
+import heroImage from "@/assets/hero-fisiofit.jpeg";
+import storyImage from "@/assets/studio-interior.jpeg";
 
 const services = [
   { icon: PersonStanding, title: "Pilates Clínico", text: "Força, mobilidade, equilíbrio e consciência corporal com exercícios adaptados para você.", hash: "pilates" },
@@ -24,10 +24,10 @@ const Index = () => (
             Tratamentos personalizados de fisioterapia e Pilates para aliviar dores, recuperar sua autonomia e devolver confiança ao seu corpo.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link to="/contato" className="rounded-full bg-blue px-6 py-3.5 text-sm font-extrabold text-white shadow-blue transition hover:-translate-y-0.5 hover:bg-blue-dark">
+            <Link to="/contato" className="site-button">
               Agendar minha avaliação
             </Link>
-            <Link to="/servicos" className="rounded-full border border-line bg-white px-6 py-3.5 text-sm font-extrabold text-navy shadow-sm transition hover:-translate-y-0.5 hover:border-blue/40">
+            <Link to="/servicos" className="site-button-secondary">
               Conhecer tratamentos
             </Link>
           </div>
@@ -101,7 +101,7 @@ const Index = () => (
               <li key={item} className="flex items-center gap-3 font-semibold text-navy"><span className="grid h-7 w-7 place-items-center rounded-full bg-mint text-teal"><Check size={16} /></span>{item}</li>
             ))}
           </ul>
-          <Link to="/sobre" className="mt-8 inline-flex items-center gap-2 rounded-full border border-line px-6 py-3.5 text-sm font-extrabold text-navy hover:border-blue/50">Conheça a Fisiofit <ArrowRight size={16} /></Link>
+          <Link to="/sobre" className="site-button-secondary mt-8">Conheça a Fisiofit <ArrowRight size={16} /></Link>
         </div>
       </div>
     </section>

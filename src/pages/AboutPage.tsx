@@ -1,7 +1,7 @@
 import { Check } from "lucide-react";
 import Layout from "@/components/Layout";
 import { CtaBand, Eyebrow, PageHero } from "@/components/SitePrimitives";
-import storyImage from "@/assets/hero-fisiofit.png";
+import storyImage from "@/assets/hero-fisiofit.jpeg";
 
 const values = [
   ["01", "Acolhimento", "Escutamos com atenção e respeitamos o momento, os limites e os objetivos de cada pessoa."],
