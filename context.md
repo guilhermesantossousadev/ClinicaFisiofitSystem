@@ -191,7 +191,10 @@ na API antes de qualquer acesso protegido.
 
 Convites e recuperações de conta direcionam para `/sistema/set-password`. A
 senha é definida diretamente entre usuário e Supabase, exige no mínimo 10
-caracteres e nunca é criada, lida ou armazenada pela aplicação.
+caracteres e nunca é criada, lida ou armazenada pela aplicação. O portal
+processa tanto retornos PKCE (`code`) quanto retornos com tokens no fragmento,
+preserva a sessão antes de renderizar a rota e remove os dados sensíveis da
+URL. A própria tela de login permite solicitar um novo link por e-mail.
 
 ## Regras de negócio obrigatórias
 

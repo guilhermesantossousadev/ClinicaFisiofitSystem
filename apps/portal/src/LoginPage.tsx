@@ -8,6 +8,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
   if (!loading && session) return <Redirect to="/" replace />;
@@ -16,12 +17,35 @@ export default function LoginPage() {
     event.preventDefault();
     setBusy(true);
     setError("");
+    setMessage("");
     const { error: authError } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
     setBusy(false);
     if (authError) setError("E-mail ou senha inválidos.");
+  }
+
+  async function requestPassword() {
+    setError("");
+    setMessage("");
+    if (!email) {
+      setError("Informe seu e-mail para receber o link de criação de senha.");
+      return;
+    }
+
+    setBusy(true);
+    const { error: recoveryError } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/sistema/set-password`,
+    });
+    setBusy(false);
+
+    if (recoveryError) {
+      setError("Não foi possível enviar o link agora. Tente novamente em instantes.");
+      return;
+    }
+
+    setMessage("Enviamos um link seguro para seu e-mail. Abra a mensagem neste computador.");
   }
 
   return (
@@ -69,8 +93,17 @@ export default function LoginPage() {
             />
           </label>
           {error && <div className="login-error" role="alert">{error}</div>}
+          {message && <div className="login-success" role="status">{message}</div>}
           <button className="btn primary login-submit" disabled={busy || !isSupabaseConfigured}>
             {busy ? "Entrando…" : "Entrar com segurança"}
+          </button>
+          <button
+            className="login-recovery"
+            type="button"
+            onClick={requestPassword}
+            disabled={busy || !isSupabaseConfigured}
+          >
+            Esqueci ou ainda não tenho senha
           </button>
           <a href="mailto:administracao@fisiofit.com.br">Precisa de acesso? Fale com a administradora</a>
         </form>

@@ -16,15 +16,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    void supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setLoading(false);
-    });
-    const { data } = supabase.auth.onAuthStateChange((_event, next) => {
+    let active = true;
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, next) => {
+      if (!active) return;
       setSession(next);
       setLoading(false);
     });
-    return () => data.subscription.unsubscribe();
+
+    async function restoreSession() {
+      const url = new URL(window.location.href);
+      const code = url.searchParams.get("code");
+      const hash = new URLSearchParams(url.hash.slice(1));
+      const accessToken = hash.get("access_token");
+      const refreshToken = hash.get("refresh_token");
+
+      let nextSession: Session | null = null;
+
+      if (code) {
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+        if (!error) nextSession = data.session;
+      } else if (accessToken && refreshToken) {
+        const { data, error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        if (!error) nextSession = data.session;
+      } else {
+        const { data } = await supabase.auth.getSession();
+        nextSession = data.session;
+      }
+
+      if (!active) return;
+
+      if (code || accessToken) {
+        window.history.replaceState({}, document.title, url.pathname);
+      }
+
+      setSession(nextSession);
+      setLoading(false);
+    }
+
+    void restoreSession();
+
+    return () => {
+      active = false;
+      authListener.subscription.unsubscribe();
+    };
   }, []);
 
   const value = useMemo<AuthState>(
