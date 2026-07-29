@@ -33,7 +33,11 @@ export default function MfaPage() {
       return;
     }
 
-    const verified = factors?.totp.find((factor) => factor.status === "verified");
+    const totpFactors =
+      factors?.all.filter((factor) => factor.factor_type === "totp") ??
+      factors?.totp ??
+      [];
+    const verified = totpFactors.find((factor) => factor.status === "verified");
     if (verified) {
       setFactorId(verified.id);
       setBusy(false);
@@ -41,7 +45,7 @@ export default function MfaPage() {
       return;
     }
 
-    const incompleteFactors = factors?.totp.filter((factor) => factor.status !== "verified") ?? [];
+    const incompleteFactors = totpFactors.filter((factor) => factor.status !== "verified");
     for (const factor of incompleteFactors) {
       const { error: removeError } = await supabase.auth.mfa.unenroll({
         factorId: factor.id,
