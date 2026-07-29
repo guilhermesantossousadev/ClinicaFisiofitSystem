@@ -3,9 +3,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, list } from "./api";
 import { useAuth } from "./AuthProvider";
+import {
+  OperationalAgenda,
+  OperationalEnrollments,
+  OperationalFinance,
+  OperationalImports,
+  OperationalPatients,
+  OperationalRecords,
+  OperationalReports,
+  OperationalUsers,
+} from "./OperationalModules";
 import { isSupabaseConfigured } from "./supabase";
 
-type View = "Painel" | "Agenda" | "Pacientes" | "Matrículas" | "Prontuários" | "Financeiro" | "Relatórios" | "Configurações";
+type View = "Painel" | "Agenda" | "Pacientes" | "Matrículas" | "Prontuários" | "Financeiro" | "Relatórios" | "Importações" | "Usuários";
 
 const nav: { label: View; icon: string }[] = [
   { label: "Painel", icon: "⌂" },
@@ -15,7 +25,8 @@ const nav: { label: View; icon: string }[] = [
   { label: "Prontuários", icon: "▤" },
   { label: "Financeiro", icon: "₿" },
   { label: "Relatórios", icon: "↗" },
-  { label: "Configurações", icon: "⚙" },
+  { label: "Importações", icon: "⇧" },
+  { label: "Usuários", icon: "⚙" },
 ];
 
 const appointments = [
@@ -172,13 +183,14 @@ export default function FisiofitApp() {
         </header>
 
         {view === "Painel" && <Dashboard data={dashboard} adminName={profileName} setView={setView} setModal={setModal} />}
-        {view === "Agenda" && <Agenda mode={agendaMode} setMode={setAgendaMode} setModal={setModal} flash={flash} />}
-        {view === "Pacientes" && <Patients data={filteredPatients} search={search} setSearch={setSearch} setModal={setModal} />}
-        {view === "Matrículas" && <Enrollments flash={flash} />}
-        {view === "Prontuários" && <Records setModal={setModal} flash={flash} />}
-        {view === "Financeiro" && <Finance setModal={setModal} flash={flash} />}
-        {view === "Relatórios" && <Reports flash={flash} />}
-        {view === "Configurações" && <Settings flash={flash} />}
+        {view === "Agenda" && <OperationalAgenda />}
+        {view === "Pacientes" && <OperationalPatients />}
+        {view === "Matrículas" && <OperationalEnrollments />}
+        {view === "Prontuários" && <OperationalRecords />}
+        {view === "Financeiro" && <OperationalFinance />}
+        {view === "Relatórios" && <OperationalReports />}
+        {view === "Importações" && <OperationalImports />}
+        {view === "Usuários" && <OperationalUsers />}
       </section>
 
       {notice && <div className="toast"><span>✓</span>{notice}</div>}

@@ -30,6 +30,11 @@ test("mantém API, banco e integrações versionados", async () => {
   assert.match(migration, /register_payment/);
   assert.match(api, /GROUP_CAPACITY_REACHED/);
   assert.match(api, /\/reports\/annual/);
+  assert.match(api, /\/users\/:id/);
+  assert.match(api, /\/enrollments/);
+  assert.match(api, /\/clinical-records\/:id\/rectify/);
+  assert.match(api, /\/commissions\/:id\/approve/);
+  assert.match(api, /\/imports\/patients/);
   assert.match(providers, /interface FiscalProvider/);
   assert.match(providers, /interface MessagingProvider/);
 });

@@ -268,6 +268,45 @@ app.post("/users/invite", requireRoles(["admin"]), async (context) => {
   return ok(context, { id: invited.user.id, email: input.email, status: "invited" }, 201);
 });
 
+app.get("/users", requireRoles(["admin", "manager"]), async (context) => {
+  const { data, error } = await context.get("db").from("profiles")
+    .select("id,name,role,status,mfa_required,created_at,profile_units(unit_id,units(id,name))")
+    .eq("clinic_id", context.get("profile").clinic_id)
+    .is("deleted_at", null)
+    .order("name");
+  return databaseResult(context, data, error);
+});
+
+app.patch("/users/:id", requireRoles(["admin"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const input = z.object({
+    name: z.string().trim().min(3).max(120).optional(),
+    role: z.enum(["admin", "manager", "reception", "professional", "finance"]).optional(),
+    status: z.enum(["invited", "active", "blocked"]).optional(),
+    unitIds: z.array(z.string().uuid()).optional(),
+  }).parse(await context.req.json());
+  const { unitIds, ...profileChanges } = input;
+  const db = context.get("db");
+  const { data, error } = await db.from("profiles").update({
+    ...profileChanges,
+    ...(input.role ? { mfa_required: ["admin", "manager", "finance"].includes(input.role) } : {}),
+    updated_at: new Date().toISOString(),
+  }).eq("id", id).eq("clinic_id", context.get("profile").clinic_id).select().single();
+  if (error) return databaseResult(context, null, error);
+  if (unitIds) {
+    const { error: removeError } = await db.from("profile_units").delete().eq("profile_id", id);
+    if (removeError) return databaseResult(context, null, removeError);
+    if (unitIds.length) {
+      const { error: insertError } = await db.from("profile_units").insert(
+        unitIds.map((unitId) => ({ profile_id: id, unit_id: unitId })),
+      );
+      if (insertError) return databaseResult(context, null, insertError);
+    }
+  }
+  await audit(context, "user.updated", "profile", id);
+  return ok(context, data);
+});
+
 app.get("/units", async (context) => {
   const { data, error } = await context.get("db").from("units").select("*").is("deleted_at", null).order("name");
   return databaseResult(context, data, error);
@@ -300,6 +339,126 @@ app.get("/fiscal-documents", listResource("fiscal_documents", "created_at", fals
 app.get("/notifications", listResource("notifications", "scheduled_at", false));
 app.get("/audit", requireRoles(["admin", "manager"]), listResource("audit_events", "occurred_at", false));
 
+app.post("/rooms", requireRoles(["admin", "manager"]), async (context) => {
+  const input = z.object({
+    unit_id: z.string().uuid(),
+    name: z.string().trim().min(2).max(100),
+    capacity: z.number().int().min(1).max(20).default(7),
+  }).parse(await context.req.json());
+  return createClinicResource(context, "rooms", input, "room.created", input.unit_id);
+});
+
+app.post("/professionals", requireRoles(["admin", "manager"]), async (context) => {
+  const input = z.object({
+    name: z.string().trim().min(3).max(120),
+    profile_id: z.string().uuid().optional(),
+    council: z.string().max(40).optional(),
+    specialty: z.string().max(100).optional(),
+    active: z.boolean().default(true),
+    unitIds: z.array(z.string().uuid()).min(1),
+  }).parse(await context.req.json());
+  const { unitIds, ...professional } = input;
+  const db = context.get("db");
+  const { data, error } = await db.from("professionals").insert({
+    ...professional,
+    clinic_id: context.get("profile").clinic_id,
+  }).select().single();
+  if (error || !data) return databaseResult(context, null, error);
+  const { error: unitsError } = await db.from("professional_units").insert(
+    unitIds.map((unitId) => ({ professional_id: data.id, unit_id: unitId })),
+  );
+  if (unitsError) return databaseResult(context, null, unitsError);
+  await audit(context, "professional.created", "professional", data.id);
+  return ok(context, data, 201);
+});
+
+app.post("/services", requireRoles(["admin", "manager"]), async (context) => {
+  const input = z.object({
+    name: z.string().trim().min(2).max(100),
+    duration_minutes: z.number().int().min(5).max(480),
+    price_cents: z.number().int().nonnegative(),
+    color: z.string().max(20).optional(),
+    active: z.boolean().default(true),
+  }).parse(await context.req.json());
+  return createClinicResource(context, "services", input, "service.created");
+});
+
+app.post("/plans", requireRoles(["admin", "manager", "finance"]), async (context) => {
+  const input = z.object({
+    name: z.string().trim().min(2).max(100),
+    kind: z.enum(["monthly", "package", "single"]),
+    sessions_included: z.number().int().positive().optional(),
+    duration_days: z.number().int().positive().optional(),
+    price_cents: z.number().int().nonnegative(),
+    active: z.boolean().default(true),
+  }).parse(await context.req.json());
+  return createClinicResource(context, "plans", input, "plan.created");
+});
+
+app.post("/enrollments", requireRoles(["admin", "manager", "reception", "finance"]), async (context) => {
+  const input = z.object({
+    patient_id: z.string().uuid(),
+    plan_id: z.string().uuid(),
+    unit_id: z.string().uuid(),
+    starts_at: z.string().date(),
+    ends_at: z.string().date().optional(),
+    due_day: z.number().int().min(1).max(31).optional(),
+    discount_cents: z.number().int().nonnegative().default(0),
+    surcharge_cents: z.number().int().nonnegative().default(0),
+  }).parse(await context.req.json());
+  const db = context.get("db");
+  const { data: plan, error: planError } = await db.from("plans").select("id,name,price_cents")
+    .eq("id", input.plan_id).eq("clinic_id", context.get("profile").clinic_id).single();
+  if (planError || !plan) return databaseResult(context, null, planError);
+  const { data, error } = await db.from("enrollments").insert({
+    ...input,
+    clinic_id: context.get("profile").clinic_id,
+    status: "active",
+  }).select().single();
+  if (error || !data) return databaseResult(context, null, error);
+  const chargeAmount = Math.max(plan.price_cents - input.discount_cents + input.surcharge_cents, 1);
+  const { error: chargeError } = await db.from("charges").insert({
+    clinic_id: context.get("profile").clinic_id,
+    patient_id: input.patient_id,
+    enrollment_id: data.id,
+    unit_id: input.unit_id,
+    description: `Matrícula — ${plan.name}`,
+    amount_cents: chargeAmount,
+    due_at: firstDueDate(input.starts_at, input.due_day),
+    status: "pending",
+  });
+  if (chargeError) return databaseResult(context, null, chargeError);
+  await audit(context, "enrollment.created", "enrollment", data.id, input.unit_id);
+  return ok(context, data, 201);
+});
+
+app.post("/charges", requireRoles(["admin", "manager", "finance"]), async (context) => {
+  const input = z.object({
+    patient_id: z.string().uuid(),
+    enrollment_id: z.string().uuid().optional(),
+    unit_id: z.string().uuid(),
+    description: z.string().trim().min(3).max(200),
+    amount_cents: z.number().int().positive(),
+    due_at: z.string().date(),
+    installment_number: z.number().int().positive().optional(),
+    installment_count: z.number().int().positive().optional(),
+  }).parse(await context.req.json());
+  return createClinicResource(context, "charges", { ...input, status: "pending" }, "charge.created", input.unit_id);
+});
+
+app.get("/record-templates", requireRoles(["admin", "manager", "professional"]), listResource("record_templates", "name"));
+
+app.post("/record-templates", requireRoles(["admin", "manager"]), async (context) => {
+  const input = z.object({
+    name: z.string().trim().min(3).max(120),
+    kind: z.enum(["assessment", "evolution"]),
+    specialty: z.string().max(100).optional(),
+    schema: z.record(z.unknown()),
+    active: z.boolean().default(true),
+  }).parse(await context.req.json());
+  return createClinicResource(context, "record_templates", input, "record_template.created");
+});
+
 app.get("/patients", async (context) => {
   const page = positiveInt(context.req.query("page"), 1);
   const pageSize = Math.min(positiveInt(context.req.query("pageSize"), 25), 100);
@@ -321,6 +480,60 @@ app.post("/patients", requireRoles(["admin", "manager", "reception"]), async (co
   }).select().single();
   if (!error && data) await audit(context, "patient.created", "patient", data.id, data.primary_unit_id);
   return databaseResult(context, data, error, 201);
+});
+
+app.patch("/patients/:id", requireRoles(["admin", "manager", "reception"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const input = patientSchema.partial().parse(await context.req.json());
+  const { data, error } = await context.get("db").from("patients").update({
+    ...input,
+    updated_at: new Date().toISOString(),
+  }).eq("id", id).eq("clinic_id", context.get("profile").clinic_id).is("deleted_at", null)
+    .select().single();
+  if (!error && data) await audit(context, "patient.updated", "patient", id, data.primary_unit_id);
+  return databaseResult(context, data, error);
+});
+
+app.get("/patients/:id/responsibles", async (context) => {
+  const patientId = z.string().uuid().parse(context.req.param("id"));
+  const { data, error } = await context.get("db").from("responsibles").select("*")
+    .eq("clinic_id", context.get("profile").clinic_id).eq("patient_id", patientId)
+    .is("deleted_at", null).order("name");
+  return databaseResult(context, data, error);
+});
+
+app.post("/patients/:id/responsibles", requireRoles(["admin", "manager", "reception"]), async (context) => {
+  const patientId = z.string().uuid().parse(context.req.param("id"));
+  const input = z.object({
+    name: z.string().trim().min(3).max(160),
+    relationship: z.string().max(60).optional(),
+    cpf: z.string().max(14).optional(),
+    phone: z.string().max(20).optional(),
+    email: z.string().email().optional(),
+  }).parse(await context.req.json());
+  return createClinicResource(context, "responsibles", { ...input, patient_id: patientId }, "responsible.created");
+});
+
+app.get("/patients/:id/consents", async (context) => {
+  const patientId = z.string().uuid().parse(context.req.param("id"));
+  const { data, error } = await context.get("db").from("consents").select("*")
+    .eq("clinic_id", context.get("profile").clinic_id).eq("patient_id", patientId)
+    .order("created_at", { ascending: false });
+  return databaseResult(context, data, error);
+});
+
+app.post("/patients/:id/consents", requireRoles(["admin", "manager", "reception"]), async (context) => {
+  const patientId = z.string().uuid().parse(context.req.param("id"));
+  const input = z.object({
+    kind: z.string().trim().min(2).max(80),
+    granted: z.boolean(),
+  }).parse(await context.req.json());
+  return createClinicResource(context, "consents", {
+    ...input,
+    patient_id: patientId,
+    granted_at: input.granted ? new Date().toISOString() : null,
+    revoked_at: input.granted ? null : new Date().toISOString(),
+  }, "consent.recorded");
 });
 
 app.get("/patients/:id/timeline", async (context) => {
@@ -376,6 +589,21 @@ app.post("/appointments", requireRoles(["admin", "manager", "reception", "profes
   }).select().single();
   if (!error && data) await audit(context, "appointment.created", "appointment", data.id, data.unit_id);
   return databaseResult(context, data, error, 201);
+});
+
+app.patch("/appointments/:id/status", requireRoles(["admin", "manager", "reception", "professional"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const input = z.object({
+    status: z.enum(["scheduled", "confirmed", "attending", "missed", "cancelled"]),
+    notes: z.string().max(1000).optional(),
+  }).parse(await context.req.json());
+  const { data, error } = await context.get("db").from("appointments").update({
+    ...input,
+    updated_at: new Date().toISOString(),
+  }).eq("id", id).eq("clinic_id", context.get("profile").clinic_id).is("deleted_at", null)
+    .select().single();
+  if (!error && data) await audit(context, `appointment.${input.status}`, "appointment", id, data.unit_id);
+  return databaseResult(context, data, error);
 });
 
 app.post("/group-slots", requireRoles(["admin", "manager"]), async (context) => {
@@ -471,6 +699,34 @@ app.post("/clinical-records/:id/sign", requireRoles(["admin", "manager", "profes
   return databaseResult(context, data, error);
 });
 
+app.post("/clinical-records/:id/rectify", requireRoles(["admin", "manager", "professional"]), async (context) => {
+  const originalId = z.string().uuid().parse(context.req.param("id"));
+  const input = z.object({
+    reason: z.string().trim().min(10).max(1000),
+    payload: z.record(z.unknown()),
+  }).parse(await context.req.json());
+  const db = context.get("db");
+  const { data: original, error: originalError } = await db.from("clinical_records").select("*")
+    .eq("id", originalId).eq("clinic_id", context.get("profile").clinic_id).eq("status", "signed").single();
+  if (originalError || !original) return databaseResult(context, null, originalError);
+  const { data, error } = await db.from("clinical_records").insert({
+    clinic_id: original.clinic_id,
+    patient_id: original.patient_id,
+    appointment_id: original.appointment_id,
+    professional_id: original.professional_id,
+    unit_id: original.unit_id,
+    kind: "rectification",
+    template_id: original.template_id,
+    template_version: original.template_version,
+    payload: input.payload,
+    status: "draft",
+    rectifies_id: originalId,
+    rectification_reason: input.reason,
+  }).select().single();
+  if (!error && data) await audit(context, "clinical_record.rectified", "clinical_record", data.id, data.unit_id);
+  return databaseResult(context, data, error, 201);
+});
+
 app.post("/payments", requireRoles(["admin", "manager", "finance"]), async (context) => {
   const key = requireIdempotency(context);
   const input = z.object({
@@ -511,6 +767,74 @@ app.post("/financial-entries", requireRoles(["admin", "manager", "finance"]), as
   return databaseResult(context, data, error, 201);
 });
 
+app.post("/commissions", requireRoles(["admin", "manager", "finance"]), async (context) => {
+  const input = z.object({
+    unit_id: z.string().uuid(),
+    professional_id: z.string().uuid(),
+    appointment_id: z.string().uuid().optional(),
+    payment_id: z.string().uuid().optional(),
+    amount_cents: z.number().int().nonnegative(),
+    basis: z.enum(["appointment", "payment"]),
+  }).parse(await context.req.json());
+  return createClinicResource(context, "commissions", { ...input, status: "pending" }, "commission.created", input.unit_id);
+});
+
+app.post("/commissions/:id/approve", requireRoles(["admin", "manager", "finance"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const db = context.get("db");
+  const { data, error } = await db.from("commissions").update({
+    status: "approved",
+    approved_by: context.get("user").id,
+    approved_at: new Date().toISOString(),
+  }).eq("id", id).eq("clinic_id", context.get("profile").clinic_id).eq("status", "pending")
+    .select().single();
+  if (error || !data) return databaseResult(context, null, error);
+  const { error: entryError } = await db.from("financial_entries").insert({
+    clinic_id: context.get("profile").clinic_id,
+    unit_id: data.unit_id,
+    kind: "expense",
+    description: "Comissão profissional aprovada",
+    category: "Comissões",
+    cost_center: "Equipe",
+    amount_cents: Math.max(data.amount_cents, 1),
+    competence_date: new Date().toISOString().slice(0, 10),
+  });
+  if (entryError) return databaseResult(context, null, entryError);
+  await audit(context, "commission.approved", "commission", id, data.unit_id);
+  return ok(context, data);
+});
+
+app.get("/closings", requireRoles(["admin", "manager", "finance"]), listResource("monthly_closings", "reference_month", false));
+
+app.post("/closings", requireRoles(["admin", "manager", "finance"]), async (context) => {
+  const input = z.object({
+    unit_id: z.string().uuid().optional(),
+    reference_month: z.string().regex(/^\d{4}-\d{2}$/),
+  }).parse(await context.req.json());
+  const db = context.get("db");
+  const month = `${input.reference_month}-01`;
+  let summaryQuery = db.from("monthly_financial_summary").select("*").eq("month", month);
+  if (input.unit_id) summaryQuery = summaryQuery.eq("unit_id", input.unit_id);
+  const { data: summary, error: summaryError } = await summaryQuery;
+  if (summaryError) return databaseResult(context, null, summaryError);
+  const { data: latest } = await db.from("monthly_closings").select("version")
+    .eq("clinic_id", context.get("profile").clinic_id)
+    .eq("reference_month", month)
+    .order("version", { ascending: false }).limit(1).maybeSingle();
+  const { data, error } = await db.from("monthly_closings").insert({
+    clinic_id: context.get("profile").clinic_id,
+    unit_id: input.unit_id ?? null,
+    reference_month: month,
+    version: (latest?.version ?? 0) + 1,
+    snapshot: { rows: summary ?? [] },
+    status: "closed",
+    closed_by: context.get("user").id,
+    closed_at: new Date().toISOString(),
+  }).select().single();
+  if (!error && data) await audit(context, "closing.created", "monthly_closing", data.id, input.unit_id);
+  return databaseResult(context, data, error, 201);
+});
+
 app.get("/reports/annual", requireRoles(["admin", "manager", "finance"]), async (context) => {
   const year = z.coerce.number().int().min(2020).max(2100).parse(context.req.query("year"));
   const unit = context.req.query("unitId");
@@ -548,6 +872,70 @@ app.post("/imports", requireRoles(["admin", "manager"]), async (context) => {
   return databaseResult(context, data, error, 201);
 });
 
+app.get("/imports", requireRoles(["admin", "manager"]), listResource("import_batches", "created_at", false));
+
+app.post("/imports/patients", requireRoles(["admin", "manager"]), async (context) => {
+  const key = requireIdempotency(context);
+  const input = z.object({
+    source: z.enum(["oluma", "notion", "manual"]),
+    filename: z.string().min(1).max(240),
+    unit_id: z.string().uuid(),
+    dryRun: z.boolean().default(true),
+    rows: z.array(z.object({
+      external_id: z.string().max(120).optional(),
+      name: z.string().trim().min(3).max(160),
+      cpf: z.string().trim().min(11).max(14).optional(),
+      birth_date: z.string().date().optional(),
+      phone: z.string().max(20).optional(),
+      email: z.string().email().optional(),
+      notes: z.string().max(4000).optional(),
+    })).min(1).max(2000),
+  }).parse(await context.req.json());
+  const db = context.get("db");
+  const cpfs = input.rows.flatMap((row) => row.cpf ? [row.cpf] : []);
+  const { data: existing, error: existingError } = cpfs.length
+    ? await db.from("patients").select("cpf").eq("clinic_id", context.get("profile").clinic_id).in("cpf", cpfs).is("deleted_at", null)
+    : { data: [], error: null };
+  if (existingError) return databaseResult(context, null, existingError);
+  const existingCpfs = new Set((existing ?? []).map((row) => row.cpf));
+  const seenCpfs = new Set<string>();
+  const rejected: Array<{ row: number; reason: string }> = [];
+  const accepted = input.rows.filter((row, index) => {
+    if (row.cpf && (existingCpfs.has(row.cpf) || seenCpfs.has(row.cpf))) {
+      rejected.push({ row: index + 2, reason: "CPF duplicado" });
+      return false;
+    }
+    if (row.cpf) seenCpfs.add(row.cpf);
+    return true;
+  });
+  if (input.dryRun) return ok(context, { accepted: accepted.length, rejected, total: input.rows.length });
+
+  const { data: batch, error: batchError } = await db.from("import_batches").insert({
+    clinic_id: context.get("profile").clinic_id,
+    source: input.source,
+    filename: input.filename,
+    mapping: {},
+    status: "processing",
+    totals: { total: input.rows.length, accepted: accepted.length, rejected: rejected.length },
+    idempotency_key: key,
+    created_by: context.get("user").id,
+  }).select().single();
+  if (batchError || !batch) return databaseResult(context, null, batchError);
+  const { data, error } = await db.from("patients").insert(accepted.map((row) => ({
+    ...row,
+    clinic_id: context.get("profile").clinic_id,
+    primary_unit_id: input.unit_id,
+    migration_source: input.source,
+  }))).select("id");
+  await db.from("import_batches").update({
+    status: error ? "failed" : "completed",
+    totals: { total: input.rows.length, imported: data?.length ?? 0, rejected: rejected.length },
+    updated_at: new Date().toISOString(),
+  }).eq("id", batch.id);
+  if (!error) await audit(context, "import.patients.completed", "import_batch", batch.id, input.unit_id);
+  return databaseResult(context, { batchId: batch.id, imported: data?.length ?? 0, rejected }, error, 201);
+});
+
 app.onError((error, context) => {
   if (error instanceof z.ZodError) {
     return fail(context, 422, "VALIDATION_ERROR", "Revise os dados informados.", error.flatten());
@@ -563,12 +951,36 @@ function listResource(table: string, order: string, ascending = true) {
   return async (context: Parameters<typeof ok>[0]) => {
     const clinicId = context.get("profile").clinic_id;
     let query = context.get("db").from(table).select("*").eq("clinic_id", clinicId);
-    if (table !== "audit_events" && table !== "notifications" && table !== "fiscal_documents") {
+    if (![
+      "audit_events",
+      "notifications",
+      "fiscal_documents",
+      "payments",
+      "commissions",
+      "record_templates",
+      "monthly_closings",
+      "import_batches",
+    ].includes(table)) {
       query = query.is("deleted_at", null);
     }
     const { data, error } = await query.order(order, { ascending }).limit(500);
     return databaseResult(context, data, error);
   };
+}
+
+async function createClinicResource(
+  context: Parameters<typeof ok>[0],
+  table: string,
+  input: Record<string, unknown>,
+  action: string,
+  unitId?: string,
+) {
+  const { data, error } = await context.get("db").from(table).insert({
+    ...input,
+    clinic_id: context.get("profile").clinic_id,
+  }).select().single();
+  if (!error && data) await audit(context, action, table.replace(/s$/, ""), data.id, unitId);
+  return databaseResult(context, data, error, 201);
 }
 
 function requireRoles(roles: Role[]) {
@@ -630,6 +1042,13 @@ function positiveInt(value: string | undefined, fallback: number) {
 
 function escapeLike(value: string) {
   return value.replace(/[%_]/g, "\\$&");
+}
+
+function firstDueDate(startsAt: string, dueDay?: number) {
+  if (!dueDay) return startsAt;
+  const [year, month] = startsAt.split("-").map(Number);
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return `${year}-${String(month).padStart(2, "0")}-${String(Math.min(dueDay, lastDay)).padStart(2, "0")}`;
 }
 
 function normalizeAnnual(rows: any[], year: number) {

@@ -215,6 +215,26 @@ Perfis Administrador, Gestor e Financeiro somente prosseguem quando a claim é
 `aal2`; a tela de MFA redireciona imediatamente quando a sessão já está nesse
 nível.
 
+## Estado operacional dos módulos
+
+O portal não usa mais as páginas demonstrativas como navegação principal. Os
+módulos operacionais persistem dados pela API:
+
+- Agenda: criação, conflitos, confirmação, conclusão, falta, cancelamento e
+  turmas semanais com capacidade fixa de 7.
+- Pacientes: dados pessoais, endereço, dados fiscais, responsáveis,
+  consentimentos e linha do tempo.
+- Matrículas: planos mensais/pacote/avulso, vínculo opcional com turma,
+  cobrança automática e recebimento parcial.
+- Prontuários: avaliação/evolução, rascunho, assinatura imutável e retificação.
+- Financeiro: entradas, saídas, competência/realização, comissões e aprovação.
+- Relatórios: visão anual dos 12 meses, impressão PDF e exportação CSV.
+- Importações: CSV, pré-validação, CPF duplicado, lote e rastreabilidade.
+- Usuários: convite, papéis, unidades, MFA e bloqueio/ativação.
+
+NFS-e e WhatsApp permanecem deliberadamente fora desta entrega, conforme
+decisão do responsável pelo projeto.
+
 ## Regras de negócio obrigatórias
 
 ### Multiunidade
