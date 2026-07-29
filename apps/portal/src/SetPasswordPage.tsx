@@ -1,6 +1,7 @@
 import { FormEvent, useState } from "react";
 import { Redirect, useLocation } from "wouter";
 import { useAuth } from "./AuthProvider";
+import { api } from "./api";
 import { supabase } from "./supabase";
 
 export default function SetPasswordPage() {
@@ -17,6 +18,10 @@ export default function SetPasswordPage() {
   async function submit(event: FormEvent) {
     event.preventDefault();
     setError("");
+    if (password.length < 10 || confirmation.length < 10) {
+      setError("A senha precisa ter pelo menos 10 caracteres.");
+      return;
+    }
     if (password !== confirmation) {
       setError("As senhas precisam ser iguais.");
       return;
@@ -25,10 +30,21 @@ export default function SetPasswordPage() {
     const { error: updateError } = await supabase.auth.updateUser({ password });
     setBusy(false);
     if (updateError) {
-      setError("Não foi possível salvar a senha. Solicite um novo link e tente novamente.");
+      setError(
+        updateError.message.toLowerCase().includes("same password")
+          ? "Escolha uma senha diferente da anterior."
+          : "Não foi possível salvar a senha. Solicite um novo link e tente novamente.",
+      );
       return;
     }
-    navigate("/onboarding", { replace: true });
+
+    try {
+      await api("/me");
+      navigate("/", { replace: true });
+    } catch (accessError) {
+      const code = (accessError as Error & { apiError?: { code?: string } }).apiError?.code;
+      navigate(code === "MFA_REQUIRED" ? "/mfa" : "/onboarding", { replace: true });
+    }
   }
 
   return (
@@ -62,8 +78,9 @@ export default function SetPasswordPage() {
         </label>
         {error && <div className="login-error" role="alert">{error}</div>}
         <button
+          type="submit"
           className="btn primary login-submit"
-          disabled={busy || password.length < 10 || confirmation.length < 10}
+          disabled={busy}
         >
           {busy ? "Salvando…" : "Salvar senha e continuar"}
         </button>

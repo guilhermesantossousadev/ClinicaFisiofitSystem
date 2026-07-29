@@ -196,6 +196,11 @@ processa tanto retornos PKCE (`code`) quanto retornos com tokens no fragmento,
 preserva a sessão antes de renderizar a rota e remove os dados sensíveis da
 URL. A própria tela de login permite solicitar um novo link por e-mail.
 
+O administrador inicial é Guilherme Santos de Sousa, vinculado ao usuário Auth
+`d0422411-434d-43c8-af22-f8f163c9a3eb`. O perfil administrativo é criado por
+migration versionada, ativo, com papel `admin` e MFA obrigatório. Senhas nunca
+fazem parte das migrations.
+
 ## Regras de negócio obrigatórias
 
 ### Multiunidade
