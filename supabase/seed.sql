@@ -1,0 +1,2 @@
+-- Nenhuma unidade, profissional ou paciente fictício é criado.
+-- O primeiro administrador configura a clínica e as unidades após o convite.
