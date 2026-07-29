@@ -201,6 +201,10 @@ O administrador inicial é Guilherme Santos de Sousa, vinculado ao usuário Auth
 migration versionada, ativo, com papel `admin` e MFA obrigatório. Senhas nunca
 fazem parte das migrations.
 
+O cadastro TOTP remove fatores ainda não confirmados antes de gerar um novo QR
+Code e impede matrículas duplicadas durante a inicialização do React. Fatores
+já verificados nunca são removidos automaticamente.
+
 ## Regras de negócio obrigatórias
 
 ### Multiunidade
