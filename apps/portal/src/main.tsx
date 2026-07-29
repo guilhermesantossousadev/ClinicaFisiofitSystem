@@ -7,6 +7,7 @@ import LoginPage from "./LoginPage";
 import MfaPage from "./MfaPage";
 import OnboardingPage from "./OnboardingPage";
 import { api } from "./api";
+import { isSupabaseConfigured } from "./supabase";
 import "./index.css";
 
 for (const [name, value] of Object.entries(brandCssVariables)) {
@@ -19,10 +20,11 @@ function ProtectedApp() {
   const { loading, session } = useAuth();
   const [access, setAccess] = React.useState<"checking" | "allowed" | "mfa" | "denied">("checking");
   React.useEffect(() => {
-    if (!session || !import.meta.env.PROD) {
+    if (!session || !isSupabaseConfigured) {
       setAccess("allowed");
       return;
     }
+    setAccess("checking");
     void api("/me")
       .then(() => setAccess("allowed"))
       .catch((error: Error & { apiError?: { code?: string } }) => {
@@ -30,14 +32,23 @@ function ProtectedApp() {
       });
   }, [session]);
   if (loading) return <div className="auth-loading">Carregando ambiente seguro…</div>;
-  if (!session && import.meta.env.PROD) return <Redirect to="/login" replace />;
+  if (!session && isSupabaseConfigured) return <Redirect to="/login" replace />;
   if (access === "checking") return <div className="auth-loading">Validando permissões…</div>;
   if (access === "mfa") return <Redirect to="/mfa" replace />;
   if (access === "denied") return <Redirect to="/onboarding" replace />;
   return <Suspense fallback={<div className="auth-loading">Carregando módulos da clínica…</div>}><FisiofitApp /></Suspense>;
 }
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
+const container = document.getElementById("root");
+if (!container) throw new Error("Elemento raiz do portal não encontrado.");
+
+const rootWindow = window as Window & {
+  __FISIOFIT_REACT_ROOT__?: ReturnType<typeof ReactDOM.createRoot>;
+};
+const root = rootWindow.__FISIOFIT_REACT_ROOT__ ?? ReactDOM.createRoot(container);
+rootWindow.__FISIOFIT_REACT_ROOT__ = root;
+
+root.render(
   <React.StrictMode>
     <Router base={appBasePath}>
       <AuthProvider>
