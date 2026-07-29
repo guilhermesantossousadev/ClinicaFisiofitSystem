@@ -27,16 +27,17 @@ jobs:
       - name: Instalar dependências
         run: npm ci
 
-      - name: Validar site, sistema e contratos
-        run: |
-          npm run typecheck
-          npm test
+      - name: Validar tipos
+        run: npm run typecheck
 
       - name: Gerar pacote único
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: npm run build
+
+      - name: Validar site, sistema e contratos
+        run: npm test
 
       - name: Atualizar a branch lida pela Hostinger
         env:

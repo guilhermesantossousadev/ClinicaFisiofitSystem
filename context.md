@@ -154,7 +154,8 @@ O workflow `Preparar publicação para a Hostinger` é exclusivamente manual. El
 valida, compila e atualiza a branch `hostinger-deploy`. Os secrets
 `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` precisam estar configurados no
 GitHub antes do primeiro acionamento. O workflow de CI apenas valida; não
-publica.
+publica. Como os testes de empacotamento inspecionam `dist/`, ambos os
+workflows executam na ordem: tipos, build e testes.
 
 ## Identidade visual
 
