@@ -94,6 +94,10 @@ O projeto está vinculado localmente pela Supabase CLI. Migrations e
 configurações iniciais já foram aplicadas. A API respondeu `healthy` após o
 deploy.
 
+A primeira conta administrativa foi convidada em 29 de julho de 2026. O
+usuário existe no Supabase Auth, mas o perfil `admin` permanece pendente até o
+aceite do convite, conclusão do onboarding e configuração do MFA.
+
 Segredos nunca entram no Git. Somente a URL e a chave `publishable` podem ser
 usadas no navegador. Chaves `secret`, `service_role`, senha do banco, tokens de
 acesso e credenciais da Hostinger não podem aparecer em código, documentação,
@@ -280,7 +284,8 @@ devem registrar usuário, clínica, unidade, ação, entidade, data e request ID
 
 ### Pendente antes de produção
 
-- criar a primeira conta administradora e executar o bootstrap da clínica;
+- aceitar o convite da primeira conta, executar o bootstrap da clínica e
+  configurar MFA;
 - cadastrar unidades, equipe, salas, serviços e planos reais;
 - substituir todo dado demonstrativo por API;
 - concluir CRUDs e estados de erro/carregamento/vazio;
