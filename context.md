@@ -189,6 +189,10 @@ Cadastro público está desativado. Usuários entram por convite. MFA TOTP é
 obrigatório para Administrador, Gestor e Financeiro. As sessões são validadas
 na API antes de qualquer acesso protegido.
 
+Convites e recuperações de conta direcionam para `/sistema/set-password`. A
+senha é definida diretamente entre usuário e Supabase, exige no mínimo 10
+caracteres e nunca é criada, lida ou armazenada pela aplicação.
+
 ## Regras de negócio obrigatórias
 
 ### Multiunidade

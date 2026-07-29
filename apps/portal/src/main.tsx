@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from "./AuthProvider";
 import LoginPage from "./LoginPage";
 import MfaPage from "./MfaPage";
 import OnboardingPage from "./OnboardingPage";
+import SetPasswordPage from "./SetPasswordPage";
 import { api } from "./api";
 import { isSupabaseConfigured } from "./supabase";
 import "./index.css";
@@ -54,6 +55,7 @@ root.render(
       <AuthProvider>
         <Switch>
           <Route path="/login" component={LoginPage} />
+          <Route path="/set-password" component={SetPasswordPage} />
           <Route path="/mfa" component={MfaPage} />
           <Route path="/onboarding" component={OnboardingPage} />
           <Route component={ProtectedApp} />
