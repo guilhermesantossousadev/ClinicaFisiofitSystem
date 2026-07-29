@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { list } from "./api";
+import { api, list } from "./api";
+import { useAuth } from "./AuthProvider";
 import { isSupabaseConfigured } from "./supabase";
 
 type View = "Painel" | "Agenda" | "Pacientes" | "Matrículas" | "Prontuários" | "Financeiro" | "Relatórios" | "Configurações";
@@ -52,36 +53,69 @@ const months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "
 const income = [42, 46, 49, 47, 53, 57, 61, 58, 63, 67, 70, 74];
 const expenses = [25, 27, 28, 29, 31, 30, 33, 34, 35, 36, 37, 39];
 
+type Unit = { id: string; name: string; active: boolean };
+type DashboardData = {
+  activePatients: number;
+  appointmentsToday: number;
+  overdueCharges: number;
+  overdueAmountCents: number;
+  receivedMonthCents: number;
+  paidExpensesMonthCents: number;
+  appointments: Array<{
+    id: string;
+    status: string;
+    starts_at: string;
+    patients?: { id: string; name: string } | null;
+    professionals?: { id: string; name: string } | null;
+    services?: { id: string; name: string } | null;
+    units?: { id: string; name: string } | null;
+  }>;
+  units: Unit[];
+};
+
 function money(value: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(value);
 }
 
 export default function FisiofitApp() {
+  const { user } = useAuth();
   const [view, setView] = useState<View>("Painel");
   const [agendaMode, setAgendaMode] = useState<"week" | "team" | "units">("week");
-  const [unit, setUnit] = useState("Todas as unidades");
+  const [unit, setUnit] = useState("");
   const [search, setSearch] = useState("");
   const [notice, setNotice] = useState("");
   const [modal, setModal] = useState<"patient" | "appointment" | "evolution" | "entry" | null>(null);
-  const [patientRows, setPatientRows] = useState(patients);
+  const [patientRows, setPatientRows] = useState<typeof patients>([]);
+  const [units, setUnits] = useState<Unit[]>([]);
+  const [dashboard, setDashboard] = useState<DashboardData | null>(null);
+  const [profileName, setProfileName] = useState<string>(
+    typeof user?.user_metadata?.name === "string" ? user.user_metadata.name : "Administradora",
+  );
   const filteredPatients = patientRows.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
-    void list<{ id: string; name: string; phone?: string; primary_unit_id: string }>("/patients?page=1&pageSize=100")
-      .then(({ data }) => {
-        if (!data) return;
-        setPatientRows(data.items.map((patient) => ({
+    void Promise.all([
+      list<{ id: string; name: string; phone?: string; primary_unit_id: string }>("/patients?page=1&pageSize=100"),
+      api<{ profile: { name: string } }>("/me"),
+      api<Unit[]>("/units"),
+      api<DashboardData>("/dashboard"),
+    ])
+      .then(([patientsResponse, meResponse, unitsResponse, dashboardResponse]) => {
+        setProfileName(meResponse.data?.profile.name ?? "Administradora");
+        setUnits(unitsResponse.data ?? []);
+        setDashboard(dashboardResponse.data ?? null);
+        setPatientRows((patientsResponse.data?.items ?? []).map((patient) => ({
           name: patient.name,
           initials: patient.name.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase(),
           phone: patient.phone ?? "Não informado",
-          plan: "Consultar matrícula",
+          plan: "Sem matrícula ativa",
           status: "Ativo",
-          next: "Consultar agenda",
-          unit: "Unidade cadastrada",
+          next: "Sem agendamento",
+          unit: unitsResponse.data?.find((item) => item.id === patient.primary_unit_id)?.name ?? "Não informada",
         })));
       })
-      .catch(() => setNotice("Não foi possível atualizar a lista de pacientes."));
+      .catch(() => setNotice("Não foi possível carregar os dados operacionais."));
   }, []);
 
   function flash(message: string) {
@@ -116,8 +150,8 @@ export default function FisiofitApp() {
           <div><strong>Dados protegidos</strong><small>Auditoria e LGPD ativas</small></div>
         </div>
         <div className="profile">
-          <span className="avatar admin">GS</span>
-          <div><strong>Gabriela Santos</strong><small>Administradora</small></div>
+          <span className="avatar admin">{profileName.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase()}</span>
+          <div><strong>{profileName}</strong><small>Administradora</small></div>
           <button aria-label="Mais opções">•••</button>
         </div>
       </aside>
@@ -131,13 +165,13 @@ export default function FisiofitApp() {
             <kbd>⌘ K</kbd>
           </label>
           <div className="top-actions">
-            <label className="unit-select"><span>⌖</span><select value={unit} onChange={(e) => setUnit(e.target.value)} aria-label="Selecionar unidade"><option>Todas as unidades</option><option>Unidade Jardins</option><option>Unidade Moema</option></select></label>
+            <label className="unit-select"><span>⌖</span><select value={unit} onChange={(e) => setUnit(e.target.value)} aria-label="Selecionar unidade"><option value="">Todas as unidades</option>{units.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
             <button className="icon-button" aria-label="Notificações">♢<i /></button>
             <span className="today">Terça, 28 de julho</span>
           </div>
         </header>
 
-        {view === "Painel" && <Dashboard setView={setView} setModal={setModal} />}
+        {view === "Painel" && <Dashboard data={dashboard} adminName={profileName} setView={setView} setModal={setModal} />}
         {view === "Agenda" && <Agenda mode={agendaMode} setMode={setAgendaMode} setModal={setModal} flash={flash} />}
         {view === "Pacientes" && <Patients data={filteredPatients} search={search} setSearch={setSearch} setModal={setModal} />}
         {view === "Matrículas" && <Enrollments flash={flash} />}
@@ -153,31 +187,47 @@ export default function FisiofitApp() {
   );
 }
 
-function Dashboard({ setView, setModal }: { setView: (v: View) => void; setModal: (m: "patient" | "appointment") => void }) {
+function Dashboard({
+  data,
+  adminName,
+  setView,
+  setModal,
+}: {
+  data: DashboardData | null;
+  adminName: string;
+  setView: (v: View) => void;
+  setModal: (m: "patient" | "appointment") => void;
+}) {
+  const firstName = adminName.split(" ")[0] || "Administradora";
   return (
     <div className="content">
       <div className="page-title">
-        <div><p className="eyebrow">VISÃO GERAL · TODAS AS UNIDADES</p><h1>Bom dia, Gabriela</h1><p>A clínica está organizada. Aqui está o resumo de hoje.</p></div>
+        <div><p className="eyebrow">VISÃO GERAL · TODAS AS UNIDADES</p><h1>Olá, {firstName}</h1><p>Indicadores calculados a partir dos registros reais da clínica.</p></div>
         <div className="title-actions"><button className="btn secondary" onClick={() => setModal("patient")}>＋ Novo paciente</button><button className="btn primary" onClick={() => setModal("appointment")}>＋ Novo agendamento</button></div>
       </div>
 
       <div className="metrics">
-        <Metric icon="◷" label="Atendimentos hoje" value="24" detail="3 aguardando confirmação" trend="+ 12%" color="green" />
-        <Metric icon="♙" label="Pacientes ativos" value="386" detail="8 novos este mês" trend="+ 4,2%" color="blue" />
-        <Metric icon="R$" label="Recebido em julho" value="R$ 58.420" detail="Meta: R$ 65.000" trend="89,9%" color="sand" />
-        <Metric icon="!" label="Pagamentos pendentes" value="R$ 8.740" detail="17 cobranças vencidas" trend="Ver lista" color="rose" />
+        <Metric icon="◷" label="Atendimentos hoje" value={String(data?.appointmentsToday ?? 0)} detail="Agenda de todas as unidades" trend="Hoje" color="green" />
+        <Metric icon="♙" label="Pacientes ativos" value={String(data?.activePatients ?? 0)} detail="Cadastros não excluídos" trend="Atual" color="blue" />
+        <Metric icon="R$" label="Recebido no mês" value={money((data?.receivedMonthCents ?? 0) / 100)} detail={`Despesas: ${money((data?.paidExpensesMonthCents ?? 0) / 100)}`} trend="Realizado" color="sand" />
+        <Metric icon="!" label="Pagamentos vencidos" value={money((data?.overdueAmountCents ?? 0) / 100)} detail={`${data?.overdueCharges ?? 0} cobranças vencidas`} trend="Ver lista" color="rose" />
       </div>
 
       <div className="dashboard-grid">
         <section className="card schedule-card">
-          <div className="card-head"><div><h2>Agenda de hoje</h2><p>24 atendimentos em 4 profissionais</p></div><button className="text-button" onClick={() => setView("Agenda")}>Ver agenda completa →</button></div>
+          <div className="card-head"><div><h2>Agenda de hoje</h2><p>{data?.appointmentsToday ?? 0} atendimentos cadastrados</p></div><button className="text-button" onClick={() => setView("Agenda")}>Ver agenda completa →</button></div>
           <div className="timeline-list">
-            {[
-              ["08:00", "ME", "Maria Eduarda", "Pilates", "Marina Souza", "Confirmado", "mint"],
-              ["08:30", "AC", "Ana Clara", "Pilates", "Renata Alves", "Em atendimento", "sand"],
-              ["09:00", "JP", "João Pedro", "RPG", "Camila Oliveira", "Confirmado", "blue"],
-              ["09:30", "BA", "Bruno Alves", "Fisioterapia", "Bianca Martins", "A confirmar", "purple"],
-            ].map((a) => <div className="timeline-row" key={a[0] + a[1]}><time>{a[0]}</time><span className={`avatar ${a[6]}`}>{a[1]}</span><div className="patient-main"><strong>{a[2]}</strong><small>{a[3]}</small></div><div className="professional"><strong>{a[4]}</strong><small>Unidade Jardins</small></div><span className={`status ${a[5] === "Confirmado" ? "success" : a[5] === "Em atendimento" ? "info" : "warning"}`}>{a[5]}</span><button aria-label={`Abrir ${a[2]}`}>›</button></div>)}
+            {(data?.appointments ?? []).map((appointment) => {
+              const patientName = appointment.patients?.name ?? "Horário bloqueado";
+              const initials = patientName.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase();
+              const time = new Intl.DateTimeFormat("pt-BR", {
+                hour: "2-digit",
+                minute: "2-digit",
+                timeZone: "America/Sao_Paulo",
+              }).format(new Date(appointment.starts_at));
+              return <div className="timeline-row" key={appointment.id}><time>{time}</time><span className="avatar mint">{initials}</span><div className="patient-main"><strong>{patientName}</strong><small>{appointment.services?.name ?? "Atendimento"}</small></div><div className="professional"><strong>{appointment.professionals?.name ?? "Sem profissional"}</strong><small>{appointment.units?.name ?? "Sem unidade"}</small></div><span className="status info">{appointment.status}</span><button aria-label={`Abrir ${patientName}`}>›</button></div>;
+            })}
+            {!data?.appointments?.length && <div className="empty-state">Nenhum atendimento cadastrado para hoje.</div>}
           </div>
         </section>
 

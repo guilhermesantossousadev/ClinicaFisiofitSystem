@@ -7,7 +7,14 @@ type Role = "admin" | "manager" | "reception" | "professional" | "finance";
 type Variables = {
   requestId: string;
   user: User;
-  profile: { id: string; clinic_id: string; role: Role; status: string };
+  profile: {
+    id: string;
+    clinic_id: string;
+    name: string;
+    role: Role;
+    status: string;
+    mfa_required: boolean;
+  };
   db: ReturnType<typeof createClient>;
 };
 
@@ -83,7 +90,7 @@ app.use("*", async (context, next) => {
   });
   const { data: profile, error: profileError } = await db
     .from("profiles")
-    .select("id, clinic_id, role, status")
+    .select("id, clinic_id, name, role, status, mfa_required")
     .eq("id", authData.user.id)
     .is("deleted_at", null)
     .single();
@@ -170,6 +177,61 @@ app.get("/me", (context) => ok(context, {
   user: { id: context.get("user").id, email: context.get("user").email },
   profile: context.get("profile"),
 }));
+
+app.get("/dashboard", async (context) => {
+  const clinicId = context.get("profile").clinic_id;
+  const date = z.string().date().default(
+    new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date()),
+  ).parse(context.req.query("date"));
+  const startsAt = `${date}T00:00:00-03:00`;
+  const endsAt = `${date}T23:59:59.999-03:00`;
+  const monthStart = `${date.slice(0, 7)}-01`;
+  const db = context.get("db");
+
+  const [patients, appointments, overdueCharges, monthEntries, units] = await Promise.all([
+    db.from("patients").select("id", { count: "exact", head: true })
+      .eq("clinic_id", clinicId).is("deleted_at", null),
+    db.from("appointments")
+      .select("id,status,starts_at,ends_at,patients(id,name),professionals(id,name),services(id,name),units(id,name)")
+      .eq("clinic_id", clinicId).gte("starts_at", startsAt).lte("starts_at", endsAt)
+      .is("deleted_at", null).order("starts_at"),
+    db.from("charges").select("id,amount_cents,paid_cents", { count: "exact" })
+      .eq("clinic_id", clinicId).eq("status", "overdue").is("deleted_at", null),
+    db.from("financial_entries").select("kind,amount_cents,settled_at")
+      .eq("clinic_id", clinicId).gte("competence_date", monthStart).lte("competence_date", date)
+      .is("deleted_at", null),
+    db.from("units").select("id,name,active").eq("clinic_id", clinicId)
+      .is("deleted_at", null).order("name"),
+  ]);
+
+  const error =
+    patients.error ??
+    appointments.error ??
+    overdueCharges.error ??
+    monthEntries.error ??
+    units.error;
+
+  const entries = monthEntries.data ?? [];
+  const overdue = overdueCharges.data ?? [];
+  return databaseResult(context, {
+    date,
+    activePatients: patients.count ?? 0,
+    appointmentsToday: appointments.data?.length ?? 0,
+    appointments: appointments.data ?? [],
+    overdueCharges: overdueCharges.count ?? 0,
+    overdueAmountCents: overdue.reduce(
+      (sum, charge) => sum + Math.max(Number(charge.amount_cents) - Number(charge.paid_cents), 0),
+      0,
+    ),
+    receivedMonthCents: entries
+      .filter((entry) => entry.kind === "income" && entry.settled_at)
+      .reduce((sum, entry) => sum + Number(entry.amount_cents), 0),
+    paidExpensesMonthCents: entries
+      .filter((entry) => entry.kind === "expense" && entry.settled_at)
+      .reduce((sum, entry) => sum + Number(entry.amount_cents), 0),
+    units: units.data ?? [],
+  }, error);
+});
 
 app.post("/users/invite", requireRoles(["admin"]), async (context) => {
   const input = z.object({
@@ -499,7 +561,12 @@ app.onError((error, context) => {
 
 function listResource(table: string, order: string, ascending = true) {
   return async (context: Parameters<typeof ok>[0]) => {
-    const { data, error } = await context.get("db").from(table).select("*").order(order, { ascending }).limit(500);
+    const clinicId = context.get("profile").clinic_id;
+    let query = context.get("db").from(table).select("*").eq("clinic_id", clinicId);
+    if (table !== "audit_events" && table !== "notifications" && table !== "fiscal_documents") {
+      query = query.is("deleted_at", null);
+    }
+    const { data, error } = await query.order(order, { ascending }).limit(500);
     return databaseResult(context, data, error);
   };
 }
