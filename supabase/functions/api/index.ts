@@ -92,13 +92,10 @@ app.use("*", async (context, next) => {
     return fail(context, 403, "MEMBERSHIP_INACTIVE", "Seu acesso à clínica não está ativo.");
   }
 
-  const aal = authData.user.aud;
   const requiresMfa = ["admin", "manager", "finance"].includes(profile.role);
-  if (requiresMfa) {
-    const { data: assurance } = await authClient.auth.mfa.getAuthenticatorAssuranceLevel();
-    if (assurance?.currentLevel !== "aal2") {
-      return fail(context, 403, "MFA_REQUIRED", "Confirme o segundo fator para continuar.");
-    }
+  const accessToken = auth.slice("Bearer ".length);
+  if (requiresMfa && jwtClaim(accessToken, "aal") !== "aal2") {
+    return fail(context, 403, "MFA_REQUIRED", "Confirme o segundo fator para continuar.");
   }
 
   context.set("user", authData.user);
@@ -106,6 +103,18 @@ app.use("*", async (context, next) => {
   context.set("db", db);
   await next();
 });
+
+function jwtClaim(token: string, claim: string): unknown {
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return undefined;
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+    return JSON.parse(atob(padded))[claim];
+  } catch {
+    return undefined;
+  }
+}
 
 const patientSchema = z.object({
   primary_unit_id: z.string().uuid(),

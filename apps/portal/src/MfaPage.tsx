@@ -25,6 +25,14 @@ export default function MfaPage() {
     setBusy(true);
     setError("");
 
+    const { data: assurance } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (assurance?.currentLevel === "aal2") {
+      setBusy(false);
+      preparing.current = false;
+      navigate("/", { replace: true });
+      return;
+    }
+
     const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
     if (factorsError) {
       setError("Não foi possível consultar a proteção da conta.");
@@ -92,11 +100,13 @@ export default function MfaPage() {
       factorId,
       code,
     });
-    setBusy(false);
     if (verifyError) {
+      setBusy(false);
       setError("Código inválido. Confira o aplicativo autenticador.");
       return;
     }
+    await supabase.auth.refreshSession();
+    setBusy(false);
     navigate("/", { replace: true });
   }
 

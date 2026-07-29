@@ -209,6 +209,11 @@ No primeiro acesso, uma resposta do Auth informando que a nova senha é igual à
 senha já definida é tratada como continuidade segura do fluxo, encaminhando o
 usuário ao MFA em vez de prendê-lo novamente na criação de senha.
 
+A API confirma o nível MFA pela claim `aal` do JWT já validado pelo Supabase.
+Perfis Administrador, Gestor e Financeiro somente prosseguem quando a claim é
+`aal2`; a tela de MFA redireciona imediatamente quando a sessão já está nesse
+nível.
+
 ## Regras de negócio obrigatórias
 
 ### Multiunidade
