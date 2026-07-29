@@ -28,14 +28,22 @@ export default function SetPasswordPage() {
     }
     setBusy(true);
     const { error: updateError } = await supabase.auth.updateUser({ password });
-    setBusy(false);
     if (updateError) {
-      setError(
-        updateError.message.toLowerCase().includes("same password")
-          ? "Escolha uma senha diferente da anterior."
-          : "Não foi possível salvar a senha. Solicite um novo link e tente novamente.",
-      );
-      return;
+      const message = updateError.message.toLowerCase();
+      const passwordAlreadyDefined =
+        message.includes("same password") ||
+        message.includes("different from the old password") ||
+        message.includes("different from old password");
+
+      if (!passwordAlreadyDefined) {
+        setBusy(false);
+        setError(
+          message.includes("weak") || message.includes("password")
+            ? "A senha não atende aos requisitos de segurança. Use pelo menos 10 caracteres, com letras e números."
+            : "Seu link expirou. Volte ao login e solicite um novo link.",
+        );
+        return;
+      }
     }
 
     try {
@@ -44,6 +52,8 @@ export default function SetPasswordPage() {
     } catch (accessError) {
       const code = (accessError as Error & { apiError?: { code?: string } }).apiError?.code;
       navigate(code === "MFA_REQUIRED" ? "/mfa" : "/onboarding", { replace: true });
+    } finally {
+      setBusy(false);
     }
   }
 

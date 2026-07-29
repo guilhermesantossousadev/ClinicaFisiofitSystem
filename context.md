@@ -205,6 +205,10 @@ O cadastro TOTP remove fatores ainda não confirmados antes de gerar um novo QR
 Code e impede matrículas duplicadas durante a inicialização do React. Fatores
 já verificados nunca são removidos automaticamente.
 
+No primeiro acesso, uma resposta do Auth informando que a nova senha é igual à
+senha já definida é tratada como continuidade segura do fluxo, encaminhando o
+usuário ao MFA em vez de prendê-lo novamente na criação de senha.
+
 ## Regras de negócio obrigatórias
 
 ### Multiunidade
