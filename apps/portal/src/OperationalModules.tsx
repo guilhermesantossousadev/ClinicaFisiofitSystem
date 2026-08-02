@@ -1715,6 +1715,7 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
   const { data, loading, error, reload } = useResources(["/users", "/units"]);
   const [notice, setNotice] = useState("");
   const [updatingUserId, setUpdatingUserId] = useState("");
+  const [editingUserId, setEditingUserId] = useState("");
   async function invite(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const f = new FormData(event.currentTarget);
@@ -1745,6 +1746,56 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
       });
       await reload();
       setNotice(status === "active" ? "Conta ativada. A colaboradora já pode concluir o primeiro acesso." : "Conta bloqueada.");
+    } catch (e) {
+      setNotice(messageOf(e));
+    } finally {
+      setUpdatingUserId("");
+    }
+  }
+  async function saveUser(event: FormEvent<HTMLFormElement>, id: string) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    setUpdatingUserId(id);
+    setNotice("");
+    try {
+      await api(`/users/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: value(form, "name"),
+          role: value(form, "role"),
+          status: value(form, "status"),
+          unitIds: form.getAll("unitIds"),
+        }),
+      });
+      await reload();
+      setEditingUserId("");
+      setNotice("Usuária atualizada.");
+    } catch (e) {
+      setNotice(messageOf(e));
+    } finally {
+      setUpdatingUserId("");
+    }
+  }
+  async function resendAccess(id: string) {
+    setUpdatingUserId(id);
+    setNotice("");
+    try {
+      await api(`/users/${id}/resend-access`, { method: "POST" });
+      setNotice("Novo link de acesso enviado por e-mail.");
+    } catch (e) {
+      setNotice(messageOf(e));
+    } finally {
+      setUpdatingUserId("");
+    }
+  }
+  async function removeUser(row: Row) {
+    if (!window.confirm(`Excluir o acesso de ${row.name}? O histórico será preservado, mas a conta não poderá mais entrar.`)) return;
+    setUpdatingUserId(row.id);
+    setNotice("");
+    try {
+      await api(`/users/${row.id}`, { method: "DELETE" });
+      await reload();
+      setNotice("Acesso excluído e histórico preservado.");
     } catch (e) {
       setNotice(messageOf(e));
     } finally {
@@ -1809,14 +1860,15 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
       </form>}
       <section className="card table-card">
         {(data["/users"] ?? []).map((row: Row) => (
-          <div className="operational-row" key={row.id}>
+          <div className="user-management-entry" key={row.id}>
+          <div className="operational-row">
             <div>
               <strong>
                 {row.name}
                 {row.is_owner ? " · Proprietário" : ""}
               </strong>
               <small>
-                {row.role} · {row.status} · MFA{" "}
+                {row.email ? `${row.email} · ` : ""}{row.role} · {row.status} · MFA{" "}
                 {row.mfa_required ? "obrigatório" : "opcional"}
               </small>
             </div>
@@ -1826,6 +1878,9 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
               <span className="status info">Somente leitura</span>
             ) : (
               <div className="row-actions">
+                <button type="button" disabled={updatingUserId === row.id} onClick={() => setEditingUserId(editingUserId === row.id ? "" : row.id)}>
+                  {editingUserId === row.id ? "Cancelar edição" : "Editar"}
+                </button>
                 {row.status !== "active" && (
                   <button type="button" disabled={updatingUserId === row.id} onClick={() => update(row.id, "active")}>
                     {updatingUserId === row.id ? "Ativando…" : "Ativar"}
@@ -1836,8 +1891,37 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
                     {updatingUserId === row.id ? "Aguarde…" : "Bloquear"}
                   </button>
                 )}
+                {row.status !== "blocked" && (
+                  <button type="button" disabled={updatingUserId === row.id} onClick={() => resendAccess(row.id)}>
+                    Reenviar acesso
+                  </button>
+                )}
+                <button className="action-delete" type="button" disabled={updatingUserId === row.id} onClick={() => removeUser(row)}>
+                  Excluir
+                </button>
               </div>
             )}
+          </div>
+          {canManageUsers && editingUserId === row.id && !row.is_owner && (
+            <form className="user-edit-form" onSubmit={(event) => saveUser(event, row.id)}>
+              <div className="form-row">
+                <label>Nome<input name="name" defaultValue={row.name} required minLength={3} /></label>
+                <label>Perfil<select name="role" defaultValue={row.role}>
+                  <option value="reception">Recepção</option><option value="professional">Profissional</option>
+                  <option value="finance">Financeiro</option><option value="manager">Gestor</option><option value="admin">Administrador</option>
+                </select></label>
+                <label>Situação<select name="status" defaultValue={row.status}>
+                  <option value="invited">Convidada</option><option value="active">Ativa</option><option value="blocked">Bloqueada</option>
+                </select></label>
+              </div>
+              <fieldset><legend>Unidades</legend><div className="weekday-checks">
+                {(data["/units"] ?? []).map((unit: Unit) => <label key={unit.id}>
+                  <input type="checkbox" name="unitIds" value={unit.id} defaultChecked={(row.profile_units ?? []).some((item: Row) => item.unit_id === unit.id)} />{unit.name}
+                </label>)}
+              </div></fieldset>
+              <button className="btn primary" type="submit" disabled={updatingUserId === row.id}>{updatingUserId === row.id ? "Salvando…" : "Salvar alterações"}</button>
+            </form>
+          )}
           </div>
         ))}
       </section>
