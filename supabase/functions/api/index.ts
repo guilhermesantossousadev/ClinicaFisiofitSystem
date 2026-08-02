@@ -610,15 +610,27 @@ app.get("/patients", async (context) => {
   const clinicId = context.get("profile").clinic_id;
   const page = positiveInt(context.req.query("page"), 1);
   const pageSize = Math.min(positiveInt(context.req.query("pageSize"), 25), 100);
-  const search = context.req.query("search")?.trim();
+  const search = context.req.query("search")?.trim().replace(/[,()%]/g, "");
   let query = context.get("db").from("patients")
     .select("*", { count: "exact" })
     .eq("clinic_id", clinicId)
     .is("deleted_at", null);
-  if (search) query = query.ilike("name", `%${escapeLike(search)}%`);
+  if (search) {
+    const term = escapeLike(search);
+    query = query.or(`name.ilike.%${term}%,phone.ilike.%${term}%,cpf.ilike.%${term}%`);
+  }
   const from = (page - 1) * pageSize;
   const { data, error, count } = await query.order("name").range(from, from + pageSize - 1);
   return databaseResult(context, { items: data ?? [], page, pageSize, total: count ?? 0 }, error);
+});
+
+app.get("/patients/:id", async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const { data, error } = await context.get("db").from("patients").select("*")
+    .eq("id", id).eq("clinic_id", context.get("profile").clinic_id)
+    .is("deleted_at", null).single();
+  if (!error && data) await audit(context, "patient.viewed", "patient", id, data.primary_unit_id);
+  return databaseResult(context, data, error);
 });
 
 app.post("/patients", requireRoles(["admin", "manager", "reception"]), async (context) => {
@@ -640,6 +652,19 @@ app.patch("/patients/:id", requireRoles(["admin", "manager", "reception"]), asyn
   }).eq("id", id).eq("clinic_id", context.get("profile").clinic_id).is("deleted_at", null)
     .select().single();
   if (!error && data) await audit(context, "patient.updated", "patient", id, data.primary_unit_id);
+  return databaseResult(context, data, error);
+});
+
+app.delete("/patients/:id", requireRoles(["admin", "manager", "reception"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const deletedAt = new Date().toISOString();
+  const { data, error } = await context.get("db").from("patients").update({
+    active: false,
+    deleted_at: deletedAt,
+    updated_at: deletedAt,
+  }).eq("id", id).eq("clinic_id", context.get("profile").clinic_id)
+    .is("deleted_at", null).select("id,primary_unit_id").single();
+  if (!error && data) await audit(context, "patient.deleted", "patient", id, data.primary_unit_id);
   return databaseResult(context, data, error);
 });
 

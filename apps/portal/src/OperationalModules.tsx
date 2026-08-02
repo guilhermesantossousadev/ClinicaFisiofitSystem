@@ -443,9 +443,15 @@ export function OperationalAgenda() {
 }
 
 export function OperationalPatients() {
-  const paths = ["/patients?page=1&pageSize=100", "/units"];
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
+  const pageSize = 20;
+  const patientPath = `/patients?page=${page}&pageSize=${pageSize}${appliedSearch ? `&search=${encodeURIComponent(appliedSearch)}` : ""}`;
+  const paths = [patientPath, "/units"];
   const { data, loading, error, reload } = useResources(paths);
-  const patients: Row[] = data[paths[0]]?.items ?? [];
+  const patients: Row[] = data[patientPath]?.items ?? [];
+  const total = Number(data[patientPath]?.total ?? 0);
   const [selected, setSelected] = useState<Row | null>(null);
   const [detail, setDetail] = useState<{
     responsibles: Row[];
@@ -453,6 +459,11 @@ export function OperationalPatients() {
     timeline?: Row;
   }>({ responsibles: [], consents: [] });
   const [notice, setNotice] = useState("");
+  function submitSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPage(1);
+    setAppliedSearch(search.trim());
+  }
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const f = new FormData(event.currentTarget);
@@ -569,6 +580,14 @@ export function OperationalPatients() {
         </div>
       )}
       <ModuleState loading={loading} error={error} retry={reload} />
+      <form className="card patient-search" role="search" onSubmit={submitSearch}>
+        <label htmlFor="patient-search-input">Buscar pacientes</label>
+        <div>
+          <input id="patient-search-input" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nome, telefone ou CPF" />
+          <button className="btn primary">Buscar</button>
+          {appliedSearch && <button type="button" className="btn secondary" onClick={() => { setSearch(""); setAppliedSearch(""); setPage(1); }}>Limpar</button>}
+        </div>
+      </form>
       <form className="card modal-form" onSubmit={create}>
         <h2>Novo paciente</h2>
         <p className="form-instructions"><span aria-hidden="true">*</span> indica campo obrigatório.</p>
@@ -619,17 +638,22 @@ export function OperationalPatients() {
         fields={["name", "phone", "email", "active"]}
         editFields={[
           { name: "name", label: "Nome completo", required: true },
+          { name: "primary_unit_id", label: "Unidade principal", type: "select", required: true, options: data["/units"] ?? [] },
           { name: "cpf", label: "CPF" },
-          { name: "birth_date", label: "Nascimento" },
-          { name: "phone", label: "Telefone" },
-          { name: "email", label: "E-mail" },
+          { name: "birth_date", label: "Nascimento", type: "date" },
+          { name: "phone", label: "Telefone", type: "tel" },
+          { name: "email", label: "E-mail", type: "email" },
           { name: "street", label: "Rua", value: (row) => row.address?.street },
           { name: "number", label: "Número", value: (row) => row.address?.number },
           { name: "city", label: "Cidade", value: (row) => row.address?.city },
           { name: "state", label: "Estado", value: (row) => row.address?.state, maxLength: 2 },
           { name: "zip", label: "CEP", value: (row) => row.address?.zip },
+          { name: "fiscal_name", label: "Nome fiscal", value: (row) => row.tax_data?.fiscal_name },
+          { name: "fiscal_document", label: "Documento fiscal", value: (row) => row.tax_data?.document },
+          { name: "notes", label: "Observações", type: "textarea" },
         ]}
         buildBody={(form) => ({
+          primary_unit_id: value(form, "primary_unit_id"),
           name: value(form, "name"),
           cpf: value(form, "cpf") || undefined,
           birth_date: value(form, "birth_date") || undefined,
@@ -639,10 +663,17 @@ export function OperationalPatients() {
             street: value(form, "street"), number: value(form, "number"),
             city: value(form, "city"), state: value(form, "state"), zip: value(form, "zip"),
           },
+          tax_data: { fiscal_name: value(form, "fiscal_name"), document: value(form, "fiscal_document") },
+          notes: value(form, "notes") || undefined,
         })}
         onChanged={reload}
         onNotice={setNotice}
         onOpen={open}
+        allowDelete
+        total={total}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={setPage}
       />
       {selected && (
         <div className="modal-backdrop" onClick={() => setSelected(null)}>
@@ -2135,13 +2166,14 @@ function MetricLite({
 type EditField = {
   name: string;
   label: string;
-  type?: "text" | "number";
+  type?: "text" | "number" | "date" | "email" | "tel" | "select" | "textarea";
   required?: boolean;
   min?: number;
   max?: number;
   maxLength?: number;
   step?: string;
   value?: (row: Row) => unknown;
+  options?: Row[];
 };
 
 function EditableOperationalTable({
@@ -2154,6 +2186,11 @@ function EditableOperationalTable({
   onChanged,
   onNotice,
   onOpen,
+  allowDelete = false,
+  total,
+  page,
+  pageSize,
+  onPageChange,
 }: {
   title: string;
   resource: string;
@@ -2164,6 +2201,11 @@ function EditableOperationalTable({
   onChanged: () => void | Promise<void>;
   onNotice: (message: string) => void;
   onOpen?: (row: Row) => void | Promise<void>;
+  allowDelete?: boolean;
+  total?: number;
+  page?: number;
+  pageSize?: number;
+  onPageChange?: (page: number) => void;
 }) {
   const [editing, setEditing] = useState<Row | null>(null);
   const [saving, setSaving] = useState(false);
@@ -2213,12 +2255,23 @@ function EditableOperationalTable({
     }
   }
 
+  async function remove(row: Row) {
+    if (!window.confirm(`Excluir ${row.name}? O cadastro sairá das listagens. O histórico clínico e financeiro será preservado para fins legais.`)) return;
+    try {
+      await api(`/${resource}/${row.id}`, { method: "DELETE" });
+      await onChanged();
+      onNotice("Cadastro excluído com segurança.");
+    } catch (error) {
+      onNotice(messageOf(error));
+    }
+  }
+
   return (
     <>
       <section className="card table-card">
         <div className="table-toolbar">
           <h2>{title}</h2>
-          <span>{rows.length} registros</span>
+          <span>{total ?? rows.length} registros</span>
         </div>
         {rows.map((row) => (
           <div className="operational-row" key={row.id}>
@@ -2241,10 +2294,18 @@ function EditableOperationalTable({
               >
                 {row.active === false ? "Reativar" : "Inativar"}
               </button>
+              {allowDelete && <button type="button" className="action-delete" onClick={() => void remove(row)}>Excluir</button>}
             </div>
           </div>
         ))}
         {!rows.length && <div className="empty-state">Nenhum registro cadastrado.</div>}
+        {page && pageSize && total !== undefined && total > pageSize && (
+          <nav className="table-pagination" aria-label={`Paginação de ${title}`}>
+            <button className="btn secondary" type="button" disabled={page === 1} onClick={() => onPageChange?.(page - 1)}>Anterior</button>
+            <span>Página {page} de {Math.ceil(total / pageSize)}</span>
+            <button className="btn secondary" type="button" disabled={page >= Math.ceil(total / pageSize)} onClick={() => onPageChange?.(page + 1)}>Próxima</button>
+          </nav>
+        )}
       </section>
       {editing && (
         <div className="edit-dialog-backdrop" role="presentation" onMouseDown={(event) => {
@@ -2262,7 +2323,10 @@ function EditableOperationalTable({
               {editFields.map((field) => (
                 <label key={field.name}>
                   {field.label}{field.required ? " *" : ""}
-                  <input
+                  {field.type === "select" ? <select name={field.name} required={field.required} defaultValue={String(field.value ? field.value(editing) ?? "" : editing[field.name] ?? "")}>
+                    <option value="">Selecione</option>
+                    {(field.options ?? []).map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
+                  </select> : field.type === "textarea" ? <textarea name={field.name} rows={4} defaultValue={String(field.value ? field.value(editing) ?? "" : editing[field.name] ?? "")} /> : <input
                     name={field.name}
                     type={field.type ?? "text"}
                     required={field.required}
@@ -2271,7 +2335,7 @@ function EditableOperationalTable({
                     maxLength={field.maxLength}
                     step={field.step}
                     defaultValue={String(field.value ? field.value(editing) ?? "" : editing[field.name] ?? "")}
-                  />
+                  />}
                 </label>
               ))}
               <div className="edit-dialog-actions">
