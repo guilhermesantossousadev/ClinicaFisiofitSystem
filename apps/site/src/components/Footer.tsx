@@ -6,7 +6,7 @@ const Footer = () => (
     <div className="mx-auto max-w-7xl px-5 pb-8 pt-16 md:px-8 md:pt-20">
       <div className="grid gap-12 border-b border-white/10 pb-12 md:grid-cols-[1.4fr_.7fr_.7fr]">
         <div>
-          <Link href="/" className="flex items-center gap-3">
+          <Link href="/" className="flex w-fit items-center gap-3" aria-label="Fisiofit — página inicial">
             <img src="/fisiofit-logo.jpg" alt="" className="h-12 w-12 rounded-full object-cover" />
             <span className="leading-none">
               <strong className="block text-lg font-extrabold tracking-[0.12em]">FISIOFIT</strong>
@@ -19,24 +19,24 @@ const Footer = () => (
         </div>
         <div>
           <h2 className="mb-4 text-sm font-extrabold">Navegação</h2>
-          <div className="grid gap-2 text-sm text-white/60">
-            <Link href="/sobre" className="hover:text-white">Sobre</Link>
-            <Link href="/servicos" className="hover:text-white">Serviços</Link>
-            <Link href="/unidades" className="hover:text-white">Unidades</Link>
-            <Link href="/contato" className="hover:text-white">Contato</Link>
+          <div className="grid gap-1 text-sm text-white/70">
+            <Link href="/sobre" className="flex min-h-11 items-center hover:text-white">Sobre</Link>
+            <Link href="/servicos" className="flex min-h-11 items-center hover:text-white">Serviços</Link>
+            <Link href="/unidades" className="flex min-h-11 items-center hover:text-white">Unidades</Link>
+            <Link href="/contato" className="flex min-h-11 items-center hover:text-white">Contato</Link>
           </div>
         </div>
         <div>
           <h2 className="mb-4 text-sm font-extrabold">Atendimento</h2>
-          <div className="grid gap-2 text-sm text-white/60">
-            <a href="tel:+5531983990321" className="hover:text-white">(31) 98399-0321</a>
-            <a href="https://instagram.com/fisi0fit" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 hover:text-white">
+          <div className="grid gap-1 text-sm text-white/70">
+            <a href="tel:+5531983990321" className="flex min-h-11 items-center hover:text-white">(31) 98399-0321</a>
+            <a href="https://instagram.com/fisi0fit" target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 hover:text-white">
               <Instagram size={15} /> @fisi0fit
             </a>
-            <Link href="/links" className="hover:text-white">Links úteis</Link>
-            <Link href="/privacidade" className="hover:text-white">Privacidade</Link>
-            <Link href="/cookies" className="hover:text-white">Cookies</Link>
-            <button type="button" onClick={() => window.dispatchEvent(new Event("fisiofit:cookie-settings"))} className="w-fit text-left hover:text-white">Configurar cookies</button>
+            <Link href="/links" className="flex min-h-11 items-center hover:text-white">Links úteis</Link>
+            <Link href="/privacidade" className="flex min-h-11 items-center hover:text-white">Privacidade</Link>
+            <Link href="/cookies" className="flex min-h-11 items-center hover:text-white">Cookies</Link>
+            <button type="button" onClick={() => window.dispatchEvent(new Event("fisiofit:cookie-settings"))} className="min-h-11 w-fit text-left hover:text-white">Configurar cookies</button>
           </div>
         </div>
       </div>

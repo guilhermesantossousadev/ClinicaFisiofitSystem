@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { LockKeyhole, Menu, X } from "lucide-react";
 
@@ -13,6 +13,23 @@ const navLinks = [
 const Header = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [location] = useLocation();
+
+  useEffect(() => {
+    setMenuOpen(false);
+    const hash = window.location.hash.slice(1);
+    if (hash) {
+      window.requestAnimationFrame(() => document.getElementById(hash)?.scrollIntoView());
+    } else {
+      window.scrollTo({ top: 0, behavior: "auto" });
+    }
+  }, [location]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => event.key === "Escape" && setMenuOpen(false);
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [menuOpen]);
 
   return (
     <header className="sticky top-0 z-50 border-b border-line/80 bg-white/90 shadow-sm backdrop-blur-xl animate-slide-down">
@@ -65,6 +82,7 @@ const Header = () => {
             className="grid h-12 w-12 place-items-center text-navy transition hover:text-blue lg:hidden"
             aria-label={menuOpen ? "Fechar menu" : "Abrir menu"}
             aria-expanded={menuOpen}
+            aria-controls="menu-movel"
           >
             {menuOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
@@ -72,18 +90,20 @@ const Header = () => {
       </div>
 
       {menuOpen && (
-        <nav className="border-t border-line bg-white px-5 py-5 lg:hidden animate-fade-in" aria-label="Navegação móvel">
+        <nav id="menu-movel" className="border-t border-line bg-white px-5 py-5 lg:hidden animate-fade-in" aria-label="Navegação móvel">
           <div className="mx-auto grid max-w-7xl gap-2">
-            {navLinks.map((link) => (
-              <Link
+            {navLinks.map((link) => {
+              const active = location === link.path;
+              return <Link
                 key={link.path}
                 href={link.path}
                 onClick={() => setMenuOpen(false)}
-                className="rounded-xl px-4 py-3 text-sm font-bold text-navy hover:bg-sky"
+                className={`min-h-12 rounded-xl px-4 py-3 text-sm font-bold ${active ? "bg-sky text-blue-dark" : "text-navy hover:bg-sky"}`}
+                aria-current={active ? "page" : undefined}
               >
                 {link.label}
-              </Link>
-            ))}
+              </Link>;
+            })}
             <a
               href="/sistema/login"
               onClick={() => setMenuOpen(false)}

@@ -9,7 +9,7 @@ export const Eyebrow = ({ children, centered = false }: { children: ReactNode; c
 );
 
 export const PageHero = ({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) => (
-  <section className="overflow-hidden bg-gradient-to-br from-sky via-white to-mint px-5 py-20 text-center md:px-8 md:py-28">
+  <section className="overflow-hidden bg-gradient-to-br from-sky via-white to-mint px-5 py-16 text-center md:px-8 md:py-24">
     <div className="mx-auto max-w-4xl animate-fade-in">
       <Eyebrow centered>{eyebrow}</Eyebrow>
       <h1 className="text-4xl font-black leading-[1.04] tracking-[-0.045em] text-navy md:text-6xl">{title}</h1>
@@ -22,10 +22,18 @@ export const CtaBand = ({ title, description, label = "Agendar avaliação" }: {
   <div className="flex flex-col items-start justify-between gap-8 rounded-[2rem] bg-gradient-to-br from-navy to-[#1b5772] p-8 text-white shadow-soft md:flex-row md:items-center md:p-12">
     <div>
       <h2 className="max-w-2xl text-3xl font-black leading-tight tracking-[-0.035em] md:text-4xl">{title}</h2>
-      <p className="mt-3 text-white/65">{description}</p>
+      <p className="mt-3 max-w-2xl text-white/75">{description}</p>
     </div>
     <Link href="/contato" className="site-button shrink-0">
       {label}
     </Link>
+  </div>
+);
+
+export const SectionIntro = ({ eyebrow, title, description, centered = false }: { eyebrow: string; title: string; description?: string; centered?: boolean }) => (
+  <div className={`${centered ? "mx-auto text-center" : ""} max-w-3xl`}>
+    <Eyebrow centered={centered}>{eyebrow}</Eyebrow>
+    <h2 className="site-heading-2">{title}</h2>
+    {description && <p className="mt-5 text-lg leading-relaxed text-muted-foreground">{description}</p>}
   </div>
 );
