@@ -7,9 +7,11 @@ import LoginPage from "./LoginPage";
 import MfaPage from "./MfaPage";
 import OnboardingPage from "./OnboardingPage";
 import SetPasswordPage from "./SetPasswordPage";
+import FormAccessibility from "./FormAccessibility";
 import { api } from "./api";
 import { isSupabaseConfigured } from "./supabase";
 import "./index.css";
+import "./portal-enhancements.css";
 
 for (const [name, value] of Object.entries(brandCssVariables)) {
   document.documentElement.style.setProperty(name, value);
@@ -53,6 +55,7 @@ root.render(
   <React.StrictMode>
     <Router base={appBasePath}>
       <AuthProvider>
+        <FormAccessibility />
         <Switch>
           <Route path="/login" component={LoginPage} />
           <Route path="/set-password" component={SetPasswordPage} />

@@ -13,6 +13,8 @@ export default function MfaPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(true);
   const preparing = useRef(false);
+  const requestedReturnTo = new URLSearchParams(window.location.search).get("returnTo");
+  const returnTo = requestedReturnTo === "/set-password" ? "/set-password" : "/";
 
   useEffect(() => {
     if (!session) return;
@@ -29,7 +31,7 @@ export default function MfaPage() {
     if (assurance?.currentLevel === "aal2") {
       setBusy(false);
       preparing.current = false;
-      navigate("/", { replace: true });
+      navigate(returnTo, { replace: true });
       return;
     }
 
@@ -107,7 +109,7 @@ export default function MfaPage() {
     }
     await supabase.auth.refreshSession();
     setBusy(false);
-    navigate("/", { replace: true });
+    navigate(returnTo, { replace: true });
   }
 
   if (!session) return <Redirect to="/login" replace />;

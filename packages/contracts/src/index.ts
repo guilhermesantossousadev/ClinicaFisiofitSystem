@@ -9,6 +9,10 @@ export type ApiEnvelope<T> = {
   meta?: { page?: number; pageSize?: number; total?: number };
 };
 export type Paginated<T> = { items: T[]; page: number; pageSize: number; total: number };
+export type DataSubjectRequestKind = "confirmation"|"access"|"correction"|"sharing"|"opposition"|"portability"|"revocation"|"deletion";
+export type DataSubjectRequestStatus = "received"|"identity_check"|"in_review"|"fulfilled"|"partially_fulfilled"|"rejected"|"cancelled";
+export type PrivacyIncidentSeverity = "low"|"medium"|"high"|"critical";
+export type OwnerProtectedErrorCode = "PROTECTED_OWNER_ACCOUNT";
 
 export const uuidSchema = z.string().uuid();
 export const moneySchema = z.number().int().nonnegative();
@@ -71,4 +75,14 @@ export const clinicalRecordInputSchema = z.object({
   kind: z.enum(["assessment", "evolution"]),
   templateId: uuidSchema.optional(),
   payload: z.record(z.unknown()),
+});
+
+export const dataSubjectRequestInputSchema = z.object({
+  patientId: uuidSchema.optional(),
+  requesterName: z.string().trim().min(3).max(160),
+  requesterEmail: z.string().email().optional(),
+  requesterPhone: z.string().trim().min(10).max(20).optional(),
+  kind: z.enum(["confirmation","access","correction","sharing","opposition","portability","revocation","deletion"]),
+}).refine((value) => value.requesterEmail || value.requesterPhone, {
+  message: "Informe e-mail ou telefone",
 });

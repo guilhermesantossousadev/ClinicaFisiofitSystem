@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "ux-designer": {
+      "source": "szilu/ux-designer-skill",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "3d769f48764e8f389440fb6014bbed29565a332e6d88094f38cb5ca11b5e68da"
+    }
+  }
+}

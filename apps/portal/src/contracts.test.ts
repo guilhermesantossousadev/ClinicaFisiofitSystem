@@ -3,6 +3,7 @@ import {
   appointmentInputSchema,
   groupSlotInputSchema,
   paymentInputSchema,
+  dataSubjectRequestInputSchema,
 } from "@fisiofit/contracts";
 
 const ids = {
@@ -52,6 +53,15 @@ describe("contratos financeiros", () => {
       amountCents: 0,
       method: "pix",
       paidAt: "2026-07-29T09:00:00-03:00",
+    })).toThrow();
+  });
+});
+
+describe("contratos de privacidade", () => {
+  it("exige um canal de retorno para a solicitação do titular", () => {
+    expect(() => dataSubjectRequestInputSchema.parse({
+      requesterName: "Maria da Silva",
+      kind: "access",
     })).toThrow();
   });
 });

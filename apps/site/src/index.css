@@ -51,4 +51,39 @@
     @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-blue bg-transparent px-7 py-3 text-center text-sm font-extrabold text-blue-dark transition-colors duration-200 hover:border-blue-dark hover:bg-sky active:bg-mint;
     box-shadow: none;
   }
+
+  .form-card {
+    @apply grid gap-6 rounded-[2rem] border border-line bg-white p-7 md:p-10;
+    box-shadow: 0 18px 50px rgb(23 50 77 / 8%);
+  }
+
+  .form-grid {
+    @apply grid gap-6 sm:grid-cols-2;
+  }
+
+  .form-field {
+    @apply grid gap-2 text-[15px] font-bold leading-snug text-navy;
+  }
+
+  .form-control {
+    @apply min-h-[52px] w-full rounded-xl border bg-white px-4 py-3 text-base font-medium text-foreground outline-none transition duration-150;
+    border-color: #aebdca;
+    box-shadow: 0 1px 2px rgb(23 50 77 / 10%);
+  }
+
+  .form-control::placeholder {
+    color: #718596;
+    opacity: 1;
+  }
+
+  .form-control:hover { border-color: #7893a5; }
+  .form-control:focus {
+    border-color: #2788c9;
+    box-shadow: 0 0 0 4px rgb(39 136 201 / 14%);
+  }
+
+  textarea.form-control {
+    min-height: 144px;
+    resize: vertical;
+  }
 }

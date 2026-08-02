@@ -36,18 +36,19 @@ const ContactPage = () => {
               <li className="flex gap-4"><Instagram className="shrink-0 text-[#73e0cc]" /><div><strong className="block text-sm">Instagram</strong><a href="https://instagram.com/fisi0fit" target="_blank" rel="noreferrer" className="text-sm text-white/70 hover:text-white">@fisi0fit</a></div></li>
             </ul>
           </aside>
-          <form onSubmit={submit} className="grid gap-5 rounded-[2rem] border border-line bg-white p-7 shadow-sm md:p-10">
-            <div className="grid gap-5 sm:grid-cols-2">
-              <label className="grid gap-2 text-sm font-extrabold text-navy">Seu nome<input required autoComplete="name" {...field("nome")} className="rounded-xl border border-line bg-surface px-4 py-3 font-normal text-foreground outline-none focus:border-blue focus:bg-white focus:ring-4 focus:ring-blue/10" /></label>
-              <label className="grid gap-2 text-sm font-extrabold text-navy">WhatsApp<input required type="tel" autoComplete="tel" placeholder="(31) 98399-0321" {...field("telefone")} className="rounded-xl border border-line bg-surface px-4 py-3 font-normal text-foreground outline-none focus:border-blue focus:bg-white focus:ring-4 focus:ring-blue/10" /></label>
+          <form onSubmit={submit} className="form-card">
+            <div className="form-grid">
+              <label className="form-field">Seu nome<input required autoComplete="name" {...field("nome")} className="form-control" /></label>
+              <label className="form-field">WhatsApp<input required type="tel" inputMode="tel" autoComplete="tel" placeholder="(31) 98399-0321" {...field("telefone")} className="form-control" /></label>
             </div>
-            <div className="grid gap-5 sm:grid-cols-2">
-              <label className="grid gap-2 text-sm font-extrabold text-navy">Unidade preferida<select required {...field("unidade")} className="rounded-xl border border-line bg-surface px-4 py-3 font-normal text-foreground outline-none focus:border-blue"><option value="">Selecione</option><option>Unidade Lagoa</option><option>Unidade Centro</option><option>Não tenho preferência</option></select></label>
-              <label className="grid gap-2 text-sm font-extrabold text-navy">Tenho interesse em<select required {...field("servico")} className="rounded-xl border border-line bg-surface px-4 py-3 font-normal text-foreground outline-none focus:border-blue"><option value="">Selecione</option><option>Pilates Clínico</option><option>Fisioterapia</option><option>Reabilitação Funcional</option><option>Preciso de orientação</option></select></label>
+            <div className="form-grid">
+              <label className="form-field">Unidade preferida<select required {...field("unidade")} className="form-control"><option value="">Selecione</option><option>Unidade Lagoa</option><option>Unidade Centro</option><option>Não tenho preferência</option></select></label>
+              <label className="form-field">Tenho interesse em<select required {...field("servico")} className="form-control"><option value="">Selecione</option><option>Pilates Clínico</option><option>Fisioterapia</option><option>Reabilitação Funcional</option><option>Preciso de orientação</option></select></label>
             </div>
-            <label className="grid gap-2 text-sm font-extrabold text-navy">Como podemos ajudar?<textarea rows={5} placeholder="Conte brevemente o que você precisa" {...field("mensagem")} className="resize-y rounded-xl border border-line bg-surface px-4 py-3 font-normal text-foreground outline-none focus:border-blue focus:bg-white focus:ring-4 focus:ring-blue/10" /></label>
+            <label className="form-field">Como podemos ajudar?<textarea rows={5} placeholder="Conte brevemente o que você precisa" {...field("mensagem")} className="form-control" /></label>
+            <p className="text-xs leading-relaxed text-muted-foreground">Usaremos estes dados para responder à sua solicitação. Você será direcionado ao WhatsApp, operado pela Meta. Evite informar dados clínicos neste formulário. Consulte nossa <a href="/privacidade" className="font-bold text-blue underline">Política de Privacidade</a>.</p>
             <button type="submit" className="site-button w-fit">Enviar pelo WhatsApp <Send size={16} /></button>
-            <p className="text-xs text-muted-foreground">Ao clicar, o WhatsApp será aberto com sua mensagem pronta. Nenhum dado é armazenado neste site.</p>
+            <p className="text-xs text-muted-foreground">Ao clicar, o WhatsApp será aberto com sua mensagem pronta. O site não envia nem armazena o conteúdo em servidor próprio.</p>
           </form>
         </div>
       </section>

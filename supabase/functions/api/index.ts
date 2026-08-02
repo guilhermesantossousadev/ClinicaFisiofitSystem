@@ -86,7 +86,6 @@ app.use("*", async (context, next) => {
 
   const db = createClient(url, serviceKey, {
     auth: { persistSession: false },
-    global: { headers: { Authorization: auth } },
   });
   const { data: profile, error: profileError } = await db
     .from("profiles")
@@ -269,12 +268,18 @@ app.post("/users/invite", requireRoles(["admin"]), async (context) => {
 });
 
 app.get("/users", requireRoles(["admin", "manager"]), async (context) => {
-  const { data, error } = await context.get("db").from("profiles")
+  const db = context.get("db");
+  const clinicId = context.get("profile").clinic_id;
+  const [{ data, error }, { data: clinic, error: clinicError }] = await Promise.all([
+    db.from("profiles")
     .select("id,name,role,status,mfa_required,created_at,profile_units(unit_id,units(id,name))")
-    .eq("clinic_id", context.get("profile").clinic_id)
-    .is("deleted_at", null)
-    .order("name");
-  return databaseResult(context, data, error);
+    .eq("clinic_id", clinicId).is("deleted_at", null).order("name"),
+    db.from("clinics").select("owner_profile_id").eq("id", clinicId).single(),
+  ]);
+  return databaseResult(context, (data ?? []).map((profile) => ({
+    ...profile,
+    is_owner: profile.id === clinic?.owner_profile_id,
+  })), error ?? clinicError);
 });
 
 app.patch("/users/:id", requireRoles(["admin"]), async (context) => {
@@ -287,11 +292,26 @@ app.patch("/users/:id", requireRoles(["admin"]), async (context) => {
   }).parse(await context.req.json());
   const { unitIds, ...profileChanges } = input;
   const db = context.get("db");
+  const clinicId = context.get("profile").clinic_id;
+  const { data: clinic, error: clinicError } = await db.from("clinics")
+    .select("owner_profile_id").eq("id", clinicId).single();
+  if (clinicError) return databaseResult(context, null, clinicError);
+  const ownerMutation = id === clinic?.owner_profile_id && (
+    (input.role !== undefined && input.role !== "admin")
+    || (input.status !== undefined && input.status !== "active")
+    || input.unitIds !== undefined
+  );
+  if (ownerMutation) {
+    await audit(context, "owner.change_blocked", "profile", id, null, {
+      attemptedFields: Object.keys(input),
+    });
+    return fail(context, 409, "PROTECTED_OWNER_ACCOUNT", "A conta proprietária não pode ser bloqueada, rebaixada ou removida da clínica.");
+  }
   const { data, error } = await db.from("profiles").update({
     ...profileChanges,
     ...(input.role ? { mfa_required: ["admin", "manager", "finance"].includes(input.role) } : {}),
     updated_at: new Date().toISOString(),
-  }).eq("id", id).eq("clinic_id", context.get("profile").clinic_id).select().single();
+  }).eq("id", id).eq("clinic_id", clinicId).select().single();
   if (error) return databaseResult(context, null, error);
   if (unitIds) {
     const { error: removeError } = await db.from("profile_units").delete().eq("profile_id", id);
@@ -326,6 +346,17 @@ app.post("/units", requireRoles(["admin"]), async (context) => {
   return databaseResult(context, data, error, 201);
 });
 
+app.patch("/units/:id", requireRoles(["admin"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const input = z.object({
+    name: z.string().trim().min(2).max(100).optional(),
+    address: z.record(z.string()).optional(),
+    phone: z.string().max(20).nullable().optional(),
+    active: z.boolean().optional(),
+  }).parse(await context.req.json());
+  return updateClinicResource(context, "units", id, input, "unit.updated");
+});
+
 app.get("/rooms", listResource("rooms", "name"));
 app.get("/professionals", listResource("professionals", "name"));
 app.get("/services", listResource("services", "name"));
@@ -338,6 +369,62 @@ app.get("/commissions", listResource("commissions", "created_at", false));
 app.get("/fiscal-documents", listResource("fiscal_documents", "created_at", false));
 app.get("/notifications", listResource("notifications", "scheduled_at", false));
 app.get("/audit", requireRoles(["admin", "manager"]), listResource("audit_events", "occurred_at", false));
+app.get("/privacy/requests", requireRoles(["admin", "manager"]), listResource("data_subject_requests", "created_at", false));
+app.get("/privacy/incidents", requireRoles(["admin"]), listResource("privacy_incidents", "created_at", false));
+
+app.post("/privacy/requests", requireRoles(["admin", "manager"]), async (context) => {
+  const input = z.object({
+    patient_id: z.string().uuid().optional(),
+    requester_name: z.string().trim().min(3).max(160),
+    requester_email: z.string().email().optional(),
+    requester_phone: z.string().min(10).max(20).optional(),
+    kind: z.enum(["confirmation","access","correction","sharing","opposition","portability","revocation","deletion"]),
+  }).refine((value) => value.requester_email || value.requester_phone, {
+    message: "Informe e-mail ou telefone.",
+  }).parse(await context.req.json());
+  const dueAt = new Date();
+  dueAt.setDate(dueAt.getDate() + 15);
+  return createClinicResource(context, "data_subject_requests", {
+    ...input,
+    due_at: dueAt.toISOString(),
+  }, "privacy.request.created");
+});
+
+app.patch("/privacy/requests/:id", requireRoles(["admin", "manager"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const input = z.object({
+    status: z.enum(["received","identity_check","in_review","fulfilled","partially_fulfilled","rejected","cancelled"]),
+    identity_verified: z.boolean().optional(),
+    decision_reason: z.string().max(4000).optional(),
+  }).parse(await context.req.json());
+  const { identity_verified, ...changes } = input;
+  const completed = ["fulfilled","partially_fulfilled","rejected","cancelled"].includes(input.status);
+  const { data, error } = await context.get("db").from("data_subject_requests").update({
+    ...changes,
+    ...(identity_verified ? { identity_verified_at: new Date().toISOString() } : {}),
+    completed_at: completed ? new Date().toISOString() : null,
+    updated_at: new Date().toISOString(),
+  }).eq("id", id).eq("clinic_id", context.get("profile").clinic_id).select().single();
+  if (!error) await audit(context, "privacy.request.updated", "data_subject_request", id, null, { status: input.status });
+  return databaseResult(context, data, error);
+});
+
+app.post("/privacy/incidents", requireRoles(["admin"]), async (context) => {
+  const input = z.object({
+    title: z.string().trim().min(3).max(200),
+    description: z.string().trim().min(10).max(10000),
+    severity: z.enum(["low","medium","high","critical"]),
+    discovered_at: z.string().datetime({ offset: true }),
+    data_categories: z.array(z.string().min(2).max(80)).default([]),
+    affected_count: z.number().int().nonnegative().optional(),
+    risk_assessment: z.string().max(4000).optional(),
+    mitigation: z.string().max(4000).optional(),
+  }).parse(await context.req.json());
+  return createClinicResource(context, "privacy_incidents", {
+    ...input,
+    created_by: context.get("user").id,
+  }, "privacy.incident.created");
+});
 
 app.post("/rooms", requireRoles(["admin", "manager"]), async (context) => {
   const input = z.object({
@@ -346,6 +433,17 @@ app.post("/rooms", requireRoles(["admin", "manager"]), async (context) => {
     capacity: z.number().int().min(1).max(20).default(7),
   }).parse(await context.req.json());
   return createClinicResource(context, "rooms", input, "room.created", input.unit_id);
+});
+
+app.patch("/rooms/:id", requireRoles(["admin", "manager"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const input = z.object({
+    unit_id: z.string().uuid().optional(),
+    name: z.string().trim().min(2).max(100).optional(),
+    capacity: z.number().int().min(1).max(20).optional(),
+    active: z.boolean().optional(),
+  }).parse(await context.req.json());
+  return updateClinicResource(context, "rooms", id, input, "room.updated", input.unit_id);
 });
 
 app.post("/professionals", requireRoles(["admin", "manager"]), async (context) => {
@@ -372,6 +470,17 @@ app.post("/professionals", requireRoles(["admin", "manager"]), async (context) =
   return ok(context, data, 201);
 });
 
+app.patch("/professionals/:id", requireRoles(["admin", "manager"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const input = z.object({
+    name: z.string().trim().min(3).max(160).optional(),
+    council: z.string().max(80).nullable().optional(),
+    specialty: z.string().max(100).nullable().optional(),
+    active: z.boolean().optional(),
+  }).parse(await context.req.json());
+  return updateClinicResource(context, "professionals", id, input, "professional.updated");
+});
+
 app.post("/services", requireRoles(["admin", "manager"]), async (context) => {
   const input = z.object({
     name: z.string().trim().min(2).max(100),
@@ -381,6 +490,17 @@ app.post("/services", requireRoles(["admin", "manager"]), async (context) => {
     active: z.boolean().default(true),
   }).parse(await context.req.json());
   return createClinicResource(context, "services", input, "service.created");
+});
+
+app.patch("/services/:id", requireRoles(["admin", "manager"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const input = z.object({
+    name: z.string().trim().min(2).max(120).optional(),
+    duration_minutes: z.number().int().min(5).max(480).optional(),
+    price_cents: z.number().int().nonnegative().optional(),
+    active: z.boolean().optional(),
+  }).parse(await context.req.json());
+  return updateClinicResource(context, "services", id, input, "service.updated");
 });
 
 app.post("/plans", requireRoles(["admin", "manager", "finance"]), async (context) => {
@@ -393,6 +513,18 @@ app.post("/plans", requireRoles(["admin", "manager", "finance"]), async (context
     active: z.boolean().default(true),
   }).parse(await context.req.json());
   return createClinicResource(context, "plans", input, "plan.created");
+});
+
+app.patch("/plans/:id", requireRoles(["admin", "manager", "finance"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const input = z.object({
+    name: z.string().trim().min(2).max(120).optional(),
+    sessions_included: z.number().int().positive().nullable().optional(),
+    duration_days: z.number().int().positive().nullable().optional(),
+    price_cents: z.number().int().nonnegative().optional(),
+    active: z.boolean().optional(),
+  }).parse(await context.req.json());
+  return updateClinicResource(context, "plans", id, input, "plan.updated");
 });
 
 app.post("/enrollments", requireRoles(["admin", "manager", "reception", "finance"]), async (context) => {
@@ -459,12 +591,29 @@ app.post("/record-templates", requireRoles(["admin", "manager"]), async (context
   return createClinicResource(context, "record_templates", input, "record_template.created");
 });
 
+app.patch("/record-templates/:id", requireRoles(["admin", "manager"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const input = z.object({
+    name: z.string().trim().min(3).max(120).optional(),
+    specialty: z.string().max(100).nullable().optional(),
+    active: z.boolean().optional(),
+  }).parse(await context.req.json());
+  const { data, error } = await context.get("db").from("record_templates").update({
+    ...input,
+    updated_at: new Date().toISOString(),
+  }).eq("id", id).eq("clinic_id", context.get("profile").clinic_id).select().single();
+  if (!error && data) await audit(context, "record_template.updated", "record_template", id, null, { changedFields: Object.keys(input) });
+  return databaseResult(context, data, error);
+});
+
 app.get("/patients", async (context) => {
+  const clinicId = context.get("profile").clinic_id;
   const page = positiveInt(context.req.query("page"), 1);
   const pageSize = Math.min(positiveInt(context.req.query("pageSize"), 25), 100);
   const search = context.req.query("search")?.trim();
   let query = context.get("db").from("patients")
-    .select("id,name,cpf,birth_date,phone,email,primary_unit_id,created_at", { count: "exact" })
+    .select("*", { count: "exact" })
+    .eq("clinic_id", clinicId)
     .is("deleted_at", null);
   if (search) query = query.ilike("name", `%${escapeLike(search)}%`);
   const from = (page - 1) * pageSize;
@@ -484,7 +633,7 @@ app.post("/patients", requireRoles(["admin", "manager", "reception"]), async (co
 
 app.patch("/patients/:id", requireRoles(["admin", "manager", "reception"]), async (context) => {
   const id = z.string().uuid().parse(context.req.param("id"));
-  const input = patientSchema.partial().parse(await context.req.json());
+  const input = patientSchema.partial().extend({ active: z.boolean().optional() }).parse(await context.req.json());
   const { data, error } = await context.get("db").from("patients").update({
     ...input,
     updated_at: new Date().toISOString(),
@@ -527,22 +676,29 @@ app.post("/patients/:id/consents", requireRoles(["admin", "manager", "reception"
   const input = z.object({
     kind: z.string().trim().min(2).max(80),
     granted: z.boolean(),
+    purpose: z.string().trim().min(3).max(240),
+    legal_basis: z.string().trim().min(3).max(120),
+    notice_version: z.string().trim().min(1).max(40),
+    source: z.enum(["portal","paper","email","whatsapp","import"]).default("portal"),
+    metadata: z.record(z.unknown()).default({}),
   }).parse(await context.req.json());
   return createClinicResource(context, "consents", {
     ...input,
     patient_id: patientId,
     granted_at: input.granted ? new Date().toISOString() : null,
     revoked_at: input.granted ? null : new Date().toISOString(),
+    recorded_by: context.get("user").id,
   }, "consent.recorded");
 });
 
 app.get("/patients/:id/timeline", async (context) => {
   const id = z.string().uuid().parse(context.req.param("id"));
   const db = context.get("db");
+  const clinicId = context.get("profile").clinic_id;
   const [appointments, records, charges] = await Promise.all([
-    db.from("appointments").select("*").eq("patient_id", id).is("deleted_at", null).order("starts_at", { ascending: false }),
-    db.from("clinical_records").select("id,kind,status,signed_at,created_at,unit_id,professional_id").eq("patient_id", id).is("deleted_at", null).order("created_at", { ascending: false }),
-    db.from("charges").select("*").eq("patient_id", id).is("deleted_at", null).order("due_at", { ascending: false }),
+    db.from("appointments").select("*").eq("clinic_id", clinicId).eq("patient_id", id).is("deleted_at", null).order("starts_at", { ascending: false }),
+    db.from("clinical_records").select("id,kind,status,signed_at,created_at,unit_id,professional_id").eq("clinic_id", clinicId).eq("patient_id", id).is("deleted_at", null).order("created_at", { ascending: false }),
+    db.from("charges").select("*").eq("clinic_id", clinicId).eq("patient_id", id).is("deleted_at", null).order("due_at", { ascending: false }),
   ]);
   const error = appointments.error ?? records.error ?? charges.error;
   if (!error) await audit(context, "patient.timeline.viewed", "patient", id);
@@ -560,6 +716,7 @@ app.get("/appointments", async (context) => {
   const professional = context.req.query("professionalId");
   let query = context.get("db").from("appointments")
     .select("*,patients(id,name),professionals(id,name),services(id,name,color),rooms(id,name)")
+    .eq("clinic_id", context.get("profile").clinic_id)
     .gte("starts_at", from).lt("starts_at", to).is("deleted_at", null);
   if (unit) query = query.eq("unit_id", z.string().uuid().parse(unit));
   if (professional) query = query.eq("professional_id", z.string().uuid().parse(professional));
@@ -627,6 +784,18 @@ app.post("/group-slots", requireRoles(["admin", "manager"]), async (context) => 
   return databaseResult(context, data, error, 201);
 });
 
+app.patch("/group-slots/:id", requireRoles(["admin", "manager"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const input = z.object({
+    name: z.string().trim().min(3).max(120).optional(),
+    starts_at: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/).optional(),
+    duration_minutes: z.number().int().min(15).max(240).optional(),
+    capacity: z.number().int().min(1).max(7).optional(),
+    active: z.boolean().optional(),
+  }).parse(await context.req.json());
+  return updateClinicResource(context, "group_slots", id, input, "group_slot.updated");
+});
+
 app.post("/group-slots/:id/members", requireRoles(["admin", "manager", "reception"]), async (context) => {
   const groupSlotId = z.string().uuid().parse(context.req.param("id"));
   const input = z.object({
@@ -636,10 +805,12 @@ app.post("/group-slots/:id/members", requireRoles(["admin", "manager", "receptio
     ends_at: z.string().date().optional(),
   }).parse(await context.req.json());
   const db = context.get("db");
-  const { data: slot, error: slotError } = await db.from("group_slots").select("id,unit_id,capacity").eq("id", groupSlotId).single();
+  const clinicId = context.get("profile").clinic_id;
+  const { data: slot, error: slotError } = await db.from("group_slots").select("id,unit_id,capacity")
+    .eq("id", groupSlotId).eq("clinic_id", clinicId).is("deleted_at", null).single();
   if (slotError || !slot) return databaseResult(context, null, slotError);
   const { count, error: countError } = await db.from("group_slot_memberships").select("id", { count: "exact", head: true })
-    .eq("group_slot_id", groupSlotId).eq("status", "active").is("deleted_at", null);
+    .eq("clinic_id", clinicId).eq("group_slot_id", groupSlotId).eq("status", "active").is("deleted_at", null);
   if (countError) return databaseResult(context, null, countError);
   if ((count ?? 0) >= slot.capacity) return fail(context, 409, "GROUP_CAPACITY_REACHED", "A turma já atingiu a capacidade configurada.");
   const { data, error } = await db.from("group_slot_memberships").insert({
@@ -663,7 +834,8 @@ app.post("/appointments/:id/complete", requireRoles(["admin", "manager", "profes
 app.get("/clinical-records", requireRoles(["admin", "manager", "professional"]), async (context) => {
   const patientId = z.string().uuid().parse(context.req.query("patientId"));
   const { data, error } = await context.get("db").from("clinical_records")
-    .select("*").eq("patient_id", patientId).is("deleted_at", null)
+    .select("*").eq("clinic_id", context.get("profile").clinic_id)
+    .eq("patient_id", patientId).is("deleted_at", null)
     .order("created_at", { ascending: false });
   if (!error) await audit(context, "clinical_records.viewed", "patient", patientId);
   return databaseResult(context, data, error);
@@ -684,7 +856,9 @@ app.post("/clinical-records/:id/sign", requireRoles(["admin", "manager", "profes
   requireIdempotency(context);
   const id = z.string().uuid().parse(context.req.param("id"));
   const db = context.get("db");
-  const { data: record, error: readError } = await db.from("clinical_records").select("*").eq("id", id).eq("status", "draft").single();
+  const clinicId = context.get("profile").clinic_id;
+  const { data: record, error: readError } = await db.from("clinical_records").select("*")
+    .eq("id", id).eq("clinic_id", clinicId).eq("status", "draft").single();
   if (readError || !record) return databaseResult(context, null, readError);
   const canonical = JSON.stringify({ id: record.id, payload: record.payload, created_at: record.created_at });
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical));
@@ -694,7 +868,7 @@ app.post("/clinical-records/:id/sign", requireRoles(["admin", "manager", "profes
     signed_at: new Date().toISOString(),
     signed_by: context.get("user").id,
     signature_hash: signatureHash,
-  }).eq("id", id).eq("status", "draft").select().single();
+  }).eq("id", id).eq("clinic_id", clinicId).eq("status", "draft").select().single();
   if (!error && data) await audit(context, "clinical_record.signed", "clinical_record", data.id, data.unit_id);
   return databaseResult(context, data, error);
 });
@@ -751,6 +925,7 @@ app.get("/financial-entries", requireRoles(["admin", "manager", "finance"]), asy
   const to = z.string().date().parse(context.req.query("to"));
   const unit = context.req.query("unitId");
   let query = context.get("db").from("financial_entries").select("*")
+    .eq("clinic_id", context.get("profile").clinic_id)
     .gte("competence_date", from).lte("competence_date", to).is("deleted_at", null);
   if (unit) query = query.eq("unit_id", z.string().uuid().parse(unit));
   const { data, error } = await query.order("competence_date", { ascending: false });
@@ -873,6 +1048,95 @@ app.post("/imports", requireRoles(["admin", "manager"]), async (context) => {
 });
 
 app.get("/imports", requireRoles(["admin", "manager"]), listResource("import_batches", "created_at", false));
+
+const notionSources = {
+  professionals: "2ffff160-df01-81dd-bec9-000bb99f953b",
+  insurance_providers: "2ffff160-df01-81ff-afcf-000b7f66b9dc",
+  lead_sources: "2ffff160-df01-8166-bfd5-000b3fdc3e09",
+  financial_categories: "2ffff160-df01-81ac-98f6-000b680d1941",
+  message_templates: "2ffff160-df01-81de-9beb-000b32d4c390",
+  documents: "2ffff160-df01-818e-b28a-000bffc74584",
+  patients: "2ffff160-df01-81aa-8191-000b099bfc19",
+  appointments: "2ffff160-df01-81d0-8764-000bb05b1e92",
+  enrollments: "2ffff160-df01-81c2-a005-000bc3907333",
+  financial_entries: "2ffff160-df01-81d5-b37c-000bcb1c1294",
+  prospects: "2ffff160-df01-8195-9368-000b90930839",
+} as const;
+
+app.post("/imports/notion", requireRoles(["admin", "manager"]), async (context) => {
+  const key = requireIdempotency(context);
+  const input = z.object({
+    unit_id: z.string().uuid(),
+    dryRun: z.boolean().default(true),
+  }).parse(await context.req.json());
+  const db = context.get("db");
+  const clinicId = context.get("profile").clinic_id;
+  const { data: unit, error: unitError } = await db.from("units").select("id,name")
+    .eq("id", input.unit_id).eq("clinic_id", clinicId).is("deleted_at", null).single();
+  if (unitError || !unit) return fail(context, 404, "UNIT_NOT_FOUND", "A unidade de destino não foi encontrada.");
+
+  const token = requiredEnv("NOTION_TOKEN");
+  const inventories: Record<string, NotionPage[]> = {};
+  for (const [entityType, sourceId] of Object.entries(notionSources)) {
+    inventories[entityType] = await notionQueryAll(token, sourceId);
+  }
+
+  const issues = validateNotionInventory(inventories);
+  const counts = Object.fromEntries(Object.entries(inventories).map(([name, rows]) => [name, rows.length]));
+  if (input.dryRun) {
+    await audit(context, "import.notion.validated", "import_batch", null, input.unit_id, {
+      sourcePageId: "2ffff160-df01-81c0-b764-e4345252868f", counts, issueCount: issues.length,
+    });
+    return ok(context, { dryRun: true, unit, counts, issues, total: Object.values(counts).reduce((a, b) => a + b, 0) });
+  }
+
+  const { data: batch, error: batchError } = await db.from("import_batches").insert({
+    clinic_id: clinicId,
+    source: "notion",
+    filename: "[Oluma] Fisiofit Unidade I (API)",
+    source_page_id: "2ffff160-df01-81c0-b764-e4345252868f",
+    mapping: { unit_id: input.unit_id, unit_name: unit.name, sources: notionSources },
+    status: "processing",
+    stage: "extract",
+    totals: { total: Object.values(counts).reduce((a, b) => a + b, 0), counts },
+    errors: issues,
+    idempotency_key: key,
+    created_by: context.get("user").id,
+  }).select().single();
+  if (batchError || !batch) return databaseResult(context, null, batchError);
+
+  const staged = Object.entries(inventories).flatMap(([entityType, pages]) => pages.map((page) => ({
+    clinic_id: clinicId,
+    batch_id: batch.id,
+    source: "notion",
+    entity_type: entityType,
+    external_id: page.id,
+    source_url: page.url,
+    payload: notionPlainPage(page),
+    status: "staged",
+  })));
+  const { error: stageError } = await db.from("migration_items").upsert(staged, {
+    onConflict: "clinic_id,source,entity_type,external_id",
+  });
+  if (stageError) {
+    await db.from("import_batches").update({ status: "failed", errors: [...issues, { reason: stageError.message }] }).eq("id", batch.id);
+    return databaseResult(context, null, stageError);
+  }
+
+  const importResult = await importNotionCore(db, clinicId, input.unit_id, inventories);
+  await db.from("import_batches").update({
+    status: "completed",
+    stage: "reconciled",
+    totals: { total: staged.length, counts, ...importResult },
+    errors: [...issues, ...importResult.pending],
+    completed_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }).eq("id", batch.id);
+  await audit(context, "import.notion.completed", "import_batch", batch.id, input.unit_id, {
+    counts, imported: importResult.imported, pending: importResult.pending.length,
+  });
+  return ok(context, { batchId: batch.id, unit, counts, ...importResult }, 201);
+});
 
 app.post("/imports/patients", requireRoles(["admin", "manager"]), async (context) => {
   const key = requireIdempotency(context);
@@ -1009,7 +1273,14 @@ function databaseResult(context: any, data: unknown, error: any, status = 200) {
   return ok(context, data, status);
 }
 
-async function audit(context: any, action: string, entityType: string, entityId: string | null, unitId?: string | null) {
+async function audit(
+  context: any,
+  action: string,
+  entityType: string,
+  entityId: string | null,
+  unitId?: string | null,
+  metadata: Record<string, unknown> = {},
+) {
   await context.get("db").from("audit_events").insert({
     clinic_id: context.get("profile").clinic_id,
     unit_id: unitId ?? null,
@@ -1018,7 +1289,32 @@ async function audit(context: any, action: string, entityType: string, entityId:
     entity_type: entityType,
     entity_id: entityId,
     request_id: context.get("requestId"),
+    metadata,
   });
+}
+
+async function updateClinicResource(
+  context: any,
+  table: string,
+  id: string,
+  changes: Record<string, unknown>,
+  action: string,
+  unitId?: string | null,
+) {
+  if (!Object.keys(changes).length) {
+    return fail(context, 400, "EMPTY_UPDATE", "Informe ao menos uma alteração.");
+  }
+  const { data, error } = await context.get("db").from(table).update({
+    ...changes,
+    updated_at: new Date().toISOString(),
+  }).eq("id", id).eq("clinic_id", context.get("profile").clinic_id)
+    .is("deleted_at", null).select().single();
+  if (!error && data) {
+    await audit(context, action, table.replace(/s$/, ""), id, unitId, {
+      changedFields: Object.keys(changes),
+    });
+  }
+  return databaseResult(context, data, error);
 }
 
 function requireIdempotency(context: any) {
@@ -1075,6 +1371,173 @@ function normalizeAnnual(rows: any[], year: number) {
   };
 }
 
+type NotionPage = {
+  id: string;
+  url?: string;
+  created_time?: string;
+  last_edited_time?: string;
+  properties?: Record<string, any>;
+};
+
+async function notionQueryAll(token: string, dataSourceId: string) {
+  const pages: NotionPage[] = [];
+  let cursor: string | undefined;
+  do {
+    const response = await fetch(`https://api.notion.com/v1/data_sources/${dataSourceId}/query`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+        "notion-version": "2025-09-03",
+      },
+      body: JSON.stringify({ page_size: 100, ...(cursor ? { start_cursor: cursor } : {}) }),
+    });
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`NOTION_${response.status}:${body.slice(0, 300)}`);
+    }
+    const body = await response.json();
+    pages.push(...(body.results ?? []));
+    cursor = body.has_more ? body.next_cursor : undefined;
+  } while (cursor);
+  return pages;
+}
+
+function notionValue(property: any): unknown {
+  if (!property) return null;
+  if (property.type === "title" || property.type === "rich_text") {
+    return (property[property.type] ?? []).map((part: any) => part.plain_text ?? "").join("");
+  }
+  if (property.type === "relation") return (property.relation ?? []).map((item: any) => item.id);
+  if (property.type === "files") return (property.files ?? []).map((file: any) => ({
+    name: file.name,
+    url: file.file?.url ?? file.external?.url,
+    type: file.type,
+  }));
+  if (property.type === "date") return property.date?.start ?? null;
+  if (property.type === "select" || property.type === "status") return property[property.type]?.name ?? null;
+  if (property.type === "multi_select") return (property.multi_select ?? []).map((item: any) => item.name);
+  if (["email", "phone_number", "url", "number", "checkbox", "created_time", "last_edited_time"].includes(property.type)) {
+    return property[property.type] ?? null;
+  }
+  return null;
+}
+
+function notionPlainPage(page: NotionPage) {
+  return {
+    id: page.id,
+    url: page.url,
+    created_time: page.created_time,
+    last_edited_time: page.last_edited_time,
+    properties: Object.fromEntries(Object.entries(page.properties ?? {}).map(([name, property]) => [name, notionValue(property)])),
+  };
+}
+
+function notionProp(page: NotionPage, name: string) {
+  return notionValue(page.properties?.[name]);
+}
+
+function notionText(page: NotionPage, name: string) {
+  const value = notionProp(page, name);
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function notionTitle(page: NotionPage) {
+  const title = Object.values(page.properties ?? {}).find((property: any) => property.type === "title");
+  const value = notionValue(title);
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeCpf(value: string) {
+  const digits = value.replace(/\D/g, "");
+  return digits.length === 11 ? digits : undefined;
+}
+
+function validateNotionInventory(inventories: Record<string, NotionPage[]>) {
+  const issues: Array<{ entityType: string; externalId: string; reason: string }> = [];
+  for (const page of inventories.patients ?? []) {
+    if (notionTitle(page).length < 3) issues.push({ entityType: "patients", externalId: page.id, reason: "Cliente sem nome válido" });
+    const cpf = notionText(page, "CPF");
+    if (cpf && !normalizeCpf(cpf)) issues.push({ entityType: "patients", externalId: page.id, reason: "CPF inválido; será importado sem CPF" });
+  }
+  for (const page of inventories.appointments ?? []) {
+    const hasDate = Object.values(page.properties ?? {}).some((property: any) => property.type === "date" && property.date?.start);
+    if (!hasDate) issues.push({ entityType: "appointments", externalId: page.id, reason: "Atendimento sem data estruturada" });
+  }
+  for (const page of inventories.documents ?? []) {
+    const files = notionProp(page, "Anexos");
+    if (Array.isArray(files) && files.some((file: any) => !file.url)) issues.push({ entityType: "documents", externalId: page.id, reason: "Anexo sem URL temporária" });
+  }
+  return issues;
+}
+
+async function importNotionCore(db: any, clinicId: string, unitId: string, inventories: Record<string, NotionPage[]>) {
+  const pending = validateNotionInventory(inventories);
+  let professionalsImported = 0;
+  let patientsImported = 0;
+
+  const professionals = (inventories.professionals ?? []).flatMap((page) => {
+    const name = notionTitle(page);
+    if (name.length < 3) {
+      pending.push({ entityType: "professionals", externalId: page.id, reason: "Fisioterapeuta sem nome válido" });
+      return [];
+    }
+    return [{
+      clinic_id: clinicId,
+      name,
+      council: notionText(page, "Número CREFITO") || null,
+      active: notionText(page, "Situação") !== "Inativo",
+      migration_source: "notion",
+      external_id: page.id,
+    }];
+  });
+  if (professionals.length) {
+    const { data, error } = await db.from("professionals").upsert(professionals, {
+      onConflict: "clinic_id,migration_source,external_id",
+    }).select("id");
+    if (error) throw error;
+    professionalsImported = data?.length ?? 0;
+  }
+
+  const patients = (inventories.patients ?? []).flatMap((page) => {
+    const name = notionTitle(page);
+    if (name.length < 3) return [];
+    const address = notionText(page, "Endereço");
+    const notes = [
+      notionText(page, "Gênero") ? `Gênero: ${notionText(page, "Gênero")}` : "",
+      notionText(page, "Número Convênio") ? `Número do convênio: ${notionText(page, "Número Convênio")}` : "",
+      notionText(page, "Status do Cliente") ? `Status original: ${notionText(page, "Status do Cliente")}` : "",
+    ].filter(Boolean).join("\n");
+    return [{
+      clinic_id: clinicId,
+      primary_unit_id: unitId,
+      name,
+      cpf: normalizeCpf(notionText(page, "CPF")) ?? null,
+      birth_date: notionText(page, "Dt. Nascimento") || null,
+      phone: notionText(page, "Telefone") || null,
+      email: notionText(page, "E-mail") || null,
+      address: address ? { formatted: address } : {},
+      notes: notes || null,
+      migration_source: "notion",
+      external_id: page.id,
+      created_at: notionText(page, "Cadastrado Em") || page.created_time || new Date().toISOString(),
+    }];
+  });
+  if (patients.length) {
+    const { data, error } = await db.from("patients").upsert(patients, {
+      onConflict: "clinic_id,migration_source,external_id",
+    }).select("id");
+    if (error) throw error;
+    patientsImported = data?.length ?? 0;
+  }
+
+  return {
+    imported: { professionals: professionalsImported, patients: patientsImported },
+    staged: Object.values(inventories).reduce((sum, rows) => sum + rows.length, 0),
+    pending,
+  };
+}
+
 const openApiDocument = {
   openapi: "3.1.0",
   info: { title: "Fisiofit API", version: "1.0.0" },
@@ -1086,6 +1549,9 @@ const openApiDocument = {
     "/payments": { post: { summary: "Registra pagamento transacional e idempotente" } },
     "/financial-entries": { get: { summary: "Lista movimentos" }, post: { summary: "Cria movimento" } },
     "/reports/annual": { get: { summary: "Relatório anual com doze meses" } },
+    "/privacy/requests": { get: { summary: "Lista solicitações de titulares" }, post: { summary: "Registra solicitação LGPD" } },
+    "/privacy/incidents": { get: { summary: "Lista incidentes de privacidade" }, post: { summary: "Registra incidente" } },
+    "/users/{id}": { patch: { summary: "Atualiza usuário, preservando a conta proprietária" } },
   },
 };
 

@@ -27,19 +27,38 @@ export default function SetPasswordPage() {
       return;
     }
     setBusy(true);
+    const { data: assurance, error: assuranceError } =
+      await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (assuranceError) {
+      setBusy(false);
+      setError("Não foi possível verificar a proteção da conta. Solicite um novo link e tente novamente.");
+      return;
+    }
+    if (assurance?.nextLevel === "aal2" && assurance.currentLevel !== "aal2") {
+      navigate("/mfa?returnTo=/set-password", { replace: true });
+      return;
+    }
     const { error: updateError } = await supabase.auth.updateUser({ password });
     if (updateError) {
       const message = updateError.message.toLowerCase();
+      const insufficientAal =
+        updateError.code === "insufficient_aal" ||
+        message.includes("aal2") ||
+        message.includes("assurance level");
       const passwordAlreadyDefined =
         message.includes("same password") ||
         message.includes("different from the old password") ||
         message.includes("different from old password");
 
+      if (insufficientAal) {
+        navigate("/mfa?returnTo=/set-password", { replace: true });
+        return;
+      }
       if (!passwordAlreadyDefined) {
         setBusy(false);
         setError(
           message.includes("weak") || message.includes("password")
-            ? "A senha não atende aos requisitos de segurança. Use pelo menos 10 caracteres, com letras e números."
+            ? "A senha foi recusada por segurança. Use uma combinação inédita de pelo menos 10 caracteres, com letras, números e símbolo."
             : "Seu link expirou. Volte ao login e solicite um novo link.",
         );
         return;

@@ -34,6 +34,9 @@ const Footer = () => (
               <Instagram size={15} /> @fisi0fit
             </a>
             <Link href="/links" className="hover:text-white">Links úteis</Link>
+            <Link href="/privacidade" className="hover:text-white">Privacidade</Link>
+            <Link href="/cookies" className="hover:text-white">Cookies</Link>
+            <button type="button" onClick={() => window.dispatchEvent(new Event("fisiofit:cookie-settings"))} className="w-fit text-left hover:text-white">Configurar cookies</button>
           </div>
         </div>
       </div>
