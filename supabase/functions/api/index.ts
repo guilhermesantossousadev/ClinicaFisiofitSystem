@@ -243,7 +243,7 @@ app.post("/users/invite", requireRoles(["admin"]), async (context) => {
     auth: { persistSession: false },
   });
   const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(input.email, {
-    redirectTo: `${allowedOrigin}/sistema/login`,
+    redirectTo: `${allowedOrigin}/sistema/set-password`,
     data: { name: input.name },
   });
   if (inviteError || !invited.user) return databaseResult(context, null, inviteError);

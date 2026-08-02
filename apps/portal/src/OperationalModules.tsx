@@ -1711,9 +1711,10 @@ export function OperationalImports() {
   );
 }
 
-export function OperationalUsers() {
+export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }) {
   const { data, loading, error, reload } = useResources(["/users", "/units"]);
   const [notice, setNotice] = useState("");
+  const [updatingUserId, setUpdatingUserId] = useState("");
   async function invite(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const f = new FormData(event.currentTarget);
@@ -1735,14 +1736,19 @@ export function OperationalUsers() {
     }
   }
   async function update(id: string, status: string) {
+    setUpdatingUserId(id);
+    setNotice("");
     try {
       await api(`/users/${id}`, {
         method: "PATCH",
         body: JSON.stringify({ status }),
       });
       await reload();
+      setNotice(status === "active" ? "Conta ativada. A colaboradora já pode concluir o primeiro acesso." : "Conta bloqueada.");
     } catch (e) {
       setNotice(messageOf(e));
+    } finally {
+      setUpdatingUserId("");
     }
   }
   return (
@@ -1761,7 +1767,12 @@ export function OperationalUsers() {
         </div>
       )}
       <ModuleState loading={loading} error={error} retry={reload} />
-      <form className="card modal-form" onSubmit={invite}>
+      {!canManageUsers && (
+        <div className="environment-warning" role="status">
+          Você pode consultar os acessos, mas somente uma administradora pode convidar, ativar ou bloquear contas.
+        </div>
+      )}
+      {canManageUsers && <form className="card modal-form" onSubmit={invite}>
         <h2>Convidar colaboradora</h2>
         <div className="form-row">
           <label>
@@ -1795,7 +1806,7 @@ export function OperationalUsers() {
           </div>
         </label>
         <button className="btn primary">Enviar convite</button>
-      </form>
+      </form>}
       <section className="card table-card">
         {(data["/users"] ?? []).map((row: Row) => (
           <div className="operational-row" key={row.id}>
@@ -1811,12 +1822,20 @@ export function OperationalUsers() {
             </div>
             {row.is_owner ? (
               <span className="status info">Conta protegida</span>
+            ) : !canManageUsers ? (
+              <span className="status info">Somente leitura</span>
             ) : (
               <div className="row-actions">
-                <button onClick={() => update(row.id, "active")}>Ativar</button>
-                <button onClick={() => update(row.id, "blocked")}>
-                  Bloquear
-                </button>
+                {row.status !== "active" && (
+                  <button type="button" disabled={updatingUserId === row.id} onClick={() => update(row.id, "active")}>
+                    {updatingUserId === row.id ? "Ativando…" : "Ativar"}
+                  </button>
+                )}
+                {row.status !== "blocked" && (
+                  <button type="button" disabled={updatingUserId === row.id} onClick={() => update(row.id, "blocked")}>
+                    {updatingUserId === row.id ? "Aguarde…" : "Bloquear"}
+                  </button>
+                )}
               </div>
             )}
           </div>

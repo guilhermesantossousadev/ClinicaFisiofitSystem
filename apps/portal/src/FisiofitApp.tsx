@@ -387,7 +387,7 @@ export default function FisiofitApp() {
         {view === "Financeiro" && <OperationalFinance />}{" "}
         {view === "Relatórios" && <OperationalReports />}{" "}
         {view === "Importações" && <OperationalImports />}{" "}
-        {view === "Usuários" && <OperationalUsers />}
+        {view === "Usuários" && <OperationalUsers canManageUsers={profile.role === "admin"} />}
         {view === "Configurações" && <OperationalAdministration />}
         {view === "Privacidade" && <OperationalPrivacy />}
       </section>

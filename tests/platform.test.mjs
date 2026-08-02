@@ -69,14 +69,16 @@ test("mantém context.md como fonte única da verdade e não restaura o legado",
 });
 
 test("protege recuperação administrativa e consentimento de cookies", async () => {
-  const [login, setPassword, siteHtml, cookieConsent] = await Promise.all([
+  const [login, setPassword, api, siteHtml, cookieConsent] = await Promise.all([
     readFile(new URL("../apps/portal/src/LoginPage.tsx", import.meta.url), "utf8"),
     readFile(new URL("../apps/portal/src/SetPasswordPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/functions/api/index.ts", import.meta.url), "utf8"),
     readFile(new URL("../apps/site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../apps/site/src/components/CookieConsent.tsx", import.meta.url), "utf8"),
   ]);
   assert.match(login, /resetPasswordForEmail/);
   assert.match(login, /\/sistema\/set-password/);
+  assert.match(api, /redirectTo: `\$\{allowedOrigin\}\/sistema\/set-password`/);
   assert.match(setPassword, /password\.length < 10/);
   assert.doesNotMatch(`${login}\n${setPassword}`, /password\s*[:=]\s*["'][^"']+["']/i);
   assert.doesNotMatch(siteHtml, /googletagmanager\.com\/gtag\/js/);
