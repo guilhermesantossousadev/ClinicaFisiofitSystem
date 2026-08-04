@@ -319,6 +319,9 @@ export default function FisiofitApp() {
             />
             <strong>Fisiofit</strong>
           </div>
+          <div className="current-view" aria-live="polite">
+            <strong>{view}</strong>
+          </div>
           <label className="global-search">
             <span className="sr-only">Buscar paciente, telefone ou CPF</span>
             <span aria-hidden="true">⌕</span>

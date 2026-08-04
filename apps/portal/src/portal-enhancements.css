@@ -622,3 +622,216 @@ body { overflow-x: clip; }
   .mobile-menu-grid { grid-template-columns: minmax(0, 1fr); }
   .mobile-nav-item { font-size: 10px; }
 }
+
+/* Estrutura visual inspirada na referência, preservando a identidade Fisiofit. */
+:root {
+  --sidebar-width: 272px;
+  --ink: #17253a;
+  --muted: #64788c;
+  --line: #d9e3ea;
+  --canvas: #f6f8fb;
+  --paper: #ffffff;
+  --green: #2788c9;
+  --green-2: #eaf5fc;
+  --blue: #176da8;
+  --focus: #e8a83e;
+  --shadow: 0 1px 2px rgb(19 43 64 / 4%);
+}
+
+body { background: var(--canvas); }
+
+@media (min-width: 1051px) {
+  .sidebar {
+    padding: 0 14px 14px;
+    border-right-color: #dde5eb;
+    background: #fff;
+  }
+  .sidebar .brand {
+    min-height: 72px;
+    margin-inline: -14px;
+    padding: 0 22px;
+    border-bottom: 1px solid var(--line);
+  }
+  .sidebar nav { padding: 26px 2px 12px; }
+  .sidebar .nav-item {
+    position: relative;
+    min-height: 48px;
+    margin: 2px 0;
+    padding-inline: 16px;
+    border-radius: 8px;
+    color: #5d7187;
+    font-weight: 550;
+  }
+  .sidebar .nav-item:hover { background: #f2f7fa; color: var(--blue); }
+  .sidebar .nav-item.active {
+    background: var(--green-2);
+    color: var(--blue);
+    font-weight: 750;
+  }
+  .sidebar .nav-item.active::before {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: -2px;
+    width: 4px;
+    border-radius: 0 4px 4px 0;
+    background: var(--green);
+  }
+  .privacy-card { border-radius: 8px; background: #f3f8fb; }
+  .profile { margin-inline: -14px; padding: 16px 20px 2px; }
+  .topbar {
+    height: 72px;
+    padding: 0 32px;
+    border-bottom: 1px solid var(--line);
+    box-shadow: none;
+  }
+}
+
+.current-view {
+  flex: 0 0 auto;
+  min-width: 190px;
+  margin-right: 28px;
+}
+.current-view strong { color: #172033; font-size: 21px; letter-spacing: -.35px; }
+.global-search { margin-left: auto; border-radius: 7px; background: #fff; }
+.unit-select { border-radius: 7px; background: #fff; }
+
+.content {
+  width: 100%;
+  max-width: 1680px;
+  padding: 38px clamp(24px, 3vw, 48px) 64px;
+}
+.page-title { margin-bottom: 24px; align-items: center; }
+.page-title h1 { margin: 3px 0 5px; font-size: clamp(24px, 2.4vw, 31px); }
+.page-title p:not(.eyebrow) { margin-block: 0; }
+.eyebrow { margin-bottom: 5px; }
+
+.card,
+.metric-card,
+.administration-tabs {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+.metrics, .dashboard-grid, .finance-grid { gap: 16px; }
+.metric-card { min-height: 116px; }
+.table-card { border-radius: 9px; }
+.table-toolbar { min-height: 64px; padding: 14px 18px; background: #fff; }
+.table-toolbar h2 { margin: 0; }
+.operational-row { min-height: 74px; padding-inline: 18px; }
+.operational-row:hover { background: #fbfcfd; }
+
+.btn { border-radius: 7px; font-weight: 700; box-shadow: none; }
+.btn.primary { background: var(--green); border-color: var(--green); }
+.btn.primary:hover { background: var(--blue); border-color: var(--blue); }
+.btn.secondary { background: #fff; border-color: #b8c8d4; }
+.status { border-radius: 999px; }
+
+.modal-form input:not([type="checkbox"]):not([type="radio"]),
+.modal-form select,
+.modal-form textarea,
+.login-card input:not([type="checkbox"]):not([type="radio"]),
+.record-selector select,
+.page-title > label input {
+  border-color: #b8c7d3;
+  border-radius: 7px;
+  box-shadow: none;
+}
+.modal-form input:not([type="checkbox"]):not([type="radio"]):focus,
+.modal-form select:focus,
+.modal-form textarea:focus,
+.login-card input:not([type="checkbox"]):not([type="radio"]):focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgb(39 136 201 / 14%);
+}
+
+/* Edição contextual em painel lateral, como na referência. */
+.modal-backdrop,
+.edit-dialog-backdrop {
+  place-items: stretch end;
+  padding: 0;
+  background: rgb(20 31 44 / 42%);
+  backdrop-filter: none;
+}
+.modal,
+.edit-dialog {
+  width: min(560px, 100%);
+  height: 100dvh;
+  max-height: 100dvh;
+  border-radius: 0;
+  box-shadow: -18px 0 48px rgb(20 31 44 / 16%);
+  animation: fisiofit-drawer-in 220ms ease-out;
+}
+.modal-head,
+.edit-dialog-header {
+  min-height: 72px;
+  padding: 16px 24px;
+  align-items: center;
+}
+.modal-head h2,
+.edit-dialog-header h2 { margin: 0; font-size: 20px; }
+.modal-head > button,
+.dialog-close { border-radius: 7px; background: transparent; color: #74879a; }
+.modal-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background: #fff;
+}
+.drawer-create-trigger {
+  width: 100%;
+  min-height: 82px;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 13px;
+  padding: 16px 18px;
+  color: var(--ink);
+  text-align: left;
+}
+.drawer-create-trigger:hover { border-color: #8db8d2; background: #fbfdff; }
+.drawer-create-trigger > span:first-child {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: var(--green-2);
+  color: var(--blue);
+  font-size: 23px;
+}
+.drawer-create-trigger strong { display: block; font-size: 15px; }
+.drawer-create-trigger small { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; font-weight: 500; }
+.drawer-create-trigger > span:last-child { color: #8295a6; font-size: 18px; }
+.creation-drawer { display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; }
+.creation-drawer-form { overflow-y: auto; padding-bottom: 32px; }
+.creation-drawer-form > h2:first-child { display: none; }
+.creation-drawer-form > .btn:last-child {
+  width: 100%;
+  margin-top: 24px;
+}
+.drawer-create-trigger.administration-form { position: static; }
+@keyframes fisiofit-drawer-in {
+  from { opacity: .65; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@media (max-width: 1050px) {
+  .current-view { min-width: auto; margin-right: 16px; }
+}
+@media (min-width: 721px) and (max-width: 1050px) {
+  .sidebar .brand { justify-content: center; padding-inline: 0; }
+  .sidebar .brand > span { display: none; }
+  .sidebar .brand-logo { width: 40px; height: 40px; }
+  .current-view { min-width: 120px; }
+}
+@media (max-width: 720px) {
+  .current-view { display: none; }
+  .global-search { margin-left: 0; }
+  .content { padding-top: 22px; }
+  .modal, .edit-dialog { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .modal, .edit-dialog { animation: none; }
+}

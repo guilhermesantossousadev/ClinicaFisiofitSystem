@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, type FormEventHandler, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "./api";
 
 type Row = Record<string, any>;
@@ -23,9 +23,10 @@ const WEEKDAYS = [
 ] as const;
 
 function messageOf(error: unknown) {
-  return error instanceof Error
+  const message = error instanceof Error
     ? error.message
     : "Não foi possível concluir a operação.";
+  return `Erro: ${message}`;
 }
 
 function value(form: FormData, name: string) {
@@ -95,6 +96,44 @@ function Select({
         ))}
       </select>
     </label>
+  );
+}
+
+function DrawerForm({
+  title,
+  children,
+  onSubmit,
+  className = "",
+}: {
+  title: string;
+  children: ReactNode;
+  onSubmit: FormEventHandler<HTMLFormElement>;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button className={`card drawer-create-trigger ${className}`} type="button" onClick={() => setOpen(true)}>
+        <span aria-hidden="true">＋</span>
+        <span><strong>{title}</strong><small>Abrir formulário de cadastro</small></span>
+        <span aria-hidden="true">→</span>
+      </button>
+      {open && (
+        <div className="modal-backdrop creation-drawer-backdrop" role="presentation" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setOpen(false);
+        }}>
+          <section className="modal creation-drawer" role="dialog" aria-modal="true" aria-label={title}>
+            <div className="modal-head">
+              <h2>{title}</h2>
+              <button type="button" onClick={() => setOpen(false)} aria-label={`Fechar ${title}`}>×</button>
+            </div>
+            <form className="modal-form creation-drawer-form" onSubmit={onSubmit}>
+              {children}
+            </form>
+          </section>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -268,7 +307,7 @@ export function OperationalAgenda() {
       )}
       <ModuleState loading={loading} error={error} retry={reload} />
       <div className="dashboard-grid">
-        <form className="card modal-form" onSubmit={createAppointment}>
+        <DrawerForm title="Novo agendamento" onSubmit={createAppointment}>
           <h2>Novo agendamento</h2>
           <div className="form-row">
             <Select
@@ -314,8 +353,8 @@ export function OperationalAgenda() {
             </label>
           </div>
           <button className="btn primary">Agendar</button>
-        </form>
-        <form className="card modal-form" onSubmit={createGroup}>
+        </DrawerForm>
+        <DrawerForm title="Nova turma com horário fixo" onSubmit={createGroup}>
           <h2>Nova turma com horário fixo</h2>
           <div className="form-row">
             <Select
@@ -378,7 +417,7 @@ export function OperationalAgenda() {
             <span>Horário recorrente, com até 7 alunos</span>
           </div>
           <button className="btn primary">Criar turma (7 vagas)</button>
-        </form>
+        </DrawerForm>
       </div>
       <section className="card table-card">
         <div className="table-toolbar">
@@ -588,7 +627,7 @@ export function OperationalPatients() {
           {appliedSearch && <button type="button" className="btn secondary" onClick={() => { setSearch(""); setAppliedSearch(""); setPage(1); }}>Limpar</button>}
         </div>
       </form>
-      <form className="card modal-form" onSubmit={create}>
+      <DrawerForm title="Novo paciente" onSubmit={create}>
         <h2>Novo paciente</h2>
         <p className="form-instructions"><span aria-hidden="true">*</span> indica campo obrigatório.</p>
         <fieldset>
@@ -630,7 +669,7 @@ export function OperationalPatients() {
           <textarea name="notes" rows={3} />
         </label>
         <button className="btn primary">Cadastrar paciente</button>
-      </form>
+      </DrawerForm>
       <EditableOperationalTable
         title="Pacientes cadastrados"
         resource="patients"
@@ -874,7 +913,7 @@ export function OperationalEnrollments() {
         />
       </div>
       <div className="dashboard-grid">
-        <form className="card modal-form" onSubmit={createPlan}>
+        <DrawerForm title="Novo plano" onSubmit={createPlan}>
           <h2>Novo plano</h2>
           <div className="form-row">
             <label>
@@ -910,8 +949,8 @@ export function OperationalEnrollments() {
             <input name="price" type="number" min="0" step=".01" inputMode="decimal" required />
           </label>
           <button className="btn primary">Criar plano</button>
-        </form>
-        <form className="card modal-form" onSubmit={enroll}>
+        </DrawerForm>
+        <DrawerForm title="Nova matrícula" onSubmit={enroll}>
           <h2>Nova matrícula</h2>
           <div className="form-row">
             <Select name="patient_id" label="Paciente" rows={patients} />
@@ -945,7 +984,7 @@ export function OperationalEnrollments() {
             <input name="discount" type="number" step=".01" defaultValue="0" />
           </label>
           <button className="btn primary">Matricular</button>
-        </form>
+        </DrawerForm>
       </div>
       <form className="card modal-form inline-form" onSubmit={pay}>
         <h2>Registrar pagamento</h2>
@@ -1118,7 +1157,7 @@ export function OperationalRecords() {
       )}
       <ModuleState loading={loading} error={error} retry={reload} />
       {patientId && (
-        <form className="card modal-form" onSubmit={createRecord}>
+        <DrawerForm title="Novo registro" onSubmit={createRecord}>
           <h2>Novo registro</h2>
           <div className="form-row">
             <label>
@@ -1156,7 +1195,7 @@ export function OperationalRecords() {
             <textarea name="measures" rows={2} />
           </label>
           <button className="btn primary">Salvar rascunho</button>
-        </form>
+        </DrawerForm>
       )}
       <section className="card table-card">
         {records.map((row) => (
@@ -1289,7 +1328,7 @@ export function OperationalFinance() {
         />
       </div>
       <div className="dashboard-grid">
-        <form className="card modal-form" onSubmit={entry}>
+        <DrawerForm title="Novo movimento" onSubmit={entry}>
           <h2>Novo movimento</h2>
           <div className="form-row">
             <Select
@@ -1339,8 +1378,8 @@ export function OperationalFinance() {
             Já realizado
           </label>
           <button className="btn primary">Lançar</button>
-        </form>
-        <form className="card modal-form" onSubmit={commission}>
+        </DrawerForm>
+        <DrawerForm title="Nova comissão" onSubmit={commission}>
           <h2>Nova comissão</h2>
           <Select name="unit_id" label="Unidade" rows={data["/units"] ?? []} />
           <Select
@@ -1362,7 +1401,7 @@ export function OperationalFinance() {
             </label>
           </div>
           <button className="btn primary">Calcular comissão</button>
-        </form>
+        </DrawerForm>
       </div>
       <OperationalTable
         title="Movimentos do mês"
@@ -1823,7 +1862,7 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
           Você pode consultar os acessos, mas somente uma administradora pode convidar, ativar ou bloquear contas.
         </div>
       )}
-      {canManageUsers && <form className="card modal-form" onSubmit={invite}>
+      {canManageUsers && <DrawerForm title="Convidar colaboradora" onSubmit={invite}>
         <h2>Convidar colaboradora</h2>
         <div className="form-row">
           <label>
@@ -1857,7 +1896,7 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
           </div>
         </label>
         <button className="btn primary">Enviar convite</button>
-      </form>}
+      </DrawerForm>}
       <section className="card table-card">
         {(data["/users"] ?? []).map((row: Row) => (
           <div className="user-management-entry" key={row.id}>
@@ -1943,7 +1982,7 @@ type AdministrationSectionProps = {
 
 function FormularioUnidade({ data, reload, setNotice, submit }: AdministrationSectionProps) {
   return <div className="administration-section">
-    <form className="card modal-form administration-form" onSubmit={(event) => submit(event, "/units", (form) => ({
+    <DrawerForm title="Nova unidade" className="administration-form" onSubmit={(event) => submit(event, "/units", (form) => ({
       name: value(form, "name"), phone: value(form, "phone") || undefined,
       address: { street: value(form, "street"), city: value(form, "city"), state: value(form, "state") },
     }))}>
@@ -1953,7 +1992,7 @@ function FormularioUnidade({ data, reload, setNotice, submit }: AdministrationSe
       <div className="form-row"><label>Telefone<input name="phone" type="tel" /></label><label>Rua<input name="street" /></label></div>
       <div className="form-row"><label>Cidade<input name="city" /></label><label>Estado<input name="state" maxLength={2} /></label></div>
       <button className="btn primary">Salvar unidade</button>
-    </form>
+    </DrawerForm>
     <EditableOperationalTable title="Unidades" resource="units" rows={data["/units"] ?? []} fields={["name", "phone", "active"]}
       editFields={[{ name: "name", label: "Nome", required: true }, { name: "phone", label: "Telefone" }, { name: "street", label: "Rua", value: (row) => row.address?.street }, { name: "city", label: "Cidade", value: (row) => row.address?.city }, { name: "state", label: "Estado", value: (row) => row.address?.state, maxLength: 2 }]}
       buildBody={(form) => ({ name: value(form, "name"), phone: value(form, "phone") || null, address: { street: value(form, "street"), city: value(form, "city"), state: value(form, "state") } })}
@@ -1963,13 +2002,13 @@ function FormularioUnidade({ data, reload, setNotice, submit }: AdministrationSe
 
 function FormularioSala({ data, reload, setNotice, submit }: AdministrationSectionProps) {
   return <div className="administration-section">
-    <form className="card modal-form administration-form" onSubmit={(event) => submit(event, "/rooms", (form) => ({ unit_id: value(form, "unit_id"), name: value(form, "name"), capacity: Number(value(form, "capacity")) }))}>
+    <DrawerForm title="Nova sala" className="administration-form" onSubmit={(event) => submit(event, "/rooms", (form) => ({ unit_id: value(form, "unit_id"), name: value(form, "name"), capacity: Number(value(form, "capacity")) }))}>
       <h2>Nova sala</h2><p className="form-instructions">Vincule a sala a uma unidade e informe sua capacidade.</p>
       <Select name="unit_id" label="Unidade *" rows={data["/units"] ?? []} />
       <label>Nome *<input name="name" required /></label>
       <label>Capacidade *<input name="capacity" type="number" min="1" max="20" defaultValue="7" required /></label>
       <button className="btn primary">Salvar sala</button>
-    </form>
+    </DrawerForm>
     <EditableOperationalTable title="Salas" resource="rooms" rows={data["/rooms"] ?? []} fields={["name", "capacity", "active"]}
       editFields={[{ name: "name", label: "Nome", required: true }, { name: "capacity", label: "Capacidade", type: "number", min: 1, max: 20, required: true }]}
       buildBody={(form) => ({ name: value(form, "name"), capacity: Number(value(form, "capacity")) })} onChanged={reload} onNotice={setNotice} />
@@ -1978,12 +2017,12 @@ function FormularioSala({ data, reload, setNotice, submit }: AdministrationSecti
 
 function FormularioServico({ data, reload, setNotice, submit }: AdministrationSectionProps) {
   return <div className="administration-section">
-    <form className="card modal-form administration-form" onSubmit={(event) => submit(event, "/services", (form) => ({ name: value(form, "name"), duration_minutes: Number(value(form, "duration")), price_cents: cents(value(form, "price")), active: true }))}>
+    <DrawerForm title="Novo serviço" className="administration-form" onSubmit={(event) => submit(event, "/services", (form) => ({ name: value(form, "name"), duration_minutes: Number(value(form, "duration")), price_cents: cents(value(form, "price")), active: true }))}>
       <h2>Novo serviço</h2><p className="form-instructions">Defina duração e preço padrão do atendimento.</p>
       <label>Nome *<input name="name" required /></label>
       <div className="form-row"><label>Duração (min) *<input name="duration" type="number" min="5" max="480" required /></label><label>Preço *<input name="price" type="number" step=".01" min="0" required /></label></div>
       <button className="btn primary">Salvar serviço</button>
-    </form>
+    </DrawerForm>
     <EditableOperationalTable title="Serviços" resource="services" rows={data["/services"] ?? []} fields={["name", "duration_minutes", "price_cents", "active"]}
       editFields={[{ name: "name", label: "Nome", required: true }, { name: "duration_minutes", label: "Duração (min)", type: "number", min: 5, max: 480, required: true }, { name: "price", label: "Preço", type: "number", min: 0, step: ".01", required: true, value: (row) => Number(row.price_cents ?? 0) / 100 }]}
       buildBody={(form) => ({ name: value(form, "name"), duration_minutes: Number(value(form, "duration_minutes")), price_cents: cents(value(form, "price")) })} onChanged={reload} onNotice={setNotice} />
@@ -1992,13 +2031,13 @@ function FormularioServico({ data, reload, setNotice, submit }: AdministrationSe
 
 function FormularioProfissional({ data, reload, setNotice, submit }: AdministrationSectionProps) {
   return <div className="administration-section">
-    <form className="card modal-form administration-form" onSubmit={(event) => submit(event, "/professionals", (form) => ({ name: value(form, "name"), council: value(form, "council") || undefined, specialty: value(form, "specialty") || undefined, unitIds: form.getAll("unitIds"), active: true }))}>
+    <DrawerForm title="Novo profissional" className="administration-form" onSubmit={(event) => submit(event, "/professionals", (form) => ({ name: value(form, "name"), council: value(form, "council") || undefined, specialty: value(form, "specialty") || undefined, unitIds: form.getAll("unitIds"), active: true }))}>
       <h2>Novo profissional</h2><p className="form-instructions">Informe os dados profissionais e selecione ao menos uma unidade.</p>
       <label>Nome *<input name="name" required /></label>
       <div className="form-row"><label>Conselho<input name="council" /></label><label>Especialidade<input name="specialty" /></label></div>
       <fieldset><legend>Unidades *</legend><div className="weekday-checks">{(data["/units"] ?? []).map((unit: Unit) => <label key={unit.id}><input type="checkbox" name="unitIds" value={unit.id} />{unit.name}</label>)}</div></fieldset>
       <button className="btn primary">Salvar profissional</button>
-    </form>
+    </DrawerForm>
     <EditableOperationalTable title="Profissionais" resource="professionals" rows={data["/professionals"] ?? []} fields={["name", "council", "specialty", "active"]}
       editFields={[{ name: "name", label: "Nome", required: true }, { name: "council", label: "Conselho" }, { name: "specialty", label: "Especialidade" }]}
       buildBody={(form) => ({ name: value(form, "name"), council: value(form, "council") || null, specialty: value(form, "specialty") || null })} onChanged={reload} onNotice={setNotice} />
@@ -2007,12 +2046,12 @@ function FormularioProfissional({ data, reload, setNotice, submit }: Administrat
 
 function FormularioModeloClinico({ data, reload, setNotice, submit }: AdministrationSectionProps) {
   return <div className="administration-section">
-    <form className="card modal-form administration-form" onSubmit={(event) => submit(event, "/record-templates", (form) => ({ name: value(form, "name"), kind: value(form, "kind"), specialty: value(form, "specialty") || undefined, schema: {}, active: true }))}>
+    <DrawerForm title="Novo modelo clínico" className="administration-form" onSubmit={(event) => submit(event, "/record-templates", (form) => ({ name: value(form, "name"), kind: value(form, "kind"), specialty: value(form, "specialty") || undefined, schema: {}, active: true }))}>
       <h2>Novo modelo clínico</h2><p className="form-instructions">Crie uma base para avaliações ou evoluções clínicas.</p>
       <label>Nome *<input name="name" required minLength={3} /></label>
       <div className="form-row"><label>Tipo *<select name="kind"><option value="assessment">Avaliação</option><option value="evolution">Evolução</option></select></label><label>Especialidade<input name="specialty" /></label></div>
       <button className="btn primary">Salvar modelo</button>
-    </form>
+    </DrawerForm>
     <EditableOperationalTable title="Modelos clínicos" resource="record-templates" rows={data["/record-templates"] ?? []} fields={["name", "kind", "specialty", "active"]}
       editFields={[{ name: "name", label: "Nome", required: true }, { name: "specialty", label: "Especialidade" }]}
       buildBody={(form) => ({ name: value(form, "name"), specialty: value(form, "specialty") || null })} onChanged={reload} onNotice={setNotice} />
@@ -2161,7 +2200,7 @@ export function OperationalPrivacy() {
       )}
       <ModuleState loading={loading} error={error} retry={reload} />
       <div className="dashboard-grid">
-        <form className="card modal-form" onSubmit={request}>
+        <DrawerForm title="Nova solicitação" onSubmit={request}>
           <h2>Nova solicitação</h2>
           <label>
             Solicitante
@@ -2190,8 +2229,8 @@ export function OperationalPrivacy() {
             </select>
           </label>
           <button className="btn primary">Registrar solicitação</button>
-        </form>
-        <form className="card modal-form" onSubmit={incident}>
+        </DrawerForm>
+        <DrawerForm title="Novo incidente" onSubmit={incident}>
           <h2>Novo incidente</h2>
           <label>
             Título
@@ -2228,7 +2267,7 @@ export function OperationalPrivacy() {
             <textarea name="mitigation" rows={2} />
           </label>
           <button className="btn primary">Registrar incidente</button>
-        </form>
+        </DrawerForm>
       </div>
       <OperationalTable
         title="Solicitações de titulares"
