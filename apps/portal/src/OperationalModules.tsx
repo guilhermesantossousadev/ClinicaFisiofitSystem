@@ -1,4 +1,4 @@
-import { FormEvent, type FormEventHandler, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, type CSSProperties, type FormEventHandler, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "./api";
 
 type Row = Record<string, any>;
@@ -419,10 +419,11 @@ export function OperationalAgenda() {
           <button className="btn primary">Criar turma (7 vagas)</button>
         </DrawerForm>
       </div>
-      <section className="card table-card">
+      <section className="card table-card bespoke-table agenda-list-table">
         <div className="table-toolbar">
           <h2>Atendimentos da semana</h2>
         </div>
+        <div className="bespoke-table-head" aria-hidden="true"><span>Data e horário</span><span>Paciente e profissional</span><span>Status</span><span>Ações</span></div>
         {appointments.map((item) => (
           <div className="operational-row" key={item.id}>
             <div>
@@ -1197,7 +1198,9 @@ export function OperationalRecords() {
           <button className="btn primary">Salvar rascunho</button>
         </DrawerForm>
       )}
-      <section className="card table-card">
+      <section className="card table-card bespoke-table records-list-table">
+        <div className="table-toolbar"><h2>Registros clínicos</h2><span>{records.length} registros</span></div>
+        <div className="bespoke-table-head" aria-hidden="true"><span>Tipo e status</span><span>Data e conteúdo</span><span>Ações</span></div>
         {records.map((row) => (
           <div className="operational-row" key={row.id}>
             <div>
@@ -1414,10 +1417,11 @@ export function OperationalFinance() {
           "amount_cents",
         ]}
       />
-      <section className="card table-card">
+      <section className="card table-card bespoke-table commissions-list-table">
         <div className="table-toolbar">
           <h2>Comissões</h2>
         </div>
+        <div className="bespoke-table-head" aria-hidden="true"><span>Valor</span><span>Base e status</span><span>Ações</span></div>
         {(data["/commissions"] ?? []).map((row: Row) => (
           <div className="operational-row" key={row.id}>
             <div>
@@ -1897,7 +1901,9 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
         </label>
         <button className="btn primary">Enviar convite</button>
       </DrawerForm>}
-      <section className="card table-card">
+      <section className="card table-card bespoke-table users-list-table">
+        <div className="table-toolbar"><h2>Colaboradoras cadastradas</h2><span>{(data["/users"] ?? []).length} registros</span></div>
+        <div className="bespoke-table-head" aria-hidden="true"><span>Nome</span><span>Acesso e segurança</span><span>Ações</span></div>
         {(data["/users"] ?? []).map((row: Row) => (
           <div className="user-management-entry" key={row.id}>
           <div className="operational-row">
@@ -2410,22 +2416,20 @@ function EditableOperationalTable({
 
   return (
     <>
-      <section className="card table-card">
+      <section className="card table-card operational-data-table" style={{ "--table-columns": `repeat(${fields.length}, minmax(120px, 1fr)) minmax(230px, auto)` } as CSSProperties}>
         <div className="table-toolbar">
           <h2>{title}</h2>
           <span>{total ?? rows.length} registros</span>
         </div>
+        <div className="operational-table-head" aria-hidden="true">
+          {fields.map((field) => <span key={field}>{fieldLabel(field)}</span>)}
+          <span>Ações</span>
+        </div>
         {rows.map((row) => (
           <div className="operational-row" key={row.id}>
-            <div>
-              {fields.map((field, index) =>
-                index === 0 ? (
-                  <strong key={field}>{render(row[field], field)}</strong>
-                ) : (
-                  <small key={field}>{field}: {render(row[field], field)}</small>
-                ),
-              )}
-            </div>
+            {fields.map((field, index) => <div className="operational-cell" key={field} data-label={fieldLabel(field)}>
+              {index === 0 ? <strong>{render(row[field], field)}</strong> : <span>{render(row[field], field)}</span>}
+            </div>)}
             <div className="row-actions" aria-label={`Ações de ${row.name}`}>
               {onOpen && <button type="button" onClick={() => void onOpen(row)}>Detalhes</button>}
               <button type="button" onClick={() => setEditing(row)}>Editar</button>
@@ -2502,24 +2506,19 @@ function OperationalTable({
   fields: string[];
 }) {
   return (
-    <section className="card table-card">
+    <section className="card table-card operational-data-table" style={{ "--table-columns": `repeat(${fields.length}, minmax(135px, 1fr))` } as CSSProperties}>
       <div className="table-toolbar">
         <h2>{title}</h2>
         <span>{rows.length} registros</span>
       </div>
+      <div className="operational-table-head" aria-hidden="true">
+        {fields.map((field) => <span key={field}>{fieldLabel(field)}</span>)}
+      </div>
       {rows.map((row) => (
         <div className="operational-row" key={row.id}>
-          <div>
-            {fields.map((field, index) =>
-              index === 0 ? (
-                <strong key={field}>{render(row[field], field)}</strong>
-              ) : (
-                <small key={field}>
-                  {field}: {render(row[field], field)}
-                </small>
-              ),
-            )}
-          </div>
+          {fields.map((field, index) => <div className="operational-cell" key={field} data-label={fieldLabel(field)}>
+            {index === 0 ? <strong>{render(row[field], field)}</strong> : <span>{render(row[field], field)}</span>}
+          </div>)}
         </div>
       ))}
       {!rows.length && (
@@ -2527,6 +2526,21 @@ function OperationalTable({
       )}
     </section>
   );
+}
+function fieldLabel(field: string) {
+  const labels: Record<string, string> = {
+    name: "Nome", phone: "Telefone", email: "E-mail", active: "Status",
+    kind: "Tipo", sessions_included: "Sessões", duration_days: "Duração",
+    price_cents: "Preço", status: "Status", starts_at: "Início",
+    due_day: "Vencimento", sessions_used: "Sessões usadas",
+    description: "Descrição", amount_cents: "Valor", paid_cents: "Valor pago",
+    due_at: "Vencimento", competence_date: "Competência", category: "Categoria",
+    requester_name: "Solicitante", title: "Título", severity: "Severidade",
+    discovered_at: "Identificado em", action: "Ação", entity_type: "Recurso",
+    user_id: "Usuário", occurred_at: "Data", capacity: "Capacidade",
+    duration_minutes: "Duração", council: "Conselho", specialty: "Especialidade",
+  };
+  return labels[field] ?? field.replaceAll("_", " ");
 }
 function render(value: any, field: string) {
   if (value == null) return "—";
