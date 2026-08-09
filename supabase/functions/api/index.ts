@@ -185,20 +185,14 @@ app.get("/dashboard", async (context) => {
   const startsAt = `${date}T00:00:00-03:00`;
   const endsAt = `${date}T23:59:59.999-03:00`;
   const monthStart = `${date.slice(0, 7)}-01`;
+  const unitId = context.req.query("unitId");
   const db = context.get("db");
 
   const [patients, appointments, overdueCharges, monthEntries, units] = await Promise.all([
-    db.from("patients").select("id", { count: "exact", head: true })
-      .eq("clinic_id", clinicId).is("deleted_at", null),
-    db.from("appointments")
-      .select("id,status,starts_at,ends_at,patients(id,name),professionals(id,name),services(id,name),units(id,name)")
-      .eq("clinic_id", clinicId).gte("starts_at", startsAt).lte("starts_at", endsAt)
-      .is("deleted_at", null).order("starts_at"),
-    db.from("charges").select("id,amount_cents,paid_cents", { count: "exact" })
-      .eq("clinic_id", clinicId).eq("status", "overdue").is("deleted_at", null),
-    db.from("financial_entries").select("kind,amount_cents,settled_at")
-      .eq("clinic_id", clinicId).gte("competence_date", monthStart).lte("competence_date", date)
-      .is("deleted_at", null),
+    (() => { let query = db.from("patients").select("id", { count: "exact", head: true }).eq("clinic_id", clinicId).is("deleted_at", null); if (unitId) query = query.eq("primary_unit_id", unitId); return query; })(),
+    (() => { let query = db.from("appointments").select("id,status,starts_at,ends_at,patients(id,name),professionals(id,name),services(id,name),units(id,name)").eq("clinic_id", clinicId).gte("starts_at", startsAt).lte("starts_at", endsAt).is("deleted_at", null); if (unitId) query = query.eq("unit_id", unitId); return query.order("starts_at"); })(),
+    (() => { let query = db.from("charges").select("id,amount_cents,paid_cents", { count: "exact" }).eq("clinic_id", clinicId).eq("status", "overdue").is("deleted_at", null); if (unitId) query = query.eq("unit_id", unitId); return query; })(),
+    (() => { let query = db.from("financial_entries").select("kind,amount_cents,settled_at").eq("clinic_id", clinicId).gte("competence_date", monthStart).lte("competence_date", date).is("deleted_at", null); if (unitId) query = query.eq("unit_id", unitId); return query; })(),
     db.from("units").select("id,name,active").eq("clinic_id", clinicId)
       .is("deleted_at", null).order("name"),
   ]);
@@ -688,6 +682,8 @@ app.get("/patients", async (context) => {
     const term = escapeLike(search);
     query = query.or(`name.ilike.%${term}%,phone.ilike.%${term}%,cpf.ilike.%${term}%`);
   }
+  const unitId = context.req.query("unitId");
+  if (unitId) query = query.eq("primary_unit_id", z.string().uuid().parse(unitId));
   const from = (page - 1) * pageSize;
   const { data, error, count } = await query.order("name").range(from, from + pageSize - 1);
   return databaseResult(context, { items: data ?? [], page, pageSize, total: count ?? 0 }, error);
@@ -1425,6 +1421,10 @@ function listResource(table: string, order: string, ascending = true) {
   return async (context: Parameters<typeof ok>[0]) => {
     const clinicId = context.get("profile").clinic_id;
     let query = context.get("db").from(table).select("*").eq("clinic_id", clinicId);
+    const unitId = context.req.query("unitId");
+    if (unitId && ["rooms", "group_slots", "enrollments", "charges", "commissions", "financial_entries", "clinical_records"].includes(table)) {
+      query = query.eq("unit_id", z.string().uuid().parse(unitId));
+    }
     if (![
       "audit_events",
       "notifications",

@@ -22,9 +22,15 @@ export async function api<T>(
     detail: { id: interactionId, method: init.method ?? "GET" },
   }));
   const { data } = await supabase.auth.getSession();
+  const selectedUnit = init.method?.toUpperCase() === "POST" || init.method?.toUpperCase() === "PATCH" ? "" : (() => {
+    try { return window.localStorage.getItem("fisiofit:selected-unit") ?? ""; } catch { return ""; }
+  })();
+  const requestPath = selectedUnit && (init.method ?? "GET").toUpperCase() === "GET" && !path.includes("unitId=") && path !== "/units"
+    ? `${path}${path.includes("?") ? "&" : "?"}unitId=${encodeURIComponent(selectedUnit)}`
+    : path;
   let response: Response;
   try {
-    response = await fetch(`${apiBase}${path}`, {
+    response = await fetch(`${apiBase}${requestPath}`, {
       ...init,
       headers: {
         "content-type": "application/json",

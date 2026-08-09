@@ -19,7 +19,7 @@ const PLAN_PERIODS = {
 } as const;
 
 type PlanPeriod = keyof typeof PLAN_PERIODS;
-type WeeklyFrequency = 1 | 2;
+type WeeklyFrequency = 1 | 2 | 3;
 
 const WEEKDAYS = [
   { value: 1, label: "Segunda-feira", short: "Segunda" },
@@ -203,11 +203,12 @@ export function OperationalAgenda() {
   const [groupFrequency, setGroupFrequency] = useState<WeeklyFrequency>(2);
   const [firstWeekday, setFirstWeekday] = useState(1);
   const [secondWeekday, setSecondWeekday] = useState(3);
+  const [thirdWeekday, setThirdWeekday] = useState(5);
   const [groupTime, setGroupTime] = useState("09:00");
 
-  const selectedWeekdays = groupFrequency === 1
-    ? [firstWeekday]
-    : [firstWeekday, secondWeekday];
+  const selectedWeekdays = groupFrequency === 1 ? [firstWeekday]
+    : groupFrequency === 2 ? [firstWeekday, secondWeekday]
+    : [firstWeekday, secondWeekday, thirdWeekday];
   const selectedDayNames = selectedWeekdays.map(
     (day) => WEEKDAYS.find((option) => option.value === day)?.short ?? "",
   );
@@ -241,8 +242,8 @@ export function OperationalAgenda() {
   async function createGroup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    if (groupFrequency === 2 && firstWeekday === secondWeekday) {
-      setNotice("Escolha dois dias diferentes para a turma de 2x por semana.");
+    if (new Set(selectedWeekdays).size !== selectedWeekdays.length) {
+      setNotice(`Escolha ${groupFrequency} dias diferentes para a turma.`);
       return;
     }
     try {
@@ -264,6 +265,7 @@ export function OperationalAgenda() {
       setGroupFrequency(2);
       setFirstWeekday(1);
       setSecondWeekday(3);
+      setThirdWeekday(5);
       setGroupTime("09:00");
       setNotice(`${groupName} criada com capacidade para 7 alunos.`);
       await reload();
@@ -393,6 +395,7 @@ export function OperationalAgenda() {
               >
                 <option value="1">1x por semana</option>
                 <option value="2">2x por semana</option>
+                <option value="3">3x por semana</option>
               </select>
             </label>
             <label>
@@ -407,7 +410,7 @@ export function OperationalAgenda() {
                 {WEEKDAYS.map((day) => <option key={day.value} value={day.value}>{day.label}</option>)}
               </select>
             </label>
-            {groupFrequency === 2 && (
+              {groupFrequency >= 2 && (
               <label>
                 Segundo dia
                 <select value={secondWeekday} onChange={(event) => setSecondWeekday(Number(event.target.value))}>
@@ -415,6 +418,7 @@ export function OperationalAgenda() {
                 </select>
               </label>
             )}
+            {groupFrequency === 3 && <label>Terceiro dia<select value={thirdWeekday} onChange={(event) => setThirdWeekday(Number(event.target.value))}>{WEEKDAYS.map((day) => <option key={day.value} value={day.value}>{day.label}</option>)}</select></label>}
           </div>
           <label>
             Duração de cada aula (minutos)
@@ -946,6 +950,7 @@ export function OperationalEnrollments() {
               >
                 <option value="1">1x por semana</option>
                 <option value="2">2x por semana</option>
+                <option value="3">3x por semana</option>
               </select>
             </label>
           </div>

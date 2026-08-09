@@ -141,7 +141,18 @@ export default function FisiofitApp() {
   }, [storagePrefix, view]);
   useEffect(() => {
     storeValue(`${storagePrefix}:unit`, unit);
+    storeValue("fisiofit:selected-unit", unit);
+    window.dispatchEvent(new CustomEvent("fisiofit:unit-changed", { detail: unit }));
   }, [storagePrefix, unit]);
+  useEffect(() => {
+    const restore = () => {
+      const savedView = storedValue(`${storagePrefix}:view`);
+      const savedUnit = storedValue(`${storagePrefix}:unit`);
+      if (savedView && isView(savedView)) setView(savedView);
+      if (savedUnit) setUnit(savedUnit);
+    };
+    restore();
+  }, [storagePrefix]);
   useEffect(() => {
     if (!loading && unit && !units.some((item) => item.id === unit)) {
       setUnit("");
