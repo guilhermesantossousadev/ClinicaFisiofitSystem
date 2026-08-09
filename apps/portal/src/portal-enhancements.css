@@ -832,11 +832,28 @@ body { background: var(--canvas); }
   margin-bottom: 16px;
 }
 .creation-drawer { display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; }
-.creation-drawer-form { overflow-y: auto; padding-bottom: 32px; }
+.creation-drawer-form { overflow-y: auto; padding: 26px 32px 36px; background: #fff; }
 .creation-drawer-form > h2:first-child { display: none; }
+.creation-drawer-form > .form-instructions { margin: 0 0 22px; color: #536a82; font-size: 13px; line-height: 1.5; }
+.creation-drawer-form > label,
+.creation-drawer-form > .form-row,
+.creation-drawer-form > fieldset,
+.creation-drawer-form > .check { margin-bottom: 20px; }
+.creation-drawer-form > label,
+.creation-drawer-form > .form-row > label,
+.creation-drawer-form > fieldset label { display: grid; gap: 8px; }
+.creation-drawer-form > .form-row { align-items: start; }
+.creation-drawer-form > fieldset { padding: 20px; border: 1px solid #c9d9e3; border-radius: 14px; background: #fff; }
+.creation-drawer-form > fieldset legend { padding: 0 8px; color: #19354e; font-size: 15px; font-weight: 800; }
+.creation-drawer-form input:not([type="checkbox"]):not([type="radio"]),
+.creation-drawer-form select,
+.creation-drawer-form textarea { width: 100%; min-height: 52px; border: 1px solid #b8c7d3; border-radius: 8px; background: #fff; padding: 0 14px; font-size: 15px; }
+.creation-drawer-form textarea { min-height: 112px; padding-block: 13px; resize: vertical; }
+.creation-drawer-form input:focus, .creation-drawer-form select:focus, .creation-drawer-form textarea:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgb(39 136 201 / 14%); outline: 0; }
 .creation-drawer-form > .btn:last-child {
   width: 100%;
-  margin-top: 24px;
+  min-height: 52px;
+  margin-top: 8px;
 }
 .drawer-create-trigger.administration-form { position: static; }
 .administration-section:has(> .drawer-create-trigger) {
@@ -945,6 +962,8 @@ body { background: var(--canvas); }
   .global-search { margin-left: 0; }
   .content { padding-top: 22px; }
   .modal, .edit-dialog { width: 100%; }
+  .creation-drawer-form { padding: 22px 18px 32px; }
+  .creation-drawer-form > fieldset { padding: 17px 15px; border-radius: 12px; }
   .drawer-create-trigger { width: max-content; min-width: 0; }
   .operational-data-table { overflow-x: visible; }
   .operational-table-head { display: none; }
