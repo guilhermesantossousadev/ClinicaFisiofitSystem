@@ -149,7 +149,7 @@ export default function FisiofitApp() {
       const savedView = storedValue(`${storagePrefix}:view`);
       const savedUnit = storedValue(`${storagePrefix}:unit`);
       if (savedView && isView(savedView)) setView(savedView);
-      if (savedUnit) setUnit(savedUnit);
+      setUnit(savedUnit);
     };
     restore();
   }, [storagePrefix]);
@@ -220,10 +220,8 @@ export default function FisiofitApp() {
     .slice(0, 2)
     .join("")
     .toUpperCase();
-  if (loading)
-    return <div className="auth-loading" role="status"><span className="loading-spinner" aria-hidden="true" />Carregando dados da clínica…</div>;
   return (
-    <main className="app-shell">
+    <main className="app-shell" aria-busy={loading}>
       <aside className="sidebar">
         <button className="brand" onClick={() => navigate("Painel")}>
           <img className="brand-logo" src="/sistema/fisiofit-logo.jpg" alt="" />
@@ -255,7 +253,7 @@ export default function FisiofitApp() {
         <div className="profile">
           <span className="avatar admin">{initials}</span>
           <div>
-            <strong>{profile.name}</strong>
+          <strong>{loading ? "Carregando…" : profile.name}</strong>
             <small>{roleLabel[profile.role]}</small>
           </div>
           <button onClick={() => void signOut()} aria-label="Sair">

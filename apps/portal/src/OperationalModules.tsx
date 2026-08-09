@@ -56,28 +56,37 @@ function isoLocal(raw: string) {
   return new Date(raw).toISOString();
 }
 
+const resourceCache = new Map<string, Record<string, any>>();
+
 function useResources(paths: string[]) {
-  const [data, setData] = useState<Record<string, any>>({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const key = paths.join("|");
+  const selectedUnit = typeof window === "undefined" ? "" : window.localStorage.getItem("fisiofit:selected-unit") ?? "";
+  const cacheKey = `${selectedUnit}:${key}`;
+  const [data, setData] = useState<Record<string, any>>(() => resourceCache.get(cacheKey) ?? {});
+  const [loading, setLoading] = useState(() => !resourceCache.has(cacheKey));
+  const [error, setError] = useState("");
   const reload = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
       const responses = await Promise.all(paths.map((path) => api<any>(path)));
-      setData(
-        Object.fromEntries(
+      const nextData = Object.fromEntries(
           paths.map((path, index) => [path, responses[index].data]),
-        ),
-      );
+        );
+      resourceCache.set(cacheKey, nextData);
+      setData(nextData);
     } catch (loadError) {
       setError(messageOf(loadError));
     } finally {
       setLoading(false);
     }
-  }, [key]);
-  useEffect(() => void reload(), [reload]);
+  }, [cacheKey, key]);
+  useEffect(() => {
+    void reload();
+    const onUnitChanged = () => void reload();
+    window.addEventListener("fisiofit:unit-changed", onUnitChanged);
+    return () => window.removeEventListener("fisiofit:unit-changed", onUnitChanged);
+  }, [reload]);
   return { data, loading, error, reload };
 }
 
