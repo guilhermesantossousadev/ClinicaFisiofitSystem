@@ -390,7 +390,7 @@ export default function FisiofitApp() {
           </div>
         )}
         {view === "Painel" && (
-          <Dashboard data={dashboard} name={profile.name} setView={setView} />
+          <Dashboard data={dashboard} name={profile.name} setView={setView} loading={loading} />
         )}{" "}
         {view === "Agenda" && <OperationalAgenda />}{" "}
         {view === "Pacientes" && <OperationalPatients />}{" "}
@@ -411,10 +411,12 @@ function Dashboard({
   data,
   name,
   setView,
+  loading = false,
 }: {
   data: DashboardData | null;
   name: string;
   setView: (view: View) => void;
+  loading?: boolean;
 }) {
   const result =
     (data?.receivedMonthCents ?? 0) - (data?.paidExpensesMonthCents ?? 0);
@@ -438,6 +440,10 @@ function Dashboard({
           </button>
         </div>
       </div>
+      {loading && <section className="metrics" aria-label="Carregando indicadores" aria-live="polite">
+        {Array.from({ length: 4 }, (_, index) => <div className="metric-card module-skeleton" key={index}><div className="skeleton-line skeleton-short" /><div className="skeleton-line skeleton-title" /></div>)}
+      </section>}
+      {!loading && <>
       <div className="metrics">
         <Metric
           label="Atendimentos hoje"
@@ -486,6 +492,7 @@ function Dashboard({
           </div>
         )}
       </section>
+      </>}
     </div>
   );
 }

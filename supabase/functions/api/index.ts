@@ -627,6 +627,13 @@ app.post("/enrollments", requireRoles(["admin", "manager", "reception", "finance
   return ok(context, data, 201);
 });
 
+app.post("/enrollments/:id/rollback", requireRoles(["admin", "manager", "reception", "finance"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const input = z.object({ reason: z.string().trim().min(10).max(1000) }).parse(await context.req.json());
+  const { data, error } = await context.get("db").rpc("rollback_enrollment", { p_enrollment_id: id, p_reason: input.reason, p_request_id: context.get("requestId") });
+  return databaseResult(context, data, error);
+});
+
 app.post("/charges", requireRoles(["admin", "manager", "finance"]), async (context) => {
   const input = z.object({
     patient_id: z.string().uuid(),
@@ -816,6 +823,7 @@ app.get("/appointments", async (context) => {
 
 app.post("/appointments", requireRoles(["admin", "manager", "reception", "professional"]), async (context) => {
   const input = appointmentSchema.parse(await context.req.json());
+  if (!(await hasUnitAccess(context, input.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
   const db = context.get("db");
   const { data: conflict, error: conflictError } = await db.rpc("check_appointment_conflict", {
     p_unit_id: input.unit_id,
@@ -865,6 +873,7 @@ app.post("/group-slots", requireRoles(["admin", "manager"]), async (context) => 
     duration_minutes: z.number().int().min(15).max(240),
     capacity: z.number().int().min(3).max(7).default(7),
   }).parse(await context.req.json());
+  if (!(await hasUnitAccess(context, input.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
   const { data, error } = await context.get("db").from("group_slots").insert({
     ...input,
     weekdays: [...new Set(input.weekdays)].sort(),
@@ -923,16 +932,53 @@ app.post("/appointments/:id/complete", requireRoles(["admin", "manager", "profes
 
 app.get("/clinical-records", requireRoles(["admin", "manager", "professional"]), async (context) => {
   const patientId = z.string().uuid().parse(context.req.query("patientId"));
-  const { data, error } = await context.get("db").from("clinical_records")
+  let query = context.get("db").from("clinical_records")
     .select("*").eq("clinic_id", context.get("profile").clinic_id)
     .eq("patient_id", patientId).is("deleted_at", null)
-    .order("created_at", { ascending: false });
+  if (context.get("profile").role === "professional") {
+    const professionalId = await professionalForUser(context);
+    if (!professionalId) return fail(context, 403, "PROFESSIONAL_NOT_LINKED", "Seu usuário não está vinculado a um profissional.");
+    query = query.eq("professional_id", professionalId);
+  }
+  const { data, error } = await query.order("created_at", { ascending: false });
   if (!error) await audit(context, "clinical_records.viewed", "patient", patientId);
+  return databaseResult(context, data, error);
+});
+
+app.get("/attachments", requireRoles(["admin", "manager", "professional", "reception"]), async (context) => {
+  const patientId = z.string().uuid().parse(context.req.query("patientId"));
+  const { data, error } = await context.get("db").from("attachments").select("id,patient_id,entity_type,entity_id,bucket,storage_path,filename,content_type,size_bytes,created_at")
+    .eq("clinic_id", context.get("profile").clinic_id).eq("patient_id", patientId).is("deleted_at", null).order("created_at", { ascending: false });
+  return databaseResult(context, data, error);
+});
+
+app.post("/attachments/upload-url", requireRoles(["admin", "manager", "professional", "reception"]), async (context) => {
+  const input = z.object({
+    patient_id: z.string().uuid(), entity_type: z.string().min(2).max(60), entity_id: z.string().uuid(),
+    filename: z.string().trim().min(1).max(240), content_type: z.enum(["application/pdf", "image/jpeg", "image/png", "image/webp"]), size_bytes: z.number().int().positive().max(26214400),
+  }).parse(await context.req.json());
+  const bucket = "clinical-files";
+  const path = `${context.get("profile").clinic_id}/${input.patient_id}/${crypto.randomUUID()}-${input.filename.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+  const { data: signed, error: signedError } = await context.get("db").storage.from(bucket).createSignedUploadUrl(path);
+  if (signedError || !signed) return databaseResult(context, null, signedError);
+  const { data, error } = await context.get("db").from("attachments").insert({ ...input, clinic_id: context.get("profile").clinic_id, bucket, storage_path: path, uploaded_by: context.get("user").id }).select().single();
+  return databaseResult(context, { attachment: data, token: signed.token, path }, error, 201);
+});
+
+app.delete("/attachments/:id", requireRoles(["admin", "manager", "professional", "reception"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const db = context.get("db");
+  const { data: attachment, error: readError } = await db.from("attachments").select("id,bucket,storage_path").eq("id", id).eq("clinic_id", context.get("profile").clinic_id).is("deleted_at", null).single();
+  if (readError || !attachment) return databaseResult(context, null, readError);
+  await db.storage.from(attachment.bucket).remove([attachment.storage_path]);
+  const { data, error } = await db.from("attachments").update({ deleted_at: new Date().toISOString() }).eq("id", id).select().single();
   return databaseResult(context, data, error);
 });
 
 app.post("/clinical-records", requireRoles(["admin", "manager", "professional"]), async (context) => {
   const input = clinicalRecordSchema.parse(await context.req.json());
+  if (!(await hasUnitAccess(context, input.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+  if (context.get("profile").role === "professional" && !(await isOwnProfessional(context, input.professional_id))) return fail(context, 403, "PROFESSIONAL_FORBIDDEN", "Você só pode registrar em seu próprio prontuário profissional.");
   const { data, error } = await context.get("db").from("clinical_records").insert({
     ...input,
     clinic_id: context.get("profile").clinic_id,
@@ -950,6 +996,8 @@ app.post("/clinical-records/:id/sign", requireRoles(["admin", "manager", "profes
   const { data: record, error: readError } = await db.from("clinical_records").select("*")
     .eq("id", id).eq("clinic_id", clinicId).eq("status", "draft").single();
   if (readError || !record) return databaseResult(context, null, readError);
+  if (!(await hasUnitAccess(context, record.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+  if (context.get("profile").role === "professional" && !(await isOwnProfessional(context, record.professional_id))) return fail(context, 403, "PROFESSIONAL_FORBIDDEN", "Você só pode assinar seus próprios registros.");
   const canonical = JSON.stringify({ id: record.id, payload: record.payload, created_at: record.created_at });
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical));
   const signatureHash = Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -973,6 +1021,8 @@ app.post("/clinical-records/:id/rectify", requireRoles(["admin", "manager", "pro
   const { data: original, error: originalError } = await db.from("clinical_records").select("*")
     .eq("id", originalId).eq("clinic_id", context.get("profile").clinic_id).eq("status", "signed").single();
   if (originalError || !original) return databaseResult(context, null, originalError);
+  if (!(await hasUnitAccess(context, original.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+  if (context.get("profile").role === "professional" && !(await isOwnProfessional(context, original.professional_id))) return fail(context, 403, "PROFESSIONAL_FORBIDDEN", "Você só pode retificar seus próprios registros.");
   const { data, error } = await db.from("clinical_records").insert({
     clinic_id: original.clinic_id,
     patient_id: original.patient_id,
@@ -1010,6 +1060,13 @@ app.post("/payments", requireRoles(["admin", "manager", "finance"]), async (cont
   return databaseResult(context, data, error, 201);
 });
 
+app.post("/payments/:id/reverse", requireRoles(["admin", "manager", "finance"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const input = z.object({ reason: z.string().trim().min(10).max(1000) }).parse(await context.req.json());
+  const { data, error } = await context.get("db").rpc("reverse_payment", { p_payment_id: id, p_reason: input.reason, p_request_id: context.get("requestId") });
+  return databaseResult(context, data, error);
+});
+
 app.get("/financial-entries", requireRoles(["admin", "manager", "finance"]), async (context) => {
   const from = z.string().date().parse(context.req.query("from"));
   const to = z.string().date().parse(context.req.query("to"));
@@ -1024,12 +1081,34 @@ app.get("/financial-entries", requireRoles(["admin", "manager", "finance"]), asy
 
 app.post("/financial-entries", requireRoles(["admin", "manager", "finance"]), async (context) => {
   const input = financialEntrySchema.parse(await context.req.json());
+  if (!(await hasUnitAccess(context, input.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
   const { data, error } = await context.get("db").from("financial_entries").insert({
     ...input,
     clinic_id: context.get("profile").clinic_id,
   }).select().single();
   if (!error && data) await audit(context, "financial_entry.created", "financial_entry", data.id, data.unit_id);
   return databaseResult(context, data, error, 201);
+});
+
+app.patch("/financial-entries/:id", requireRoles(["admin", "manager", "finance"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const input = financialEntrySchema.partial().parse(await context.req.json());
+  if (input.unit_id && !(await hasUnitAccess(context, input.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+  const { data, error } = await context.get("db").from("financial_entries").update({ ...input, updated_at: new Date().toISOString() })
+    .eq("id", id).eq("clinic_id", context.get("profile").clinic_id).is("deleted_at", null).select().single();
+  if (!error && data) await audit(context, "financial_entry.updated", "financial_entry", id, data.unit_id);
+  return databaseResult(context, data, error);
+});
+
+app.delete("/financial-entries/:id", requireRoles(["admin", "manager", "finance"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const db = context.get("db");
+  const { data: current, error: readError } = await db.from("financial_entries").select("unit_id").eq("id", id).eq("clinic_id", context.get("profile").clinic_id).is("deleted_at", null).single();
+  if (readError || !current) return databaseResult(context, null, readError);
+  if (!(await hasUnitAccess(context, current.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+  const { data, error } = await db.from("financial_entries").update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", id).select().single();
+  if (!error) await audit(context, "financial_entry.deleted", "financial_entry", id, current.unit_id);
+  return databaseResult(context, data, error);
 });
 
 app.post("/commissions", requireRoles(["admin", "manager", "finance"]), async (context) => {
@@ -1100,6 +1179,19 @@ app.post("/closings", requireRoles(["admin", "manager", "finance"]), async (cont
   return databaseResult(context, data, error, 201);
 });
 
+app.post("/closings/:id/reopen", requireRoles(["admin", "manager", "finance"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const input = z.object({ reason: z.string().trim().min(10).max(1000) }).parse(await context.req.json());
+  const db = context.get("db");
+  const { data: current, error: readError } = await db.from("monthly_closings").select("id,unit_id,status").eq("id", id).eq("clinic_id", context.get("profile").clinic_id).single();
+  if (readError || !current) return databaseResult(context, null, readError);
+  if (current.unit_id && !(await hasUnitAccess(context, current.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+  if (current.status !== "closed") return fail(context, 409, "CLOSING_NOT_CLOSED", "Este fechamento já está reaberto.");
+  const { data, error } = await db.from("monthly_closings").update({ status: "reopened", reopening_reason: input.reason }).eq("id", id).select().single();
+  if (!error) await audit(context, "closing.reopened", "monthly_closing", id, current.unit_id, { reason: input.reason });
+  return databaseResult(context, data, error);
+});
+
 app.get("/reports/annual", requireRoles(["admin", "manager", "finance"]), async (context) => {
   const year = z.coerce.number().int().min(2020).max(2100).parse(context.req.query("year"));
   const unit = context.req.query("unitId");
@@ -1138,6 +1230,13 @@ app.post("/imports", requireRoles(["admin", "manager"]), async (context) => {
 });
 
 app.get("/imports", requireRoles(["admin", "manager"]), listResource("import_batches", "created_at", false));
+
+app.post("/imports/:id/rollback", requireRoles(["admin", "manager"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const input = z.object({ reason: z.string().trim().min(10).max(1000) }).parse(await context.req.json());
+  const { data, error } = await context.get("db").rpc("rollback_import_batch", { p_batch_id: id, p_reason: input.reason, p_request_id: context.get("requestId") });
+  return databaseResult(context, data, error);
+});
 
 // Workbook imports use one sheet per entity. The aliases intentionally match
 // the labels used by Brazilian spreadsheets as well as the database fields.
@@ -1243,6 +1342,13 @@ app.post("/imports/workbook", requireRoles(["admin", "manager"]), async (context
     if (error) insertErrors.push(...group.map((item) => ({ sheet: item.sheet, row: item.row, reason: error.message })));
     else {
       imported[entity] = data?.length ?? 0;
+      if (data) {
+        await db.from("migration_items").insert(data.map((created: { id: string }, index: number) => ({
+          clinic_id: clinicId, batch_id: batch.id, source: "manual", entity_type: entity,
+          external_id: `${group[index].sheet}:${group[index].row}`, payload: group[index].values,
+          status: "imported", target_table: workbookEntities[entity].table, target_id: created.id,
+        })));
+      }
       if (entity === "professionals" && data) {
         const links = data.map((professional: { id: string }, index: number) => ({ professional_id: professional.id, unit_id: group[index].values.unit_id }));
         const { error: linkError } = await db.from("professional_units").insert(links);
@@ -1449,12 +1555,33 @@ async function createClinicResource(
   action: string,
   unitId?: string,
 ) {
+  if (unitId && !(await hasUnitAccess(context, unitId))) {
+    return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+  }
   const { data, error } = await context.get("db").from(table).insert({
     ...input,
     clinic_id: context.get("profile").clinic_id,
   }).select().single();
   if (!error && data) await audit(context, action, table.replace(/s$/, ""), data.id, unitId);
   return databaseResult(context, data, error, 201);
+}
+
+async function hasUnitAccess(context: Parameters<typeof ok>[0], unitId: string) {
+  if (context.get("profile").role === "admin") return true;
+  const { data, error } = await context.get("db").from("profile_units")
+    .select("unit_id").eq("profile_id", context.get("user").id).eq("unit_id", unitId).maybeSingle();
+  return !error && Boolean(data);
+}
+
+async function professionalForUser(context: Parameters<typeof ok>[0]) {
+  const { data } = await context.get("db").from("professionals").select("id")
+    .eq("clinic_id", context.get("profile").clinic_id).eq("profile_id", context.get("user").id).is("deleted_at", null).maybeSingle();
+  return data?.id as string | undefined;
+}
+
+async function isOwnProfessional(context: Parameters<typeof ok>[0], professionalId: string) {
+  const ownId = await professionalForUser(context);
+  return Boolean(ownId && ownId === professionalId);
 }
 
 function requireRoles(roles: Role[]) {

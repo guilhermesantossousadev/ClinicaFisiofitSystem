@@ -1,6 +1,7 @@
 import { FormEvent, type CSSProperties, type FormEventHandler, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { api } from "./api";
+import { supabase } from "./supabase";
 
 type Row = Record<string, any>;
 type Unit = { id: string; name: string };
@@ -885,6 +886,12 @@ export function OperationalEnrollments() {
       setNotice(messageOf(e));
     }
   }
+  async function rollbackEnrollment(id: string) {
+    const reason = window.prompt("Informe o motivo da reversão (mínimo 10 caracteres):");
+    if (!reason) return;
+    try { await api(`/enrollments/${id}/rollback`, { method: "POST", body: JSON.stringify({ reason }) }); await reload(); setNotice("Matrícula revertida."); }
+    catch (e) { setNotice(messageOf(e)); }
+  }
   async function pay(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -1058,6 +1065,7 @@ export function OperationalEnrollments() {
         title="Matrículas ativas"
         rows={data["/enrollments"] ?? []}
         fields={["status", "starts_at", "due_day", "sessions_used"]}
+        actions={(row) => row.deleted_at ? null : <button type="button" onClick={() => void rollbackEnrollment(row.id)}>Reverter</button>}
       />
       <OperationalTable
         title="Cobranças"
@@ -1085,18 +1093,38 @@ export function OperationalRecords() {
   const patients = data[basePaths[0]]?.items ?? [];
   const [patientId, setPatientId] = useState("");
   const [records, setRecords] = useState<Row[]>([]);
+  const [attachments, setAttachments] = useState<Row[]>([]);
   const [notice, setNotice] = useState("");
   const loadRecords = useCallback(async (id: string) => {
     setPatientId(id);
     if (!id) return setRecords([]);
     try {
-      setRecords(
-        (await api<Row[]>(`/clinical-records?patientId=${id}`)).data ?? [],
-      );
+      const [recordResponse, attachmentResponse] = await Promise.all([
+        api<Row[]>(`/clinical-records?patientId=${id}`),
+        api<Row[]>(`/attachments?patientId=${id}`),
+      ]);
+      setRecords(recordResponse.data ?? []);
+      setAttachments(attachmentResponse.data ?? []);
     } catch (e) {
       setNotice(messageOf(e));
     }
   }, []);
+  async function uploadAttachment(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file || !patientId) return;
+    try {
+      const response = await api<Row>("/attachments/upload-url", { method: "POST", body: JSON.stringify({
+        patient_id: patientId, entity_type: "patient", entity_id: patientId, filename: file.name,
+        content_type: file.type, size_bytes: file.size,
+      }) });
+      if (!response.data) throw new Error("Não foi possível preparar o upload.");
+      const upload = await supabase.storage.from("clinical-files").uploadToSignedUrl(response.data.path, response.data.token, file);
+      if (upload.error) throw upload.error;
+      await loadRecords(patientId);
+      setNotice("Anexo enviado.");
+    } catch (e) { setNotice(messageOf(e)); }
+    event.target.value = "";
+  }
   async function createRecord(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -1220,6 +1248,11 @@ export function OperationalRecords() {
           <button className="btn primary">Salvar rascunho</button>
         </DrawerForm>
       )}
+      {patientId && <section className="card table-card">
+        <div className="table-toolbar"><h2>Anexos do paciente</h2><label className="btn secondary">Adicionar arquivo<input className="sr-only" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={uploadAttachment} /></label></div>
+        {attachments.map((file) => <div className="operational-row" key={file.id}><div><strong>{file.filename}</strong><small>{file.content_type} · {Math.round(file.size_bytes / 1024)} KB</small></div></div>)}
+        {!attachments.length && <div className="empty-state">Nenhum anexo.</div>}
+      </section>}
       <section className="card table-card bespoke-table records-list-table">
         <div className="table-toolbar"><h2>Registros clínicos</h2><span>{records.length} registros</span></div>
         <div className="bespoke-table-head" aria-hidden="true"><span>Tipo e status</span><span>Data e conteúdo</span><span>Ações</span></div>
@@ -1308,6 +1341,16 @@ export function OperationalFinance() {
       (event.target as HTMLFormElement).reset();
       await reload();
       setNotice("Comissão calculada.");
+    } catch (e) {
+      setNotice(messageOf(e));
+    }
+  }
+  async function removeEntry(id: string) {
+    if (!window.confirm("Excluir este lançamento? Ele ficará oculto, mas será mantido no histórico.")) return;
+    try {
+      await api(`/financial-entries/${id}`, { method: "DELETE" });
+      await reload();
+      setNotice("Lançamento excluído.");
     } catch (e) {
       setNotice(messageOf(e));
     }
@@ -1438,6 +1481,7 @@ export function OperationalFinance() {
           "kind",
           "amount_cents",
         ]}
+        actions={(row) => <button type="button" onClick={() => void removeEntry(row.id)}>Excluir</button>}
       />
       <section className="card table-card bespoke-table commissions-list-table">
         <div className="table-toolbar">
@@ -1499,6 +1543,19 @@ export function OperationalReports() {
     a.click();
     URL.revokeObjectURL(url);
   }
+  function exportXlsx() {
+    if (!report) return;
+    const rows = (report.months ?? []).map((month: Row) => ({
+      Mês: month.month,
+      Receitas: month.realizedIncomeCents,
+      Despesas: month.realizedExpenseCents,
+      "Previsto receitas": month.expectedIncomeCents,
+      "Previsto despesas": month.expectedExpenseCents,
+    }));
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(rows), "Relatório anual");
+    XLSX.writeFile(workbook, `fisiofit-relatorio-${year}.xlsx`);
+  }
   return (
     <div className="content">
       <div className="page-title">
@@ -1515,6 +1572,9 @@ export function OperationalReports() {
           />
           <button className="btn secondary" onClick={exportCsv}>
             Exportar planilha
+          </button>
+          <button className="btn secondary" onClick={exportXlsx}>
+            Exportar XLSX
           </button>
           <button className="btn primary" onClick={() => window.print()}>
             Gerar PDF
@@ -1666,6 +1726,12 @@ export function OperationalImports() {
       setNotionBusy(false);
     }
   }
+  async function rollbackBatch(id: string) {
+    const reason = window.prompt("Informe o motivo do rollback (mínimo 10 caracteres):");
+    if (!reason) return;
+    try { await api(`/imports/${id}/rollback`, { method: "POST", body: JSON.stringify({ reason }) }); await reload(); setNotice("Lote revertido."); }
+    catch (e) { setNotice(messageOf(e)); }
+  }
   return (
     <div className="content">
       <div className="page-title">
@@ -1801,6 +1867,7 @@ export function OperationalImports() {
         title="Histórico de lotes"
         rows={data["/imports"] ?? []}
         fields={["filename", "source", "status", "totals", "created_at"]}
+        actions={(row) => row.rollback_at ? null : <button type="button" onClick={() => void rollbackBatch(row.id)}>Rollback</button>}
       />
     </div>
   );
@@ -2552,10 +2619,12 @@ function OperationalTable({
   title,
   rows,
   fields,
+  actions,
 }: {
   title: string;
   rows: Row[];
   fields: string[];
+  actions?: (row: Row) => ReactNode;
 }) {
   return (
     <section className="card table-card operational-data-table" style={{ "--table-columns": `repeat(${fields.length}, minmax(135px, 1fr))` } as CSSProperties}>
@@ -2571,6 +2640,7 @@ function OperationalTable({
           {fields.map((field, index) => <div className="operational-cell" key={field} data-label={fieldLabel(field)}>
             {index === 0 ? <strong>{render(row[field], field)}</strong> : <span>{render(row[field], field)}</span>}
           </div>)}
+          {actions && <div className="operational-cell row-actions" data-label="Ações">{actions(row)}</div>}
         </div>
       ))}
       {!rows.length && (

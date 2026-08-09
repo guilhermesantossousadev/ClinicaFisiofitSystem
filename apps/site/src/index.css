@@ -35,7 +35,10 @@
     font-family: 'Manrope', system-ui, sans-serif;
     line-height: 1.65;
     -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
   }
+  img, svg, video, canvas { max-width: 100%; }
+  button, a { overflow-wrap: anywhere; }
   h1, h2, h3, h4 { font-family: 'Manrope', system-ui, sans-serif; }
   :focus-visible { outline: 3px solid rgb(39 136 201 / 35%); outline-offset: 3px; }
   ::selection { background: #e6f7f3; color: #17324d; }
