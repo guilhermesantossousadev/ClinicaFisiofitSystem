@@ -1,4 +1,5 @@
 import { FormEvent, type CSSProperties, type FormEventHandler, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import * as XLSX from "xlsx";
 import { api } from "./api";
 
 type Row = Record<string, any>;
@@ -1555,26 +1556,35 @@ export function OperationalImports() {
   const [notice, setNotice] = useState("");
   const [notionBusy, setNotionBusy] = useState(false);
   const [notionValidated, setNotionValidated] = useState(false);
+  const [sheetNames, setSheetNames] = useState<string[]>([]);
+  const [selectedSheet, setSelectedSheet] = useState("");
+
+  function normalizeHeader(header: string) {
+    return header.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase().trim().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+  }
+
+  async function readWorkbook(file: File, requestedSheet?: string) {
+    setFilename(file.name);
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: "array", cellDates: true, dateNF: "yyyy-mm-dd" });
+      setSheetNames(workbook.SheetNames);
+      const sheetName = requestedSheet || workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "", raw: false });
+      setRows(json.map((row) => Object.fromEntries(Object.entries(row).map(([key, value]) => [normalizeHeader(key), String(value).trim() || undefined]))));
+      setSelectedSheet(sheetName);
+      setPreview(null);
+      setNotice(`${json.length} linhas carregadas da aba ${sheetName}.`);
+    } catch {
+      setRows([]);
+      setNotice("Não foi possível ler a planilha. Use um arquivo .xlsx ou .csv válido.");
+    }
+  }
   function choose(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
-    if (!file) return;
-    setFilename(file.name);
-    void file.text().then((text) => {
-      const lines = text.split(/\r?\n/).filter(Boolean);
-      const headers =
-        lines
-          .shift()
-          ?.split(/[;,]/)
-          .map((h) => h.trim().toLowerCase()) ?? [];
-      setRows(
-        lines.map((line) => {
-          const cells = line.split(/[;,]/);
-          return Object.fromEntries(
-            headers.map((h, i) => [h, cells[i]?.trim() || undefined]),
-          );
-        }),
-      );
-    });
+    if (file) void readWorkbook(file);
   }
   async function run(event: FormEvent<HTMLFormElement>, dryRun: boolean) {
     event.preventDefault();
@@ -1640,7 +1650,7 @@ export function OperationalImports() {
           <p className="eyebrow">MIGRAÇÃO RASTREÁVEL</p>
           <h1>Importações</h1>
           <p>
-            CSV com prévia, validação de CPF, deduplicação e lote auditável.
+            XLSX/CSV com prévia, validação de CPF, deduplicação e lote auditável.
           </p>
         </div>
       </div>
@@ -1703,15 +1713,25 @@ export function OperationalImports() {
           )}
         </section>
         <label>
-          Arquivo CSV
+          Arquivo XLSX ou CSV
           <input
             type="file"
-            accept=".csv,text/csv"
+            accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
             onChange={choose}
             required
           />
         </label>
-        <p>{rows.length} linhas carregadas.</p>
+        {sheetNames.length > 1 && (
+          <label>Aba da planilha
+            <select value={selectedSheet} onChange={(event) => {
+              const input = event.currentTarget.form?.querySelector<HTMLInputElement>('input[type="file"]');
+              if (input?.files?.[0]) void readWorkbook(input.files[0], event.target.value);
+            }}>
+              {sheetNames.map((sheet) => <option key={sheet} value={sheet}>{sheet}</option>)}
+            </select>
+          </label>
+        )}
+        <p>{rows.length} linhas carregadas{selectedSheet ? ` da aba “${selectedSheet}”` : ""}.</p>
         <div className="title-actions">
           <button className="btn secondary" type="submit">
             Pré-validar
