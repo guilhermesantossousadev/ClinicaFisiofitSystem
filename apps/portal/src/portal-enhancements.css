@@ -865,6 +865,49 @@ body { background: var(--canvas); }
   min-height: 52px;
   margin-top: 8px;
 }
+
+/* Contrato visual único para todos os formulários de cadastro. */
+.creation-drawer-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  align-items: stretch;
+}
+.creation-drawer-form > label,
+.creation-drawer-form > .form-row,
+.creation-drawer-form > fieldset,
+.creation-drawer-form > .plan-summary {
+  width: 100%;
+  min-width: 0;
+  margin-block: 0 20px;
+}
+.creation-drawer-form > .form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+.creation-drawer-form > label,
+.creation-drawer-form > .form-row > label,
+.creation-drawer-form > fieldset label {
+  min-width: 0;
+  align-content: start;
+  gap: 8px;
+}
+.creation-drawer-form > label > input,
+.creation-drawer-form > label > select,
+.creation-drawer-form > label > textarea,
+.creation-drawer-form > .form-row label > input,
+.creation-drawer-form > .form-row label > select,
+.creation-drawer-form > .form-row label > textarea {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+.creation-drawer-form > .weekday-row > label:nth-child(3) { grid-column: auto; max-width: none; }
+.creation-drawer-form > .weekday-row:has(> label:nth-child(3)) {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.creation-drawer-form > .btn:last-child { margin-top: 0; }
 .drawer-create-trigger.administration-form { position: static; }
 .administration-section:has(> .drawer-create-trigger) {
   display: flex;
@@ -975,6 +1018,8 @@ body { background: var(--canvas); }
   .creation-drawer-form { padding: 22px 18px 32px; }
   .creation-drawer-form > .weekday-row > label:nth-child(3) { max-width: none; }
   .creation-drawer-form > fieldset { padding: 17px 15px; border-radius: 12px; }
+  .creation-drawer-form > .form-row,
+  .creation-drawer-form > .weekday-row:has(> label:nth-child(3)) { grid-template-columns: 1fr; gap: 16px; }
   .drawer-create-trigger { width: max-content; min-width: 0; }
   .operational-data-table { overflow-x: visible; }
   .operational-table-head { display: none; }
