@@ -908,6 +908,31 @@ body { background: var(--canvas); }
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 .creation-drawer-form > .btn:last-child { margin-top: 0; }
+
+/* Agenda: composição própria para manter todas as linhas equilibradas. */
+.agenda-appointment-drawer,
+.agenda-group-drawer { width: min(680px, 100%); }
+.agenda-appointment-drawer .creation-drawer-form,
+.agenda-group-drawer .creation-drawer-form { padding-inline: 32px; }
+.agenda-appointment-drawer .creation-drawer-form > .form-row,
+.agenda-group-drawer .creation-drawer-form > .form-row {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+.agenda-group-drawer .creation-drawer-form > .weekday-row:has(> label:nth-child(3)) {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.agenda-group-drawer .creation-drawer-form > .weekday-row > label:nth-child(3) {
+  grid-column: auto;
+  max-width: none;
+}
+.agenda-appointment-drawer .creation-drawer-form > label,
+.agenda-group-drawer .creation-drawer-form > label,
+.agenda-appointment-drawer .creation-drawer-form > .form-row,
+.agenda-group-drawer .creation-drawer-form > .form-row {
+  margin-bottom: 20px;
+}
 .drawer-create-trigger.administration-form { position: static; }
 .administration-section:has(> .drawer-create-trigger) {
   display: flex;
@@ -1020,6 +1045,11 @@ body { background: var(--canvas); }
   .creation-drawer-form > fieldset { padding: 17px 15px; border-radius: 12px; }
   .creation-drawer-form > .form-row,
   .creation-drawer-form > .weekday-row:has(> label:nth-child(3)) { grid-template-columns: 1fr; gap: 16px; }
+  .agenda-appointment-drawer .creation-drawer-form,
+  .agenda-group-drawer .creation-drawer-form { padding-inline: 18px; }
+  .agenda-appointment-drawer .creation-drawer-form > .form-row,
+  .agenda-group-drawer .creation-drawer-form > .form-row,
+  .agenda-group-drawer .creation-drawer-form > .weekday-row:has(> label:nth-child(3)) { grid-template-columns: 1fr; }
   .drawer-create-trigger { width: max-content; min-width: 0; }
   .operational-data-table { overflow-x: visible; }
   .operational-table-head { display: none; }

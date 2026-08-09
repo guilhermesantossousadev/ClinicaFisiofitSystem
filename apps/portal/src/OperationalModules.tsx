@@ -140,7 +140,7 @@ function DrawerForm({
         <div className="modal-backdrop creation-drawer-backdrop" role="presentation" onMouseDown={(event) => {
           if (event.target === event.currentTarget) setOpen(false);
         }}>
-          <section className="modal creation-drawer" role="dialog" aria-modal="true" aria-label={title}>
+          <section className={`modal creation-drawer ${title.includes("turma") ? "agenda-group-drawer" : title.includes("agendamento") ? "agenda-appointment-drawer" : ""}`} role="dialog" aria-modal="true" aria-label={title}>
             <div className="modal-head">
               <h2>{title}</h2>
               <button type="button" onClick={() => setOpen(false)} aria-label={`Fechar ${title}`}>×</button>
