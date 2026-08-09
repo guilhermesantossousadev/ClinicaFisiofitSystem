@@ -4,6 +4,13 @@ import { api } from "./api";
 
 type Row = Record<string, any>;
 type Unit = { id: string; name: string };
+type WorkbookSheet = { name: string; entity: string; rows: Row[] };
+const workbookEntityOptions = [
+  ["units", "Unidades"], ["rooms", "Salas"], ["professionals", "Profissionais"], ["services", "Serviços"],
+  ["plans", "Planos"], ["patients", "Pacientes"], ["enrollments", "Matrículas"], ["appointments", "Agendamentos"],
+  ["group_slots", "Turmas"], ["charges", "Cobranças"], ["payments", "Pagamentos"],
+  ["financial_entries", "Lançamentos financeiros"], ["commissions", "Comissões"], ["clinical_records", "Prontuários"], ["record_templates", "Modelos clínicos"],
+] as const;
 
 const PLAN_PERIODS = {
   monthly: { label: "Mensal", months: 1, durationDays: 30 },
@@ -1558,6 +1565,7 @@ export function OperationalImports() {
   const [notionValidated, setNotionValidated] = useState(false);
   const [sheetNames, setSheetNames] = useState<string[]>([]);
   const [selectedSheet, setSelectedSheet] = useState("");
+  const [workbookSheets, setWorkbookSheets] = useState<WorkbookSheet[]>([]);
 
   function normalizeHeader(header: string) {
     return header.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
@@ -1573,7 +1581,13 @@ export function OperationalImports() {
       const sheetName = requestedSheet || workbook.SheetNames[0];
       const sheet = workbook.Sheets[sheetName];
       const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "", raw: false });
-      setRows(json.map((row) => Object.fromEntries(Object.entries(row).map(([key, value]) => [normalizeHeader(key), String(value).trim() || undefined]))));
+      const normalizedRows = json.map((row) => Object.fromEntries(Object.entries(row).map(([key, value]) => [normalizeHeader(key), String(value).trim() || undefined])));
+      setRows(normalizedRows);
+      setWorkbookSheets((current) => {
+        const existing = current.filter((candidate) => candidate.name !== sheetName);
+        const previous = current.find((candidate) => candidate.name === sheetName);
+        return [...existing, { name: sheetName, entity: previous?.entity || guessWorkbookEntity(sheetName), rows: normalizedRows }];
+      });
       setSelectedSheet(sheetName);
       setPreview(null);
       setNotice(`${json.length} linhas carregadas da aba ${sheetName}.`);
@@ -1581,6 +1595,11 @@ export function OperationalImports() {
       setRows([]);
       setNotice("Não foi possível ler a planilha. Use um arquivo .xlsx ou .csv válido.");
     }
+  }
+  function guessWorkbookEntity(name: string) {
+    const key = normalizeHeader(name);
+    const found = workbookEntityOptions.find(([entity]) => key.includes(entity.replace("_", " ")) || key.includes(entity));
+    return found?.[0] ?? "patients";
   }
   function choose(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -1590,23 +1609,13 @@ export function OperationalImports() {
     event.preventDefault();
     const f = new FormData(event.currentTarget);
     try {
-      const response = await api<Row>("/imports/patients", {
+      const response = await api<Row>("/imports/workbook", {
         method: "POST",
         idempotencyKey: crypto.randomUUID(),
         body: JSON.stringify({
-          source: value(f, "source"),
           filename,
-          unit_id: value(f, "unit_id"),
           dryRun,
-          rows: rows.map((r) => ({
-            external_id: r.external_id || r.id,
-            name: r.name || r.nome,
-            cpf: r.cpf,
-            birth_date: r.birth_date || r.nascimento,
-            phone: r.phone || r.telefone,
-            email: r.email,
-            notes: r.notes || r.observacoes,
-          })),
+          sheets: workbookSheets.map(({ name, entity, rows: sheetRows }) => ({ name, entity, rows: sheetRows })),
         }),
       });
       setPreview(response.data);
@@ -1650,7 +1659,7 @@ export function OperationalImports() {
           <p className="eyebrow">MIGRAÇÃO RASTREÁVEL</p>
           <h1>Importações</h1>
           <p>
-            XLSX/CSV com prévia, validação de CPF, deduplicação e lote auditável.
+            Uma aba por tipo de informação, com prévia, validação, deduplicação e lote auditável.
           </p>
         </div>
       </div>
@@ -1732,6 +1741,15 @@ export function OperationalImports() {
           </label>
         )}
         <p>{rows.length} linhas carregadas{selectedSheet ? ` da aba “${selectedSheet}”` : ""}.</p>
+        {workbookSheets.length > 0 && <section className="notion-import-panel" aria-labelledby="workbook-mapping-title">
+          <h2 id="workbook-mapping-title">Mapeamento das abas</h2>
+          <p>Escolha o tipo de informação correspondente a cada aba. As colunas são identificadas automaticamente pelos nomes dos cabeçalhos.</p>
+          {workbookSheets.map((sheet) => <label key={sheet.name}>{sheet.name} ({sheet.rows.length} linhas)
+            <select value={sheet.entity} onChange={(event) => setWorkbookSheets((current) => current.map((item) => item.name === sheet.name ? { ...item, entity: event.target.value } : item))}>
+              {workbookEntityOptions.map(([entity, label]) => <option key={entity} value={entity}>{label}</option>)}
+            </select>
+          </label>)}
+        </section>}
         <div className="title-actions">
           <button className="btn secondary" type="submit">
             Pré-validar

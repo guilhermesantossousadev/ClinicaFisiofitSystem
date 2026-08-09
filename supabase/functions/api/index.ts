@@ -1143,6 +1143,122 @@ app.post("/imports", requireRoles(["admin", "manager"]), async (context) => {
 
 app.get("/imports", requireRoles(["admin", "manager"]), listResource("import_batches", "created_at", false));
 
+// Workbook imports use one sheet per entity. The aliases intentionally match
+// the labels used by Brazilian spreadsheets as well as the database fields.
+const workbookEntities = {
+  units: { table: "units", required: ["name"], fields: ["name", "phone", "active", "address"] },
+  rooms: { table: "rooms", required: ["name", "unit_id"], fields: ["name", "unit_id", "capacity", "active"] },
+  professionals: { table: "professionals", required: ["name", "unit_id"], fields: ["name", "council", "specialty", "active"] },
+  services: { table: "services", required: ["name", "duration_minutes", "price_cents"], fields: ["name", "duration_minutes", "price_cents", "color", "active"] },
+  plans: { table: "plans", required: ["name", "kind", "price_cents"], fields: ["name", "kind", "sessions_included", "duration_days", "price_cents", "active"] },
+  patients: { table: "patients", required: ["name", "unit_id"], fields: ["name", "cpf", "birth_date", "phone", "email", "notes", "external_id"] },
+  enrollments: { table: "enrollments", required: ["patient_id", "plan_id", "unit_id", "starts_at"], fields: ["patient_id", "plan_id", "unit_id", "starts_at", "ends_at", "due_day", "discount_cents", "surcharge_cents", "status"] },
+  appointments: { table: "appointments", required: ["unit_id", "starts_at", "ends_at"], fields: ["unit_id", "patient_id", "professional_id", "service_id", "room_id", "enrollment_id", "starts_at", "ends_at", "status", "notes"] },
+  group_slots: { table: "group_slots", required: ["unit_id", "room_id", "professional_id", "service_id", "name", "weekdays", "starts_at", "duration_minutes"], fields: ["unit_id", "room_id", "professional_id", "service_id", "name", "weekdays", "starts_at", "duration_minutes", "capacity", "active"] },
+  charges: { table: "charges", required: ["patient_id", "unit_id", "description", "amount_cents", "due_at"], fields: ["patient_id", "enrollment_id", "unit_id", "description", "amount_cents", "due_at", "installment_number", "installment_count", "status"] },
+  payments: { table: "payments", required: ["charge_id", "amount_cents", "method", "paid_at"], fields: ["charge_id", "amount_cents", "method", "paid_at", "reversed_at", "receipt_path"] },
+  financial_entries: { table: "financial_entries", required: ["unit_id", "kind", "description", "category", "amount_cents", "competence_date"], fields: ["unit_id", "charge_id", "payment_id", "kind", "description", "category", "cost_center", "amount_cents", "competence_date", "settled_at"] },
+  commissions: { table: "commissions", required: ["unit_id", "professional_id", "amount_cents", "basis"], fields: ["unit_id", "professional_id", "appointment_id", "payment_id", "amount_cents", "basis", "status"] },
+  clinical_records: { table: "clinical_records", required: ["patient_id", "professional_id", "unit_id", "kind", "payload"], fields: ["patient_id", "appointment_id", "professional_id", "unit_id", "kind", "template_id", "template_version", "payload", "status"] },
+  record_templates: { table: "record_templates", required: ["name", "kind"], fields: ["name", "kind", "specialty", "schema", "active"] },
+} as const;
+
+type WorkbookEntity = keyof typeof workbookEntities;
+const workbookAliases: Record<string, string> = {
+  unidade: "unit_id", unidade_id: "unit_id", unidade_de_destino: "unit_id", sala: "room_id", sala_id: "room_id",
+  profissional: "professional_id", profissional_id: "professional_id", paciente: "patient_id", paciente_id: "patient_id",
+  servico: "service_id", servico_id: "service_id", plano: "plan_id", plano_id: "plan_id", matricula: "enrollment_id",
+  data_nascimento: "birth_date", nascimento: "birth_date", telefone: "phone", observacoes: "notes", valor: "amount_cents",
+  preco: "price_cents", duracao: "duration_minutes", data_inicio: "starts_at", inicio: "starts_at", data_fim: "ends_at",
+  fim: "ends_at", vencimento: "due_at", categoria_financeira: "category", data_competencia: "competence_date",
+  grupo: "group_slot_id", grupo_id: "group_slot_id", forma_pagamento: "method", pagamento: "payment_id",
+};
+
+function workbookKey(value: unknown) {
+  return String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+}
+
+function workbookNumber(value: unknown, cents = false) {
+  const number = Number(String(value ?? "").replace(/R\$\s?/g, "").replace(/\./g, "").replace(",", "."));
+  return cents && Number.isFinite(number) && number < 100000 ? Math.round(number * 100) : number;
+}
+
+async function resolveWorkbookReferences(db: any, clinicId: string, entity: WorkbookEntity, row: Record<string, unknown>) {
+  const references: Record<string, [string, string]> = {
+    unit_id: ["units", "name"], patient_id: ["patients", "name"], professional_id: ["professionals", "name"],
+    service_id: ["services", "name"], plan_id: ["plans", "name"], room_id: ["rooms", "name"], enrollment_id: ["enrollments", "id"],
+  };
+  for (const [field, [table, label]] of Object.entries(references)) {
+    if (!row[field] || /^[0-9a-f-]{36}$/i.test(String(row[field]))) continue;
+    let query = db.from(table).select("id").eq("clinic_id", clinicId);
+    query = label === "id" ? query.eq("id", row[field]) : query.ilike(label, String(row[field]));
+    const { data } = await query.limit(1).maybeSingle();
+    if (data?.id) row[field] = data.id;
+  }
+  return row;
+}
+
+app.post("/imports/workbook", requireRoles(["admin", "manager"]), async (context) => {
+  const key = requireIdempotency(context);
+  const input = z.object({ filename: z.string().min(1).max(240), dryRun: z.boolean().default(true), sheets: z.array(z.object({
+    name: z.string().min(1).max(120), entity: z.string(), rows: z.array(z.record(z.unknown())).max(5000),
+  })).min(1).max(30) }).parse(await context.req.json());
+  const db = context.get("db"); const clinicId = context.get("profile").clinic_id;
+  const issues: Array<{ sheet: string; row: number; reason: string }> = []; const prepared: Array<{ entity: WorkbookEntity; values: Record<string, unknown>; sheet: string; row: number }> = [];
+  for (const sheet of input.sheets) {
+    if (!(sheet.entity in workbookEntities)) { issues.push({ sheet: sheet.name, row: 0, reason: `A entidade “${sheet.entity}” não é suportada.` }); continue; }
+    const entity = sheet.entity as WorkbookEntity; const config = workbookEntities[entity];
+    for (const [index, raw] of sheet.rows.entries()) {
+      const canonical = Object.fromEntries(Object.entries(raw).map(([key, value]) => [workbookAliases[workbookKey(key)] ?? workbookKey(key), value]));
+      const values: Record<string, unknown> = {};
+      for (const field of config.fields) if (canonical[field] !== undefined && canonical[field] !== "") values[field] = canonical[field];
+      if (entity === "patients" && values.unit_id === undefined) values.unit_id = input.sheets.find((candidate) => candidate.entity === "units")?.rows[0]?.name;
+      if (["services", "plans", "charges", "financial_entries"].includes(entity)) {
+        for (const field of ["price_cents", "amount_cents", "discount_cents", "surcharge_cents"]) if (values[field] !== undefined) values[field] = workbookNumber(values[field], field.endsWith("cents"));
+      }
+      if (values.duration_minutes !== undefined) values.duration_minutes = workbookNumber(values.duration_minutes);
+      if (values.sessions_included !== undefined) values.sessions_included = workbookNumber(values.sessions_included);
+      if (values.capacity !== undefined) values.capacity = workbookNumber(values.capacity);
+      if (values.weekdays && typeof values.weekdays === "string") values.weekdays = String(values.weekdays).split(/[;,|]/).map((day) => Number(day.trim())).filter((day) => Number.isInteger(day));
+      if (values.schema && typeof values.schema === "string") { try { values.schema = JSON.parse(values.schema); } catch { values.schema = {}; } }
+      if (values.payload && typeof values.payload === "string") { try { values.payload = JSON.parse(values.payload); } catch { values.payload = { text: values.payload }; } }
+      if (values.address && typeof values.address === "string") values.address = { street: values.address };
+      await resolveWorkbookReferences(db, clinicId, entity, values);
+      for (const required of config.required) if (values[required] === undefined || values[required] === "") issues.push({ sheet: sheet.name, row: index + 2, reason: `Campo obrigatório ausente: ${required}` });
+      if (entity === "patients" && values.unit_id && !/^[0-9a-f-]{36}$/i.test(String(values.unit_id))) issues.push({ sheet: sheet.name, row: index + 2, reason: `Unidade não encontrada: ${values.unit_id}` });
+      prepared.push({ entity, values, sheet: sheet.name, row: index + 2 });
+    }
+  }
+  if (input.dryRun) return ok(context, { dryRun: true, total: prepared.length, accepted: prepared.filter((item) => !issues.some((issue) => issue.sheet === item.sheet && issue.row === item.row)).length, issues });
+  const valid = prepared.filter((item) => !issues.some((issue) => issue.sheet === item.sheet && issue.row === item.row));
+  const { data: batch, error: batchError } = await db.from("import_batches").insert({ clinic_id: clinicId, source: "manual", filename: input.filename, mapping: { sheets: input.sheets.map((sheet) => ({ name: sheet.name, entity: sheet.entity })) }, status: "processing", totals: { total: prepared.length }, errors: issues, idempotency_key: key, created_by: context.get("user").id }).select().single();
+  if (batchError || !batch) return databaseResult(context, null, batchError);
+  const imported: Record<string, number> = {}; const insertErrors: Array<{ sheet: string; row: number; reason: string }> = [];
+  for (const entity of Object.keys(workbookEntities) as WorkbookEntity[]) {
+    const group = valid.filter((item) => item.entity === entity); if (!group.length) continue;
+    const rows = group.map((item) => {
+      const values = { ...item.values };
+      if (entity === "professionals") delete values.unit_id;
+      if (entity === "patients") { values.primary_unit_id = values.unit_id; delete values.unit_id; values.migration_source = "manual"; }
+      if (entity === "payments") values.idempotency_key = `${key}-${item.sheet}-${item.row}`;
+      return { ...values, clinic_id: clinicId };
+    });
+    const { data, error } = await db.from(workbookEntities[entity].table).insert(rows).select("id");
+    if (error) insertErrors.push(...group.map((item) => ({ sheet: item.sheet, row: item.row, reason: error.message })));
+    else {
+      imported[entity] = data?.length ?? 0;
+      if (entity === "professionals" && data) {
+        const links = data.map((professional: { id: string }, index: number) => ({ professional_id: professional.id, unit_id: group[index].values.unit_id }));
+        const { error: linkError } = await db.from("professional_units").insert(links);
+        if (linkError) insertErrors.push(...group.map((item) => ({ sheet: item.sheet, row: item.row, reason: linkError.message })));
+      }
+    }
+  }
+  const allErrors = [...issues, ...insertErrors]; await db.from("import_batches").update({ status: insertErrors.length ? "failed" : "completed", totals: { total: prepared.length, imported }, errors: allErrors, updated_at: new Date().toISOString() }).eq("id", batch.id);
+  await audit(context, "import.workbook.completed", "import_batch", batch.id, null, { imported, errors: allErrors.length });
+  return ok(context, { batchId: batch.id, imported, issues: allErrors }, 201);
+});
+
 const notionSources = {
   professionals: "2ffff160-df01-81dd-bec9-000bb99f953b",
   insurance_providers: "2ffff160-df01-81ff-afcf-000b7f66b9dc",
