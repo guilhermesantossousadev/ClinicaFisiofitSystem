@@ -413,7 +413,7 @@ export function OperationalAgenda() {
               <input name="starts_at" type="time" value={groupTime} onChange={(event) => setGroupTime(event.target.value)} required />
             </label>
           </div>
-          <div className="form-row">
+          <div className="form-row weekday-row">
             <label>
               {groupFrequency === 1 ? "Dia da semana" : "Primeiro dia"}
               <select value={firstWeekday} onChange={(event) => setFirstWeekday(Number(event.target.value))}>

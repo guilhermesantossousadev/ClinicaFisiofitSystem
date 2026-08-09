@@ -776,7 +776,7 @@ body { background: var(--canvas); }
 }
 .modal,
 .edit-dialog {
-  width: min(560px, 100%);
+  width: min(640px, 100%);
   height: 100dvh;
   max-height: 100dvh;
   border-radius: 0;
@@ -843,6 +843,16 @@ body { background: var(--canvas); }
 .creation-drawer-form > .form-row > label,
 .creation-drawer-form > fieldset label { display: grid; gap: 8px; }
 .creation-drawer-form > .form-row { align-items: start; }
+.creation-drawer-form > .weekday-row {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.creation-drawer-form > .weekday-row > label:only-child {
+  max-width: none;
+}
+.creation-drawer-form > .weekday-row > label:nth-child(3) {
+  grid-column: 1 / -1;
+  max-width: calc(50% - 9px);
+}
 .creation-drawer-form > fieldset { padding: 20px; border: 1px solid #c9d9e3; border-radius: 14px; background: #fff; }
 .creation-drawer-form > fieldset legend { padding: 0 8px; color: #19354e; font-size: 15px; font-weight: 800; }
 .creation-drawer-form input:not([type="checkbox"]):not([type="radio"]),
@@ -963,6 +973,7 @@ body { background: var(--canvas); }
   .content { padding-top: 22px; }
   .modal, .edit-dialog { width: 100%; }
   .creation-drawer-form { padding: 22px 18px 32px; }
+  .creation-drawer-form > .weekday-row > label:nth-child(3) { max-width: none; }
   .creation-drawer-form > fieldset { padding: 17px 15px; border-radius: 12px; }
   .drawer-create-trigger { width: max-content; min-width: 0; }
   .operational-data-table { overflow-x: visible; }
