@@ -217,7 +217,7 @@ O workflow manual `.github/workflows/hostinger-build.yml` gera `dist/` e força 
 | Prontuário | Parcial | endpoints/UI/triggers | Criação, assinatura e retificação; autorização profissional insuficiente |
 | Financeiro | Parcial | endpoints/UI/funções SQL | Lançamentos, pagamentos, comissões e fechamento; sem estorno/reabertura |
 | Relatórios | Parcial | endpoints/UI | Anual, CSV e impressão do navegador; sem PDF/XLSX gerado pelo backend |
-| Importações | Parcial | endpoint/UI | CSV simples de pacientes; sem parser robusto ou rollback de lote |
+| Importações | Parcial | endpoint/UI | XLSX/CSV por abas para unidades, salas, profissionais, serviços, planos, pacientes, matrículas, agenda, turmas, cobranças, pagamentos, financeiro, comissões, prontuários e modelos; validação e lote auditável, ainda sem transação única/rollback |
 | Usuários | Parcial | endpoints/UI | Convite e alteração; não há remoção e o redirect do convite diverge do fluxo de senha |
 | Configurações | Parcial | endpoints/UI | Somente criação/listagem de entidades centrais |
 | Privacidade/auditoria | Parcial | migration, endpoints/UI | Solicitações e incidentes; política pública ainda provisória |
@@ -291,7 +291,7 @@ Registros pertencem a `clinic_id`; entidades operacionais também se ligam a uni
 | Matrículas | `/enrollments`, `/charges`, `/payments` | matrícula, cobrança e recebimento |
 | Clínica | `/record-templates`, `/clinical-records` | templates, rascunho, assinatura e retificação |
 | Financeiro | `/financial-entries`, `/commissions`, `/closings`, `/reports` | movimentos, comissão, fechamento e relatórios |
-| Dados | `/imports` | lote e importação de pacientes |
+| Dados | `/imports`, `/imports/workbook` | histórico de lotes e importação multi-entidade por abas |
 | Governança | `/privacy`, `/audit` | titulares, incidentes e auditoria |
 | Integrações | `/fiscal-documents`, `/notifications` | somente listagem |
 
