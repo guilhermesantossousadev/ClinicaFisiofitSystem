@@ -39,6 +39,18 @@
   h1, h2, h3, h4 { font-family: 'Manrope', system-ui, sans-serif; }
   :focus-visible { outline: 3px solid rgb(39 136 201 / 35%); outline-offset: 3px; }
   ::selection { background: #e6f7f3; color: #17324d; }
+  a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+  button, a { touch-action: manipulation; }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after {
+      scroll-behavior: auto !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
 }
 
 @layer components {
@@ -51,6 +63,20 @@
     @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-blue bg-transparent px-7 py-3 text-center text-sm font-extrabold text-blue-dark transition-colors duration-200 hover:border-blue-dark hover:bg-sky active:bg-mint;
     box-shadow: none;
   }
+
+  .site-button-quiet {
+    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-line bg-white px-6 py-3 text-center text-sm font-extrabold text-navy transition-colors duration-200 hover:border-blue hover:bg-sky active:bg-mint;
+  }
+
+  .site-section { @apply px-5 py-20 md:px-8 md:py-28; }
+  .site-section-compact { @apply px-5 py-16 md:px-8 md:py-20; }
+  .site-container { @apply mx-auto max-w-7xl; }
+  .site-reading-container { @apply mx-auto max-w-3xl; }
+  .site-card { @apply rounded-3xl border border-line bg-white p-8 shadow-sm; }
+  .site-heading-2 { @apply text-4xl font-black leading-tight tracking-[-0.045em] text-navy md:text-5xl; }
+  .site-heading-3 { @apply text-2xl font-black leading-tight text-navy; }
+  .site-body { @apply leading-relaxed text-muted-foreground; }
+  .site-icon-badge { @apply grid h-14 w-14 place-items-center rounded-2xl bg-sky text-blue; }
 
   .form-card {
     @apply grid gap-6 rounded-[2rem] border border-line bg-white p-7 md:p-10;
@@ -86,4 +112,32 @@
     min-height: 144px;
     resize: vertical;
   }
+
+  button.is-loading {
+    @apply cursor-progress pointer-events-none;
+  }
+
+  button.is-loading::before {
+    content: "";
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    margin-right: 8px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 999px;
+    vertical-align: -2px;
+    animation: site-button-spin .7s linear infinite;
+  }
+
+  .legal-content { @apply space-y-9 text-muted-foreground; }
+  .legal-content section { @apply scroll-mt-28; }
+  .legal-content h2 { @apply text-2xl font-black leading-tight text-navy; }
+  .legal-content p { @apply mt-3 leading-relaxed; }
+}
+
+@keyframes site-button-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  button.is-loading::before { animation-duration: 1.4s; }
 }

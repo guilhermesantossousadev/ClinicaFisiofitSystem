@@ -60,14 +60,14 @@ export default function CookieConsent() {
   }
 
   if (!open) return null;
-  return <div className="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-3xl rounded-2xl border border-line bg-white p-5 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="cookie-title">
+  return <div className="fixed inset-x-3 bottom-3 z-50 mx-auto max-w-3xl rounded-2xl border border-line bg-white p-5 shadow-2xl sm:inset-x-4 sm:bottom-4" role="dialog" aria-modal="true" aria-labelledby="cookie-title" aria-describedby="cookie-description">
     <h2 id="cookie-title" className="text-lg font-black text-navy">Sua privacidade importa</h2>
-    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Usamos armazenamento essencial para registrar sua escolha. Cookies publicitários do Google só serão ativados com sua autorização.</p>
+    <p id="cookie-description" className="mt-2 text-sm leading-relaxed text-muted-foreground">Usamos armazenamento essencial para registrar sua escolha. Cookies publicitários do Google só serão ativados com sua autorização.</p>
     {details && <label className="mt-4 flex items-start justify-between gap-6 rounded-xl bg-surface p-4 text-sm"><span><strong className="block text-navy">Publicidade</strong><span className="text-muted-foreground">Medição de campanhas e publicidade do Google.</span></span><input type="checkbox" checked={advertising} onChange={(event) => setAdvertising(event.target.checked)} className="mt-1 h-5 w-5" /></label>}
     <div className="mt-4 flex flex-wrap items-center gap-3">
-      <button onClick={() => save(true)} className="rounded-xl bg-blue px-5 py-3 text-sm font-extrabold text-white">Aceitar</button>
-      <button onClick={() => save(false)} className="rounded-xl border border-line px-5 py-3 text-sm font-extrabold text-navy">Recusar</button>
-      <button onClick={() => details ? save(advertising) : setDetails(true)} className="rounded-xl border border-line px-5 py-3 text-sm font-extrabold text-navy">{details ? "Salvar escolhas" : "Configurar"}</button>
+      <button onClick={() => save(true)} className="site-button px-5">Aceitar</button>
+      <button onClick={() => save(false)} className="site-button-quiet px-5">Recusar</button>
+      <button onClick={() => details ? save(advertising) : setDetails(true)} className="site-button-quiet px-5">{details ? "Salvar escolhas" : "Configurar"}</button>
       <Link href="/cookies" className="text-sm font-bold text-blue underline">Política de Cookies</Link>
     </div>
   </div>;

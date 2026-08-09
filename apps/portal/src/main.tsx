@@ -21,9 +21,13 @@ const FisiofitApp = lazy(() => import("./FisiofitApp"));
 
 function ProtectedApp() {
   const { loading, session } = useAuth();
+  const localPreview =
+    (window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1") &&
+    new URLSearchParams(window.location.search).get("preview") === "1";
   const [access, setAccess] = React.useState<"checking" | "allowed" | "mfa" | "denied">("checking");
   React.useEffect(() => {
-    if (!session || !isSupabaseConfigured) {
+    if (localPreview || !session || !isSupabaseConfigured) {
       setAccess("allowed");
       return;
     }
@@ -33,9 +37,9 @@ function ProtectedApp() {
       .catch((error: Error & { apiError?: { code?: string } }) => {
         setAccess(error.apiError?.code === "MFA_REQUIRED" ? "mfa" : "denied");
       });
-  }, [session]);
+  }, [localPreview, session]);
   if (loading) return <div className="auth-loading">Carregando ambiente seguro…</div>;
-  if (!session && isSupabaseConfigured) return <Redirect to="/login" replace />;
+  if (!localPreview && !session && isSupabaseConfigured) return <Redirect to="/login" replace />;
   if (access === "checking") return <div className="auth-loading">Validando permissões…</div>;
   if (access === "mfa") return <Redirect to="/mfa" replace />;
   if (access === "denied") return <Redirect to="/onboarding" replace />;

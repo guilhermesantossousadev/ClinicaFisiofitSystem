@@ -1,4 +1,5 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, type CSSProperties, type FormEventHandler, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import * as XLSX from "xlsx";
 import { api } from "./api";
 
 type Row = Record<string, any>;
@@ -23,9 +24,10 @@ const WEEKDAYS = [
 ] as const;
 
 function messageOf(error: unknown) {
-  return error instanceof Error
+  const message = error instanceof Error
     ? error.message
     : "Não foi possível concluir a operação.";
+  return `Erro: ${message}`;
 }
 
 function value(form: FormData, name: string) {
@@ -95,6 +97,44 @@ function Select({
         ))}
       </select>
     </label>
+  );
+}
+
+function DrawerForm({
+  title,
+  children,
+  onSubmit,
+  className = "",
+}: {
+  title: string;
+  children: ReactNode;
+  onSubmit: FormEventHandler<HTMLFormElement>;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button className={`card drawer-create-trigger ${className}`} type="button" onClick={() => setOpen(true)}>
+        <span aria-hidden="true">＋</span>
+        <span><strong>{title}</strong><small>Abrir formulário de cadastro</small></span>
+        <span aria-hidden="true">→</span>
+      </button>
+      {open && (
+        <div className="modal-backdrop creation-drawer-backdrop" role="presentation" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setOpen(false);
+        }}>
+          <section className="modal creation-drawer" role="dialog" aria-modal="true" aria-label={title}>
+            <div className="modal-head">
+              <h2>{title}</h2>
+              <button type="button" onClick={() => setOpen(false)} aria-label={`Fechar ${title}`}>×</button>
+            </div>
+            <form className="modal-form creation-drawer-form" onSubmit={onSubmit}>
+              {children}
+            </form>
+          </section>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -268,7 +308,7 @@ export function OperationalAgenda() {
       )}
       <ModuleState loading={loading} error={error} retry={reload} />
       <div className="dashboard-grid">
-        <form className="card modal-form" onSubmit={createAppointment}>
+        <DrawerForm title="Novo agendamento" onSubmit={createAppointment}>
           <h2>Novo agendamento</h2>
           <div className="form-row">
             <Select
@@ -314,8 +354,8 @@ export function OperationalAgenda() {
             </label>
           </div>
           <button className="btn primary">Agendar</button>
-        </form>
-        <form className="card modal-form" onSubmit={createGroup}>
+        </DrawerForm>
+        <DrawerForm title="Nova turma com horário fixo" onSubmit={createGroup}>
           <h2>Nova turma com horário fixo</h2>
           <div className="form-row">
             <Select
@@ -378,12 +418,13 @@ export function OperationalAgenda() {
             <span>Horário recorrente, com até 7 alunos</span>
           </div>
           <button className="btn primary">Criar turma (7 vagas)</button>
-        </form>
+        </DrawerForm>
       </div>
-      <section className="card table-card">
+      <section className="card table-card bespoke-table agenda-list-table">
         <div className="table-toolbar">
           <h2>Atendimentos da semana</h2>
         </div>
+        <div className="bespoke-table-head" aria-hidden="true"><span>Data e horário</span><span>Paciente e profissional</span><span>Status</span><span>Ações</span></div>
         {appointments.map((item) => (
           <div className="operational-row" key={item.id}>
             <div>
@@ -443,9 +484,15 @@ export function OperationalAgenda() {
 }
 
 export function OperationalPatients() {
-  const paths = ["/patients?page=1&pageSize=100", "/units"];
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
+  const pageSize = 20;
+  const patientPath = `/patients?page=${page}&pageSize=${pageSize}${appliedSearch ? `&search=${encodeURIComponent(appliedSearch)}` : ""}`;
+  const paths = [patientPath, "/units"];
   const { data, loading, error, reload } = useResources(paths);
-  const patients: Row[] = data[paths[0]]?.items ?? [];
+  const patients: Row[] = data[patientPath]?.items ?? [];
+  const total = Number(data[patientPath]?.total ?? 0);
   const [selected, setSelected] = useState<Row | null>(null);
   const [detail, setDetail] = useState<{
     responsibles: Row[];
@@ -453,6 +500,11 @@ export function OperationalPatients() {
     timeline?: Row;
   }>({ responsibles: [], consents: [] });
   const [notice, setNotice] = useState("");
+  function submitSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPage(1);
+    setAppliedSearch(search.trim());
+  }
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const f = new FormData(event.currentTarget);
@@ -569,7 +621,15 @@ export function OperationalPatients() {
         </div>
       )}
       <ModuleState loading={loading} error={error} retry={reload} />
-      <form className="card modal-form" onSubmit={create}>
+      <form className="card patient-search" role="search" onSubmit={submitSearch}>
+        <label htmlFor="patient-search-input">Buscar pacientes</label>
+        <div>
+          <input id="patient-search-input" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nome, telefone ou CPF" />
+          <button className="btn primary">Buscar</button>
+          {appliedSearch && <button type="button" className="btn secondary" onClick={() => { setSearch(""); setAppliedSearch(""); setPage(1); }}>Limpar</button>}
+        </div>
+      </form>
+      <DrawerForm title="Novo paciente" onSubmit={create}>
         <h2>Novo paciente</h2>
         <p className="form-instructions"><span aria-hidden="true">*</span> indica campo obrigatório.</p>
         <fieldset>
@@ -611,7 +671,7 @@ export function OperationalPatients() {
           <textarea name="notes" rows={3} />
         </label>
         <button className="btn primary">Cadastrar paciente</button>
-      </form>
+      </DrawerForm>
       <EditableOperationalTable
         title="Pacientes cadastrados"
         resource="patients"
@@ -619,17 +679,22 @@ export function OperationalPatients() {
         fields={["name", "phone", "email", "active"]}
         editFields={[
           { name: "name", label: "Nome completo", required: true },
+          { name: "primary_unit_id", label: "Unidade principal", type: "select", required: true, options: data["/units"] ?? [] },
           { name: "cpf", label: "CPF" },
-          { name: "birth_date", label: "Nascimento" },
-          { name: "phone", label: "Telefone" },
-          { name: "email", label: "E-mail" },
+          { name: "birth_date", label: "Nascimento", type: "date" },
+          { name: "phone", label: "Telefone", type: "tel" },
+          { name: "email", label: "E-mail", type: "email" },
           { name: "street", label: "Rua", value: (row) => row.address?.street },
           { name: "number", label: "Número", value: (row) => row.address?.number },
           { name: "city", label: "Cidade", value: (row) => row.address?.city },
           { name: "state", label: "Estado", value: (row) => row.address?.state, maxLength: 2 },
           { name: "zip", label: "CEP", value: (row) => row.address?.zip },
+          { name: "fiscal_name", label: "Nome fiscal", value: (row) => row.tax_data?.fiscal_name },
+          { name: "fiscal_document", label: "Documento fiscal", value: (row) => row.tax_data?.document },
+          { name: "notes", label: "Observações", type: "textarea" },
         ]}
         buildBody={(form) => ({
+          primary_unit_id: value(form, "primary_unit_id"),
           name: value(form, "name"),
           cpf: value(form, "cpf") || undefined,
           birth_date: value(form, "birth_date") || undefined,
@@ -639,10 +704,17 @@ export function OperationalPatients() {
             street: value(form, "street"), number: value(form, "number"),
             city: value(form, "city"), state: value(form, "state"), zip: value(form, "zip"),
           },
+          tax_data: { fiscal_name: value(form, "fiscal_name"), document: value(form, "fiscal_document") },
+          notes: value(form, "notes") || undefined,
         })}
         onChanged={reload}
         onNotice={setNotice}
         onOpen={open}
+        allowDelete
+        total={total}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={setPage}
       />
       {selected && (
         <div className="modal-backdrop" onClick={() => setSelected(null)}>
@@ -843,7 +915,7 @@ export function OperationalEnrollments() {
         />
       </div>
       <div className="dashboard-grid">
-        <form className="card modal-form" onSubmit={createPlan}>
+        <DrawerForm title="Novo plano" onSubmit={createPlan}>
           <h2>Novo plano</h2>
           <div className="form-row">
             <label>
@@ -879,8 +951,8 @@ export function OperationalEnrollments() {
             <input name="price" type="number" min="0" step=".01" inputMode="decimal" required />
           </label>
           <button className="btn primary">Criar plano</button>
-        </form>
-        <form className="card modal-form" onSubmit={enroll}>
+        </DrawerForm>
+        <DrawerForm title="Nova matrícula" onSubmit={enroll}>
           <h2>Nova matrícula</h2>
           <div className="form-row">
             <Select name="patient_id" label="Paciente" rows={patients} />
@@ -914,7 +986,7 @@ export function OperationalEnrollments() {
             <input name="discount" type="number" step=".01" defaultValue="0" />
           </label>
           <button className="btn primary">Matricular</button>
-        </form>
+        </DrawerForm>
       </div>
       <form className="card modal-form inline-form" onSubmit={pay}>
         <h2>Registrar pagamento</h2>
@@ -1087,7 +1159,7 @@ export function OperationalRecords() {
       )}
       <ModuleState loading={loading} error={error} retry={reload} />
       {patientId && (
-        <form className="card modal-form" onSubmit={createRecord}>
+        <DrawerForm title="Novo registro" onSubmit={createRecord}>
           <h2>Novo registro</h2>
           <div className="form-row">
             <label>
@@ -1125,9 +1197,11 @@ export function OperationalRecords() {
             <textarea name="measures" rows={2} />
           </label>
           <button className="btn primary">Salvar rascunho</button>
-        </form>
+        </DrawerForm>
       )}
-      <section className="card table-card">
+      <section className="card table-card bespoke-table records-list-table">
+        <div className="table-toolbar"><h2>Registros clínicos</h2><span>{records.length} registros</span></div>
+        <div className="bespoke-table-head" aria-hidden="true"><span>Tipo e status</span><span>Data e conteúdo</span><span>Ações</span></div>
         {records.map((row) => (
           <div className="operational-row" key={row.id}>
             <div>
@@ -1258,7 +1332,7 @@ export function OperationalFinance() {
         />
       </div>
       <div className="dashboard-grid">
-        <form className="card modal-form" onSubmit={entry}>
+        <DrawerForm title="Novo movimento" onSubmit={entry}>
           <h2>Novo movimento</h2>
           <div className="form-row">
             <Select
@@ -1308,8 +1382,8 @@ export function OperationalFinance() {
             Já realizado
           </label>
           <button className="btn primary">Lançar</button>
-        </form>
-        <form className="card modal-form" onSubmit={commission}>
+        </DrawerForm>
+        <DrawerForm title="Nova comissão" onSubmit={commission}>
           <h2>Nova comissão</h2>
           <Select name="unit_id" label="Unidade" rows={data["/units"] ?? []} />
           <Select
@@ -1331,7 +1405,7 @@ export function OperationalFinance() {
             </label>
           </div>
           <button className="btn primary">Calcular comissão</button>
-        </form>
+        </DrawerForm>
       </div>
       <OperationalTable
         title="Movimentos do mês"
@@ -1344,10 +1418,11 @@ export function OperationalFinance() {
           "amount_cents",
         ]}
       />
-      <section className="card table-card">
+      <section className="card table-card bespoke-table commissions-list-table">
         <div className="table-toolbar">
           <h2>Comissões</h2>
         </div>
+        <div className="bespoke-table-head" aria-hidden="true"><span>Valor</span><span>Base e status</span><span>Ações</span></div>
         {(data["/commissions"] ?? []).map((row: Row) => (
           <div className="operational-row" key={row.id}>
             <div>
@@ -1481,26 +1556,35 @@ export function OperationalImports() {
   const [notice, setNotice] = useState("");
   const [notionBusy, setNotionBusy] = useState(false);
   const [notionValidated, setNotionValidated] = useState(false);
+  const [sheetNames, setSheetNames] = useState<string[]>([]);
+  const [selectedSheet, setSelectedSheet] = useState("");
+
+  function normalizeHeader(header: string) {
+    return header.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase().trim().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+  }
+
+  async function readWorkbook(file: File, requestedSheet?: string) {
+    setFilename(file.name);
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: "array", cellDates: true, dateNF: "yyyy-mm-dd" });
+      setSheetNames(workbook.SheetNames);
+      const sheetName = requestedSheet || workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "", raw: false });
+      setRows(json.map((row) => Object.fromEntries(Object.entries(row).map(([key, value]) => [normalizeHeader(key), String(value).trim() || undefined]))));
+      setSelectedSheet(sheetName);
+      setPreview(null);
+      setNotice(`${json.length} linhas carregadas da aba ${sheetName}.`);
+    } catch {
+      setRows([]);
+      setNotice("Não foi possível ler a planilha. Use um arquivo .xlsx ou .csv válido.");
+    }
+  }
   function choose(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
-    if (!file) return;
-    setFilename(file.name);
-    void file.text().then((text) => {
-      const lines = text.split(/\r?\n/).filter(Boolean);
-      const headers =
-        lines
-          .shift()
-          ?.split(/[;,]/)
-          .map((h) => h.trim().toLowerCase()) ?? [];
-      setRows(
-        lines.map((line) => {
-          const cells = line.split(/[;,]/);
-          return Object.fromEntries(
-            headers.map((h, i) => [h, cells[i]?.trim() || undefined]),
-          );
-        }),
-      );
-    });
+    if (file) void readWorkbook(file);
   }
   async function run(event: FormEvent<HTMLFormElement>, dryRun: boolean) {
     event.preventDefault();
@@ -1566,7 +1650,7 @@ export function OperationalImports() {
           <p className="eyebrow">MIGRAÇÃO RASTREÁVEL</p>
           <h1>Importações</h1>
           <p>
-            CSV com prévia, validação de CPF, deduplicação e lote auditável.
+            XLSX/CSV com prévia, validação de CPF, deduplicação e lote auditável.
           </p>
         </div>
       </div>
@@ -1629,15 +1713,25 @@ export function OperationalImports() {
           )}
         </section>
         <label>
-          Arquivo CSV
+          Arquivo XLSX ou CSV
           <input
             type="file"
-            accept=".csv,text/csv"
+            accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
             onChange={choose}
             required
           />
         </label>
-        <p>{rows.length} linhas carregadas.</p>
+        {sheetNames.length > 1 && (
+          <label>Aba da planilha
+            <select value={selectedSheet} onChange={(event) => {
+              const input = event.currentTarget.form?.querySelector<HTMLInputElement>('input[type="file"]');
+              if (input?.files?.[0]) void readWorkbook(input.files[0], event.target.value);
+            }}>
+              {sheetNames.map((sheet) => <option key={sheet} value={sheet}>{sheet}</option>)}
+            </select>
+          </label>
+        )}
+        <p>{rows.length} linhas carregadas{selectedSheet ? ` da aba “${selectedSheet}”` : ""}.</p>
         <div className="title-actions">
           <button className="btn secondary" type="submit">
             Pré-validar
@@ -1680,9 +1774,11 @@ export function OperationalImports() {
   );
 }
 
-export function OperationalUsers() {
+export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }) {
   const { data, loading, error, reload } = useResources(["/users", "/units"]);
   const [notice, setNotice] = useState("");
+  const [updatingUserId, setUpdatingUserId] = useState("");
+  const [editingUserId, setEditingUserId] = useState("");
   async function invite(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const f = new FormData(event.currentTarget);
@@ -1704,14 +1800,69 @@ export function OperationalUsers() {
     }
   }
   async function update(id: string, status: string) {
+    setUpdatingUserId(id);
+    setNotice("");
     try {
       await api(`/users/${id}`, {
         method: "PATCH",
         body: JSON.stringify({ status }),
       });
       await reload();
+      setNotice(status === "active" ? "Conta ativada. A colaboradora já pode concluir o primeiro acesso." : "Conta bloqueada.");
     } catch (e) {
       setNotice(messageOf(e));
+    } finally {
+      setUpdatingUserId("");
+    }
+  }
+  async function saveUser(event: FormEvent<HTMLFormElement>, id: string) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    setUpdatingUserId(id);
+    setNotice("");
+    try {
+      await api(`/users/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: value(form, "name"),
+          role: value(form, "role"),
+          status: value(form, "status"),
+          unitIds: form.getAll("unitIds"),
+        }),
+      });
+      await reload();
+      setEditingUserId("");
+      setNotice("Usuária atualizada.");
+    } catch (e) {
+      setNotice(messageOf(e));
+    } finally {
+      setUpdatingUserId("");
+    }
+  }
+  async function resendAccess(id: string) {
+    setUpdatingUserId(id);
+    setNotice("");
+    try {
+      await api(`/users/${id}/resend-access`, { method: "POST" });
+      setNotice("Novo link de acesso enviado por e-mail.");
+    } catch (e) {
+      setNotice(messageOf(e));
+    } finally {
+      setUpdatingUserId("");
+    }
+  }
+  async function removeUser(row: Row) {
+    if (!window.confirm(`Excluir o acesso de ${row.name}? O histórico será preservado, mas a conta não poderá mais entrar.`)) return;
+    setUpdatingUserId(row.id);
+    setNotice("");
+    try {
+      await api(`/users/${row.id}`, { method: "DELETE" });
+      await reload();
+      setNotice("Acesso excluído e histórico preservado.");
+    } catch (e) {
+      setNotice(messageOf(e));
+    } finally {
+      setUpdatingUserId("");
     }
   }
   return (
@@ -1730,7 +1881,12 @@ export function OperationalUsers() {
         </div>
       )}
       <ModuleState loading={loading} error={error} retry={reload} />
-      <form className="card modal-form" onSubmit={invite}>
+      {!canManageUsers && (
+        <div className="environment-warning" role="status">
+          Você pode consultar os acessos, mas somente uma administradora pode convidar, ativar ou bloquear contas.
+        </div>
+      )}
+      {canManageUsers && <DrawerForm title="Convidar colaboradora" onSubmit={invite}>
         <h2>Convidar colaboradora</h2>
         <div className="form-row">
           <label>
@@ -1764,30 +1920,73 @@ export function OperationalUsers() {
           </div>
         </label>
         <button className="btn primary">Enviar convite</button>
-      </form>
-      <section className="card table-card">
+      </DrawerForm>}
+      <section className="card table-card bespoke-table users-list-table">
+        <div className="table-toolbar"><h2>Colaboradoras cadastradas</h2><span>{(data["/users"] ?? []).length} registros</span></div>
+        <div className="bespoke-table-head" aria-hidden="true"><span>Nome</span><span>Acesso e segurança</span><span>Ações</span></div>
         {(data["/users"] ?? []).map((row: Row) => (
-          <div className="operational-row" key={row.id}>
+          <div className="user-management-entry" key={row.id}>
+          <div className="operational-row">
             <div>
               <strong>
                 {row.name}
                 {row.is_owner ? " · Proprietário" : ""}
               </strong>
               <small>
-                {row.role} · {row.status} · MFA{" "}
+                {row.email ? `${row.email} · ` : ""}{row.role} · {row.status} · MFA{" "}
                 {row.mfa_required ? "obrigatório" : "opcional"}
               </small>
             </div>
             {row.is_owner ? (
               <span className="status info">Conta protegida</span>
+            ) : !canManageUsers ? (
+              <span className="status info">Somente leitura</span>
             ) : (
               <div className="row-actions">
-                <button onClick={() => update(row.id, "active")}>Ativar</button>
-                <button onClick={() => update(row.id, "blocked")}>
-                  Bloquear
+                <button type="button" disabled={updatingUserId === row.id} onClick={() => setEditingUserId(editingUserId === row.id ? "" : row.id)}>
+                  {editingUserId === row.id ? "Cancelar edição" : "Editar"}
+                </button>
+                {row.status !== "active" && (
+                  <button type="button" disabled={updatingUserId === row.id} onClick={() => update(row.id, "active")}>
+                    {updatingUserId === row.id ? "Ativando…" : "Ativar"}
+                  </button>
+                )}
+                {row.status !== "blocked" && (
+                  <button type="button" disabled={updatingUserId === row.id} onClick={() => update(row.id, "blocked")}>
+                    {updatingUserId === row.id ? "Aguarde…" : "Bloquear"}
+                  </button>
+                )}
+                {row.status !== "blocked" && (
+                  <button type="button" disabled={updatingUserId === row.id} onClick={() => resendAccess(row.id)}>
+                    Reenviar acesso
+                  </button>
+                )}
+                <button className="action-delete" type="button" disabled={updatingUserId === row.id} onClick={() => removeUser(row)}>
+                  Excluir
                 </button>
               </div>
             )}
+          </div>
+          {canManageUsers && editingUserId === row.id && !row.is_owner && (
+            <form className="user-edit-form" onSubmit={(event) => saveUser(event, row.id)}>
+              <div className="form-row">
+                <label>Nome<input name="name" defaultValue={row.name} required minLength={3} /></label>
+                <label>Perfil<select name="role" defaultValue={row.role}>
+                  <option value="reception">Recepção</option><option value="professional">Profissional</option>
+                  <option value="finance">Financeiro</option><option value="manager">Gestor</option><option value="admin">Administrador</option>
+                </select></label>
+                <label>Situação<select name="status" defaultValue={row.status}>
+                  <option value="invited">Convidada</option><option value="active">Ativa</option><option value="blocked">Bloqueada</option>
+                </select></label>
+              </div>
+              <fieldset><legend>Unidades</legend><div className="weekday-checks">
+                {(data["/units"] ?? []).map((unit: Unit) => <label key={unit.id}>
+                  <input type="checkbox" name="unitIds" value={unit.id} defaultChecked={(row.profile_units ?? []).some((item: Row) => item.unit_id === unit.id)} />{unit.name}
+                </label>)}
+              </div></fieldset>
+              <button className="btn primary" type="submit" disabled={updatingUserId === row.id}>{updatingUserId === row.id ? "Salvando…" : "Salvar alterações"}</button>
+            </form>
+          )}
           </div>
         ))}
       </section>
@@ -1809,7 +2008,7 @@ type AdministrationSectionProps = {
 
 function FormularioUnidade({ data, reload, setNotice, submit }: AdministrationSectionProps) {
   return <div className="administration-section">
-    <form className="card modal-form administration-form" onSubmit={(event) => submit(event, "/units", (form) => ({
+    <DrawerForm title="Nova unidade" className="administration-form" onSubmit={(event) => submit(event, "/units", (form) => ({
       name: value(form, "name"), phone: value(form, "phone") || undefined,
       address: { street: value(form, "street"), city: value(form, "city"), state: value(form, "state") },
     }))}>
@@ -1819,7 +2018,7 @@ function FormularioUnidade({ data, reload, setNotice, submit }: AdministrationSe
       <div className="form-row"><label>Telefone<input name="phone" type="tel" /></label><label>Rua<input name="street" /></label></div>
       <div className="form-row"><label>Cidade<input name="city" /></label><label>Estado<input name="state" maxLength={2} /></label></div>
       <button className="btn primary">Salvar unidade</button>
-    </form>
+    </DrawerForm>
     <EditableOperationalTable title="Unidades" resource="units" rows={data["/units"] ?? []} fields={["name", "phone", "active"]}
       editFields={[{ name: "name", label: "Nome", required: true }, { name: "phone", label: "Telefone" }, { name: "street", label: "Rua", value: (row) => row.address?.street }, { name: "city", label: "Cidade", value: (row) => row.address?.city }, { name: "state", label: "Estado", value: (row) => row.address?.state, maxLength: 2 }]}
       buildBody={(form) => ({ name: value(form, "name"), phone: value(form, "phone") || null, address: { street: value(form, "street"), city: value(form, "city"), state: value(form, "state") } })}
@@ -1829,13 +2028,13 @@ function FormularioUnidade({ data, reload, setNotice, submit }: AdministrationSe
 
 function FormularioSala({ data, reload, setNotice, submit }: AdministrationSectionProps) {
   return <div className="administration-section">
-    <form className="card modal-form administration-form" onSubmit={(event) => submit(event, "/rooms", (form) => ({ unit_id: value(form, "unit_id"), name: value(form, "name"), capacity: Number(value(form, "capacity")) }))}>
+    <DrawerForm title="Nova sala" className="administration-form" onSubmit={(event) => submit(event, "/rooms", (form) => ({ unit_id: value(form, "unit_id"), name: value(form, "name"), capacity: Number(value(form, "capacity")) }))}>
       <h2>Nova sala</h2><p className="form-instructions">Vincule a sala a uma unidade e informe sua capacidade.</p>
       <Select name="unit_id" label="Unidade *" rows={data["/units"] ?? []} />
       <label>Nome *<input name="name" required /></label>
       <label>Capacidade *<input name="capacity" type="number" min="1" max="20" defaultValue="7" required /></label>
       <button className="btn primary">Salvar sala</button>
-    </form>
+    </DrawerForm>
     <EditableOperationalTable title="Salas" resource="rooms" rows={data["/rooms"] ?? []} fields={["name", "capacity", "active"]}
       editFields={[{ name: "name", label: "Nome", required: true }, { name: "capacity", label: "Capacidade", type: "number", min: 1, max: 20, required: true }]}
       buildBody={(form) => ({ name: value(form, "name"), capacity: Number(value(form, "capacity")) })} onChanged={reload} onNotice={setNotice} />
@@ -1844,12 +2043,12 @@ function FormularioSala({ data, reload, setNotice, submit }: AdministrationSecti
 
 function FormularioServico({ data, reload, setNotice, submit }: AdministrationSectionProps) {
   return <div className="administration-section">
-    <form className="card modal-form administration-form" onSubmit={(event) => submit(event, "/services", (form) => ({ name: value(form, "name"), duration_minutes: Number(value(form, "duration")), price_cents: cents(value(form, "price")), active: true }))}>
+    <DrawerForm title="Novo serviço" className="administration-form" onSubmit={(event) => submit(event, "/services", (form) => ({ name: value(form, "name"), duration_minutes: Number(value(form, "duration")), price_cents: cents(value(form, "price")), active: true }))}>
       <h2>Novo serviço</h2><p className="form-instructions">Defina duração e preço padrão do atendimento.</p>
       <label>Nome *<input name="name" required /></label>
       <div className="form-row"><label>Duração (min) *<input name="duration" type="number" min="5" max="480" required /></label><label>Preço *<input name="price" type="number" step=".01" min="0" required /></label></div>
       <button className="btn primary">Salvar serviço</button>
-    </form>
+    </DrawerForm>
     <EditableOperationalTable title="Serviços" resource="services" rows={data["/services"] ?? []} fields={["name", "duration_minutes", "price_cents", "active"]}
       editFields={[{ name: "name", label: "Nome", required: true }, { name: "duration_minutes", label: "Duração (min)", type: "number", min: 5, max: 480, required: true }, { name: "price", label: "Preço", type: "number", min: 0, step: ".01", required: true, value: (row) => Number(row.price_cents ?? 0) / 100 }]}
       buildBody={(form) => ({ name: value(form, "name"), duration_minutes: Number(value(form, "duration_minutes")), price_cents: cents(value(form, "price")) })} onChanged={reload} onNotice={setNotice} />
@@ -1858,13 +2057,13 @@ function FormularioServico({ data, reload, setNotice, submit }: AdministrationSe
 
 function FormularioProfissional({ data, reload, setNotice, submit }: AdministrationSectionProps) {
   return <div className="administration-section">
-    <form className="card modal-form administration-form" onSubmit={(event) => submit(event, "/professionals", (form) => ({ name: value(form, "name"), council: value(form, "council") || undefined, specialty: value(form, "specialty") || undefined, unitIds: form.getAll("unitIds"), active: true }))}>
+    <DrawerForm title="Novo profissional" className="administration-form" onSubmit={(event) => submit(event, "/professionals", (form) => ({ name: value(form, "name"), council: value(form, "council") || undefined, specialty: value(form, "specialty") || undefined, unitIds: form.getAll("unitIds"), active: true }))}>
       <h2>Novo profissional</h2><p className="form-instructions">Informe os dados profissionais e selecione ao menos uma unidade.</p>
       <label>Nome *<input name="name" required /></label>
       <div className="form-row"><label>Conselho<input name="council" /></label><label>Especialidade<input name="specialty" /></label></div>
       <fieldset><legend>Unidades *</legend><div className="weekday-checks">{(data["/units"] ?? []).map((unit: Unit) => <label key={unit.id}><input type="checkbox" name="unitIds" value={unit.id} />{unit.name}</label>)}</div></fieldset>
       <button className="btn primary">Salvar profissional</button>
-    </form>
+    </DrawerForm>
     <EditableOperationalTable title="Profissionais" resource="professionals" rows={data["/professionals"] ?? []} fields={["name", "council", "specialty", "active"]}
       editFields={[{ name: "name", label: "Nome", required: true }, { name: "council", label: "Conselho" }, { name: "specialty", label: "Especialidade" }]}
       buildBody={(form) => ({ name: value(form, "name"), council: value(form, "council") || null, specialty: value(form, "specialty") || null })} onChanged={reload} onNotice={setNotice} />
@@ -1873,12 +2072,12 @@ function FormularioProfissional({ data, reload, setNotice, submit }: Administrat
 
 function FormularioModeloClinico({ data, reload, setNotice, submit }: AdministrationSectionProps) {
   return <div className="administration-section">
-    <form className="card modal-form administration-form" onSubmit={(event) => submit(event, "/record-templates", (form) => ({ name: value(form, "name"), kind: value(form, "kind"), specialty: value(form, "specialty") || undefined, schema: {}, active: true }))}>
+    <DrawerForm title="Novo modelo clínico" className="administration-form" onSubmit={(event) => submit(event, "/record-templates", (form) => ({ name: value(form, "name"), kind: value(form, "kind"), specialty: value(form, "specialty") || undefined, schema: {}, active: true }))}>
       <h2>Novo modelo clínico</h2><p className="form-instructions">Crie uma base para avaliações ou evoluções clínicas.</p>
       <label>Nome *<input name="name" required minLength={3} /></label>
       <div className="form-row"><label>Tipo *<select name="kind"><option value="assessment">Avaliação</option><option value="evolution">Evolução</option></select></label><label>Especialidade<input name="specialty" /></label></div>
       <button className="btn primary">Salvar modelo</button>
-    </form>
+    </DrawerForm>
     <EditableOperationalTable title="Modelos clínicos" resource="record-templates" rows={data["/record-templates"] ?? []} fields={["name", "kind", "specialty", "active"]}
       editFields={[{ name: "name", label: "Nome", required: true }, { name: "specialty", label: "Especialidade" }]}
       buildBody={(form) => ({ name: value(form, "name"), specialty: value(form, "specialty") || null })} onChanged={reload} onNotice={setNotice} />
@@ -2027,7 +2226,7 @@ export function OperationalPrivacy() {
       )}
       <ModuleState loading={loading} error={error} retry={reload} />
       <div className="dashboard-grid">
-        <form className="card modal-form" onSubmit={request}>
+        <DrawerForm title="Nova solicitação" onSubmit={request}>
           <h2>Nova solicitação</h2>
           <label>
             Solicitante
@@ -2056,8 +2255,8 @@ export function OperationalPrivacy() {
             </select>
           </label>
           <button className="btn primary">Registrar solicitação</button>
-        </form>
-        <form className="card modal-form" onSubmit={incident}>
+        </DrawerForm>
+        <DrawerForm title="Novo incidente" onSubmit={incident}>
           <h2>Novo incidente</h2>
           <label>
             Título
@@ -2094,7 +2293,7 @@ export function OperationalPrivacy() {
             <textarea name="mitigation" rows={2} />
           </label>
           <button className="btn primary">Registrar incidente</button>
-        </form>
+        </DrawerForm>
       </div>
       <OperationalTable
         title="Solicitações de titulares"
@@ -2135,13 +2334,14 @@ function MetricLite({
 type EditField = {
   name: string;
   label: string;
-  type?: "text" | "number";
+  type?: "text" | "number" | "date" | "email" | "tel" | "select" | "textarea";
   required?: boolean;
   min?: number;
   max?: number;
   maxLength?: number;
   step?: string;
   value?: (row: Row) => unknown;
+  options?: Row[];
 };
 
 function EditableOperationalTable({
@@ -2154,6 +2354,11 @@ function EditableOperationalTable({
   onChanged,
   onNotice,
   onOpen,
+  allowDelete = false,
+  total,
+  page,
+  pageSize,
+  onPageChange,
 }: {
   title: string;
   resource: string;
@@ -2164,6 +2369,11 @@ function EditableOperationalTable({
   onChanged: () => void | Promise<void>;
   onNotice: (message: string) => void;
   onOpen?: (row: Row) => void | Promise<void>;
+  allowDelete?: boolean;
+  total?: number;
+  page?: number;
+  pageSize?: number;
+  onPageChange?: (page: number) => void;
 }) {
   const [editing, setEditing] = useState<Row | null>(null);
   const [saving, setSaving] = useState(false);
@@ -2213,24 +2423,33 @@ function EditableOperationalTable({
     }
   }
 
+  async function remove(row: Row) {
+    if (!window.confirm(`Excluir ${row.name}? O cadastro sairá das listagens. O histórico clínico e financeiro será preservado para fins legais.`)) return;
+    try {
+      await api(`/${resource}/${row.id}`, { method: "DELETE" });
+      await onChanged();
+      onNotice("Cadastro excluído com segurança.");
+    } catch (error) {
+      onNotice(messageOf(error));
+    }
+  }
+
   return (
     <>
-      <section className="card table-card">
+      <section className="card table-card operational-data-table" style={{ "--table-columns": `repeat(${fields.length}, minmax(120px, 1fr)) minmax(230px, auto)` } as CSSProperties}>
         <div className="table-toolbar">
           <h2>{title}</h2>
-          <span>{rows.length} registros</span>
+          <span>{total ?? rows.length} registros</span>
+        </div>
+        <div className="operational-table-head" aria-hidden="true">
+          {fields.map((field) => <span key={field}>{fieldLabel(field)}</span>)}
+          <span>Ações</span>
         </div>
         {rows.map((row) => (
           <div className="operational-row" key={row.id}>
-            <div>
-              {fields.map((field, index) =>
-                index === 0 ? (
-                  <strong key={field}>{render(row[field], field)}</strong>
-                ) : (
-                  <small key={field}>{field}: {render(row[field], field)}</small>
-                ),
-              )}
-            </div>
+            {fields.map((field, index) => <div className="operational-cell" key={field} data-label={fieldLabel(field)}>
+              {index === 0 ? <strong>{render(row[field], field)}</strong> : <span>{render(row[field], field)}</span>}
+            </div>)}
             <div className="row-actions" aria-label={`Ações de ${row.name}`}>
               {onOpen && <button type="button" onClick={() => void onOpen(row)}>Detalhes</button>}
               <button type="button" onClick={() => setEditing(row)}>Editar</button>
@@ -2241,10 +2460,18 @@ function EditableOperationalTable({
               >
                 {row.active === false ? "Reativar" : "Inativar"}
               </button>
+              {allowDelete && <button type="button" className="action-delete" onClick={() => void remove(row)}>Excluir</button>}
             </div>
           </div>
         ))}
         {!rows.length && <div className="empty-state">Nenhum registro cadastrado.</div>}
+        {page && pageSize && total !== undefined && total > pageSize && (
+          <nav className="table-pagination" aria-label={`Paginação de ${title}`}>
+            <button className="btn secondary" type="button" disabled={page === 1} onClick={() => onPageChange?.(page - 1)}>Anterior</button>
+            <span>Página {page} de {Math.ceil(total / pageSize)}</span>
+            <button className="btn secondary" type="button" disabled={page >= Math.ceil(total / pageSize)} onClick={() => onPageChange?.(page + 1)}>Próxima</button>
+          </nav>
+        )}
       </section>
       {editing && (
         <div className="edit-dialog-backdrop" role="presentation" onMouseDown={(event) => {
@@ -2262,7 +2489,10 @@ function EditableOperationalTable({
               {editFields.map((field) => (
                 <label key={field.name}>
                   {field.label}{field.required ? " *" : ""}
-                  <input
+                  {field.type === "select" ? <select name={field.name} required={field.required} defaultValue={String(field.value ? field.value(editing) ?? "" : editing[field.name] ?? "")}>
+                    <option value="">Selecione</option>
+                    {(field.options ?? []).map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
+                  </select> : field.type === "textarea" ? <textarea name={field.name} rows={4} defaultValue={String(field.value ? field.value(editing) ?? "" : editing[field.name] ?? "")} /> : <input
                     name={field.name}
                     type={field.type ?? "text"}
                     required={field.required}
@@ -2271,7 +2501,7 @@ function EditableOperationalTable({
                     maxLength={field.maxLength}
                     step={field.step}
                     defaultValue={String(field.value ? field.value(editing) ?? "" : editing[field.name] ?? "")}
-                  />
+                  />}
                 </label>
               ))}
               <div className="edit-dialog-actions">
@@ -2296,24 +2526,19 @@ function OperationalTable({
   fields: string[];
 }) {
   return (
-    <section className="card table-card">
+    <section className="card table-card operational-data-table" style={{ "--table-columns": `repeat(${fields.length}, minmax(135px, 1fr))` } as CSSProperties}>
       <div className="table-toolbar">
         <h2>{title}</h2>
         <span>{rows.length} registros</span>
       </div>
+      <div className="operational-table-head" aria-hidden="true">
+        {fields.map((field) => <span key={field}>{fieldLabel(field)}</span>)}
+      </div>
       {rows.map((row) => (
         <div className="operational-row" key={row.id}>
-          <div>
-            {fields.map((field, index) =>
-              index === 0 ? (
-                <strong key={field}>{render(row[field], field)}</strong>
-              ) : (
-                <small key={field}>
-                  {field}: {render(row[field], field)}
-                </small>
-              ),
-            )}
-          </div>
+          {fields.map((field, index) => <div className="operational-cell" key={field} data-label={fieldLabel(field)}>
+            {index === 0 ? <strong>{render(row[field], field)}</strong> : <span>{render(row[field], field)}</span>}
+          </div>)}
         </div>
       ))}
       {!rows.length && (
@@ -2321,6 +2546,21 @@ function OperationalTable({
       )}
     </section>
   );
+}
+function fieldLabel(field: string) {
+  const labels: Record<string, string> = {
+    name: "Nome", phone: "Telefone", email: "E-mail", active: "Status",
+    kind: "Tipo", sessions_included: "Sessões", duration_days: "Duração",
+    price_cents: "Preço", status: "Status", starts_at: "Início",
+    due_day: "Vencimento", sessions_used: "Sessões usadas",
+    description: "Descrição", amount_cents: "Valor", paid_cents: "Valor pago",
+    due_at: "Vencimento", competence_date: "Competência", category: "Categoria",
+    requester_name: "Solicitante", title: "Título", severity: "Severidade",
+    discovered_at: "Identificado em", action: "Ação", entity_type: "Recurso",
+    user_id: "Usuário", occurred_at: "Data", capacity: "Capacidade",
+    duration_minutes: "Duração", council: "Conselho", specialty: "Especialidade",
+  };
+  return labels[field] ?? field.replaceAll("_", " ");
 }
 function render(value: any, field: string) {
   if (value == null) return "—";

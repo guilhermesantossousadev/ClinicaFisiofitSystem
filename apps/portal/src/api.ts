@@ -17,6 +17,10 @@ export async function api<T>(
   path: string,
   init: RequestInit & { idempotencyKey?: string } = {},
 ): Promise<ApiEnvelope<T>> {
+  const interactionId = crypto.randomUUID();
+  window.dispatchEvent(new CustomEvent("fisiofit:request-start", {
+    detail: { id: interactionId, method: init.method ?? "GET" },
+  }));
   const { data } = await supabase.auth.getSession();
   let response: Response;
   try {
@@ -41,6 +45,9 @@ export async function api<T>(
     window.dispatchEvent(
       new CustomEvent("fisiofit:api-error", { detail: { message: error.message } }),
     );
+    window.dispatchEvent(new CustomEvent("fisiofit:request-end", {
+      detail: { id: interactionId, ok: false },
+    }));
     throw Object.assign(new Error(error.message), { apiError: error });
   }
   const contentType = response.headers.get("content-type") ?? "";
@@ -52,8 +59,14 @@ export async function api<T>(
     window.dispatchEvent(
       new CustomEvent("fisiofit:api-error", { detail: { message: error.message } }),
     );
+    window.dispatchEvent(new CustomEvent("fisiofit:request-end", {
+      detail: { id: interactionId, ok: false },
+    }));
     throw Object.assign(new Error(error.message), { apiError: error as ApiError });
   }
+  window.dispatchEvent(new CustomEvent("fisiofit:request-end", {
+    detail: { id: interactionId, ok: true },
+  }));
   return payload;
 }
 

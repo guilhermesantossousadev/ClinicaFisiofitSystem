@@ -14,9 +14,9 @@ const ServicesPage = () => (
     <section className="px-5 py-20 md:px-8 md:py-28">
       <div className="mx-auto grid max-w-7xl gap-6 md:grid-cols-3">
         {services.map(({ id, icon: Icon, title, description, items }, index) => (
-          <article id={id} key={id} className="scroll-mt-28 rounded-3xl border border-line bg-white p-8 shadow-sm transition hover:-translate-y-1 hover:shadow-soft">
-            <span className={`grid h-14 w-14 place-items-center rounded-2xl ${index === 1 ? "bg-mint text-teal" : "bg-sky text-blue"}`}><Icon /></span>
-            <h2 className="mt-6 text-2xl font-black leading-tight text-navy">{title}</h2>
+          <article id={id} key={id} className="site-card scroll-mt-28 transition hover:-translate-y-1 hover:shadow-soft">
+            <span className={`site-icon-badge ${index === 1 ? "bg-mint text-teal" : ""}`}><Icon /></span>
+            <h2 className="site-heading-3 mt-6">{title}</h2>
             <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{description}</p>
             <ul className="mt-6 grid gap-3">{items.map((item) => <li key={item} className="flex items-start gap-2 text-sm text-foreground"><Check size={17} className="mt-0.5 shrink-0 text-teal" />{item}</li>)}</ul>
           </article>
