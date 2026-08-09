@@ -1681,7 +1681,6 @@ export function OperationalImports() {
   }
   async function run(event: FormEvent<HTMLFormElement>, dryRun: boolean) {
     event.preventDefault();
-    const f = new FormData(event.currentTarget);
     try {
       const response = await api<Row>("/imports/workbook", {
         method: "POST",

@@ -459,7 +459,7 @@ Páginas demonstrativas como implementação principal do portal estão superada
 
 ### 12.2 Decisões ainda pendentes
 
-Fornecedor de NFS-e/mensageria; estratégia transacional para operações compostas; política central de escopo por unidade; homologação; backup/PITR; deploy de banco/API; geração de documentos e anexos.
+Fornecedor de NFS-e/mensageria; política central de escopo por unidade; homologação; backup/PITR; geração de documentos fiscais; E2E autenticado completo.
 
 ---
 
@@ -467,7 +467,7 @@ Fornecedor de NFS-e/mensageria; estratégia transacional para operações compos
 
 ### 13.1 Testes do backend
 
-Não há testes que executem handlers Hono. `tests/platform.test.mjs` apenas procura padrões no arquivo da API.
+Não há testes que executem handlers Hono. `tests/platform.test.mjs` valida invariantes de plataforma e padrões no arquivo da API.
 
 ### 13.2 Testes do frontend
 
@@ -498,7 +498,7 @@ Prioridade: autorização por unidade/papel; prontuário; idempotência; matríc
 | P0 | API usa service role sem escopo central por unidade | Perfil pode acessar/escrever unidade não autorizada | middleware e handlers não chamam `has_unit_access` | cliente com RLS efetiva ou guard central obrigatório |
 | P0 | Profissional pode consultar/criar/assinar prontuário de qualquer paciente/profissional da clínica | Violação clínica/LGPD | endpoints filtram por paciente/id, não por profissional/unidade | autorizar vínculo de profissional, atendimento e unidade |
 | P1 | Status genérico permite `completed` sem consumir sessão | saldo divergente | PATCH status versus RPC de conclusão | proibir transição ou delegar à RPC |
-| P1 | Operações compostas não são atômicas | registros órfãos/parciais | múltiplos inserts nos handlers | RPC/transação compensável |
+| P1 | Algumas operações compostas não são atômicas | registros órfãos/parciais | múltiplos inserts nos handlers | RPC/transação compensável; rollback de importações e matrículas já possui RPC dedicada |
 | P1 | Convite redireciona a `/sistema/login` | usuário convidado pode não entrar no fluxo de definição de senha | `users/invite` versus `SetPasswordPage` | alinhar redirect a `/set-password` e testar |
 | P1 | Migration de bootstrap depende de UUID Auth preexistente | reset/novo ambiente pode falhar | `202607290002_bootstrap_admin.sql` | separar bootstrap de estado específico ou documentar pré-condição automatizada |
 | P1 | Sem testes reais de autorização/RLS | regressões críticas não detectadas | suíte atual | integração com perfis e unidades |
@@ -508,7 +508,7 @@ Prioridade: autorização por unidade/papel; prontuário; idempotência; matríc
 | P2 | Listagens genéricas sem paginação e busca global limitada | escala/UX | limite 500 e primeira página de 100 | paginação consistente no servidor |
 | P2 | Política pública contém dados pendentes | risco jurídico de publicação | `PrivacyPage.tsx` | validação jurídica e dados da controladora |
 | P3 | Arquivos monolíticos | manutenção difícil | API ~1.186 linhas; módulos ~2.056 | modularizar por domínio sem alterar contratos |
-| P3 | Lint não executável pelo manifesto raiz/CI | qualidade não verificada | scripts referenciam ESLint sem dependência | configurar ESLint e incluir no CI |
+| P3 | Arquivos monolíticos | manutenção difícil | API e módulos operacionais concentram muitos domínios | modularizar por domínio sem alterar contratos |
 
 ### 14.1 Riscos de segurança
 
