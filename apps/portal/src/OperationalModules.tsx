@@ -230,6 +230,7 @@ export function OperationalAgenda() {
   const patients: Row[] = data["/patients?page=1&pageSize=100"]?.items ?? [];
   const [groupMembers, setGroupMembers] = useState<Row[]>([]);
   const [notice, setNotice] = useState("");
+  const [calendarAppointment, setCalendarAppointment] = useState<Row | null | undefined>(undefined);
   const [selectedGroupWeekdays, setSelectedGroupWeekdays] = useState<number[]>([1, 3]);
   const [groupTime, setGroupTime] = useState("09:00");
   useEffect(() => {
@@ -291,6 +292,46 @@ export function OperationalAgenda() {
       setNotice(messageOf(actionError));
     }
   }
+
+  async function saveCalendarAppointment(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const body = {
+      unit_id: value(form, "unit_id"),
+      patient_id: value(form, "patient_id") || undefined,
+      professional_id: value(form, "professional_id"),
+      service_id: value(form, "service_id") || undefined,
+      room_id: value(form, "room_id") || undefined,
+      starts_at: isoLocal(value(form, "starts_at")),
+      ends_at: isoLocal(value(form, "ends_at")),
+      status: value(form, "status") || "scheduled",
+      notes: value(form, "notes") || undefined,
+    };
+    try {
+      await api(calendarAppointment?.id ? `/appointments/${calendarAppointment.id}` : "/appointments", {
+        method: calendarAppointment?.id ? "PATCH" : "POST",
+        body: JSON.stringify(body),
+      });
+      setCalendarAppointment(undefined);
+      setNotice(calendarAppointment?.id ? "Agendamento atualizado." : "Agendamento criado.");
+      await reload();
+    } catch (actionError) { setNotice(messageOf(actionError)); }
+  }
+
+  const openCalendarSlot = (day: Date, hour: number, unitId: string) => {
+    const appointment = appointments.find((row) => {
+      const starts = new Date(row.starts_at);
+      return row.unit_id === unitId && dateKey(starts) === dateKey(day) && starts.getHours() === hour;
+    });
+    if (appointment) setCalendarAppointment(appointment);
+    else {
+      const start = new Date(day);
+      start.setHours(hour, 0, 0, 0);
+      const end = new Date(start);
+      end.setMinutes(end.getMinutes() + 50);
+      setCalendarAppointment({ unit_id: unitId, starts_at: start.toISOString(), ends_at: end.toISOString(), status: "scheduled" });
+    }
+  };
 
   async function createGroup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -406,14 +447,19 @@ export function OperationalAgenda() {
                     const slot = slotFor(unit.id, day, hour);
                     const members = slot ? membersForSlot(slot.id, day) : [];
                     const isWeekday = day.getDay() >= 1 && day.getDay() <= 5;
-                    return <div className={`fixed-calendar-cell${!isWeekday ? " is-weekend" : ""}`} key={`${dateKey(day)}-${hour}`}>
+                    const appointment = appointments.find((row) => {
+                      const starts = new Date(row.starts_at);
+                      return row.unit_id === unit.id && dateKey(starts) === dateKey(day) && starts.getHours() === hour;
+                    });
+                    return <button type="button" className={`fixed-calendar-cell calendar-slot-button${!isWeekday ? " is-weekend" : ""}`} key={`${dateKey(day)}-${hour}`} onClick={() => openCalendarSlot(day, hour, unit.id)} aria-label={`${dateLabel(day)} às ${String(hour).padStart(2, "0")}:00${appointment ? `, ${appointment.patients?.name ?? "agendamento"}` : ", horário livre"}`}>
+                      {appointment ? <><strong className="calendar-appointment-name">{appointment.patients?.name ?? "Bloqueio"}</strong><span>{appointment.services?.name ?? "Atendimento"}</span><small>{appointment.status ?? "Agendado"} · editar</small></> : <>
                       {slot ? <>
                         <strong>{members.length}/{slot.capacity ?? 7} vagas</strong>
                         {members.slice(0, 3).map((member) => <span key={member.id}>{member.patients?.name ?? "Paciente"}</span>)}
                         {members.length > 3 && <small>+{members.length - 3} pacientes</small>}
                         {!members.length && <small>Horário livre</small>}
-                      </> : isWeekday ? <small className="fixed-calendar-missing">Não configurado</small> : null}
-                    </div>;
+                      </> : isWeekday ? <small className="fixed-calendar-missing">Não configurado</small> : null}</>}
+                    </button>;
                   }),
                 ])}
               </div>
@@ -422,104 +468,132 @@ export function OperationalAgenda() {
         ))}
         {!units.length && <p className="empty-state">Cadastre uma unidade para visualizar a agenda.</p>}
       </section>
+      {calendarAppointment !== undefined && (
+        <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setCalendarAppointment(undefined); }}>
+          <section className="modal calendar-edit-modal" role="dialog" aria-modal="true" aria-labelledby="calendar-edit-title">
+            <div className="modal-head"><div><p className="eyebrow">AGENDA</p><h2 id="calendar-edit-title">{calendarAppointment?.id ? "Editar agendamento" : "Novo agendamento"}</h2></div><button type="button" onClick={() => setCalendarAppointment(undefined)} aria-label="Fechar">×</button></div>
+            <form className="modal-form" onSubmit={saveCalendarAppointment}>
+              <div className="form-row"><Select name="unit_id" label="Unidade" rows={units} /><Select name="patient_id" label="Paciente" rows={patients} required={false} /></div>
+              <div className="form-row"><Select name="professional_id" label="Profissional" rows={data["/professionals"] ?? []} /><Select name="service_id" label="Serviço" rows={data["/services"] ?? []} required={false} /></div>
+              <div className="form-row"><label>Início<input name="starts_at" type="datetime-local" defaultValue={calendarAppointment?.starts_at ? localDateTime(calendarAppointment.starts_at) : ""} required /></label><label>Término<input name="ends_at" type="datetime-local" defaultValue={calendarAppointment?.ends_at ? localDateTime(calendarAppointment.ends_at) : ""} required /></label></div>
+              <div className="form-row"><label>Status<select name="status" defaultValue={calendarAppointment?.status ?? "scheduled"}><option value="scheduled">Agendado</option><option value="confirmed">Confirmado</option><option value="attending">Em atendimento</option><option value="missed">Falta</option><option value="cancelled">Cancelado</option></select></label><label>Observações<textarea name="notes" defaultValue={calendarAppointment?.notes ?? ""} rows={2} /></label></div>
+              <div className="modal-actions"><button type="button" className="btn secondary" onClick={() => setCalendarAppointment(undefined)}>Cancelar</button><button className="btn primary">Salvar alterações</button></div>
+            </form>
+          </section>
+        </div>
+      )}
       <div className="dashboard-grid">
         <DrawerForm title="Novo agendamento" onSubmit={createAppointment}>
           <h2>Novo agendamento</h2>
-          <div className="form-row">
-            <Select
-              name="unit_id"
-              label="Unidade"
-              rows={data["/units"] ?? []}
-            />
-            <Select
-              name="professional_id"
-              label="Profissional"
-              rows={data["/professionals"] ?? []}
-            />
-          </div>
-          <div className="form-row">
-            <Select name="patient_id" label="Paciente" rows={patients} />
-            <Select
-              name="service_id"
-              label="Serviço"
-              rows={data["/services"] ?? []}
-              required={false}
-            />
-          </div>
-          <div className="form-row">
-            <Select
-              name="room_id"
-              label="Sala"
-              rows={data["/rooms"] ?? []}
-              required={false}
-            />
-            <label>
-              Início
-              <input name="starts_at" type="datetime-local" required />
-            </label>
-          </div>
-          <div className="form-row">
-            <label>
-              Término
-              <input name="ends_at" type="datetime-local" required />
-            </label>
-            <label>
-              Observações
-              <input name="notes" />
-            </label>
-          </div>
+          <p className="form-instructions"><span aria-hidden="true">*</span> indica campo obrigatório.</p>
+          <fieldset>
+            <legend>Informações gerais</legend>
+            <div className="form-row">
+              <Select
+                name="unit_id"
+                label="Unidade *"
+                rows={data["/units"] ?? []}
+              />
+              <Select
+                name="professional_id"
+                label="Profissional *"
+                rows={data["/professionals"] ?? []}
+              />
+            </div>
+            <div className="form-row">
+              <Select name="patient_id" label="Paciente *" rows={patients} />
+              <Select
+                name="service_id"
+                label="Serviço"
+                rows={data["/services"] ?? []}
+                required={false}
+              />
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>Data, horário e local</legend>
+            <div className="form-row">
+              <Select
+                name="room_id"
+                label="Sala"
+                rows={data["/rooms"] ?? []}
+                required={false}
+              />
+              <label>
+                Início *
+                <input name="starts_at" type="datetime-local" required />
+              </label>
+            </div>
+            <div className="form-row">
+              <label>
+                Término *
+                <input name="ends_at" type="datetime-local" required />
+              </label>
+              <label>
+                Observações
+                <input name="notes" />
+              </label>
+            </div>
+          </fieldset>
           <button className="btn primary">Agendar</button>
         </DrawerForm>
         <DrawerForm title="Nova turma com horário fixo" onSubmit={createGroup}>
           <h2>Nova turma com horário fixo</h2>
-          <div className="form-row">
-            <Select
-              name="unit_id"
-              label="Unidade"
-              rows={data["/units"] ?? []}
-            />
-            <Select name="room_id" label="Sala" rows={data["/rooms"] ?? []} />
-          </div>
-          <div className="form-row">
-            <Select
-              name="professional_id"
-              label="Profissional"
-              rows={data["/professionals"] ?? []}
-            />
-            <Select
-              name="service_id"
-              label="Serviço"
-              rows={data["/services"] ?? []}
-            />
-          </div>
-          <div className="form-row">
-            <label>
-              Dias por semana
-              <strong className="field-hint">{selectedGroupWeekdays.length} selecionado(s)</strong>
-            </label>
-            <label>
-              Horário fixo
-              <input name="starts_at" type="time" value={groupTime} onChange={(event) => setGroupTime(event.target.value)} required />
-            </label>
-          </div>
-          <div className="weekday-picker" aria-label="Dias da semana da turma">
-            {WEEKDAYS.map((day) => (
-              <label className="weekday-option" key={day.value}>
-                <input
-                  type="checkbox"
-                  checked={selectedGroupWeekdays.includes(day.value)}
-                  onChange={() => setSelectedGroupWeekdays((current) => current.includes(day.value)
-                    ? current.filter((value) => value !== day.value)
-                    : [...current, day.value])}
-                />
-                <span>{day.short}</span>
+          <p className="form-instructions"><span aria-hidden="true">*</span> indica campo obrigatório.</p>
+          <fieldset>
+            <legend>Local e atendimento</legend>
+            <div className="form-row">
+              <Select
+                name="unit_id"
+                label="Unidade *"
+                rows={data["/units"] ?? []}
+              />
+              <Select name="room_id" label="Sala *" rows={data["/rooms"] ?? []} />
+            </div>
+            <div className="form-row">
+              <Select
+                name="professional_id"
+                label="Profissional *"
+                rows={data["/professionals"] ?? []}
+              />
+              <Select
+                name="service_id"
+                label="Serviço *"
+                rows={data["/services"] ?? []}
+              />
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>Frequência e horário</legend>
+            <div className="form-row">
+              <label>
+                Dias por semana
+                <strong className="field-hint">{selectedGroupWeekdays.length} selecionado(s)</strong>
               </label>
-            ))}
-          </div>
-          <label>
-            Duração de cada aula (minutos)
-            <input name="duration_minutes" type="number" min="15" max="240" defaultValue="50" required />
-          </label>
+              <label>
+                Horário fixo *
+                <input name="starts_at" type="time" value={groupTime} onChange={(event) => setGroupTime(event.target.value)} required />
+              </label>
+            </div>
+            <div className="weekday-picker" aria-label="Dias da semana da turma">
+              {WEEKDAYS.map((day) => (
+                <label className="weekday-option" key={day.value}>
+                  <input
+                    type="checkbox"
+                    checked={selectedGroupWeekdays.includes(day.value)}
+                    onChange={() => setSelectedGroupWeekdays((current) => current.includes(day.value)
+                      ? current.filter((value) => value !== day.value)
+                      : [...current, day.value])}
+                  />
+                  <span>{day.short}</span>
+                </label>
+              ))}
+            </div>
+            <label>
+              Duração de cada aula (minutos) *
+              <input name="duration_minutes" type="number" min="15" max="240" defaultValue="50" required />
+            </label>
+          </fieldset>
           <div className="plan-summary" aria-live="polite">
             <strong>{groupName}</strong>
             <span>Horário fixo recorrente · até 7 alunos · de 1 a 7 dias por semana</span>
