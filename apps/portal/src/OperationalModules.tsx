@@ -57,6 +57,12 @@ function isoLocal(raw: string) {
   return new Date(raw).toISOString();
 }
 
+function localDateTime(raw: string) {
+  const date = new Date(raw);
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 const resourceCache = new Map<string, Record<string, any>>();
 
 function useResources(paths: string[]) {
@@ -281,22 +287,6 @@ export function OperationalAgenda() {
     }
   }
 
-  async function status(id: string, next: string) {
-    try {
-      if (next === "completed") {
-        await api(`/appointments/${id}/complete`, { method: "POST" });
-      } else {
-        await api(`/appointments/${id}/status`, {
-          method: "PATCH",
-          body: JSON.stringify({ status: next }),
-        });
-      }
-      await reload();
-    } catch (actionError) {
-      setNotice(messageOf(actionError));
-    }
-  }
-
   return (
     <div className="content">
       <div className="page-title">
@@ -428,45 +418,28 @@ export function OperationalAgenda() {
           <button className="btn primary">Criar turma (7 vagas)</button>
         </DrawerForm>
       </div>
-      <section className="card table-card bespoke-table agenda-list-table">
-        <div className="table-toolbar">
-          <h2>Atendimentos da semana</h2>
-        </div>
-        <div className="bespoke-table-head" aria-hidden="true"><span>Data e horário</span><span>Paciente e profissional</span><span>Status</span><span>Ações</span></div>
-        {appointments.map((item) => (
-          <div className="operational-row" key={item.id}>
-            <div>
-              <strong>
-                {new Date(item.starts_at).toLocaleString("pt-BR")}
-              </strong>
-              <small>
-                {item.patients?.name ?? "Bloqueio"} ·{" "}
-                {item.professionals?.name ?? "Sem profissional"}
-              </small>
-            </div>
-            <span className="status info">{item.status}</span>
-            <div className="row-actions">
-              <button onClick={() => status(item.id, "confirmed")}>
-                Confirmar
-              </button>
-              <button onClick={() => status(item.id, "completed")}>
-                Concluir
-              </button>
-              <button onClick={() => status(item.id, "missed")}>Falta</button>
-              <button onClick={() => status(item.id, "cancelled")}>
-                Cancelar
-              </button>
-            </div>
-          </div>
-        ))}
-        {!appointments.length && (
-          <div className="empty-state">
-            <span className="empty-icon" aria-hidden="true">□</span>
-            <strong>Agenda livre nesta semana</strong>
-            <p>Use o formulário acima para criar o primeiro agendamento.</p>
-          </div>
-        )}
-      </section>
+      <EditableOperationalTable
+        title="Atendimentos da semana"
+        resource="appointments"
+        rows={appointments.map((row: Row) => ({ ...row, patient_name: row.patients?.name ?? "Bloqueio", professional_name: row.professionals?.name ?? "Sem profissional", service_name: row.services?.name ?? "—", room_name: row.rooms?.name ?? "—" }))}
+        fields={["starts_at", "patient_name", "professional_name", "status"]}
+        editFields={[
+          { name: "unit_id", label: "Unidade", type: "select", required: true, options: data["/units"] ?? [] },
+          { name: "patient_id", label: "Paciente", type: "select", options: patients },
+          { name: "professional_id", label: "Profissional", type: "select", required: true, options: data["/professionals"] ?? [] },
+          { name: "service_id", label: "Serviço", type: "select", options: data["/services"] ?? [] },
+          { name: "room_id", label: "Sala", type: "select", options: data["/rooms"] ?? [] },
+          { name: "starts_at", label: "Início", type: "datetime-local", required: true, value: (row) => localDateTime(row.starts_at) },
+          { name: "ends_at", label: "Término", type: "datetime-local", required: true, value: (row) => localDateTime(row.ends_at) },
+          { name: "status", label: "Status", type: "select", required: true, options: [{ id: "scheduled", name: "Agendado" }, { id: "confirmed", name: "Confirmado" }, { id: "attending", name: "Em atendimento" }, { id: "missed", name: "Falta" }, { id: "cancelled", name: "Cancelado" }] },
+          { name: "notes", label: "Observações", type: "textarea" },
+        ]}
+        buildBody={(form) => ({ unit_id: value(form, "unit_id"), patient_id: value(form, "patient_id") || undefined, professional_id: value(form, "professional_id"), service_id: value(form, "service_id") || undefined, room_id: value(form, "room_id") || undefined, starts_at: isoLocal(value(form, "starts_at")), ends_at: isoLocal(value(form, "ends_at")), status: value(form, "status"), notes: value(form, "notes") || undefined })}
+        onChanged={reload}
+        onNotice={setNotice}
+        allowDelete
+        showToggle={false}
+      />
       <EditableOperationalTable
         title="Turmas fixas"
         resource="group-slots"
@@ -479,16 +452,28 @@ export function OperationalAgenda() {
         })}
         fields={["name", "starts_at", "duration_minutes", "capacity", "allocation", "active"]}
         editFields={[
+          { name: "unit_id", label: "Unidade", type: "select", required: true, options: data["/units"] ?? [] },
+          { name: "room_id", label: "Sala", type: "select", required: true, options: data["/rooms"] ?? [] },
+          { name: "professional_id", label: "Profissional", type: "select", required: true, options: data["/professionals"] ?? [] },
+          { name: "service_id", label: "Serviço", type: "select", required: true, options: data["/services"] ?? [] },
           { name: "name", label: "Nome", required: true },
+          { name: "weekdays", label: "Dias da semana (0 domingo; 1 segunda...6 sábado)", required: true, value: (row) => (row.weekdays ?? []).join(",") },
           { name: "starts_at", label: "Horário", required: true },
           { name: "duration_minutes", label: "Duração (min)", type: "number", min: 15, max: 240, required: true },
           { name: "capacity", label: "Capacidade", type: "number", min: 1, max: 7, required: true },
+          { name: "active", label: "Situação", type: "select", required: true, options: [{ id: "true", name: "Ativa" }, { id: "false", name: "Inativa" }] },
         ]}
         buildBody={(form) => ({
           name: value(form, "name"),
+          unit_id: value(form, "unit_id"),
+          room_id: value(form, "room_id"),
+          professional_id: value(form, "professional_id"),
+          service_id: value(form, "service_id"),
+          weekdays: value(form, "weekdays").split(",").map(Number).filter((day) => Number.isInteger(day) && day >= 0 && day <= 6),
           starts_at: value(form, "starts_at"),
           duration_minutes: Number(value(form, "duration_minutes")),
           capacity: Number(value(form, "capacity")),
+          active: value(form, "active") === "true",
         })}
         onChanged={reload}
         onNotice={setNotice}
@@ -2435,7 +2420,7 @@ function MetricLite({
 type EditField = {
   name: string;
   label: string;
-  type?: "text" | "number" | "date" | "email" | "tel" | "select" | "textarea";
+  type?: "text" | "number" | "date" | "email" | "tel" | "datetime-local" | "select" | "textarea";
   required?: boolean;
   min?: number;
   max?: number;
@@ -2456,6 +2441,7 @@ function EditableOperationalTable({
   onNotice,
   onOpen,
   allowDelete = false,
+  showToggle = true,
   total,
   page,
   pageSize,
@@ -2471,6 +2457,7 @@ function EditableOperationalTable({
   onNotice: (message: string) => void;
   onOpen?: (row: Row) => void | Promise<void>;
   allowDelete?: boolean;
+  showToggle?: boolean;
   total?: number;
   page?: number;
   pageSize?: number;
@@ -2554,13 +2541,13 @@ function EditableOperationalTable({
             <div className="row-actions" aria-label={`Ações de ${row.name}`}>
               {onOpen && <button type="button" onClick={() => void onOpen(row)}>Detalhes</button>}
               <button type="button" onClick={() => setEditing(row)}>Editar</button>
-              <button
-                type="button"
-                className={row.active === false ? "action-activate" : "action-inactivate"}
-                onClick={() => void toggle(row)}
-              >
-                {row.active === false ? "Reativar" : "Inativar"}
-              </button>
+              {showToggle && <button
+                  type="button"
+                  className={row.active === false ? "action-activate" : "action-inactivate"}
+                  onClick={() => void toggle(row)}
+                >
+                  {row.active === false ? "Reativar" : "Inativar"}
+                </button>}
               {allowDelete && <button type="button" className="action-delete" onClick={() => void remove(row)}>Excluir</button>}
             </div>
           </div>

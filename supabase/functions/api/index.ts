@@ -856,6 +856,34 @@ app.post("/appointments", requireRoles(["admin", "manager", "reception", "profes
   return databaseResult(context, data, error, 201);
 });
 
+app.patch("/appointments/:id", requireRoles(["admin", "manager", "reception", "professional"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const input = appointmentSchema.extend({
+    status: z.enum(["scheduled", "confirmed", "attending", "missed", "cancelled"]).optional(),
+  }).parse(await context.req.json());
+  if (!(await hasUnitAccess(context, input.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+  const db = context.get("db");
+  const { data: conflict, error: conflictError } = await db.rpc("check_appointment_conflict", {
+    p_unit_id: input.unit_id, p_professional_id: input.professional_id, p_room_id: input.room_id ?? null,
+    p_starts_at: input.starts_at, p_ends_at: input.ends_at, p_exclude_id: id, p_group_slot_id: input.group_slot_id ?? null,
+  });
+  if (conflictError) return databaseResult(context, null, conflictError);
+  if (conflict?.conflict) return fail(context, 409, "SCHEDULE_CONFLICT", "Profissional ou sala já possui compromisso nesse horário.");
+  const { data, error } = await db.from("appointments").update({ ...input, updated_at: new Date().toISOString() })
+    .eq("id", id).eq("clinic_id", context.get("profile").clinic_id).is("deleted_at", null).select().single();
+  if (!error && data) await audit(context, "appointment.updated", "appointment", id, data.unit_id);
+  return databaseResult(context, data, error);
+});
+
+app.delete("/appointments/:id", requireRoles(["admin", "manager", "reception", "professional"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const deletedAt = new Date().toISOString();
+  const { data, error } = await context.get("db").from("appointments").update({ status: "cancelled", deleted_at: deletedAt, updated_at: deletedAt })
+    .eq("id", id).eq("clinic_id", context.get("profile").clinic_id).is("deleted_at", null).select("id,unit_id").single();
+  if (!error && data) await audit(context, "appointment.deleted", "appointment", id, data.unit_id);
+  return databaseResult(context, data, error);
+});
+
 app.patch("/appointments/:id/status", requireRoles(["admin", "manager", "reception", "professional"]), async (context) => {
   const id = z.string().uuid().parse(context.req.param("id"));
   const input = z.object({
@@ -893,16 +921,31 @@ app.post("/group-slots", requireRoles(["admin", "manager", "reception"]), async 
   return databaseResult(context, data, error, 201);
 });
 
-app.patch("/group-slots/:id", requireRoles(["admin", "manager"]), async (context) => {
+app.patch("/group-slots/:id", requireRoles(["admin", "manager", "reception"]), async (context) => {
   const id = z.string().uuid().parse(context.req.param("id"));
   const input = z.object({
+    unit_id: z.string().uuid().optional(),
+    room_id: z.string().uuid().optional(),
+    professional_id: z.string().uuid().optional(),
+    service_id: z.string().uuid().optional(),
     name: z.string().trim().min(3).max(120).optional(),
+    weekdays: z.array(z.number().int().min(0).max(6)).min(1).max(7).optional(),
     starts_at: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/).optional(),
     duration_minutes: z.number().int().min(15).max(240).optional(),
     capacity: z.number().int().min(1).max(7).optional(),
     active: z.boolean().optional(),
   }).parse(await context.req.json());
-  return updateClinicResource(context, "group_slots", id, input, "group_slot.updated");
+  if (input.unit_id && !(await hasUnitAccess(context, input.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+  return updateClinicResource(context, "group_slots", id, { ...input, ...(input.weekdays ? { weekdays: [...new Set(input.weekdays)].sort() } : {}) }, "group_slot.updated", input.unit_id);
+});
+
+app.delete("/group-slots/:id", requireRoles(["admin", "manager", "reception"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const deletedAt = new Date().toISOString();
+  const { data, error } = await context.get("db").from("group_slots").update({ active: false, deleted_at: deletedAt, updated_at: deletedAt })
+    .eq("id", id).eq("clinic_id", context.get("profile").clinic_id).is("deleted_at", null).select("id,unit_id").single();
+  if (!error && data) await audit(context, "group_slot.deleted", "group_slot", id, data.unit_id);
+  return databaseResult(context, data, error);
 });
 
 app.post("/group-slots/:id/members", requireRoles(["admin", "manager", "reception"]), async (context) => {
