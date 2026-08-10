@@ -205,14 +205,19 @@ export function OperationalAgenda() {
     "/rooms",
     "/patients?page=1&pageSize=100",
     "/group-slots",
-    "/group-slot-memberships",
   ];
   const { data, loading, error, reload } = useResources(paths);
   const appointments: Row[] = data[paths[0]] ?? [];
   const patients: Row[] = data["/patients?page=1&pageSize=100"]?.items ?? [];
+  const [groupMembers, setGroupMembers] = useState<Row[]>([]);
   const [notice, setNotice] = useState("");
   const [selectedGroupWeekdays, setSelectedGroupWeekdays] = useState<number[]>([1, 3]);
   const [groupTime, setGroupTime] = useState("09:00");
+  useEffect(() => {
+    void api<Row[]>("/group-slot-memberships")
+      .then((response) => setGroupMembers(response.data ?? []))
+      .catch(() => setGroupMembers([]));
+  }, [data["/group-slots"]]);
 
   const selectedDayNames = selectedGroupWeekdays.map(
     (day) => WEEKDAYS.find((option) => option.value === day)?.short ?? "",
@@ -466,7 +471,7 @@ export function OperationalAgenda() {
         title="Turmas fixas"
         resource="group-slots"
         rows={(data["/group-slots"] ?? []).map((row: Row) => {
-          const members = (data["/group-slot-memberships"] ?? []).filter((member: Row) => member.group_slot_id === row.id);
+          const members = groupMembers.filter((member: Row) => member.group_slot_id === row.id);
           return {
             ...row,
             allocation: `${members.length}/${row.capacity ?? 7} · ${members.map((member: Row) => member.patients?.name).filter(Boolean).join(", ") || "Sem alunos"}`,
