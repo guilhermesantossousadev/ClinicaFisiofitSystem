@@ -913,6 +913,16 @@ export function OperationalEnrollments() {
       setNotice(messageOf(e));
     }
   }
+  const enrollmentRows = (data["/enrollments"] ?? []).map((row: Row) => {
+    const plan = (data["/plans"] ?? []).find((item: Row) => item.id === row.plan_id);
+    const planPrice = Number(plan?.price_cents ?? 0);
+    const discount = Number(row.discount_cents ?? 0);
+    const surcharge = Number(row.surcharge_cents ?? 0);
+    return {
+      ...row,
+      total_plan_cents: Math.max(planPrice - discount + surcharge, 0),
+    };
+  });
   return (
     <div className="content">
       <div className="page-title">
@@ -1063,8 +1073,8 @@ export function OperationalEnrollments() {
       />
       <OperationalTable
         title="Matrículas ativas"
-        rows={data["/enrollments"] ?? []}
-        fields={["status", "starts_at", "due_day", "sessions_used"]}
+        rows={enrollmentRows}
+        fields={["status", "starts_at", "due_day", "sessions_used", "total_plan_cents"]}
         actions={(row) => row.deleted_at ? null : <button type="button" onClick={() => void rollbackEnrollment(row.id)}>Reverter</button>}
       />
       <OperationalTable
@@ -2654,6 +2664,7 @@ function fieldLabel(field: string) {
     kind: "Tipo", sessions_included: "Sessões", duration_days: "Duração",
     price_cents: "Preço", status: "Status", starts_at: "Início",
     due_day: "Vencimento", sessions_used: "Sessões usadas",
+    total_plan_cents: "Valor total do plano",
     description: "Descrição", amount_cents: "Valor", paid_cents: "Valor pago",
     due_at: "Vencimento", competence_date: "Competência", category: "Categoria",
     requester_name: "Solicitante", title: "Título", severity: "Severidade",
