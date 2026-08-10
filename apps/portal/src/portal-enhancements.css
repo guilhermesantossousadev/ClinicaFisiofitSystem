@@ -1326,3 +1326,60 @@ body { background: var(--canvas); }
 .permission-grid label { display: flex; gap: .45rem; align-items: center; font-size: .9rem; }
 .permission-grid input { width: 18px; height: 18px; }
 @media (max-width: 680px) { .permission-grid { grid-template-columns: 1fr 1fr; } .permission-grid strong:first-child { grid-column: 1 / -1; } }
+
+/* Acessibilidade e legibilidade: escala confortável, foco consistente e navegação previsível. */
+.skip-link {
+  position: fixed;
+  z-index: 200;
+  top: 10px;
+  left: 10px;
+  transform: translateY(-180%);
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: #17324d;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  text-decoration: none;
+  box-shadow: 0 6px 18px rgb(16 38 58 / 20%);
+}
+.skip-link:focus { transform: translateY(0); }
+
+.portal-enhancement,
+body { font-size: 16px; }
+.sidebar .nav-item { font-size: 14px; }
+.nav-label { font-size: 11px; }
+.brand small, .profile small, .privacy-card small { font-size: 12px; }
+.topbar input, .topbar select { font-size: 14px; }
+.content { line-height: 1.5; }
+.page-title p, .card-head p, .form-instructions, .field-hint { font-size: 14px; line-height: 1.5; }
+.eyebrow { font-size: 11px; }
+.metric-copy small, .table-head-row, .table-search input { font-size: 12px; }
+.metric-copy span, .operational-row small, .card-head small { font-size: 12px; }
+.metric-copy strong { font-size: 24px; }
+.btn, .text-button, .filter-btn, .row-actions button { min-height: 44px; font-size: 14px; }
+.status { font-size: 12px; }
+.table-row { font-size: 13px; }
+.table-row small, .person-cell small { font-size: 12px; }
+.empty-state { font-size: 14px; }
+.global-results button { min-height: 52px; font-size: 14px; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 3px solid var(--focus, #e8a83e);
+  outline-offset: 3px;
+}
+.mobile-menu-backdrop { overscroll-behavior: contain; }
+.mobile-nav-item { min-height: 60px; font-size: 12px; }
+
+@media (max-width: 720px) {
+  .content { padding-top: 24px; }
+  .page-title h1 { font-size: clamp(26px, 8vw, 32px); }
+  .metric-copy small, .metric-copy span, .operational-row small { font-size: 13px; }
+  .metric-copy strong { font-size: clamp(22px, 7vw, 28px); }
+  .mobile-nav-item { font-size: 12px; }
+  .mobile-menu-item { min-height: 52px; font-size: 14px; }
+}
+
+@media (prefers-contrast: more) {
+  :root { --line: #7893a5; --muted: #40576b; }
+  .nav-item.active, .mobile-nav-item.active { outline: 2px solid currentColor; }
+}

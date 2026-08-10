@@ -191,6 +191,14 @@ export default function FisiofitApp() {
       setView(visibleNav[0]?.label ?? "Painel");
     }
   }, [loading, view, visibleNav]);
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileMenuOpen(false);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [mobileMenuOpen]);
   const mobilePrimaryNav = visibleNav.slice(0, 4);
   const mobileSecondaryNav = visibleNav.slice(4);
   const mobileViewIsSecondary = mobileSecondaryNav.some(
@@ -223,7 +231,9 @@ export default function FisiofitApp() {
     .join("")
     .toUpperCase();
   return (
-    <main className="app-shell" aria-busy={loading}>
+    <>
+      <a className="skip-link" href="#portal-content">Pular para o conteúdo principal</a>
+      <main className="app-shell" aria-busy={loading}>
       <aside className="sidebar">
         <button className="brand" onClick={() => navigate("Painel")}>
           <img className="brand-logo" src="/sistema/fisiofit-logo.jpg" alt="" />
@@ -320,7 +330,7 @@ export default function FisiofitApp() {
           </section>
         </div>
       )}
-      <section className="workspace">
+      <section className="workspace" id="portal-content">
         <header className="topbar">
           <div className="mobile-brand">
             <img
@@ -405,7 +415,8 @@ export default function FisiofitApp() {
         {view === "Configurações" && <OperationalAdministration />}
         {view === "Privacidade" && <OperationalPrivacy />}
       </section>
-    </main>
+      </main>
+    </>
   );
 }
 
