@@ -911,7 +911,7 @@ body { background: var(--canvas); }
 
 /* Agenda: composição própria para manter todas as linhas equilibradas. */
 .agenda-appointment-drawer,
-.agenda-group-drawer { width: min(680px, 100%); }
+.agenda-group-drawer { width: min(760px, 100%); }
 .agenda-appointment-drawer .creation-drawer-form,
 .agenda-group-drawer .creation-drawer-form { padding-inline: 32px; }
 .agenda-appointment-drawer .creation-drawer-form > .form-row,
@@ -927,6 +927,29 @@ body { background: var(--canvas); }
   grid-column: auto;
   max-width: none;
 }
+.weekday-picker {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.weekday-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid #c9d9e3;
+  border-radius: 9px;
+  background: #f8fbfd;
+  color: #19354e;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.weekday-option:has(input:checked) { border-color: var(--green); background: #eaf4f1; color: #276d61; }
+.weekday-option input { width: 18px; height: 18px; margin: 0; accent-color: var(--green); }
+.field-hint { display: block; min-height: 52px; padding: 16px 14px; border: 1px solid #dce6eb; border-radius: 8px; background: #f7fafb; color: #536a82; font-size: 14px; }
 .agenda-appointment-drawer .creation-drawer-form > label,
 .agenda-group-drawer .creation-drawer-form > label,
 .agenda-appointment-drawer .creation-drawer-form > .form-row,
@@ -1028,6 +1051,10 @@ body { background: var(--canvas); }
 
 @media (max-width: 1050px) {
   .current-view { min-width: auto; margin-right: 16px; }
+}
+@media (max-width: 600px) {
+  .weekday-picker { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .weekday-option { min-height: 44px; padding: 8px 10px; font-size: 12px; }
 }
 @media (min-width: 721px) and (max-width: 1050px) {
   .sidebar .brand { justify-content: center; padding-inline: 0; }

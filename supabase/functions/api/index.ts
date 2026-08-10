@@ -425,6 +425,16 @@ app.get("/professionals", listResource("professionals", "name"));
 app.get("/services", listResource("services", "name"));
 app.get("/plans", listResource("plans", "name"));
 app.get("/group-slots", listResource("group_slots", "starts_at"));
+app.get("/group-slot-memberships", async (context) => {
+  const clinicId = context.get("profile").clinic_id;
+  let query = context.get("db").from("group_slot_memberships")
+    .select("id,group_slot_id,enrollment_id,patient_id,starts_at,ends_at,status,patients(name,phone)")
+    .eq("clinic_id", clinicId).is("deleted_at", null).eq("status", "active");
+  const groupSlotId = context.req.query("groupSlotId");
+  if (groupSlotId) query = query.eq("group_slot_id", z.string().uuid().parse(groupSlotId));
+  const { data, error } = await query.order("created_at", { ascending: true }).limit(1000);
+  return databaseResult(context, data, error);
+});
 app.get("/enrollments", listResource("enrollments", "created_at", false));
 app.get("/charges", listResource("charges", "due_at", false));
 app.get("/payments", listResource("payments", "paid_at", false));
@@ -861,7 +871,7 @@ app.patch("/appointments/:id/status", requireRoles(["admin", "manager", "recepti
   return databaseResult(context, data, error);
 });
 
-app.post("/group-slots", requireRoles(["admin", "manager"]), async (context) => {
+app.post("/group-slots", requireRoles(["admin", "manager", "reception"]), async (context) => {
   const input = z.object({
     unit_id: z.string().uuid(),
     room_id: z.string().uuid(),

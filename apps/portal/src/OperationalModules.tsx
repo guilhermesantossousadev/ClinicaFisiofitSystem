@@ -21,7 +21,6 @@ const PLAN_PERIODS = {
 
 type PlanPeriod = keyof typeof PLAN_PERIODS;
 type WeeklyFrequency = 1 | 2 | 3;
-
 const WEEKDAYS = [
   { value: 1, label: "Segunda-feira", short: "Segunda" },
   { value: 2, label: "Terça-feira", short: "Terça" },
@@ -29,6 +28,7 @@ const WEEKDAYS = [
   { value: 4, label: "Quinta-feira", short: "Quinta" },
   { value: 5, label: "Sexta-feira", short: "Sexta" },
   { value: 6, label: "Sábado", short: "Sábado" },
+  { value: 0, label: "Domingo", short: "Domingo" },
 ] as const;
 
 function messageOf(error: unknown) {
@@ -205,21 +205,16 @@ export function OperationalAgenda() {
     "/rooms",
     "/patients?page=1&pageSize=100",
     "/group-slots",
+    "/group-slot-memberships",
   ];
   const { data, loading, error, reload } = useResources(paths);
   const appointments: Row[] = data[paths[0]] ?? [];
   const patients: Row[] = data["/patients?page=1&pageSize=100"]?.items ?? [];
   const [notice, setNotice] = useState("");
-  const [groupFrequency, setGroupFrequency] = useState<WeeklyFrequency>(2);
-  const [firstWeekday, setFirstWeekday] = useState(1);
-  const [secondWeekday, setSecondWeekday] = useState(3);
-  const [thirdWeekday, setThirdWeekday] = useState(5);
+  const [selectedGroupWeekdays, setSelectedGroupWeekdays] = useState<number[]>([1, 3]);
   const [groupTime, setGroupTime] = useState("09:00");
 
-  const selectedWeekdays = groupFrequency === 1 ? [firstWeekday]
-    : groupFrequency === 2 ? [firstWeekday, secondWeekday]
-    : [firstWeekday, secondWeekday, thirdWeekday];
-  const selectedDayNames = selectedWeekdays.map(
+  const selectedDayNames = selectedGroupWeekdays.map(
     (day) => WEEKDAYS.find((option) => option.value === day)?.short ?? "",
   );
   const groupName = `${selectedDayNames.join(" e ")} às ${groupTime}`;
@@ -252,8 +247,8 @@ export function OperationalAgenda() {
   async function createGroup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    if (new Set(selectedWeekdays).size !== selectedWeekdays.length) {
-      setNotice(`Escolha ${groupFrequency} dias diferentes para a turma.`);
+    if (!selectedGroupWeekdays.length) {
+      setNotice("Escolha pelo menos um dia da semana para a turma.");
       return;
     }
     try {
@@ -265,17 +260,14 @@ export function OperationalAgenda() {
           professional_id: value(form, "professional_id"),
           service_id: value(form, "service_id"),
           name: groupName,
-          weekdays: selectedWeekdays,
+          weekdays: selectedGroupWeekdays,
           starts_at: groupTime,
           duration_minutes: Number(value(form, "duration_minutes")),
           capacity: 7,
         }),
       });
       (event.target as HTMLFormElement).reset();
-      setGroupFrequency(2);
-      setFirstWeekday(1);
-      setSecondWeekday(3);
-      setThirdWeekday(5);
+      setSelectedGroupWeekdays([1, 3]);
       setGroupTime("09:00");
       setNotice(`${groupName} criada com capacidade para 7 alunos.`);
       await reload();
@@ -398,37 +390,27 @@ export function OperationalAgenda() {
           </div>
           <div className="form-row">
             <label>
-              Frequência
-              <select
-                value={groupFrequency}
-                onChange={(event) => setGroupFrequency(Number(event.target.value) as WeeklyFrequency)}
-              >
-                <option value="1">1x por semana</option>
-                <option value="2">2x por semana</option>
-                <option value="3">3x por semana</option>
-              </select>
+              Dias por semana
+              <strong className="field-hint">{selectedGroupWeekdays.length} selecionado(s)</strong>
             </label>
             <label>
               Horário fixo
               <input name="starts_at" type="time" value={groupTime} onChange={(event) => setGroupTime(event.target.value)} required />
             </label>
           </div>
-          <div className="form-row weekday-row">
-            <label>
-              {groupFrequency === 1 ? "Dia da semana" : "Primeiro dia"}
-              <select value={firstWeekday} onChange={(event) => setFirstWeekday(Number(event.target.value))}>
-                {WEEKDAYS.map((day) => <option key={day.value} value={day.value}>{day.label}</option>)}
-              </select>
-            </label>
-              {groupFrequency >= 2 && (
-              <label>
-                Segundo dia
-                <select value={secondWeekday} onChange={(event) => setSecondWeekday(Number(event.target.value))}>
-                  {WEEKDAYS.map((day) => <option key={day.value} value={day.value}>{day.label}</option>)}
-                </select>
+          <div className="weekday-picker" aria-label="Dias da semana da turma">
+            {WEEKDAYS.map((day) => (
+              <label className="weekday-option" key={day.value}>
+                <input
+                  type="checkbox"
+                  checked={selectedGroupWeekdays.includes(day.value)}
+                  onChange={() => setSelectedGroupWeekdays((current) => current.includes(day.value)
+                    ? current.filter((value) => value !== day.value)
+                    : [...current, day.value])}
+                />
+                <span>{day.short}</span>
               </label>
-            )}
-            {groupFrequency === 3 && <label>Terceiro dia<select value={thirdWeekday} onChange={(event) => setThirdWeekday(Number(event.target.value))}>{WEEKDAYS.map((day) => <option key={day.value} value={day.value}>{day.label}</option>)}</select></label>}
+            ))}
           </div>
           <label>
             Duração de cada aula (minutos)
@@ -436,7 +418,7 @@ export function OperationalAgenda() {
           </label>
           <div className="plan-summary" aria-live="polite">
             <strong>{groupName}</strong>
-            <span>Horário recorrente, com até 7 alunos</span>
+            <span>Horário fixo recorrente · até 7 alunos · de 1 a 7 dias por semana</span>
           </div>
           <button className="btn primary">Criar turma (7 vagas)</button>
         </DrawerForm>
@@ -483,8 +465,14 @@ export function OperationalAgenda() {
       <EditableOperationalTable
         title="Turmas fixas"
         resource="group-slots"
-        rows={data["/group-slots"] ?? []}
-        fields={["name", "starts_at", "duration_minutes", "capacity", "active"]}
+        rows={(data["/group-slots"] ?? []).map((row: Row) => {
+          const members = (data["/group-slot-memberships"] ?? []).filter((member: Row) => member.group_slot_id === row.id);
+          return {
+            ...row,
+            allocation: `${members.length}/${row.capacity ?? 7} · ${members.map((member: Row) => member.patients?.name).filter(Boolean).join(", ") || "Sem alunos"}`,
+          };
+        })}
+        fields={["name", "starts_at", "duration_minutes", "capacity", "allocation", "active"]}
         editFields={[
           { name: "name", label: "Nome", required: true },
           { name: "starts_at", label: "Horário", required: true },
@@ -2665,6 +2653,7 @@ function fieldLabel(field: string) {
     price_cents: "Preço", status: "Status", starts_at: "Início",
     due_day: "Vencimento", sessions_used: "Sessões usadas",
     total_plan_cents: "Valor total do plano",
+    allocation: "Alocação de pacientes",
     description: "Descrição", amount_cents: "Valor", paid_cents: "Valor pago",
     due_at: "Vencimento", competence_date: "Competência", category: "Categoria",
     requester_name: "Solicitante", title: "Título", severity: "Severidade",
