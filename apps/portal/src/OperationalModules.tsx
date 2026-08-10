@@ -63,6 +63,17 @@ function localDateTime(raw: string) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+function dateKey(date: Date) {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function dateLabel(date: Date) {
+  return new Intl.DateTimeFormat("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" })
+    .format(date)
+    .replace(".", "");
+}
+
 const resourceCache = new Map<string, Record<string, any>>();
 
 function useResources(paths: string[]) {
@@ -231,6 +242,30 @@ export function OperationalAgenda() {
     (day) => WEEKDAYS.find((option) => option.value === day)?.short ?? "",
   );
   const groupName = `${selectedDayNames.join(" e ")} às ${groupTime}`;
+  const calendarDays = useMemo(() => {
+    const start = new Date(`${fromDate}T00:00:00`);
+    return Array.from({ length: rangeDays }, (_, index) => {
+      const day = new Date(start);
+      day.setDate(start.getDate() + index);
+      return day;
+    });
+  }, [fromDate, rangeDays]);
+  const fixedSlots: Row[] = data["/group-slots"] ?? [];
+  const units: Unit[] = data["/units"] ?? [];
+  const calendarHours = Array.from({ length: 15 }, (_, index) => index + 6);
+  const membersForSlot = (slotId: string, date: Date) => groupMembers.filter((member) => {
+    if (member.group_slot_id !== slotId || member.status !== "active") return false;
+    const start = String(member.starts_at ?? "").slice(0, 10);
+    const end = member.ends_at ? String(member.ends_at).slice(0, 10) : "9999-12-31";
+    const current = dateKey(date);
+    return current >= start && current <= end;
+  });
+  const slotFor = (unitId: string, day: Date, hour: number) => fixedSlots.find((slot) =>
+    slot.unit_id === unitId
+      && Number(String(slot.starts_at).slice(0, 2)) === hour
+      && (slot.weekdays ?? []).includes(day.getDay())
+      && slot.active !== false,
+  );
 
   async function createAppointment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -353,6 +388,40 @@ export function OperationalAgenda() {
         </div>
       )}
       <ModuleState loading={loading} error={error} retry={reload} />
+      <section className="card fixed-calendar" aria-label="Calendário semanal de horários fixos">
+        <div className="table-toolbar fixed-calendar-toolbar">
+          <div><p className="eyebrow">CALENDÁRIO FIXO</p><h2>Horários por unidade</h2></div>
+          <span>{rangeDays} dias · 06:00–20:00 · segunda a sexta</span>
+        </div>
+        {units.map((unit) => (
+          <div className="fixed-calendar-unit" key={unit.id}>
+            <div className="fixed-calendar-unit-head"><h3>{unit.name}</h3><span>{fixedSlots.filter((slot) => slot.unit_id === unit.id).length} horários fixos</span></div>
+            <div className="fixed-calendar-scroll">
+              <div className="fixed-calendar-grid" style={{ "--calendar-days": Math.max(calendarDays.length, 1) } as CSSProperties}>
+                <div className="fixed-calendar-corner">Hora</div>
+                {calendarDays.map((day) => <div className="fixed-calendar-day-head" key={dateKey(day)}>{dateLabel(day)}</div>)}
+                {calendarHours.flatMap((hour) => [
+                  <div className="fixed-calendar-hour" key={`hour-${hour}`}>{String(hour).padStart(2, "0")}:00</div>,
+                  ...calendarDays.map((day) => {
+                    const slot = slotFor(unit.id, day, hour);
+                    const members = slot ? membersForSlot(slot.id, day) : [];
+                    const isWeekday = day.getDay() >= 1 && day.getDay() <= 5;
+                    return <div className={`fixed-calendar-cell${!isWeekday ? " is-weekend" : ""}`} key={`${dateKey(day)}-${hour}`}>
+                      {slot ? <>
+                        <strong>{members.length}/{slot.capacity ?? 7} vagas</strong>
+                        {members.slice(0, 3).map((member) => <span key={member.id}>{member.patients?.name ?? "Paciente"}</span>)}
+                        {members.length > 3 && <small>+{members.length - 3} pacientes</small>}
+                        {!members.length && <small>Horário livre</small>}
+                      </> : isWeekday ? <small className="fixed-calendar-missing">Não configurado</small> : null}
+                    </div>;
+                  }),
+                ])}
+              </div>
+            </div>
+          </div>
+        ))}
+        {!units.length && <p className="empty-state">Cadastre uma unidade para visualizar a agenda.</p>}
+      </section>
       <div className="dashboard-grid">
         <DrawerForm title="Novo agendamento" onSubmit={createAppointment}>
           <h2>Novo agendamento</h2>

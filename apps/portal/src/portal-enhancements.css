@@ -918,6 +918,24 @@ body { background: var(--canvas); }
 .agenda-range-actions { display: flex; gap: 6px; width: 100%; }
 .agenda-range-actions .btn { min-height: 38px; padding-inline: 12px; }
 .group-allocation-panel { margin-top: 20px; }
+.fixed-calendar { margin: 20px 0; overflow: hidden; }
+.fixed-calendar-toolbar { padding: 18px 20px; border-bottom: 1px solid var(--line); }
+.fixed-calendar-unit { border-bottom: 1px solid var(--line); }
+.fixed-calendar-unit:last-child { border-bottom: 0; }
+.fixed-calendar-unit-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px 10px; }
+.fixed-calendar-unit-head h3 { margin: 0; font-size: 15px; color: var(--ink); }
+.fixed-calendar-unit-head span { color: var(--muted); font-size: 11px; }
+.fixed-calendar-scroll { overflow-x: auto; padding: 0 20px 20px; }
+.fixed-calendar-grid { min-width: 720px; display: grid; grid-template-columns: 64px repeat(var(--calendar-days), minmax(112px, 1fr)); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+.fixed-calendar-grid > div { min-height: 58px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.fixed-calendar-corner, .fixed-calendar-day-head { min-height: 42px !important; display: grid; place-items: center; background: #f6fafb; color: var(--muted); font-size: 11px; font-weight: 800; text-transform: capitalize; }
+.fixed-calendar-hour { display: grid; place-items: start center; padding-top: 12px; color: var(--muted); font-size: 11px; font-weight: 700; background: #fbfdfe; }
+.fixed-calendar-cell { display: grid; align-content: start; gap: 3px; padding: 8px; background: #fff; font-size: 11px; }
+.fixed-calendar-cell strong { color: var(--blue); font-size: 11px; }
+.fixed-calendar-cell span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+.fixed-calendar-cell small { color: var(--muted); font-size: 10px; }
+.fixed-calendar-cell.is-weekend { background: #f8f9fa; }
+.fixed-calendar-missing { color: #a7484c !important; }
 .group-allocation-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 14px; padding: 18px; }
 .group-allocation-card { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: #fbfdfe; }
 .group-allocation-card > div { display: grid; gap: 4px; }
