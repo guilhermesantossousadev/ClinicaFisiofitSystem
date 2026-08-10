@@ -211,7 +211,7 @@ O workflow manual `.github/workflows/hostinger-build.yml` gera `dist/` e força 
 | Login/recuperação | Implementado | páginas Auth e Supabase config | Não testado contra Auth remoto nesta análise |
 | MFA TOTP | Implementado | `MfaPage.tsx`, middleware API | Obrigatório para admin, manager e finance |
 | Painel | Implementado | `/dashboard`, `FisiofitApp.tsx` | Dados reais da API |
-| Agenda/turmas | Parcial | API e `OperationalAgenda` | CRUD incompleto; recorrência não é criada |
+| Agenda/turmas | Implementado | API e `OperationalAgenda` | Agenda com períodos de 7/14/30 dias, turmas recorrentes, geração automática de horários e alocação/remoção de pacientes |
 | Pacientes | Parcial | endpoints e `OperationalPatients` | Cria/edita paciente; detalhes associados sem edição/remoção completa |
 | Matrículas/cobranças | Parcial | endpoints/UI | Criação e recebimento; sem gestão completa de estados |
 | Prontuário | Parcial | endpoints/UI/triggers | Criação, assinatura e retificação; autorização profissional insuficiente |

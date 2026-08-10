@@ -912,6 +912,22 @@ body { background: var(--canvas); }
 /* Agenda: composição própria para manter todas as linhas equilibradas. */
 .agenda-appointment-drawer,
 .agenda-group-drawer { width: min(760px, 100%); }
+.page-title > label { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
+.page-title > label > input,
+.page-title > label > select { min-height: 42px; }
+.agenda-range-actions { display: flex; gap: 6px; width: 100%; }
+.agenda-range-actions .btn { min-height: 38px; padding-inline: 12px; }
+.group-allocation-panel { margin-top: 20px; }
+.group-allocation-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 14px; padding: 18px; }
+.group-allocation-card { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: #fbfdfe; }
+.group-allocation-card > div { display: grid; gap: 4px; }
+.group-allocation-card > div span { color: var(--muted); font-size: 12px; }
+.group-allocation-card ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.group-allocation-card li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: 8px; background: #eef6f4; color: #276d61; font-size: 13px; }
+.group-allocation-card li button { border: 0; background: transparent; color: #a7484c; cursor: pointer; font-size: 11px; font-weight: 700; }
+.group-member-form { display: grid; grid-template-columns: 1fr 132px auto; gap: 8px; align-items: end; }
+.group-member-form select, .group-member-form input { min-width: 0; width: 100%; box-sizing: border-box; }
+.group-member-form .btn { min-height: 42px; padding-inline: 12px; }
 .agenda-appointment-drawer .creation-drawer-form,
 .agenda-group-drawer .creation-drawer-form { padding-inline: 32px; }
 .agenda-appointment-drawer .creation-drawer-form > .form-row,
@@ -1055,6 +1071,8 @@ body { background: var(--canvas); }
 @media (max-width: 600px) {
   .weekday-picker { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .weekday-option { min-height: 44px; padding: 8px 10px; font-size: 12px; }
+  .page-title > label { width: 100%; }
+  .group-member-form { grid-template-columns: 1fr; }
 }
 @media (min-width: 721px) and (max-width: 1050px) {
   .sidebar .brand { justify-content: center; padding-inline: 0; }

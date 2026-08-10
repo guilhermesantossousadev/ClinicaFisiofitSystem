@@ -912,13 +912,57 @@ app.post("/group-slots", requireRoles(["admin", "manager", "reception"]), async 
     capacity: z.number().int().min(3).max(7).default(7),
   }).parse(await context.req.json());
   if (!(await hasUnitAccess(context, input.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
-  const { data, error } = await context.get("db").from("group_slots").insert({
+  const db = context.get("db");
+  const { data, error } = await db.from("group_slots").insert({
     ...input,
     weekdays: [...new Set(input.weekdays)].sort(),
     clinic_id: context.get("profile").clinic_id,
   }).select().single();
-  if (!error && data) await audit(context, "group_slot.created", "group_slot", data.id, data.unit_id);
+  if (!error && data) {
+    await generateGroupAppointments(context, data.id, new Date().toISOString().slice(0, 10), addDays(new Date(), 90));
+    await audit(context, "group_slot.created", "group_slot", data.id, data.unit_id);
+  }
   return databaseResult(context, data, error, 201);
+});
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next.toISOString().slice(0, 10);
+}
+
+async function generateGroupAppointments(context: any, groupSlotId: string, from: string, to: string) {
+  const db = context.get("db");
+  const clinicId = context.get("profile").clinic_id;
+  const { data: slot, error: slotError } = await db.from("group_slots")
+    .select("id,clinic_id,unit_id,room_id,professional_id,service_id,weekdays,starts_at,duration_minutes,active")
+    .eq("id", groupSlotId).eq("clinic_id", clinicId).is("deleted_at", null).single();
+  if (slotError || !slot || !slot.active) return { created: 0, error: slotError };
+  const { data: existing } = await db.from("appointments").select("starts_at")
+    .eq("clinic_id", clinicId).eq("group_slot_id", groupSlotId).gte("starts_at", `${from}T00:00:00Z`).lt("starts_at", `${addDays(new Date(`${to}T00:00:00Z`), 1)}T00:00:00Z`).is("deleted_at", null);
+  const known = new Set((existing ?? []).map((row: any) => new Date(row.starts_at).toISOString().slice(0, 16)));
+  const rows: any[] = [];
+  for (let cursor = new Date(`${from}T00:00:00Z`); cursor <= new Date(`${to}T00:00:00Z`); cursor = new Date(cursor.getTime() + 86400000)) {
+    if (!slot.weekdays.includes(cursor.getUTCDay())) continue;
+    const [hours, minutes] = String(slot.starts_at).slice(0, 5).split(":").map(Number);
+    const starts = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth(), cursor.getUTCDate(), hours, minutes));
+    const ends = new Date(starts.getTime() + slot.duration_minutes * 60000);
+    const key = starts.toISOString().slice(0, 16);
+    if (known.has(key)) continue;
+    rows.push({ clinic_id: clinicId, unit_id: slot.unit_id, room_id: slot.room_id, professional_id: slot.professional_id, service_id: slot.service_id, group_slot_id: slot.id, starts_at: starts.toISOString(), ends_at: ends.toISOString(), status: "scheduled" });
+  }
+  if (!rows.length) return { created: 0 };
+  const { error } = await db.from("appointments").insert(rows);
+  return { created: error ? 0 : rows.length, error };
+}
+
+app.post("/group-slots/:id/generate", requireRoles(["admin", "manager", "reception"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const input = z.object({ from: z.string().date(), to: z.string().date() }).parse(await context.req.json());
+  if (input.to < input.from) return fail(context, 400, "INVALID_RANGE", "A data final deve ser posterior à inicial.");
+  const result = await generateGroupAppointments(context, id, input.from, input.to);
+  if (result.error) return databaseResult(context, null, result.error);
+  return context.json({ data: { created: result.created } });
 });
 
 app.patch("/group-slots/:id", requireRoles(["admin", "manager", "reception"]), async (context) => {
@@ -972,6 +1016,15 @@ app.post("/group-slots/:id/members", requireRoles(["admin", "manager", "receptio
   }).select().single();
   if (!error && data) await audit(context, "group_slot.member_added", "group_slot_membership", data.id, slot.unit_id);
   return databaseResult(context, data, error, 201);
+});
+
+app.delete("/group-slot-memberships/:id", requireRoles(["admin", "manager", "reception"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const deletedAt = new Date().toISOString();
+  const { data, error } = await context.get("db").from("group_slot_memberships")
+    .update({ status: "cancelled", deleted_at: deletedAt, updated_at: deletedAt })
+    .eq("id", id).eq("clinic_id", context.get("profile").clinic_id).is("deleted_at", null).select("id").single();
+  return databaseResult(context, data, error);
 });
 
 app.post("/appointments/:id/complete", requireRoles(["admin", "manager", "professional"]), async (context) => {

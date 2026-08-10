@@ -197,12 +197,13 @@ export function OperationalAgenda() {
   const [fromDate, setFromDate] = useState(() =>
     new Date().toISOString().slice(0, 10),
   );
+  const [rangeDays, setRangeDays] = useState(7);
   const range = useMemo(() => {
     const start = new Date(`${fromDate}T00:00:00`);
     const end = new Date(start);
-    end.setDate(end.getDate() + 7);
+    end.setDate(end.getDate() + rangeDays);
     return { from: start.toISOString(), to: end.toISOString() };
-  }, [fromDate]);
+  }, [fromDate, rangeDays]);
   const paths = [
     `/appointments?from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`,
     "/units",
@@ -211,6 +212,7 @@ export function OperationalAgenda() {
     "/rooms",
     "/patients?page=1&pageSize=100",
     "/group-slots",
+    "/enrollments",
   ];
   const { data, loading, error, reload } = useResources(paths);
   const appointments: Row[] = data[paths[0]] ?? [];
@@ -287,6 +289,36 @@ export function OperationalAgenda() {
     }
   }
 
+  async function generateGroup(groupId: string) {
+    try {
+      const start = new Date(`${fromDate}T00:00:00`);
+      const end = new Date(start);
+      end.setDate(end.getDate() + rangeDays - 1);
+      await api(`/group-slots/${groupId}/generate`, { method: "POST", body: JSON.stringify({ from: fromDate, to: end.toISOString().slice(0, 10) }) });
+      setNotice("Horários recorrentes gerados para o período selecionado.");
+      await reload();
+    } catch (actionError) { setNotice(messageOf(actionError)); }
+  }
+
+  async function addGroupMember(event: FormEvent<HTMLFormElement>, groupId: string) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const enrollmentId = value(form, "enrollment_id");
+    const enrollment = (data["/enrollments"] ?? []).find((row: Row) => row.id === enrollmentId);
+    if (!enrollment) return;
+    try {
+      await api(`/group-slots/${groupId}/members`, { method: "POST", body: JSON.stringify({ enrollment_id: enrollment.id, patient_id: enrollment.patient_id, starts_at: value(form, "starts_at") }) });
+      event.currentTarget.reset();
+      setNotice("Paciente alocado na turma.");
+      await reload();
+    } catch (actionError) { setNotice(messageOf(actionError)); }
+  }
+
+  async function removeGroupMember(id: string) {
+    try { await api(`/group-slot-memberships/${id}`, { method: "DELETE" }); setNotice("Paciente removido da turma."); await reload(); }
+    catch (actionError) { setNotice(messageOf(actionError)); }
+  }
+
   return (
     <div className="content">
       <div className="page-title">
@@ -298,12 +330,20 @@ export function OperationalAgenda() {
           </p>
         </div>
         <label>
-          Semana
+          Período da agenda
           <input
             type="date"
             value={fromDate}
             onChange={(e) => setFromDate(e.target.value)}
           />
+          <select value={rangeDays} onChange={(event) => setRangeDays(Number(event.target.value))} aria-label="Quantidade de dias exibidos">
+            <option value={7}>7 dias</option><option value={14}>14 dias</option><option value={30}>30 dias</option>
+          </select>
+          <div className="agenda-range-actions">
+            <button type="button" className="btn secondary" onClick={() => { const date = new Date(`${fromDate}T00:00:00`); date.setDate(date.getDate() - rangeDays); setFromDate(date.toISOString().slice(0, 10)); }}>← Anterior</button>
+            <button type="button" className="btn secondary" onClick={() => setFromDate(new Date().toISOString().slice(0, 10))}>Hoje</button>
+            <button type="button" className="btn secondary" onClick={() => { const date = new Date(`${fromDate}T00:00:00`); date.setDate(date.getDate() + rangeDays); setFromDate(date.toISOString().slice(0, 10)); }}>Próximo →</button>
+          </div>
         </label>
       </div>
       {notice && (
@@ -440,6 +480,21 @@ export function OperationalAgenda() {
         allowDelete
         showToggle={false}
       />
+      <section className="card group-allocation-panel">
+        <div className="table-toolbar"><div><p className="eyebrow">ALOCAÇÃO</p><h2>Alunos nas turmas</h2></div><span>Gerencie vagas e gere os horários do período</span></div>
+        <div className="group-allocation-grid">
+          {(data["/group-slots"] ?? []).map((group: Row) => {
+            const members = groupMembers.filter((member) => member.group_slot_id === group.id);
+            const available = (data["/enrollments"] ?? []).filter((enrollment: Row) => !members.some((member) => member.enrollment_id === enrollment.id));
+            return <article className="group-allocation-card" key={group.id}>
+              <div><strong>{group.name}</strong><span>{members.length}/{group.capacity ?? 7} vagas ocupadas · {String(group.starts_at).slice(0, 5)}</span></div>
+              <button type="button" className="btn secondary" onClick={() => void generateGroup(group.id)}>Gerar horários</button>
+              <ul>{members.map((member) => <li key={member.id}><span>{member.patients?.name ?? "Paciente"}</span><button type="button" onClick={() => void removeGroupMember(member.id)} aria-label={`Remover ${member.patients?.name ?? "paciente"}`}>Remover</button></li>)}</ul>
+              <form className="group-member-form" onSubmit={(event) => void addGroupMember(event, group.id)}><select name="enrollment_id" required><option value="">Adicionar matrícula</option>{available.map((enrollment: Row) => <option key={enrollment.id} value={enrollment.id}>{enrollment.patients?.name ?? enrollment.patient_id}</option>)}</select><input name="starts_at" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required /><button className="btn primary">Alocar</button></form>
+            </article>;
+          })}
+        </div>
+      </section>
       <EditableOperationalTable
         title="Turmas fixas"
         resource="group-slots"
