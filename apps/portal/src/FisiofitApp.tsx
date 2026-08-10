@@ -29,7 +29,8 @@ type View =
   | "Privacidade";
 type Role = "admin" | "manager" | "reception" | "professional" | "finance";
 type Unit = { id: string; name: string; active: boolean };
-type Profile = { name: string; role: Role };
+type PermissionModule = "dashboard" | "agenda" | "patients" | "enrollments" | "records" | "finance" | "reports" | "imports" | "users" | "settings" | "privacy";
+type Profile = { name: string; role: Role; profile_permissions?: Array<{ module: PermissionModule; can_view: boolean; can_edit: boolean }> };
 type Patient = {
   id: string;
   name: string;
@@ -91,6 +92,7 @@ const roleLabel: Record<Role, string> = {
   professional: "Profissional",
   finance: "Financeiro",
 };
+const navModule: Partial<Record<View, PermissionModule>> = { Painel: "dashboard", Agenda: "agenda", Pacientes: "patients", Matrículas: "enrollments", Prontuários: "records", Financeiro: "finance", Relatórios: "reports", Importações: "imports", Usuários: "users", Configurações: "settings", Privacidade: "privacy" };
 const brl = (cents: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
     cents / 100,
@@ -181,8 +183,8 @@ export default function FisiofitApp() {
       .finally(() => setLoading(false));
   }, []);
   const visibleNav = useMemo(
-    () => nav.filter((item) => item.roles.includes(profile.role)),
-    [profile.role],
+    () => nav.filter((item) => item.roles.includes(profile.role) && (profile.role === "admin" || !profile.profile_permissions || profile.profile_permissions.some((permission) => permission.module === navModule[item.label] && permission.can_view))),
+    [profile.role, profile.profile_permissions],
   );
   useEffect(() => {
     if (!loading && !visibleNav.some((item) => item.label === view)) {

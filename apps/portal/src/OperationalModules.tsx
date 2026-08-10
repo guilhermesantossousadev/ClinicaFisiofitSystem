@@ -2063,6 +2063,10 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
   const [notice, setNotice] = useState("");
   const [updatingUserId, setUpdatingUserId] = useState("");
   const [editingUserId, setEditingUserId] = useState("");
+  const permissionModules = [
+    ["dashboard", "Painel"], ["agenda", "Agenda"], ["patients", "Pacientes"], ["enrollments", "Matrículas"], ["records", "Prontuários"],
+    ["finance", "Financeiro"], ["reports", "Relatórios"], ["imports", "Importações"], ["users", "Usuários"], ["settings", "Configurações"], ["privacy", "Privacidade"],
+  ] as const;
   async function invite(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const f = new FormData(event.currentTarget);
@@ -2112,6 +2116,7 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
           role: value(form, "role"),
           status: value(form, "status"),
           unitIds: form.getAll("unitIds"),
+          permissions: Object.fromEntries(permissionModules.map(([module]) => [module, { canView: form.get(`permission-${module}`) === "on", canEdit: form.get(`permission-edit-${module}`) === "on" }])),
         }),
       });
       await reload();
@@ -2268,6 +2273,9 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
                   <input type="checkbox" name="unitIds" value={unit.id} defaultChecked={(row.profile_units ?? []).some((item: Row) => item.unit_id === unit.id)} />{unit.name}
                 </label>)}
               </div></fieldset>
+              <fieldset><legend>Acesso por módulo</legend><div className="permission-grid"><strong>Módulo</strong><strong>Visualizar</strong><strong>Editar</strong>
+                {permissionModules.map(([module, label]) => { const permission = (row.profile_permissions ?? []).find((item: Row) => item.module === module); return <><span key={`${row.id}-${module}-label`}>{label}</span><label key={`${row.id}-${module}-view`}><input type="checkbox" name={`permission-${module}`} defaultChecked={permission?.can_view} /> Pode visualizar</label><label key={`${row.id}-${module}-edit`}><input type="checkbox" name={`permission-edit-${module}`} defaultChecked={permission?.can_edit} /> Pode editar</label></>; })}
+              </div><small>Editar inclui visualizar. O administrador mantém o acesso total.</small></fieldset>
               <button className="btn primary" type="submit" disabled={updatingUserId === row.id}>{updatingUserId === row.id ? "Salvando…" : "Salvar alterações"}</button>
             </form>
           )}

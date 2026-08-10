@@ -1322,3 +1322,7 @@ body { background: var(--canvas); }
   .user-edit-form textarea { font-size: 16px; }
   .modal-form fieldset, .user-edit-form fieldset { padding: 17px 15px; border-radius: 12px; }
 }
+.permission-grid { display: grid; grid-template-columns: minmax(140px, 1fr) 1fr 1fr; gap: .65rem 1rem; align-items: center; padding: .75rem; border: 1px solid var(--line, #dbe3e0); border-radius: 12px; }
+.permission-grid label { display: flex; gap: .45rem; align-items: center; font-size: .9rem; }
+.permission-grid input { width: 18px; height: 18px; }
+@media (max-width: 680px) { .permission-grid { grid-template-columns: 1fr 1fr; } .permission-grid strong:first-child { grid-column: 1 / -1; } }

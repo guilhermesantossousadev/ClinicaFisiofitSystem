@@ -4,6 +4,7 @@ import { createClient, type User } from "npm:@supabase/supabase-js@2.49.1";
 import { z } from "npm:zod@3.24.2";
 
 type Role = "admin" | "manager" | "reception" | "professional" | "finance";
+type PermissionModule = "dashboard" | "agenda" | "patients" | "enrollments" | "records" | "finance" | "reports" | "imports" | "users" | "settings" | "privacy";
 type Variables = {
   requestId: string;
   user: User;
@@ -89,7 +90,7 @@ app.use("*", async (context, next) => {
   });
   const { data: profile, error: profileError } = await db
     .from("profiles")
-    .select("id, clinic_id, name, role, status, mfa_required")
+    .select("id, clinic_id, name, role, status, mfa_required, profile_permissions(module,can_view,can_edit)")
     .eq("id", authData.user.id)
     .is("deleted_at", null)
     .single();
@@ -299,7 +300,7 @@ app.get("/users", requireRoles(["admin", "manager"]), async (context) => {
   });
   const [{ data, error }, { data: clinic, error: clinicError }, { data: authUsers, error: authError }] = await Promise.all([
     db.from("profiles")
-    .select("id,name,role,status,mfa_required,created_at,profile_units(unit_id,units(id,name))")
+    .select("id,name,role,status,mfa_required,created_at,profile_units(unit_id,units(id,name)),profile_permissions(module,can_view,can_edit)")
     .eq("clinic_id", clinicId).is("deleted_at", null).order("name"),
     db.from("clinics").select("owner_profile_id").eq("id", clinicId).single(),
     admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
@@ -319,8 +320,9 @@ app.patch("/users/:id", requireRoles(["admin"]), async (context) => {
     role: z.enum(["admin", "manager", "reception", "professional", "finance"]).optional(),
     status: z.enum(["invited", "active", "blocked"]).optional(),
     unitIds: z.array(z.string().uuid()).optional(),
+    permissions: z.record(z.object({ canView: z.boolean(), canEdit: z.boolean() })).optional(),
   }).parse(await context.req.json());
-  const { unitIds, ...profileChanges } = input;
+  const { unitIds, permissions, ...profileChanges } = input;
   const db = context.get("db");
   const clinicId = context.get("profile").clinic_id;
   const { data: clinic, error: clinicError } = await db.from("clinics")
@@ -352,6 +354,13 @@ app.patch("/users/:id", requireRoles(["admin"]), async (context) => {
       );
       if (insertError) return databaseResult(context, null, insertError);
     }
+  }
+  if (permissions) {
+    const modules = Object.entries(permissions).map(([module, value]) => ({
+      profile_id: id, module, can_view: value.canView, can_edit: value.canEdit, updated_at: new Date().toISOString(),
+    }));
+    const { error: permissionError } = await db.from("profile_permissions").upsert(modules, { onConflict: "profile_id,module" });
+    if (permissionError) return databaseResult(context, null, permissionError);
   }
   await audit(context, "user.updated", "profile", id);
   return ok(context, data);
@@ -1695,8 +1704,24 @@ function requireRoles(roles: Role[]) {
     if (!roles.includes(context.get("profile").role)) {
       return fail(context, 403, "FORBIDDEN", "Seu perfil não possui permissão para esta operação.");
     }
+    const module = moduleForPath(context.req.path);
+    if (module && context.get("profile").role !== "admin") {
+      const { data } = await context.get("db").from("profile_permissions").select("can_view").eq("profile_id", context.get("user").id).eq("module", module).maybeSingle();
+      if (data && !data.can_view) return fail(context, 403, "MODULE_FORBIDDEN", "Seu usuário não tem acesso a este módulo.");
+    }
     await next();
   };
+}
+
+function moduleForPath(path: string): PermissionModule | null {
+  const match = path.match(/^\/([^/]+)/)?.[1];
+  const map: Record<string, PermissionModule> = {
+    dashboard: "dashboard", appointments: "agenda", "group-slots": "agenda", patients: "patients", responsibles: "patients", consents: "patients",
+    enrollments: "enrollments", charges: "enrollments", "record-templates": "records", "clinical-records": "records", attachments: "records",
+    payments: "finance", "financial-entries": "finance", commissions: "finance", closings: "finance", reports: "reports", imports: "imports",
+    users: "users", units: "settings", rooms: "settings", professionals: "settings", services: "settings", privacy: "privacy", audit: "privacy",
+  };
+  return match ? map[match] ?? null : null;
 }
 
 function ok(context: any, data: unknown, status = 200) {
