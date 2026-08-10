@@ -123,6 +123,66 @@ function Select({
   );
 }
 
+function PatientPicker({ name, patients, label }: { name: string; patients: Row[]; label: string }) {
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState<Row | null>(null);
+  const matches = patients.filter((patient) =>
+    String(patient.name ?? "").toLocaleLowerCase("pt-BR").includes(query.toLocaleLowerCase("pt-BR")),
+  ).slice(0, 20);
+  return (
+    <label className="patient-picker">
+      {label}
+      <input
+        value={selected ? selected.name : query}
+        placeholder="Digite para localizar o nome"
+        autoComplete="off"
+        onChange={(event) => { setSelected(null); setQuery(event.target.value); }}
+        onFocus={() => { if (selected) setQuery(selected.name); }}
+        required
+      />
+      <input type="hidden" name={name} value={selected?.id ?? ""} />
+      {query && !selected && (
+        <div className="patient-picker-results" role="listbox">
+          {matches.length ? matches.map((patient) => (
+            <button type="button" key={patient.id} onMouseDown={(event) => event.preventDefault()} onClick={() => { setSelected(patient); setQuery(""); }}>
+              <strong>{patient.name}</strong><small>{patient.phone ?? ""}</small>
+            </button>
+          )) : <span>Nenhum paciente encontrado</span>}
+        </div>
+      )}
+    </label>
+  );
+}
+
+function ZipAddressFields() {
+  const [zip, setZip] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+  async function lookupZip(raw: string, input: HTMLInputElement) {
+    const clean = raw.replace(/\D/g, "");
+    if (clean.length !== 8) return;
+    setLoading(true); setMessage("");
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${clean}/json/`);
+      const address = await response.json();
+      if (address.erro) throw new Error("CEP não encontrado");
+      const form = input.closest("form");
+      if (!form) return;
+      (form.elements.namedItem("street") as HTMLInputElement).value = address.logradouro ?? "";
+      (form.elements.namedItem("city") as HTMLInputElement).value = address.localidade ?? "";
+      (form.elements.namedItem("state") as HTMLInputElement).value = address.uf ?? "";
+      setMessage("Endereço preenchido automaticamente.");
+    } catch { setMessage("Não foi possível localizar este CEP. Preencha o endereço manualmente."); }
+    finally { setLoading(false); }
+  }
+  return (
+    <>
+      <label>CEP<input name="zip" value={zip} inputMode="numeric" autoComplete="postal-code" placeholder="00000-000" onChange={(event) => { const next = event.target.value; setZip(next); void lookupZip(next, event.currentTarget); }} /></label>
+      <small className="field-hint" aria-live="polite">{loading ? "Buscando endereço…" : message}</small>
+    </>
+  );
+}
+
 function DrawerForm({
   title,
   children,
@@ -369,7 +429,7 @@ export function OperationalAgenda() {
             />
           </div>
           <div className="form-row">
-            <Select name="patient_id" label="Paciente" rows={patients} />
+            <PatientPicker name="patient_id" label="Paciente" patients={patients} />
             <Select
               name="service_id"
               label="Serviço"
@@ -711,7 +771,7 @@ export function OperationalPatients() {
             <label>Cidade<input name="city" /></label>
             <label>Estado<input name="state" maxLength={2} /></label>
           </div>
-          <label>CEP<input name="zip" /></label>
+          <ZipAddressFields />
         </fieldset>
         <fieldset>
           <legend>Dados fiscais</legend>
@@ -869,7 +929,7 @@ export function OperationalEnrollments() {
       await api("/plans", {
         method: "POST",
         body: JSON.stringify({
-          name: planName,
+          name: value(form, "name") || planName,
           kind: planPeriod === "monthly" ? "monthly" : "package",
           sessions_included: planSessions,
           duration_days: selectedPeriod.durationDays,
@@ -987,6 +1047,10 @@ export function OperationalEnrollments() {
       <div className="dashboard-grid">
         <DrawerForm title="Novo plano" onSubmit={createPlan}>
           <h2>Novo plano</h2>
+          <label>
+            Nome do plano
+            <input name="name" placeholder={planName} />
+          </label>
           <div className="form-row">
             <label>
               Período
@@ -1026,7 +1090,7 @@ export function OperationalEnrollments() {
         <DrawerForm title="Nova matrícula" onSubmit={enroll}>
           <h2>Nova matrícula</h2>
           <div className="form-row">
-            <Select name="patient_id" label="Paciente" rows={patients} />
+            <PatientPicker name="patient_id" label="Paciente" patients={patients} />
             <Select name="plan_id" label="Plano" rows={data["/plans"] ?? []} />
           </div>
           <div className="form-row">
