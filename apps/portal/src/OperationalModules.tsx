@@ -183,6 +183,62 @@ function ZipAddressFields() {
   );
 }
 
+function AllocationModal({
+  group,
+  patients,
+  enrollments,
+  members,
+  onClose,
+  onConfirm,
+}: {
+  group: Row;
+  patients: Row[];
+  enrollments: Row[];
+  members: Row[];
+  onClose: () => void;
+  onConfirm: (enrollment: Row, startsAt: string) => Promise<void>;
+}) {
+  const [search, setSearch] = useState("");
+  const [patientId, setPatientId] = useState("");
+  const [startsAt, setStartsAt] = useState(new Date().toISOString().slice(0, 10));
+  const [saving, setSaving] = useState(false);
+  const assigned = new Set(members.map((member) => member.enrollment_id));
+  const eligible: Row[] = enrollments
+    .filter((enrollment) => !assigned.has(enrollment.id))
+    .flatMap((enrollment) => {
+      const patient = patients.find((candidate) => candidate.id === enrollment.patient_id);
+      return patient ? [{ ...enrollment, patient }] : [];
+    })
+    .filter((enrollment) => String(enrollment.patient.name).toLocaleLowerCase("pt-BR").includes(search.toLocaleLowerCase("pt-BR")))
+    .slice(0, 25);
+  const selected = eligible.find((enrollment) => enrollment.patient_id === patientId);
+  async function confirm() {
+    if (!selected) return;
+    setSaving(true);
+    try { await onConfirm(selected, startsAt); } finally { setSaving(false); }
+  }
+  return (
+    <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) onClose(); }}>
+      <section className="modal allocation-modal" role="dialog" aria-modal="true" aria-labelledby="allocation-title">
+        <div className="modal-head">
+          <div><p className="eyebrow">ALOCAÇÃO DE ALUNO</p><h2 id="allocation-title">Adicionar aluno à turma</h2><p>{group.name}</p></div>
+          <button type="button" onClick={onClose} aria-label="Fechar" disabled={saving}>×</button>
+        </div>
+        <div className="modal-form">
+          <label>Pesquisar paciente<input value={search} onChange={(event) => { setSearch(event.target.value); setPatientId(""); }} placeholder="Digite o nome do paciente" autoFocus /></label>
+          <div className="allocation-results" role="listbox" aria-label="Pacientes disponíveis">
+            {eligible.map((enrollment) => <button type="button" className={patientId === enrollment.patient_id ? "selected" : ""} key={enrollment.id} onClick={() => setPatientId(enrollment.patient_id)}><strong>{enrollment.patient.name}</strong><small>Matrícula ativa · {enrollment.id.slice(0, 8)}</small></button>)}
+            {!eligible.length && <p className="empty-state">Nenhum paciente com matrícula disponível encontrado.</p>}
+          </div>
+          <label>Data de início na turma<input type="date" value={startsAt} onChange={(event) => setStartsAt(event.target.value)} required /></label>
+          {selected && <div className="allocation-confirmation" role="status"><strong>Confirmar alocação</strong><span>{selected.patient.name} será adicionado à turma “{group.name}”.</span></div>}
+          <div className="modal-actions"><button type="button" className="btn secondary" onClick={onClose} disabled={saving}>Cancelar</button><button type="button" className="btn primary" onClick={() => void confirm()} disabled={!selected || !startsAt || saving}>{saving ? "Alocando…" : "Confirmar alocação"}</button></div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function DrawerForm({
   title,
   children,
@@ -279,6 +335,7 @@ export function OperationalAgenda() {
   const patients: Row[] = data["/patients?page=1&pageSize=100"]?.items ?? [];
   const [groupMembers, setGroupMembers] = useState<Row[]>([]);
   const [notice, setNotice] = useState("");
+  const [allocationGroup, setAllocationGroup] = useState<Row | null>(null);
   const [selectedGroupWeekdays, setSelectedGroupWeekdays] = useState<number[]>([1, 3]);
   const [groupTime, setGroupTime] = useState("09:00");
   useEffect(() => {
@@ -360,15 +417,10 @@ export function OperationalAgenda() {
     } catch (actionError) { setNotice(messageOf(actionError)); }
   }
 
-  async function addGroupMember(event: FormEvent<HTMLFormElement>, groupId: string) {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const enrollmentId = value(form, "enrollment_id");
-    const enrollment = (data["/enrollments"] ?? []).find((row: Row) => row.id === enrollmentId);
-    if (!enrollment) return;
+  async function addGroupMember(groupId: string, enrollment: Row, startsAt: string) {
     try {
-      await api(`/group-slots/${groupId}/members`, { method: "POST", body: JSON.stringify({ enrollment_id: enrollment.id, patient_id: enrollment.patient_id, starts_at: value(form, "starts_at") }) });
-      event.currentTarget.reset();
+      await api(`/group-slots/${groupId}/members`, { method: "POST", body: JSON.stringify({ enrollment_id: enrollment.id, patient_id: enrollment.patient_id, starts_at: startsAt }) });
+      setAllocationGroup(null);
       setNotice("Paciente alocado na turma.");
       await reload();
     } catch (actionError) { setNotice(messageOf(actionError)); }
@@ -550,7 +602,7 @@ export function OperationalAgenda() {
               <div><strong>{group.name}</strong><span>{members.length}/{group.capacity ?? 7} vagas ocupadas · {String(group.starts_at).slice(0, 5)}</span></div>
               <button type="button" className="btn secondary" onClick={() => void generateGroup(group.id)}>Gerar horários</button>
               <ul>{members.map((member) => <li key={member.id}><span>{member.patients?.name ?? "Paciente"}</span><button type="button" onClick={() => void removeGroupMember(member.id)} aria-label={`Remover ${member.patients?.name ?? "paciente"}`}>Remover</button></li>)}</ul>
-              <form className="group-member-form" onSubmit={(event) => void addGroupMember(event, group.id)}><select name="enrollment_id" required><option value="">Adicionar matrícula</option>{available.map((enrollment: Row) => <option key={enrollment.id} value={enrollment.id}>{enrollment.patients?.name ?? enrollment.patient_id}</option>)}</select><input name="starts_at" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required /><button className="btn primary">Alocar</button></form>
+              <button type="button" className="btn primary" disabled={!available.length || members.length >= (group.capacity ?? 7)} onClick={() => setAllocationGroup(group)}>{available.length ? "Adicionar aluno" : "Turma cheia ou sem matrículas"}</button>
             </article>;
           })}
         </div>
@@ -593,6 +645,7 @@ export function OperationalAgenda() {
         onChanged={reload}
         onNotice={setNotice}
       />
+      {allocationGroup && <AllocationModal group={allocationGroup} patients={patients} enrollments={data["/enrollments"] ?? []} members={groupMembers.filter((member) => member.group_slot_id === allocationGroup.id)} onClose={() => setAllocationGroup(null)} onConfirm={(enrollment, startsAt) => addGroupMember(allocationGroup.id, enrollment, startsAt)} />}
     </div>
   );
 }
@@ -950,7 +1003,7 @@ export function OperationalEnrollments() {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     try {
-      const response = await api<Row>("/enrollments", {
+      await api<Row>("/enrollments", {
         method: "POST",
         body: JSON.stringify({
           patient_id: value(form, "patient_id"),
@@ -962,16 +1015,6 @@ export function OperationalEnrollments() {
           surcharge_cents: 0,
         }),
       });
-      const group = value(form, "group_slot_id");
-      if (group && response.data)
-        await api(`/group-slots/${group}/members`, {
-          method: "POST",
-          body: JSON.stringify({
-            enrollment_id: response.data.id,
-            patient_id: value(form, "patient_id"),
-            starts_at: value(form, "starts_at"),
-          }),
-        });
       (event.target as HTMLFormElement).reset();
       await reload();
       setNotice("Matrícula e cobrança criadas.");
@@ -1099,12 +1142,7 @@ export function OperationalEnrollments() {
               label="Unidade"
               rows={data["/units"] ?? []}
             />
-            <Select
-              name="group_slot_id"
-              label="Turma (opcional)"
-              rows={data["/group-slots"] ?? []}
-              required={false}
-            />
+            <div className="field-hint enrollment-help">A alocação em turma será feita depois, pelo botão “Adicionar aluno”, com confirmação.</div>
           </div>
           <div className="form-row">
             <label>
