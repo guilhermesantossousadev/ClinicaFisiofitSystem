@@ -2006,6 +2006,18 @@ async function importNotionCore(db: any, clinicId: string, unitId: string, inven
   };
 }
 
+const adminDeletableResources = ["units", "rooms", "services", "professionals", "plans", "record-templates"] as const;
+for (const resource of adminDeletableResources) {
+  app.delete(`/${resource}/:id`, requireRoles(["admin"]), async (context) => {
+    const id = z.string().uuid().parse(context.req.param("id"));
+    const deletedAt = new Date().toISOString();
+    const { data, error } = await context.get("db").from(resource).update({ active: false, deleted_at: deletedAt, updated_at: deletedAt })
+      .eq("id", id).eq("clinic_id", context.get("profile").clinic_id).is("deleted_at", null).select("id").single();
+    if (!error && data) await audit(context, `${resource.replace(/s$/, "")}.deleted`, resource.replace(/s$/, ""), id);
+    return databaseResult(context, data, error);
+  });
+}
+
 const openApiDocument = {
   openapi: "3.1.0",
   info: { title: "Fisiofit API", version: "1.0.0" },

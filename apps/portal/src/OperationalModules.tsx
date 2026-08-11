@@ -136,6 +136,44 @@ function Select({
   );
 }
 
+function PatientPicker({
+  name = "patient_id",
+  rows,
+  label,
+  required = true,
+  defaultValue = "",
+  defaultLabel = "",
+}: {
+  name?: string;
+  rows: Row[];
+  label: string;
+  required?: boolean;
+  defaultValue?: string;
+  defaultLabel?: string;
+}) {
+  const [query, setQuery] = useState(defaultLabel);
+  const [selectedId, setSelectedId] = useState(defaultValue);
+  const [options, setOptions] = useState<Row[]>(rows);
+  const [open, setOpen] = useState(false);
+  useEffect(() => setOptions(rows), [rows]);
+  useEffect(() => {
+    const search = query.trim();
+    if (search.length < 2) return;
+    const timer = window.setTimeout(() => {
+      void api<{ items: Row[] }>(`/patients?page=1&pageSize=100&search=${encodeURIComponent(search)}`)
+        .then((response) => setOptions(response.data?.items ?? []))
+        .catch(() => setOptions(rows.filter((row) => String(row.name ?? "").toLocaleLowerCase("pt-BR").includes(search.toLocaleLowerCase("pt-BR")))));
+    }, 220);
+    return () => window.clearTimeout(timer);
+  }, [query, rows]);
+  const choose = (patient: Row) => {
+    setSelectedId(patient.id);
+    setQuery(patient.name ?? "Paciente");
+    setOpen(false);
+  };
+  return <label className="patient-picker">{label}<input type="hidden" name={name} value={selectedId} /><input type="text" value={query} required={required} autoComplete="off" placeholder="Digite nome, telefone ou CPF" role="combobox" aria-expanded={open} aria-controls={`${name}-options`} onFocus={() => setOpen(true)} onChange={(event) => { setQuery(event.target.value); setSelectedId(""); setOpen(true); }} />{open && query.trim().length >= 2 && <div className="patient-picker-options" id={`${name}-options`} role="listbox">{options.length ? options.slice(0, 8).map((patient) => <button type="button" role="option" key={patient.id} onMouseDown={(event) => event.preventDefault()} onClick={() => choose(patient)}><strong>{patient.name}</strong><small>{patient.phone ?? patient.cpf ?? ""}</small></button>) : <span className="patient-picker-empty">Nenhum paciente encontrado.</span>}</div>}</label>;
+}
+
 function DrawerForm({
   title,
   children,
@@ -475,7 +513,7 @@ export function OperationalAgenda({ onOpenPatients }: { onOpenPatients?: () => v
           <section className="modal calendar-edit-modal" role="dialog" aria-modal="true" aria-labelledby="calendar-edit-title">
             <div className="modal-head"><div><p className="eyebrow">AGENDA</p><h2 id="calendar-edit-title">{calendarAppointment?.id ? "Editar agendamento" : "Novo agendamento"}</h2></div><button type="button" onClick={() => setCalendarAppointment(undefined)} aria-label="Fechar">×</button></div>
             <form className="modal-form" onSubmit={saveCalendarAppointment}>
-              <div className="form-row"><Select name="unit_id" label="Unidade" rows={units} defaultValue={calendarAppointment?.unit_id} /><Select name="patient_id" label="Paciente" rows={patients} required={false} defaultValue={calendarAppointment?.patient_id} /></div>
+              <div className="form-row"><Select name="unit_id" label="Unidade" rows={units} defaultValue={calendarAppointment?.unit_id} /><PatientPicker label="Paciente" rows={patients} required={false} defaultValue={calendarAppointment?.patient_id} defaultLabel={calendarAppointment?.patients?.name} /></div>
               <div className="form-row"><Select name="professional_id" label="Profissional" rows={data["/professionals"] ?? []} /><Select name="service_id" label="Serviço" rows={data["/services"] ?? []} required={false} /></div>
               <div className="form-row"><label>Início<input name="starts_at" type="datetime-local" defaultValue={calendarAppointment?.starts_at ? localDateTime(calendarAppointment.starts_at) : ""} required /></label><label>Término<input name="ends_at" type="datetime-local" defaultValue={calendarAppointment?.ends_at ? localDateTime(calendarAppointment.ends_at) : ""} required /></label></div>
               <div className="form-row"><label>Status<select name="status" defaultValue={calendarAppointment?.status ?? "scheduled"}><option value="scheduled">Agendado</option><option value="confirmed">Confirmado</option><option value="attending">Em atendimento</option><option value="missed">Falta</option><option value="cancelled">Cancelado</option></select></label><label>Observações<textarea name="notes" defaultValue={calendarAppointment?.notes ?? ""} rows={2} /></label></div>
@@ -503,7 +541,7 @@ export function OperationalAgenda({ onOpenPatients }: { onOpenPatients?: () => v
               />
             </div>
             <div className="form-row">
-              <Select name="patient_id" label="Paciente *" rows={patients} />
+              <PatientPicker label="Paciente *" rows={patients} />
               <Select
                 name="service_id"
                 label="Serviço"
@@ -2317,7 +2355,7 @@ function FormularioUnidade({ data, reload, setNotice, submit }: AdministrationSe
     <EditableOperationalTable title="Unidades" resource="units" rows={data["/units"] ?? []} fields={["name", "phone", "active"]}
       editFields={[{ name: "name", label: "Nome", required: true }, { name: "phone", label: "Telefone" }, { name: "street", label: "Rua", value: (row) => row.address?.street }, { name: "city", label: "Cidade", value: (row) => row.address?.city }, { name: "state", label: "Estado", value: (row) => row.address?.state, maxLength: 2 }]}
       buildBody={(form) => ({ name: value(form, "name"), phone: value(form, "phone") || null, address: { street: value(form, "street"), city: value(form, "city"), state: value(form, "state") } })}
-      onChanged={reload} onNotice={setNotice} />
+      onChanged={reload} onNotice={setNotice} allowDelete />
   </div>;
 }
 
@@ -2332,7 +2370,7 @@ function FormularioSala({ data, reload, setNotice, submit }: AdministrationSecti
     </DrawerForm>
     <EditableOperationalTable title="Salas" resource="rooms" rows={data["/rooms"] ?? []} fields={["name", "capacity", "active"]}
       editFields={[{ name: "name", label: "Nome", required: true }, { name: "capacity", label: "Capacidade", type: "number", min: 1, max: 20, required: true }]}
-      buildBody={(form) => ({ name: value(form, "name"), capacity: Number(value(form, "capacity")) })} onChanged={reload} onNotice={setNotice} />
+      buildBody={(form) => ({ name: value(form, "name"), capacity: Number(value(form, "capacity")) })} onChanged={reload} onNotice={setNotice} allowDelete />
   </div>;
 }
 
@@ -2346,7 +2384,7 @@ function FormularioServico({ data, reload, setNotice, submit }: AdministrationSe
     </DrawerForm>
     <EditableOperationalTable title="Serviços" resource="services" rows={data["/services"] ?? []} fields={["name", "duration_minutes", "price_cents", "active"]}
       editFields={[{ name: "name", label: "Nome", required: true }, { name: "duration_minutes", label: "Duração (min)", type: "number", min: 5, max: 480, required: true }, { name: "price", label: "Preço", type: "number", min: 0, step: ".01", required: true, value: (row) => Number(row.price_cents ?? 0) / 100 }]}
-      buildBody={(form) => ({ name: value(form, "name"), duration_minutes: Number(value(form, "duration_minutes")), price_cents: cents(value(form, "price")) })} onChanged={reload} onNotice={setNotice} />
+      buildBody={(form) => ({ name: value(form, "name"), duration_minutes: Number(value(form, "duration_minutes")), price_cents: cents(value(form, "price")) })} onChanged={reload} onNotice={setNotice} allowDelete />
   </div>;
 }
 
@@ -2361,7 +2399,7 @@ function FormularioProfissional({ data, reload, setNotice, submit }: Administrat
     </DrawerForm>
     <EditableOperationalTable title="Profissionais" resource="professionals" rows={data["/professionals"] ?? []} fields={["name", "council", "specialty", "active"]}
       editFields={[{ name: "name", label: "Nome", required: true }, { name: "council", label: "Conselho" }, { name: "specialty", label: "Especialidade" }]}
-      buildBody={(form) => ({ name: value(form, "name"), council: value(form, "council") || null, specialty: value(form, "specialty") || null })} onChanged={reload} onNotice={setNotice} />
+      buildBody={(form) => ({ name: value(form, "name"), council: value(form, "council") || null, specialty: value(form, "specialty") || null })} onChanged={reload} onNotice={setNotice} allowDelete />
   </div>;
 }
 
@@ -2375,7 +2413,7 @@ function FormularioModeloClinico({ data, reload, setNotice, submit }: Administra
     </DrawerForm>
     <EditableOperationalTable title="Modelos clínicos" resource="record-templates" rows={data["/record-templates"] ?? []} fields={["name", "kind", "specialty", "active"]}
       editFields={[{ name: "name", label: "Nome", required: true }, { name: "specialty", label: "Especialidade" }]}
-      buildBody={(form) => ({ name: value(form, "name"), specialty: value(form, "specialty") || null })} onChanged={reload} onNotice={setNotice} />
+      buildBody={(form) => ({ name: value(form, "name"), specialty: value(form, "specialty") || null })} onChanged={reload} onNotice={setNotice} allowDelete />
   </div>;
 }
 
