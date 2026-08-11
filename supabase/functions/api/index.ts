@@ -621,12 +621,22 @@ app.post("/enrollments", requireRoles(["admin", "manager", "reception", "finance
     surcharge_cents: z.number().int().nonnegative().default(0),
   }).parse(await context.req.json());
   const db = context.get("db");
-  const { data: plan, error: planError } = await db.from("plans").select("id,name,price_cents")
-    .eq("id", input.plan_id).eq("clinic_id", context.get("profile").clinic_id).single();
+  if (!(await hasUnitAccess(context, input.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+  const clinicId = context.get("profile").clinic_id;
+  const { data: unit } = await db.from("units").select("id").eq("id", input.unit_id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle();
+  if (!unit) return fail(context, 400, "INVALID_UNIT", "A unidade selecionada não pertence à clínica.");
+  const { data: patient } = await db.from("patients").select("id,primary_unit_id").eq("id", input.patient_id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle();
+  if (!patient) return fail(context, 404, "PATIENT_NOT_FOUND", "Paciente não encontrado nesta clínica.");
+  const { data: plan, error: planError } = await db.from("plans").select("id,name,price_cents,active")
+    .eq("id", input.plan_id).eq("clinic_id", clinicId).is("deleted_at", null).single();
   if (planError || !plan) return databaseResult(context, null, planError);
+  if (!plan.active) return fail(context, 400, "PLAN_INACTIVE", "O plano selecionado está inativo.");
+  if (input.ends_at && input.ends_at < input.starts_at) return fail(context, 400, "INVALID_PERIOD", "A data final não pode ser anterior à inicial.");
+  const { data: existing } = await db.from("enrollments").select("*").eq("clinic_id", clinicId).eq("patient_id", input.patient_id).eq("plan_id", input.plan_id).eq("unit_id", input.unit_id).eq("status", "active").is("deleted_at", null).maybeSingle();
+  if (existing) return ok(context, existing);
   const { data, error } = await db.from("enrollments").insert({
     ...input,
-    clinic_id: context.get("profile").clinic_id,
+    clinic_id: clinicId,
     status: "active",
   }).select().single();
   if (error || !data) return databaseResult(context, null, error);
@@ -641,7 +651,10 @@ app.post("/enrollments", requireRoles(["admin", "manager", "reception", "finance
     due_at: firstDueDate(input.starts_at, input.due_day),
     status: "pending",
   });
-  if (chargeError) return databaseResult(context, null, chargeError);
+  if (chargeError) {
+    await db.from("enrollments").update({ status: "cancelled", deleted_at: new Date().toISOString() }).eq("id", data.id).eq("clinic_id", clinicId);
+    return databaseResult(context, null, chargeError);
+  }
   await audit(context, "enrollment.created", "enrollment", data.id, input.unit_id);
   return ok(context, data, 201);
 });
@@ -664,6 +677,10 @@ app.post("/charges", requireRoles(["admin", "manager", "finance"]), async (conte
     installment_number: z.number().int().positive().optional(),
     installment_count: z.number().int().positive().optional(),
   }).parse(await context.req.json());
+  if (input.enrollment_id) {
+    const { data: enrollment } = await context.get("db").from("enrollments").select("id,patient_id,unit_id").eq("id", input.enrollment_id).eq("clinic_id", context.get("profile").clinic_id).eq("patient_id", input.patient_id).eq("unit_id", input.unit_id).eq("status", "active").is("deleted_at", null).maybeSingle();
+    if (!enrollment) return fail(context, 400, "INVALID_ENROLLMENT", "A matrícula não pertence ao paciente e à unidade informados.");
+  }
   return createClinicResource(context, "charges", { ...input, status: "pending" }, "charge.created", input.unit_id);
 });
 
@@ -726,6 +743,7 @@ app.get("/patients/:id", async (context) => {
 
 app.post("/patients", requireRoles(["admin", "manager", "reception"]), async (context) => {
   const input = patientSchema.parse(await context.req.json());
+  if (!(await hasUnitAccess(context, input.primary_unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
   const { data, error } = await context.get("db").from("patients").insert({
     ...input,
     clinic_id: context.get("profile").clinic_id,
@@ -737,6 +755,7 @@ app.post("/patients", requireRoles(["admin", "manager", "reception"]), async (co
 app.patch("/patients/:id", requireRoles(["admin", "manager", "reception"]), async (context) => {
   const id = z.string().uuid().parse(context.req.param("id"));
   const input = patientSchema.partial().extend({ active: z.boolean().optional() }).parse(await context.req.json());
+  if (input.primary_unit_id && !(await hasUnitAccess(context, input.primary_unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
   const { data, error } = await context.get("db").from("patients").update({
     ...input,
     updated_at: new Date().toISOString(),
@@ -1030,6 +1049,11 @@ app.post("/group-slots/:id/members", requireRoles(["admin", "manager", "receptio
   const { data: slot, error: slotError } = await db.from("group_slots").select("id,unit_id,capacity")
     .eq("id", groupSlotId).eq("clinic_id", clinicId).is("deleted_at", null).single();
   if (slotError || !slot) return databaseResult(context, null, slotError);
+  if (!(await hasUnitAccess(context, slot.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+  const { data: enrollment } = await db.from("enrollments").select("id,patient_id,unit_id,status,starts_at,ends_at")
+    .eq("id", input.enrollment_id).eq("clinic_id", clinicId).eq("patient_id", input.patient_id).eq("unit_id", slot.unit_id).eq("status", "active").is("deleted_at", null).maybeSingle();
+  if (!enrollment) return fail(context, 400, "INVALID_ENROLLMENT", "A matrícula não corresponde ao paciente e à unidade desta turma.");
+  if (input.ends_at && input.ends_at < input.starts_at) return fail(context, 400, "INVALID_PERIOD", "A data final não pode ser anterior à inicial.");
   const { data: existingMembership } = await db.from("group_slot_memberships").select("id").eq("clinic_id", clinicId).eq("group_slot_id", groupSlotId).eq("patient_id", input.patient_id).eq("status", "active").is("deleted_at", null).maybeSingle();
   if (existingMembership) return ok(context, existingMembership);
   const { count, error: countError } = await db.from("group_slot_memberships").select("id", { count: "exact", head: true })
