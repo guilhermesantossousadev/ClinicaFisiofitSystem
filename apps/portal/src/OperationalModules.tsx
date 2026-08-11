@@ -493,7 +493,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment }: { onOpen
                       const starts = new Date(row.starts_at);
                       return row.unit_id === unit.id && dateKey(starts) === dateKey(day) && starts.getHours() === hour;
                     });
-                    return <button type="button" className={`fixed-calendar-cell calendar-slot-button${!isWeekday ? " is-weekend" : ""}`} key={`${dateKey(day)}-${hour}`} onClick={() => { if (slot && !appointment && onOpenEnrollment) onOpenEnrollment({ unitId: unit.id, groupSlotId: slot.id, startsAt: dateKey(day), unitName: unit.name, groupName: slot.name }); else openCalendarSlot(day, hour, unit.id); }} aria-label={`${dateLabel(day)} às ${String(hour).padStart(2, "0")}:00${slot && !appointment ? ", adicionar paciente à turma" : appointment ? `, ${appointment.patients?.name ?? "agendamento"}` : ", horário livre"}`}>
+                    return <div className="calendar-slot-wrapper" key={`${dateKey(day)}-${hour}`}><button type="button" className={`fixed-calendar-cell calendar-slot-button${!isWeekday ? " is-weekend" : ""}`} onClick={() => openCalendarSlot(day, hour, unit.id)} aria-label={`${dateLabel(day)} às ${String(hour).padStart(2, "0")}:00${appointment ? `, ${appointment.patients?.name ?? "agendamento"}` : ", horário livre"}`}>
                       {appointment ? <><strong className="calendar-appointment-name">{appointment.patients?.name ?? "Bloqueio"}</strong><span>{appointment.services?.name ?? "Atendimento"}</span><small>{appointment.status ?? "Agendado"} · editar</small></> : <>
                       {slot ? <>
                         <strong>{members.length}/{slot.capacity ?? 7} vagas</strong>
@@ -501,7 +501,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment }: { onOpen
                         {members.length > 3 && <small>+{members.length - 3} pacientes</small>}
                         {!members.length && <small>Horário livre</small>}
                       </> : isWeekday ? <small className="fixed-calendar-missing">Não configurado</small> : null}</>}
-                    </button>;
+                    </button>{slot && !appointment && <button type="button" className="calendar-add-member-button" onClick={() => onOpenEnrollment?.({ unitId: unit.id, groupSlotId: slot.id, startsAt: dateKey(day), unitName: unit.name, groupName: slot.name })}>Adicionar paciente</button>}</div>;
                   }),
                 ])}
               </div>
