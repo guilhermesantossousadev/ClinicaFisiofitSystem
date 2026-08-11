@@ -1030,6 +1030,8 @@ app.post("/group-slots/:id/members", requireRoles(["admin", "manager", "receptio
   const { data: slot, error: slotError } = await db.from("group_slots").select("id,unit_id,capacity")
     .eq("id", groupSlotId).eq("clinic_id", clinicId).is("deleted_at", null).single();
   if (slotError || !slot) return databaseResult(context, null, slotError);
+  const { data: existingMembership } = await db.from("group_slot_memberships").select("id").eq("clinic_id", clinicId).eq("group_slot_id", groupSlotId).eq("patient_id", input.patient_id).eq("status", "active").is("deleted_at", null).maybeSingle();
+  if (existingMembership) return ok(context, existingMembership);
   const { count, error: countError } = await db.from("group_slot_memberships").select("id", { count: "exact", head: true })
     .eq("clinic_id", clinicId).eq("group_slot_id", groupSlotId).eq("status", "active").is("deleted_at", null);
   if (countError) return databaseResult(context, null, countError);

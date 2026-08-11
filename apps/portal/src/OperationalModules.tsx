@@ -1075,32 +1075,23 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext }: 
   async function enroll(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    const patientId = value(form, "patient_id");
+    const planId = value(form, "plan_id");
     try {
-      const response = await api<Row>("/enrollments", {
+      const existing = (data["/enrollments"] ?? []).find((row: Row) => row.patient_id === patientId && row.plan_id === planId && row.status !== "cancelled" && row.status !== "reversed" && !row.deleted_at);
+      const response = existing ? { data: existing } : await api<Row>("/enrollments", {
         method: "POST",
-        body: JSON.stringify({
-          patient_id: value(form, "patient_id"),
-          plan_id: value(form, "plan_id"),
-          unit_id: value(form, "unit_id"),
-          starts_at: value(form, "starts_at"),
-          due_day: Number(value(form, "due_day")),
-          discount_cents: cents(value(form, "discount") || "0"),
-          surcharge_cents: 0,
-        }),
+        body: JSON.stringify({ patient_id: patientId, plan_id: planId, unit_id: value(form, "unit_id"), starts_at: value(form, "starts_at"), due_day: Number(value(form, "due_day")), discount_cents: cents(value(form, "discount") || "0"), surcharge_cents: 0 }),
       });
       const group = value(form, "group_slot_id");
       if (group && response.data)
         await api(`/group-slots/${group}/members`, {
           method: "POST",
-          body: JSON.stringify({
-            enrollment_id: response.data.id,
-            patient_id: value(form, "patient_id"),
-            starts_at: value(form, "starts_at"),
-          }),
+          body: JSON.stringify({ enrollment_id: response.data.id, patient_id: patientId, starts_at: value(form, "starts_at") }),
         });
       (event.target as HTMLFormElement).reset();
       await reload();
-      setNotice("Matrícula e cobrança criadas.");
+      setNotice(existing ? "Paciente já matriculado; vínculo recorrente atualizado." : "Matrícula criada e paciente vinculado à turma recorrente.");
     } catch (e) {
       setNotice(messageOf(e));
     }
