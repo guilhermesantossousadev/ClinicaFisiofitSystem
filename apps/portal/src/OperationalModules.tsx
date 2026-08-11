@@ -244,7 +244,9 @@ function ModuleState({
   return null;
 }
 
-export function OperationalAgenda({ onOpenPatients }: { onOpenPatients?: () => void }) {
+export type AgendaEnrollmentContext = { unitId: string; groupSlotId: string; startsAt: string; unitName?: string; groupName?: string };
+
+export function OperationalAgenda({ onOpenPatients, onOpenEnrollment }: { onOpenPatients?: () => void; onOpenEnrollment?: (context: AgendaEnrollmentContext) => void }) {
   const [fromDate, setFromDate] = useState(() =>
     new Date().toISOString().slice(0, 10),
   );
@@ -491,7 +493,7 @@ export function OperationalAgenda({ onOpenPatients }: { onOpenPatients?: () => v
                       const starts = new Date(row.starts_at);
                       return row.unit_id === unit.id && dateKey(starts) === dateKey(day) && starts.getHours() === hour;
                     });
-                    return <button type="button" className={`fixed-calendar-cell calendar-slot-button${!isWeekday ? " is-weekend" : ""}`} key={`${dateKey(day)}-${hour}`} onClick={() => openCalendarSlot(day, hour, unit.id)} aria-label={`${dateLabel(day)} às ${String(hour).padStart(2, "0")}:00${appointment ? `, ${appointment.patients?.name ?? "agendamento"}` : ", horário livre"}`}>
+                    return <button type="button" className={`fixed-calendar-cell calendar-slot-button${!isWeekday ? " is-weekend" : ""}`} key={`${dateKey(day)}-${hour}`} onClick={() => { if (slot && !appointment && onOpenEnrollment) onOpenEnrollment({ unitId: unit.id, groupSlotId: slot.id, startsAt: dateKey(day), unitName: unit.name, groupName: slot.name }); else openCalendarSlot(day, hour, unit.id); }} aria-label={`${dateLabel(day)} às ${String(hour).padStart(2, "0")}:00${slot && !appointment ? ", adicionar paciente à turma" : appointment ? `, ${appointment.patients?.name ?? "agendamento"}` : ", horário livre"}`}>
                       {appointment ? <><strong className="calendar-appointment-name">{appointment.patients?.name ?? "Bloqueio"}</strong><span>{appointment.services?.name ?? "Atendimento"}</span><small>{appointment.status ?? "Agendado"} · editar</small></> : <>
                       {slot ? <>
                         <strong>{members.length}/{slot.capacity ?? 7} vagas</strong>
@@ -1027,7 +1029,7 @@ export function OperationalPatients() {
   );
 }
 
-export function OperationalEnrollments() {
+export function OperationalEnrollments({ agendaContext, onClearAgendaContext }: { agendaContext?: AgendaEnrollmentContext; onClearAgendaContext?: () => void }) {
   const paths = [
     "/plans",
     "/enrollments",
@@ -1213,23 +1215,11 @@ export function OperationalEnrollments() {
             <Select name="patient_id" label="Paciente" rows={patients} />
             <Select name="plan_id" label="Plano" rows={data["/plans"] ?? []} />
           </div>
-          <div className="form-row">
-            <Select
-              name="unit_id"
-              label="Unidade"
-              rows={data["/units"] ?? []}
-            />
-            <Select
-              name="group_slot_id"
-              label="Turma (opcional)"
-              rows={data["/group-slots"] ?? []}
-              required={false}
-            />
-          </div>
+          {agendaContext ? <div className="agenda-context-summary" role="status"><input type="hidden" name="unit_id" value={agendaContext.unitId} /><input type="hidden" name="group_slot_id" value={agendaContext.groupSlotId} /><strong>{agendaContext.groupName ?? "Turma selecionada"}</strong><span>{agendaContext.unitName ?? "Unidade selecionada"} · horário escolhido na Agenda · {agendaContext.startsAt}</span><button type="button" onClick={onClearAgendaContext}>Trocar horário</button></div> : <div className="form-row"><Select name="unit_id" label="Unidade" rows={data["/units"] ?? []} /><Select name="group_slot_id" label="Turma (opcional)" rows={data["/group-slots"] ?? []} required={false} /></div>}
           <div className="form-row">
             <label>
               Início
-              <input name="starts_at" type="date" required />
+              <input name="starts_at" type="date" defaultValue={agendaContext?.startsAt} readOnly={Boolean(agendaContext)} required />
             </label>
             <label>
               Dia do vencimento

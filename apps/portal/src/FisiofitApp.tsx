@@ -14,6 +14,7 @@ import {
   OperationalReports,
   OperationalUsers,
 } from "./OperationalModules";
+import type { AgendaEnrollmentContext } from "./OperationalModules";
 
 type View =
   | "Painel"
@@ -137,6 +138,7 @@ export default function FisiofitApp() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [agendaContext, setAgendaContext] = useState<AgendaEnrollmentContext>();
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     storeValue(`${storagePrefix}:view`, view);
@@ -404,9 +406,9 @@ export default function FisiofitApp() {
         {view === "Painel" && (
           <Dashboard data={dashboard} name={profile.name} setView={setView} loading={loading} />
         )}{" "}
-        {view === "Agenda" && <OperationalAgenda onOpenPatients={() => navigate("Pacientes")} />}{" "}
+        {view === "Agenda" && <OperationalAgenda onOpenPatients={() => navigate("Pacientes")} onOpenEnrollment={(context) => { setAgendaContext(context); navigate("Matrículas"); }} />}{" "}
         {view === "Pacientes" && <OperationalPatients />}{" "}
-        {view === "Matrículas" && <OperationalEnrollments />}{" "}
+        {view === "Matrículas" && <OperationalEnrollments agendaContext={agendaContext} onClearAgendaContext={() => setAgendaContext(undefined)} />}{" "}
         {view === "Prontuários" && <OperationalRecords />}{" "}
         {view === "Financeiro" && <OperationalFinance />}{" "}
         {view === "Relatórios" && <OperationalReports />}{" "}
