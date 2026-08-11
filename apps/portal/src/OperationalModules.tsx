@@ -182,13 +182,21 @@ function DrawerForm({
   children,
   onSubmit,
   className = "",
+  openInitially = false,
+  onClose,
 }: {
   title: string;
   children: ReactNode;
   onSubmit: FormEventHandler<HTMLFormElement>;
   className?: string;
+  openInitially?: boolean;
+  onClose?: () => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(openInitially);
+  const close = () => {
+    setOpen(false);
+    onClose?.();
+  };
   return (
     <>
       <button className={`card drawer-create-trigger ${className}`} type="button" onClick={() => setOpen(true)}>
@@ -198,12 +206,12 @@ function DrawerForm({
       </button>
       {open && (
         <div className="modal-backdrop creation-drawer-backdrop" role="presentation" onMouseDown={(event) => {
-          if (event.target === event.currentTarget) setOpen(false);
+          if (event.target === event.currentTarget) close();
         }}>
           <section className={`modal creation-drawer ${title.includes("turma") ? "agenda-group-drawer" : title.includes("agendamento") ? "agenda-appointment-drawer" : ""}`} role="dialog" aria-modal="true" aria-label={title}>
             <div className="modal-head">
               <h2>{title}</h2>
-              <button type="button" onClick={() => setOpen(false)} aria-label={`Fechar ${title}`}>×</button>
+              <button type="button" onClick={close} aria-label={`Fechar ${title}`}>×</button>
             </div>
             <form className="modal-form creation-drawer-form" onSubmit={onSubmit}>
               {children}
@@ -1032,7 +1040,7 @@ export function OperationalPatients() {
   );
 }
 
-export function OperationalEnrollments({ agendaContext, onClearAgendaContext }: { agendaContext?: AgendaEnrollmentContext; onClearAgendaContext?: () => void }) {
+export function OperationalEnrollments({ agendaContext, onClearAgendaContext, openEnrollment = false }: { agendaContext?: AgendaEnrollmentContext; onClearAgendaContext?: () => void; openEnrollment?: boolean }) {
   const paths = [
     "/plans",
     "/enrollments",
@@ -1207,7 +1215,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext }: 
           </label>
           <button className="btn primary">Criar plano</button>
         </DrawerForm>
-        <DrawerForm title="Nova matrícula" onSubmit={enroll}>
+        <DrawerForm title="Nova matrícula" onSubmit={enroll} openInitially={openEnrollment || Boolean(agendaContext)} onClose={onClearAgendaContext}>
           <h2>Nova matrícula</h2>
           <div className="form-row">
             <PatientPicker key={patientPickerVersion} name="patient_id" label="Paciente" rows={patients} onSelect={setSelectedPatient} />
