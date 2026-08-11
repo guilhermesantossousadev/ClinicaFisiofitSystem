@@ -143,6 +143,7 @@ function PatientPicker({
   required = true,
   defaultValue = "",
   defaultLabel = "",
+  onSelect,
 }: {
   name?: string;
   rows: Row[];
@@ -150,6 +151,7 @@ function PatientPicker({
   required?: boolean;
   defaultValue?: string;
   defaultLabel?: string;
+  onSelect?: (patient: Row) => void;
 }) {
   const [query, setQuery] = useState(defaultLabel);
   const [selectedId, setSelectedId] = useState(defaultValue);
@@ -170,6 +172,7 @@ function PatientPicker({
     setSelectedId(patient.id);
     setQuery(patient.name ?? "Paciente");
     setOpen(false);
+    onSelect?.(patient);
   };
   return <label className="patient-picker">{label}<input type="hidden" name={name} value={selectedId} /><input type="text" value={query} required={required} autoComplete="off" placeholder="Digite nome, telefone ou CPF" role="combobox" aria-expanded={open} aria-controls={`${name}-options`} onFocus={() => setOpen(true)} onChange={(event) => { setQuery(event.target.value); setSelectedId(""); setOpen(true); }} />{open && query.trim().length >= 2 && <div className="patient-picker-options" id={`${name}-options`} role="listbox">{options.length ? options.slice(0, 8).map((patient) => <button type="button" role="option" key={patient.id} onMouseDown={(event) => event.preventDefault()} onClick={() => choose(patient)}><strong>{patient.name}</strong><small>{patient.phone ?? patient.cpf ?? ""}</small></button>) : <span className="patient-picker-empty">Nenhum paciente encontrado.</span>}</div>}</label>;
 }
@@ -1042,6 +1045,8 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext }: 
   const { data, loading, error, reload } = useResources(paths);
   const patients = data["/patients?page=1&pageSize=100"]?.items ?? [];
   const [notice, setNotice] = useState("");
+  const [selectedPatient, setSelectedPatient] = useState<Row>();
+  const [patientPickerVersion, setPatientPickerVersion] = useState(0);
   const [planPeriod, setPlanPeriod] = useState<PlanPeriod>("monthly");
   const [weeklyFrequency, setWeeklyFrequency] = useState<WeeklyFrequency>(2);
   const selectedPeriod = PLAN_PERIODS[planPeriod];
@@ -1090,6 +1095,8 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext }: 
           body: JSON.stringify({ enrollment_id: response.data.id, patient_id: patientId, starts_at: value(form, "starts_at") }),
         });
       (event.target as HTMLFormElement).reset();
+      setSelectedPatient(undefined);
+      setPatientPickerVersion((version) => version + 1);
       await reload();
       setNotice(existing ? "Paciente já matriculado; vínculo recorrente atualizado." : "Matrícula criada e paciente vinculado à turma recorrente.");
     } catch (e) {
@@ -1203,9 +1210,10 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext }: 
         <DrawerForm title="Nova matrícula" onSubmit={enroll}>
           <h2>Nova matrícula</h2>
           <div className="form-row">
-            <Select name="patient_id" label="Paciente" rows={patients} />
+            <PatientPicker key={patientPickerVersion} name="patient_id" label="Paciente" rows={patients} onSelect={setSelectedPatient} />
             <Select name="plan_id" label="Plano" rows={data["/plans"] ?? []} />
           </div>
+          {selectedPatient && <div className="agenda-context-summary" role="status"><strong>Paciente selecionado</strong><span>{selectedPatient.name}{selectedPatient.phone ? ` · ${selectedPatient.phone}` : ""}{selectedPatient.cpf ? ` · CPF ${selectedPatient.cpf}` : ""}</span></div>}
           {agendaContext ? <div className="agenda-context-summary" role="status"><input type="hidden" name="unit_id" value={agendaContext.unitId} /><input type="hidden" name="group_slot_id" value={agendaContext.groupSlotId} /><strong>{agendaContext.groupName ?? "Turma selecionada"}</strong><span>{agendaContext.unitName ?? "Unidade selecionada"} · horário escolhido na Agenda · {agendaContext.startsAt}</span><button type="button" onClick={onClearAgendaContext}>Trocar horário</button></div> : <div className="form-row"><Select name="unit_id" label="Unidade" rows={data["/units"] ?? []} /><Select name="group_slot_id" label="Turma (opcional)" rows={data["/group-slots"] ?? []} required={false} /></div>}
           <div className="form-row">
             <label>
