@@ -922,9 +922,15 @@ app.post("/group-slots", requireRoles(["admin", "manager", "reception"]), async 
   }).parse(await context.req.json());
   if (!(await hasUnitAccess(context, input.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
   const db = context.get("db");
+  const normalizedWeekdays = [...new Set(input.weekdays)].sort();
+  const { data: conflictingSlots } = await db.from("group_slots").select("id,name,weekdays,starts_at")
+    .eq("clinic_id", context.get("profile").clinic_id).eq("unit_id", input.unit_id).eq("starts_at", input.starts_at).eq("active", true).is("deleted_at", null);
+  if ((conflictingSlots ?? []).some((slot: any) => (slot.weekdays ?? []).some((day: number) => normalizedWeekdays.includes(day)))) {
+    return fail(context, 409, "GROUP_SLOT_CONFLICT", "Já existe uma turma nesta unidade para o mesmo dia e horário. Escolha outro horário ou dia.");
+  }
   const { data, error } = await db.from("group_slots").insert({
     ...input,
-    weekdays: [...new Set(input.weekdays)].sort(),
+    weekdays: normalizedWeekdays,
     clinic_id: context.get("profile").clinic_id,
   }).select().single();
   if (!error && data) {
@@ -989,6 +995,16 @@ app.patch("/group-slots/:id", requireRoles(["admin", "manager", "reception"]), a
     active: z.boolean().optional(),
   }).parse(await context.req.json());
   if (input.unit_id && !(await hasUnitAccess(context, input.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+  if (input.unit_id || input.starts_at || input.weekdays) {
+    const current = await context.get("db").from("group_slots").select("unit_id,starts_at,weekdays").eq("id", id).eq("clinic_id", context.get("profile").clinic_id).is("deleted_at", null).single();
+    if (current.data) {
+      const unitId = input.unit_id ?? current.data.unit_id;
+      const startsAt = input.starts_at ?? current.data.starts_at;
+      const weekdays = input.weekdays ? [...new Set(input.weekdays)] : current.data.weekdays;
+      const { data: conflicts } = await context.get("db").from("group_slots").select("id,weekdays").eq("clinic_id", context.get("profile").clinic_id).eq("unit_id", unitId).eq("starts_at", startsAt).eq("active", true).is("deleted_at", null).neq("id", id);
+      if ((conflicts ?? []).some((slot: any) => (slot.weekdays ?? []).some((day: number) => weekdays.includes(day)))) return fail(context, 409, "GROUP_SLOT_CONFLICT", "Já existe uma turma nesta unidade para o mesmo dia e horário. Escolha outro horário ou dia.");
+    }
+  }
   return updateClinicResource(context, "group_slots", id, { ...input, ...(input.weekdays ? { weekdays: [...new Set(input.weekdays)].sort() } : {}) }, "group_slot.updated", input.unit_id);
 });
 
