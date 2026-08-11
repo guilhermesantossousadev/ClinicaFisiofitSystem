@@ -404,7 +404,7 @@ export default function FisiofitApp() {
         {view === "Painel" && (
           <Dashboard data={dashboard} name={profile.name} setView={setView} loading={loading} />
         )}{" "}
-        {view === "Agenda" && <OperationalAgenda />}{" "}
+        {view === "Agenda" && <OperationalAgenda onOpenPatients={() => navigate("Pacientes")} />}{" "}
         {view === "Pacientes" && <OperationalPatients />}{" "}
         {view === "Matrículas" && <OperationalEnrollments />}{" "}
         {view === "Prontuários" && <OperationalRecords />}{" "}

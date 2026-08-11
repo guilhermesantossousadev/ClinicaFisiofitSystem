@@ -113,16 +113,18 @@ function Select({
   rows,
   label,
   required = true,
+  defaultValue,
 }: {
   name: string;
   rows: Row[];
   label: string;
   required?: boolean;
+  defaultValue?: string;
 }) {
   return (
     <label>
       {label}
-      <select name={name} required={required}>
+      <select name={name} required={required} defaultValue={defaultValue ?? ""}>
         <option value="">Selecione</option>
         {rows.map((row) => (
           <option key={row.id} value={row.id}>
@@ -204,7 +206,7 @@ function ModuleState({
   return null;
 }
 
-export function OperationalAgenda() {
+export function OperationalAgenda({ onOpenPatients }: { onOpenPatients?: () => void }) {
   const [fromDate, setFromDate] = useState(() =>
     new Date().toISOString().slice(0, 10),
   );
@@ -423,7 +425,7 @@ export function OperationalAgenda() {
         </label>
       </div>
       {notice && (
-        <div className="toast">
+        <div className="toast" role="status" aria-live="polite">
           <span>✓</span>
           {notice}
         </div>
@@ -473,7 +475,7 @@ export function OperationalAgenda() {
           <section className="modal calendar-edit-modal" role="dialog" aria-modal="true" aria-labelledby="calendar-edit-title">
             <div className="modal-head"><div><p className="eyebrow">AGENDA</p><h2 id="calendar-edit-title">{calendarAppointment?.id ? "Editar agendamento" : "Novo agendamento"}</h2></div><button type="button" onClick={() => setCalendarAppointment(undefined)} aria-label="Fechar">×</button></div>
             <form className="modal-form" onSubmit={saveCalendarAppointment}>
-              <div className="form-row"><Select name="unit_id" label="Unidade" rows={units} /><Select name="patient_id" label="Paciente" rows={patients} required={false} /></div>
+              <div className="form-row"><Select name="unit_id" label="Unidade" rows={units} defaultValue={calendarAppointment?.unit_id} /><Select name="patient_id" label="Paciente" rows={patients} required={false} defaultValue={calendarAppointment?.patient_id} /></div>
               <div className="form-row"><Select name="professional_id" label="Profissional" rows={data["/professionals"] ?? []} /><Select name="service_id" label="Serviço" rows={data["/services"] ?? []} required={false} /></div>
               <div className="form-row"><label>Início<input name="starts_at" type="datetime-local" defaultValue={calendarAppointment?.starts_at ? localDateTime(calendarAppointment.starts_at) : ""} required /></label><label>Término<input name="ends_at" type="datetime-local" defaultValue={calendarAppointment?.ends_at ? localDateTime(calendarAppointment.ends_at) : ""} required /></label></div>
               <div className="form-row"><label>Status<select name="status" defaultValue={calendarAppointment?.status ?? "scheduled"}><option value="scheduled">Agendado</option><option value="confirmed">Confirmado</option><option value="attending">Em atendimento</option><option value="missed">Falta</option><option value="cancelled">Cancelado</option></select></label><label>Observações<textarea name="notes" defaultValue={calendarAppointment?.notes ?? ""} rows={2} /></label></div>
@@ -623,8 +625,8 @@ export function OperationalAgenda() {
         allowDelete
         showToggle={false}
       />
-      <section className="card group-allocation-panel">
-        <div className="table-toolbar"><div><p className="eyebrow">ALOCAÇÃO</p><h2>Alunos nas turmas</h2></div><span>Gerencie vagas e gere os horários do período</span></div>
+      <section className="card group-allocation-panel" aria-labelledby="group-allocation-title">
+        <div className="table-toolbar"><div><p className="eyebrow">ALOCAÇÃO</p><h2 id="group-allocation-title">Alunos nas turmas</h2><p className="form-instructions">Cadastre o paciente e faça a matrícula antes de adicionar uma vaga na turma.</p></div><button type="button" className="btn secondary" onClick={onOpenPatients}>Cadastrar paciente</button></div>
         <div className="group-allocation-grid">
           {(data["/group-slots"] ?? []).map((group: Row) => {
             const members = groupMembers.filter((member) => member.group_slot_id === group.id);
@@ -632,8 +634,9 @@ export function OperationalAgenda() {
             return <article className="group-allocation-card" key={group.id}>
               <div><strong>{group.name}</strong><span>{members.length}/{group.capacity ?? 7} vagas ocupadas · {String(group.starts_at).slice(0, 5)}</span></div>
               <button type="button" className="btn secondary" onClick={() => void generateGroup(group.id)}>Gerar horários</button>
-              <ul>{members.map((member) => <li key={member.id}><span>{member.patients?.name ?? "Paciente"}</span><button type="button" onClick={() => void removeGroupMember(member.id)} aria-label={`Remover ${member.patients?.name ?? "paciente"}`}>Remover</button></li>)}</ul>
-              <form className="group-member-form" onSubmit={(event) => void addGroupMember(event, group.id)}><select name="enrollment_id" required><option value="">Adicionar matrícula</option>{available.map((enrollment: Row) => <option key={enrollment.id} value={enrollment.id}>{enrollment.patients?.name ?? enrollment.patient_id}</option>)}</select><input name="starts_at" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required /><button className="btn primary">Alocar</button></form>
+              <div className="group-members-heading"><h3>Pacientes inscritos</h3><span>{members.length === 0 ? "Nenhum paciente nesta turma" : `${members.length} inscrito(s)`}</span></div>
+              <ul aria-label={`Pacientes inscritos na turma ${group.name}`}>{members.map((member) => <li key={member.id}><span>{member.patients?.name ?? "Paciente"}</span><button type="button" onClick={() => void removeGroupMember(member.id)} aria-label={`Remover ${member.patients?.name ?? "paciente"} da turma`}>Remover</button></li>)}</ul>
+              <form className="group-member-form" onSubmit={(event) => void addGroupMember(event, group.id)} aria-label={`Adicionar paciente à turma ${group.name}`}><fieldset><legend>Adicionar paciente</legend><label>Matrícula<select name="enrollment_id" required aria-describedby={`group-help-${group.id}`}><option value="">Selecione uma matrícula</option>{available.map((enrollment: Row) => <option key={enrollment.id} value={enrollment.id}>{enrollment.patients?.name ?? enrollment.patient_id}</option>)}</select></label><label>Início<input name="starts_at" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required /></label><button className="btn primary">Adicionar à turma</button><small id={`group-help-${group.id}`}>{available.length ? "Apenas matrículas ainda não vinculadas aparecem aqui." : "Não há matrículas disponíveis. Cadastre e matricule o paciente primeiro."}</small></fieldset></form>
             </article>;
           })}
         </div>
