@@ -114,17 +114,19 @@ function Select({
   label,
   required = true,
   defaultValue,
+  id = `${name}-field`,
 }: {
   name: string;
   rows: Row[];
   label: string;
   required?: boolean;
   defaultValue?: string;
+  id?: string;
 }) {
   return (
     <div className="input-group">
-      <label htmlFor={`${name}-field`}>{label}</label>
-      <select id={`${name}-field`} name={name} required={required} defaultValue={defaultValue ?? ""}>
+      <label htmlFor={id}>{label}</label>
+      <select id={id} name={name} required={required} defaultValue={defaultValue ?? ""}>
         <option value="">Selecione</option>
         {rows.map((row) => (
           <option key={row.id} value={row.id}>
@@ -144,6 +146,7 @@ function PatientPicker({
   defaultValue = "",
   defaultLabel = "",
   onSelect,
+  id = `${name}-field`,
 }: {
   name?: string;
   rows: Row[];
@@ -152,6 +155,7 @@ function PatientPicker({
   defaultValue?: string;
   defaultLabel?: string;
   onSelect?: (patient: Row) => void;
+  id?: string;
 }) {
   const [query, setQuery] = useState(defaultLabel);
   const [selectedId, setSelectedId] = useState(defaultValue);
@@ -174,7 +178,14 @@ function PatientPicker({
     setOpen(false);
     onSelect?.(patient);
   };
-  return <div className="input-group patient-picker"><label htmlFor={`${name}-field`}>{label}</label><input type="hidden" name={name} value={selectedId} /><input id={`${name}-field`} type="text" value={query} required={required} autoComplete="off" placeholder="Digite nome, telefone ou CPF" role="combobox" aria-expanded={open} aria-controls={`${name}-options`} onFocus={() => setOpen(true)} onChange={(event) => { setQuery(event.target.value); setSelectedId(""); setOpen(true); }} />{open && query.trim().length >= 2 && <div className="patient-picker-options" id={`${name}-options`} role="listbox">{options.length ? options.slice(0, 8).map((patient) => <button type="button" role="option" key={patient.id} onMouseDown={(event) => event.preventDefault()} onClick={() => choose(patient)}><strong>{patient.name}</strong><small>{patient.phone ?? patient.cpf ?? ""}</small></button>) : <span className="patient-picker-empty">Nenhum paciente encontrado.</span>}</div>}</div>;
+  return (
+    <div className="input-group patient-picker">
+      <label htmlFor={id}>{label}</label>
+      <input type="hidden" name={name} value={selectedId} />
+      <input id={id} type="text" value={query} required={required} autoComplete="off" placeholder="Digite nome, telefone ou CPF" role="combobox" aria-expanded={open} aria-controls={`${name}-options`} onFocus={() => setOpen(true)} onChange={(event) => { setQuery(event.target.value); setSelectedId(""); setOpen(true); }} />
+      {open && query.trim().length >= 2 && <div className="patient-picker-options" id={`${name}-options`} role="listbox">{options.length ? options.slice(0, 8).map((patient) => <button type="button" role="option" key={patient.id} onMouseDown={(event) => event.preventDefault()} onClick={() => choose(patient)}><strong>{patient.name}</strong><small>{patient.phone ?? patient.cpf ?? ""}</small></button>) : <span className="patient-picker-empty">Nenhum paciente encontrado.</span>}</div>}
+    </div>
+  );
 }
 
 function DrawerForm({
@@ -1180,9 +1191,10 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
         <DrawerForm title="Novo plano" onSubmit={createPlan}>
           <h2>Novo plano</h2>
           <div className="form-row">
-            <label>
-              Período
+            <div className="input-group">
+              <label htmlFor="plan-period">Período</label>
               <select
+                id="plan-period"
                 name="period"
                 value={planPeriod}
                 onChange={(event) => setPlanPeriod(event.target.value as PlanPeriod)}
@@ -1191,10 +1203,11 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
                 <option value="quarterly">Trimestral</option>
                 <option value="semiannual">Semestral</option>
               </select>
-            </label>
-            <label>
-              Frequência
+            </div>
+            <div className="input-group">
+              <label htmlFor="plan-weekly-frequency">Frequência</label>
               <select
+                id="plan-weekly-frequency"
                 name="weekly_frequency"
                 value={weeklyFrequency}
                 onChange={(event) => setWeeklyFrequency(Number(event.target.value) as WeeklyFrequency)}
@@ -1203,16 +1216,16 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
                 <option value="2">2x por semana</option>
                 <option value="3">3x por semana</option>
               </select>
-            </label>
+            </div>
           </div>
           <div className="plan-summary" aria-live="polite">
             <strong>{planName}</strong>
             <span>{planSessions} sessões durante {selectedPeriod.months} {selectedPeriod.months === 1 ? "mês" : "meses"}</span>
           </div>
-          <label>
-            Preço do plano
-            <input name="price" type="number" min="0" step=".01" inputMode="decimal" required />
-          </label>
+          <div className="input-group">
+            <label htmlFor="plan-price">Preço do plano</label>
+            <input id="plan-price" name="price" type="number" min="0" step=".01" inputMode="decimal" required />
+          </div>
           <button className="btn primary">Criar plano</button>
         </DrawerForm>
         <DrawerForm title="Nova matrícula" onSubmit={enroll} openInitially={openEnrollment || Boolean(agendaContext)} onClose={onClearAgendaContext}>
@@ -1224,19 +1237,19 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
           {selectedPatient && <div className="agenda-context-summary" role="status"><strong>Paciente selecionado</strong><span>{selectedPatient.name}{selectedPatient.phone ? ` · ${selectedPatient.phone}` : ""}{selectedPatient.cpf ? ` · CPF ${selectedPatient.cpf}` : ""}</span></div>}
           {agendaContext ? <div className="agenda-context-summary" role="status"><input type="hidden" name="unit_id" value={agendaContext.unitId} /><input type="hidden" name="group_slot_id" value={agendaContext.groupSlotId} /><strong>{agendaContext.groupName ?? "Turma selecionada"}</strong><span>{agendaContext.unitName ?? "Unidade selecionada"} · horário escolhido na Agenda · {agendaContext.startsAt}</span><button type="button" onClick={onClearAgendaContext}>Trocar horário</button></div> : <div className="form-row"><Select name="unit_id" label="Unidade" rows={data["/units"] ?? []} /><Select name="group_slot_id" label="Turma (opcional)" rows={data["/group-slots"] ?? []} required={false} /></div>}
           <div className="form-row">
-            <label>
-              Início
-              <input name="starts_at" type="date" defaultValue={agendaContext?.startsAt} readOnly={Boolean(agendaContext)} required />
-            </label>
-            <label>
-              Dia do vencimento
-              <input name="due_day" type="number" min="1" max="31" required />
-            </label>
+            <div className="input-group">
+              <label htmlFor="enrollment-starts-at">Início</label>
+              <input id="enrollment-starts-at" name="starts_at" type="date" defaultValue={agendaContext?.startsAt} readOnly={Boolean(agendaContext)} required />
+            </div>
+            <div className="input-group">
+              <label htmlFor="enrollment-due-day">Dia do vencimento</label>
+              <input id="enrollment-due-day" name="due_day" type="number" min="1" max="31" required />
+            </div>
           </div>
-          <label>
-            Desconto
-            <input name="discount" type="number" step=".01" defaultValue="0" />
-          </label>
+          <div className="input-group">
+            <label htmlFor="enrollment-discount">Desconto</label>
+            <input id="enrollment-discount" name="discount" type="number" step=".01" defaultValue="0" />
+          </div>
           <button className="btn primary">Matricular</button>
         </DrawerForm>
       </div>
@@ -1250,19 +1263,19 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
             name: `${row.description} — ${brl(row.amount_cents - row.paid_cents)}`,
           }))}
         />
-        <label>
-          Valor
-          <input name="amount" type="number" step=".01" required />
-        </label>
-        <label>
-          Forma
-          <select name="method">
+        <div className="input-group">
+          <label htmlFor="payment-amount">Valor</label>
+          <input id="payment-amount" name="amount" type="number" step=".01" required />
+        </div>
+        <div className="input-group">
+          <label htmlFor="payment-method">Forma</label>
+          <select id="payment-method" name="method">
             <option value="pix">PIX</option>
             <option value="card">Cartão</option>
             <option value="cash">Dinheiro</option>
             <option value="transfer">Transferência</option>
           </select>
-        </label>
+        </div>
         <button className="btn primary">Receber</button>
       </form>
       <EditableOperationalTable

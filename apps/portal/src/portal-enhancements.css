@@ -103,6 +103,58 @@
   }
 }
 
+/* Campos acessíveis e previsíveis: um grupo semântico por controle. */
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+}
+
+.input-group > label {
+  display: block;
+  margin: 0;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.input-group > input:not([type="checkbox"]):not([type="radio"]),
+.input-group > select,
+.input-group > textarea {
+  box-sizing: border-box;
+  width: 100%;
+  height: 40px;
+  min-height: 40px;
+  margin: 0;
+}
+
+.input-group > textarea {
+  height: auto;
+  min-height: 80px;
+  resize: vertical;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  width: 100%;
+  align-items: start;
+}
+
+.input-group :focus-visible,
+.form-row :focus-visible {
+  outline: 3px solid var(--focus, #e8a83e);
+  outline-offset: 2px;
+}
+
+@media (max-width: 720px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Estrutura dos campos dos formulários de matrícula e agenda. */
 .creation-drawer-form .form-row,
 .modal-form .form-row {
