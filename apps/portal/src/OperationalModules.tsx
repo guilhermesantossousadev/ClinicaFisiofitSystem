@@ -433,17 +433,19 @@ function ModuleState({
 
 export type AgendaEnrollmentContext = { unitId: string; groupSlotId: string; startsAt: string; unitName?: string; groupName?: string };
 
-export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit = true }: { onOpenPatients?: () => void; onOpenEnrollment?: (context: AgendaEnrollmentContext) => void; canEdit?: boolean }) {
+export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit: _canEdit = true }: { onOpenPatients?: () => void; onOpenEnrollment?: (context: AgendaEnrollmentContext) => void; canEdit?: boolean }) {
   const [fromDate, setFromDate] = useState(() =>
     new Date().toISOString().slice(0, 10),
   );
-  const [rangeDays, setRangeDays] = useState(7);
+  const [rangeDays] = useState(31);
   const range = useMemo(() => {
-    const start = new Date(`${fromDate}T00:00:00`);
-    const end = new Date(start);
-    end.setDate(end.getDate() + rangeDays);
+    const selected = new Date(`${fromDate}T00:00:00`);
+    const start = new Date(selected.getFullYear(), selected.getMonth(), 1);
+    start.setDate(start.getDate() - start.getDay());
+    const end = new Date(selected.getFullYear(), selected.getMonth() + 1, 0);
+    end.setDate(end.getDate() + (6 - end.getDay()) + 1);
     return { from: start.toISOString(), to: end.toISOString() };
-  }, [fromDate, rangeDays]);
+  }, [fromDate]);
   const paths = [
     `/appointments?from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`,
     "/units",
@@ -460,7 +462,6 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit = 
   const [groupMembers, setGroupMembers] = useState<Row[]>([]);
   const [notice, setNotice] = useState("");
   const [calendarAppointment, setCalendarAppointment] = useState<Row | null | undefined>(undefined);
-  const [selectedGroupCell, setSelectedGroupCell] = useState<{ slot: Row; day: Date; members: Row[]; unitName: string } | null>(null);
   const [selectedUnitId, setSelectedUnitId] = useState(() => window.localStorage.getItem("fisiofit:selected-unit") ?? "");
   const [selectedGroupWeekdays, setSelectedGroupWeekdays] = useState<number[]>([1, 3]);
   const [groupTime, setGroupTime] = useState("09:00");
@@ -480,13 +481,18 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit = 
   );
   const groupName = `${selectedDayNames.join(" e ")} às ${groupTime}`;
   const calendarDays = useMemo(() => {
-    const start = new Date(`${fromDate}T00:00:00`);
-    return Array.from({ length: rangeDays }, (_, index) => {
+    const selected = new Date(`${fromDate}T00:00:00`);
+    const start = new Date(selected.getFullYear(), selected.getMonth(), 1);
+    start.setDate(start.getDate() - start.getDay());
+    const last = new Date(selected.getFullYear(), selected.getMonth() + 1, 0);
+    const total = last.getDate() + last.getDay() + (6 - last.getDay());
+    return Array.from({ length: total }, (_, index) => {
       const day = new Date(start);
       day.setDate(start.getDate() + index);
       return day;
     });
-  }, [fromDate, rangeDays]);
+  }, [fromDate]);
+  const monthLabel = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(new Date(`${fromDate}T00:00:00`));
   const fixedSlots: Row[] = data["/group-slots"] ?? [];
   const units: Unit[] = data["/units"] ?? [];
   const visibleUnits = selectedUnitId ? units.filter((unit) => unit.id === selectedUnitId) : [];
@@ -509,6 +515,12 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit = 
       && (slot.weekdays ?? []).includes(day.getDay())
       && slot.active !== false;
   });
+  const slotsForDay = (unitId: string, day: Date) => fixedSlots.filter((slot) => {
+    const currentDate = dateKey(day);
+    const startsOn = slot.starts_on ? String(slot.starts_on).slice(0, 10) : "0000-01-01";
+    const endsOn = slot.ends_on ? String(slot.ends_on).slice(0, 10) : "9999-12-31";
+    return slot.unit_id === unitId && currentDate >= startsOn && currentDate <= endsOn && (slot.weekdays ?? []).includes(day.getDay()) && slot.active !== false;
+  }).sort((a, b) => String(a.starts_at).localeCompare(String(b.starts_at)));
 
   async function createAppointment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -634,21 +646,6 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit = 
     } catch (actionError) { setNotice(messageOf(actionError)); }
   }
 
-  async function removeGroupMember(id: string) {
-    if (!window.confirm("Retirar este aluno da turma? A matrícula será preservada.")) return;
-    try { await api(`/group-slot-memberships/${id}`, { method: "DELETE" }); setNotice("Paciente removido da turma."); setSelectedGroupCell(null); await reload(); }
-    catch (actionError) { setNotice(messageOf(actionError)); }
-  }
-
-  async function updateGroupMember(id: string, form: FormData) {
-    try {
-      await api(`/group-slot-memberships/${id}`, { method: "PATCH", body: JSON.stringify({ starts_at: value(form, "starts_at"), ends_at: value(form, "ends_at") || undefined }) });
-      setNotice("Período do aluno atualizado.");
-      setSelectedGroupCell(null);
-      await reload();
-    } catch (actionError) { setNotice(messageOf(actionError)); }
-  }
-
   return (
     <div className="content">
       <div className="page-title">
@@ -705,11 +702,9 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit = 
                       const starts = new Date(row.starts_at);
                       return row.unit_id === unit.id && dateKey(starts) === dateKey(day) && starts.getHours() === hour;
                     });
-                    return <button type="button" className={`fixed-calendar-cell calendar-slot-button${!isWeekday ? " is-weekend" : ""}`} key={`${dateLabel(day)}-${hour}`} onClick={() => { if (slot && !appointment) setSelectedGroupCell({ slot, day, members, unitName: unit.name }); else openCalendarSlot(day, hour, unit.id); }} aria-label={`${dateLabel(day)} às ${String(day.getHours() || hour).padStart(2, "0")}:00${slot && !appointment ? `, turma ${slot.name}, ${members.length} de ${slot.capacity ?? 7} vagas ocupadas` : appointment ? `, ${appointment.patients?.name ?? "agendamento"}` : ", horário livre"}`}>
+                    return <button type="button" className={`fixed-calendar-cell calendar-slot-button${!isWeekday ? " is-weekend" : ""}`} key={`${dateLabel(day)}-${hour}`} onClick={() => { if (slot && !appointment && onOpenEnrollment) onOpenEnrollment({ unitId: unit.id, groupSlotId: slot.id, startsAt: dateKey(day), unitName: unit.name, groupName: slot.name }); else openCalendarSlot(day, hour, unit.id); }} aria-label={`${dateLabel(day)} às ${String(hour).padStart(2, "0")}:00${slot && !appointment ? ", adicionar paciente e criar matrícula" : appointment ? `, ${appointment.patients?.name ?? "agendamento"}` : ", horário livre"}`}>
                       {appointment ? <><strong className="calendar-appointment-name">{appointment.patients?.name ?? "Bloqueio"}</strong><span>{appointment.services?.name ?? "Atendimento"}</span><small>{appointment.status ?? "Agendado"} · editar</small></> : <>
                       {slot ? <>
-                        <small className="calendar-slot-unit">{unit.name}</small>
-                        <strong>{slot.name}</strong>
                         <strong>{members.length}/{slot.capacity ?? 7} vagas</strong>
                         {members.slice(0, 3).map((member) => <span key={member.id}>{member.patients?.name ?? "Paciente"}</span>)}
                         {members.length > 3 && <small>+{members.length - 3} pacientes</small>}
@@ -726,22 +721,6 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit = 
         {units.length > 0 && !selectedUnitId && <p className="empty-state">Selecione uma unidade no filtro superior para visualizar a agenda.</p>}
         {selectedUnitId && !visibleUnits.length && <p className="empty-state">A unidade selecionada não está disponível para este usuário.</p>}
       </section>
-      {selectedGroupCell && (
-        <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedGroupCell(null); }}>
-          <section className="modal group-members-drawer" role="dialog" aria-modal="true" aria-labelledby="group-members-title">
-            <div className="modal-head">
-              <div><p className="eyebrow">TURMA · {selectedGroupCell.unitName}</p><h2 id="group-members-title">{selectedGroupCell.slot.name}</h2><span className="group-members-drawer-meta">{dateLabel(selectedGroupCell.day)} · {String(selectedGroupCell.slot.starts_at).slice(0, 5)} · {selectedGroupCell.members.length}/{selectedGroupCell.slot.capacity ?? 7} vagas</span></div>
-              <button type="button" onClick={() => setSelectedGroupCell(null)} aria-label="Fechar alunos da turma">×</button>
-            </div>
-            <div className="group-members-drawer-body">
-              {selectedGroupCell.members.length >= Number(selectedGroupCell.slot.capacity ?? 7) && <div className="capacity-alert" role="status"><strong>Turma lotada</strong><span>Não há vagas disponíveis para cadastrar mais pessoas.</span></div>}
-              <h3>Alunos inscritos</h3>
-              {selectedGroupCell.members.length ? <ul className="group-members-drawer-list">{selectedGroupCell.members.map((member) => <li key={member.id}><div><span>{member.patients?.name ?? "Paciente"}</span><small>{member.patients?.phone ?? ""}</small></div><div className="group-member-actions">{canEdit && <button type="button" onClick={() => { const form = document.getElementById(`member-edit-${member.id}`); form?.toggleAttribute("hidden"); }}>Editar</button>}{canEdit && <button type="button" className="action-delete" onClick={() => void removeGroupMember(member.id)}>Retirar</button>}</div>{canEdit && <form id={`member-edit-${member.id}`} className="group-member-inline-edit" hidden onSubmit={(event) => { event.preventDefault(); void updateGroupMember(member.id, new FormData(event.currentTarget)); }}><label>Início<input name="starts_at" type="date" defaultValue={String(member.starts_at ?? "").slice(0, 10)} required /></label><label>Fim<input name="ends_at" type="date" defaultValue={member.ends_at ? String(member.ends_at).slice(0, 10) : ""} /></label><button className="btn secondary">Salvar período</button></form>}</li>)}</ul> : <p className="empty-state">Nenhum aluno inscrito nesta turma.</p>}
-              {canEdit && <button type="button" className="btn primary group-members-add" disabled={selectedGroupCell.members.length >= Number(selectedGroupCell.slot.capacity ?? 7)} onClick={() => { onOpenEnrollment?.({ unitId: selectedGroupCell.slot.unit_id, groupSlotId: selectedGroupCell.slot.id, startsAt: dateKey(selectedGroupCell.day), unitName: selectedGroupCell.unitName, groupName: selectedGroupCell.slot.name }); setSelectedGroupCell(null); }}>Cadastrar mais pessoas</button>}
-            </div>
-          </section>
-        </div>
-      )}
       {calendarAppointment !== undefined && (
         <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setCalendarAppointment(undefined); }}>
           <section className="modal calendar-edit-modal" role="dialog" aria-modal="true" aria-labelledby="calendar-edit-title">
@@ -1567,6 +1546,7 @@ export function OperationalRecords() {
   const [records, setRecords] = useState<Row[]>([]);
   const [attachments, setAttachments] = useState<Row[]>([]);
   const [notice, setNotice] = useState("");
+  const [draftKind, setDraftKind] = useState<"assessment" | "evolution">("assessment");
   const loadRecords = useCallback(async (id: string) => {
     setPatientId(id);
     if (!id) return setRecords([]);
@@ -1612,6 +1592,15 @@ export function OperationalRecords() {
           payload: {
             text: value(form, "text"),
             measures: value(form, "measures"),
+            complaint: value(form, "complaint"),
+            current_history: value(form, "current_history"),
+            previous_history: value(form, "previous_history"),
+            exam: value(form, "exam"),
+            exam_detail: value(form, "exam_detail"),
+            conduct: value(form, "conduct"),
+            goals: value(form, "goals"),
+            exercises: Array.from(form.getAll("exercise")).map(String),
+            observations: value(form, "observations"),
           },
         }),
       });
@@ -1659,7 +1648,7 @@ export function OperationalRecords() {
             Registros assinados são imutáveis; correções geram retificações.
           </p>
         </div>
-        <Select name="patient" label="Paciente" rows={patients} />
+        <div className="record-header-note"><span>Fluxo clínico</span><strong>Avaliação inicial + evoluções</strong></div>
       </div>
       <label className="card record-selector">
         Paciente
@@ -1683,13 +1672,9 @@ export function OperationalRecords() {
         <DrawerForm title="Novo registro" onSubmit={createRecord}>
           <h2>Novo registro</h2>
           <div className="form-row">
-            <label>
-              Tipo
-              <select name="kind">
-                <option value="assessment">Avaliação</option>
-                <option value="evolution">Evolução</option>
-              </select>
-            </label>
+            <label>Tipo de registro<select name="kind" value={draftKind} onChange={(event) => setDraftKind(event.target.value as "assessment" | "evolution")}>
+              <option value="assessment">Avaliação inicial</option><option value="evolution">Evolução</option>
+            </select></label>
             <Select
               name="template_id"
               label="Modelo (opcional)"
@@ -1709,19 +1694,27 @@ export function OperationalRecords() {
               rows={data["/units"] ?? []}
             />
           </div>
-          <label>
-            Descrição
-            <textarea name="text" rows={6} required />
-          </label>
-          <label>
-            Medidas/escalas
-            <textarea name="measures" rows={2} />
-          </label>
+          {draftKind === "assessment" ? <>
+            <fieldset className="clinical-fieldset"><legend>Dados da avaliação</legend>
+              <div className="form-row"><label>Diagnóstico clínico<textarea name="text" rows={2} /></label><label>Queixa principal<textarea name="complaint" rows={2} required /></label></div>
+              <label>História da moléstia atual<textarea name="current_history" rows={3} /></label>
+              <label>História pregressa<textarea name="previous_history" rows={3} /></label>
+              <div className="form-row"><label>Peso / altura / sinais vitais<input name="measures" placeholder="Peso · Altura · PA · FC · FR" /></label><label>Encurtamentos<textarea name="exam" rows={2} /></label></div>
+              <label>Força muscular e exame físico<textarea name="exam_detail" rows={3} /></label>
+              <label>Conduta inicial<textarea name="conduct" rows={3} /></label>
+            </fieldset>
+          </> : <>
+            <fieldset className="clinical-fieldset"><legend>Evolução da sessão</legend>
+              <label>Observações clínicas<textarea name="text" rows={3} required placeholder="Como o paciente chegou, queixas e resposta ao atendimento…" /></label>
+              <div className="exercise-grid" aria-label="Focos trabalhados"><span>Foco da sessão</span>{["Alongamento", "Fortalecimento", "Mobilidade", "Ex. postural", "Equilíbrio", "Outro"].map((item) => <label key={item}><input type="checkbox" name="exercise" value={item} />{item}</label>)}</div>
+              <label>Observações e conduta<textarea name="observations" rows={4} placeholder="Descreva exercícios, orientações e próximos passos…" /></label>
+            </fieldset>
+          </>}
           <button className="btn primary">Salvar rascunho</button>
         </DrawerForm>
       )}
       {patientId && <section className="card table-card">
-        <div className="table-toolbar"><h2>Anexos do paciente</h2><label className="btn secondary">Adicionar arquivo<input className="sr-only" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={uploadAttachment} /></label></div>
+        <div className="table-toolbar"><h2>Anexos do paciente</h2><label className="btn secondary">Adicionar arquivo<input className="sr-only" type="file" accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif" onChange={uploadAttachment} /></label></div>
         {attachments.map((file) => <div className="operational-row" key={file.id}><div><strong>{file.filename}</strong><small>{file.content_type} · {Math.round(file.size_bytes / 1024)} KB</small></div></div>)}
         {!attachments.length && <div className="empty-state">Nenhum anexo.</div>}
       </section>}
@@ -1732,11 +1725,10 @@ export function OperationalRecords() {
           <div className="operational-row" key={row.id}>
             <div>
               <strong>
-                {row.kind} · {row.status}
+                {row.kind === "assessment" ? "Avaliação inicial" : "Evolução"} · {row.status === "draft" ? "Rascunho" : row.status === "signed" ? "Assinado" : row.status}
               </strong>
               <small>
-                {new Date(row.created_at).toLocaleString("pt-BR")} ·{" "}
-                {JSON.stringify(row.payload)}
+                {new Date(row.created_at).toLocaleString("pt-BR")} · {row.payload?.complaint || row.payload?.text || "Sem descrição"}
               </small>
             </div>
             <div className="row-actions">
