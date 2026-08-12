@@ -1339,6 +1339,10 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
       total_plan_cents: Math.max(planPrice - discount + surcharge, 0),
     };
   });
+  const planRows = (data["/plans"] ?? []).map((row: Row) => ({
+    ...row,
+    total_plan_cents: Number(row.price_cents ?? 0),
+  }));
   return (
     <div className="content">
       <div className="page-title">
@@ -1467,8 +1471,8 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
       <EditableOperationalTable
         title="Planos"
         resource="plans"
-        rows={data["/plans"] ?? []}
-        fields={["name", "kind", "sessions_included", "duration_days", "price_cents", "active"]}
+        rows={planRows}
+        fields={["name", "kind", "sessions_included", "duration_days", "price_cents", "total_plan_cents", "active"]}
         editFields={[
           { name: "name", label: "Nome", required: true },
           { name: "sessions_included", label: "Sessões incluídas", type: "number", min: 1 },
