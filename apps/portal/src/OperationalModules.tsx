@@ -122,9 +122,9 @@ function Select({
   defaultValue?: string;
 }) {
   return (
-    <label>
-      {label}
-      <select name={name} required={required} defaultValue={defaultValue ?? ""}>
+    <div className="input-group">
+      <label htmlFor={`${name}-field`}>{label}</label>
+      <select id={`${name}-field`} name={name} required={required} defaultValue={defaultValue ?? ""}>
         <option value="">Selecione</option>
         {rows.map((row) => (
           <option key={row.id} value={row.id}>
@@ -132,7 +132,7 @@ function Select({
           </option>
         ))}
       </select>
-    </label>
+    </div>
   );
 }
 
@@ -174,7 +174,7 @@ function PatientPicker({
     setOpen(false);
     onSelect?.(patient);
   };
-  return <label className="patient-picker">{label}<input type="hidden" name={name} value={selectedId} /><input type="text" value={query} required={required} autoComplete="off" placeholder="Digite nome, telefone ou CPF" role="combobox" aria-expanded={open} aria-controls={`${name}-options`} onFocus={() => setOpen(true)} onChange={(event) => { setQuery(event.target.value); setSelectedId(""); setOpen(true); }} />{open && query.trim().length >= 2 && <div className="patient-picker-options" id={`${name}-options`} role="listbox">{options.length ? options.slice(0, 8).map((patient) => <button type="button" role="option" key={patient.id} onMouseDown={(event) => event.preventDefault()} onClick={() => choose(patient)}><strong>{patient.name}</strong><small>{patient.phone ?? patient.cpf ?? ""}</small></button>) : <span className="patient-picker-empty">Nenhum paciente encontrado.</span>}</div>}</label>;
+  return <div className="input-group patient-picker"><label htmlFor={`${name}-field`}>{label}</label><input type="hidden" name={name} value={selectedId} /><input id={`${name}-field`} type="text" value={query} required={required} autoComplete="off" placeholder="Digite nome, telefone ou CPF" role="combobox" aria-expanded={open} aria-controls={`${name}-options`} onFocus={() => setOpen(true)} onChange={(event) => { setQuery(event.target.value); setSelectedId(""); setOpen(true); }} />{open && query.trim().length >= 2 && <div className="patient-picker-options" id={`${name}-options`} role="listbox">{options.length ? options.slice(0, 8).map((patient) => <button type="button" role="option" key={patient.id} onMouseDown={(event) => event.preventDefault()} onClick={() => choose(patient)}><strong>{patient.name}</strong><small>{patient.phone ?? patient.cpf ?? ""}</small></button>) : <span className="patient-picker-empty">Nenhum paciente encontrado.</span>}</div>}</div>;
 }
 
 function DrawerForm({
@@ -572,20 +572,20 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment }: { onOpen
                 rows={data["/rooms"] ?? []}
                 required={false}
               />
-              <label>
-                Início *
-                <input name="starts_at" type="datetime-local" required />
-              </label>
+              <div className="input-group">
+                <label htmlFor="appointment-starts-at">Início *</label>
+                <input id="appointment-starts-at" name="starts_at" type="datetime-local" required />
+              </div>
             </div>
             <div className="form-row">
-              <label>
-                Término *
-                <input name="ends_at" type="datetime-local" required />
-              </label>
-              <label>
-                Observações
-                <input name="notes" />
-              </label>
+              <div className="input-group">
+                <label htmlFor="appointment-ends-at">Término *</label>
+                <input id="appointment-ends-at" name="ends_at" type="datetime-local" required />
+              </div>
+              <div className="input-group">
+                <label htmlFor="appointment-notes">Observações</label>
+                <input id="appointment-notes" name="notes" />
+              </div>
             </div>
           </fieldset>
           <button className="btn primary">Agendar</button>
@@ -619,14 +619,14 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment }: { onOpen
           <fieldset>
             <legend>Frequência e horário</legend>
             <div className="form-row">
-              <label>
-                Dias por semana
+              <div className="input-group">
+                <label>Dias por semana</label>
                 <strong className="field-hint">{selectedGroupWeekdays.length} selecionado(s)</strong>
-              </label>
-              <label>
-                Horário fixo *
-                <input name="starts_at" type="time" value={groupTime} onChange={(event) => setGroupTime(event.target.value)} required />
-              </label>
+              </div>
+              <div className="input-group">
+                <label htmlFor="group-starts-at">Horário fixo *</label>
+                <input id="group-starts-at" name="starts_at" type="time" value={groupTime} onChange={(event) => setGroupTime(event.target.value)} required />
+              </div>
             </div>
             <div className="weekday-picker" aria-label="Dias da semana da turma">
               {WEEKDAYS.map((day) => (
@@ -642,10 +642,10 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment }: { onOpen
                 </label>
               ))}
             </div>
-            <label>
-              Duração de cada aula (minutos) *
-              <input name="duration_minutes" type="number" min="15" max="240" defaultValue="50" required />
-            </label>
+            <div className="input-group">
+              <label htmlFor="group-duration-minutes">Duração de cada aula (minutos) *</label>
+              <input id="group-duration-minutes" name="duration_minutes" type="number" min="15" max="240" defaultValue="50" required />
+            </div>
           </fieldset>
           <div className="plan-summary" aria-live="polite">
             <strong>{groupName}</strong>
