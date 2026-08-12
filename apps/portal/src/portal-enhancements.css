@@ -103,6 +103,41 @@
   }
 }
 
+/* Correção estrutural: o asterisco obrigatório é um nó separado dentro do label.
+   Labels em grid colocam esse nó em uma linha própria; bloco mantém rótulo e * juntos. */
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) > label,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) .form-row > label,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) fieldset label {
+  display: block;
+  min-width: 0;
+  margin: 0;
+  line-height: 1.35;
+}
+
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) > label > input,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) > label > select,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) > label > textarea,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) .form-row > label > input,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) .form-row > label > select,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) .form-row > label > textarea {
+  margin-top: 8px;
+}
+
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) fieldset .weekday-checks label,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) label:has(> input[type="checkbox"]),
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) label:has(> input[type="radio"]) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin: 0;
+}
+
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) label:has(> input[type="checkbox"]) input,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) label:has(> input[type="radio"]) input {
+  margin: 0;
+}
+
 .global-results button {
   display: grid;
   width: 100%;
