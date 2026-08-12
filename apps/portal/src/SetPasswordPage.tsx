@@ -83,28 +83,34 @@ export default function SetPasswordPage() {
         <p className="eyebrow">PRIMEIRO ACESSO</p>
         <h2>Crie sua senha</h2>
         <p>Use pelo menos 10 caracteres. Recomendamos letras, números e símbolos.</p>
-        <label>
-          Nova senha
-          <input
-            type="password"
-            autoComplete="new-password"
-            minLength={10}
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            required
-          />
-        </label>
-        <label>
-          Confirmar senha
-          <input
-            type="password"
-            autoComplete="new-password"
-            minLength={10}
-            value={confirmation}
-            onChange={(event) => setConfirmation(event.target.value)}
-            required
-          />
-        </label>
+        <div className="form-field-group">
+          <label className="form-field-label">
+            <span>Nova senha</span>
+            <input
+              type="password"
+              autoComplete="new-password"
+              minLength={10}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Mínimo 10 caracteres"
+              required
+            />
+          </label>
+        </div>
+        <div className="form-field-group">
+          <label className="form-field-label">
+            <span>Confirmar senha</span>
+            <input
+              type="password"
+              autoComplete="new-password"
+              minLength={10}
+              value={confirmation}
+              onChange={(event) => setConfirmation(event.target.value)}
+              placeholder="Digite exatamente a mesma senha"
+              required
+            />
+          </label>
+        </div>
         {error && <div className="login-error" role="alert">{error}</div>}
         <button
           type="submit"
