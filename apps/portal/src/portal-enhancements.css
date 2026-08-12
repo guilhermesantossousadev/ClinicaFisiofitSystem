@@ -1819,13 +1819,16 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 :where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) > label,
 :where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) .form-row > label,
 :where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) fieldset label {
-  display: grid;
-  grid-template-rows: auto minmax(52px, auto);
-  align-content: start;
-  align-items: start;
-  gap: 8px;
+  display: block;
+  line-height: 1.35;
   min-width: 0;
   margin: 0;
+}
+
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) .required-mark {
+  display: inline !important;
+  margin-inline-start: 4px;
+  white-space: nowrap;
 }
 
 :where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) .form-row {
@@ -1857,7 +1860,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   min-width: 0;
   min-height: 52px;
   height: 52px;
-  margin: 0;
+  margin: 6px 0 0;
   padding: 13px 16px;
   border-radius: var(--form-control-radius);
   line-height: 1.4;
