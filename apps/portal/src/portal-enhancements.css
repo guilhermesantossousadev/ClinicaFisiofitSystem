@@ -12,6 +12,97 @@
   box-shadow: 0 16px 36px rgb(16 38 58 / 16%);
 }
 
+/* Contrato final de alinhamento: todos os formulários usam a mesma régua visual. */
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form, .login-card, .mfa-card, .group-member-form) {
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) {
+  align-items: stretch;
+}
+
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) > label,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) .form-row > label,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) fieldset label {
+  display: grid;
+  grid-template-rows: auto minmax(52px, auto);
+  align-content: start;
+  align-items: start;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+}
+
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) label > span {
+  min-height: 21px;
+}
+
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) .form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 20px;
+  width: 100%;
+  min-width: 0;
+  margin: 0 0 20px;
+}
+
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) > label,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) > fieldset,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) > .check,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) > .form-instructions {
+  width: 100%;
+  min-width: 0;
+  margin-block: 0 20px;
+}
+
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) input:not([type="checkbox"]):not([type="radio"]),
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) select,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) textarea,
+:where(.login-card, .mfa-card) input:not([type="checkbox"]):not([type="radio"]) {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 52px;
+  height: 52px;
+  margin: 0;
+  padding: 13px 16px;
+  border: 1px solid var(--form-control-border);
+  border-radius: var(--form-control-radius);
+  line-height: 1.4;
+}
+
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) textarea {
+  height: auto;
+  min-height: 120px;
+  resize: vertical;
+}
+
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) fieldset {
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
+}
+
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) .btn,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) .modal-actions,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) .edit-dialog-actions {
+  margin-top: 0;
+}
+
+.login-card, .mfa-card { gap: 22px; }
+.login-card label, .mfa-card .form-field-label { gap: 8px; margin: 0; }
+.login-card input, .mfa-card input { height: 52px; margin: 0; }
+
+@media (max-width: 640px) {
+  :where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) .form-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+}
+
 .global-results button {
   display: grid;
   width: 100%;
@@ -1687,4 +1778,69 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .group-member-form fieldset { grid-template-columns: 1fr; }
   .group-member-form legend, .group-member-form small { grid-column: auto; }
   .group-member-form .btn { width: 100%; }
+}
+
+/* Override final: uma única régua para todos os campos e linhas de formulário. */
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) > label,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) .form-row > label,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) fieldset label {
+  display: grid;
+  grid-template-rows: auto minmax(52px, auto);
+  align-content: start;
+  align-items: start;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+}
+
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) .form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 20px;
+  width: 100%;
+  min-width: 0;
+  margin: 0 0 20px;
+}
+
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) > label,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) > fieldset,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) > .check,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) > .form-instructions {
+  width: 100%;
+  min-width: 0;
+  margin-block: 0 20px;
+}
+
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) input:not([type="checkbox"]):not([type="radio"]),
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) select,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) textarea,
+:where(.login-card, .mfa-card) input:not([type="checkbox"]):not([type="radio"]) {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 52px;
+  height: 52px;
+  margin: 0;
+  padding: 13px 16px;
+  border-radius: var(--form-control-radius);
+  line-height: 1.4;
+}
+
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) textarea {
+  height: auto;
+  min-height: 120px;
+  resize: vertical;
+}
+
+.login-card, .mfa-card { gap: 22px; }
+.login-card label, .mfa-card .form-field-label { gap: 8px; margin: 0; }
+.login-card input, .mfa-card input { height: 52px; margin: 0; }
+
+@media (max-width: 640px) {
+  :where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) .form-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
 }
