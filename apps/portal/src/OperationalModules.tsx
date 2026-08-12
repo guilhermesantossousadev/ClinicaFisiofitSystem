@@ -632,12 +632,6 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit: _
             Conflitos de profissional, sala e capacidade são validados pela API.
           </p>
         </div>
-        <div className="calendar-month-controls" aria-label="Navegação do calendário">
-          <button type="button" className="btn secondary" aria-label="Semana anterior" onClick={() => { const date = new Date(`${fromDate}T00:00:00`); date.setDate(date.getDate() - 7); setFromDate(date.toISOString().slice(0, 10)); }}>‹</button>
-          <strong>{weekLabel}</strong>
-          <button type="button" className="btn secondary" aria-label="Próxima semana" onClick={() => { const date = new Date(`${fromDate}T00:00:00`); date.setDate(date.getDate() + 7); setFromDate(date.toISOString().slice(0, 10)); }}>›</button>
-          <button type="button" className="btn secondary" onClick={() => setFromDate(new Date().toISOString().slice(0, 10))}>Hoje</button>
-        </div>
       </div>
       {notice && (
         <div className="toast" role="status" aria-live="polite">
@@ -649,7 +643,15 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit: _
       <section className="card fixed-calendar month-calendar" aria-label="Calendário semanal de horários fixos">
         <div className="table-toolbar fixed-calendar-toolbar">
           <div><p className="eyebrow">CALENDÁRIO SEMANAL</p><h2>Horários por unidade</h2></div>
-          <span>{visibleUnits[0]?.name ?? "Selecione uma unidade"}</span>
+          <div className="fixed-calendar-toolbar-actions">
+            <span>{visibleUnits[0]?.name ?? "Selecione uma unidade"}</span>
+            <div className="calendar-month-controls" aria-label="Navegação do calendário">
+              <button type="button" className="btn secondary" aria-label="Semana anterior" onClick={() => { const date = new Date(`${fromDate}T00:00:00`); date.setDate(date.getDate() - 7); setFromDate(date.toISOString().slice(0, 10)); }}>‹</button>
+              <strong>{weekLabel}</strong>
+              <button type="button" className="btn secondary" aria-label="Próxima semana" onClick={() => { const date = new Date(`${fromDate}T00:00:00`); date.setDate(date.getDate() + 7); setFromDate(date.toISOString().slice(0, 10)); }}>›</button>
+              <button type="button" className="btn secondary" onClick={() => setFromDate(new Date().toISOString().slice(0, 10))}>Hoje</button>
+            </div>
+          </div>
         </div>
         {visibleUnits.map((unit) => (
           <div className="fixed-calendar-unit" key={unit.id}>

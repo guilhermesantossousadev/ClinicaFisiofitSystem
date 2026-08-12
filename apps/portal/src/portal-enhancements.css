@@ -1352,6 +1352,8 @@ body { background: var(--canvas); }
 .group-allocation-panel { margin-top: 20px; }
 .fixed-calendar { margin: 20px 0; overflow: hidden; }
 .fixed-calendar-toolbar { padding: 18px 20px; border-bottom: 1px solid var(--line); }
+.fixed-calendar-toolbar-actions { display: flex; align-items: center; gap: 18px; }
+.fixed-calendar-toolbar-actions > span { color: var(--ink); font-size: 15px; font-weight: 700; }
 .fixed-calendar-unit { border-bottom: 1px solid var(--line); }
 .fixed-calendar-unit:last-child { border-bottom: 0; }
 .fixed-calendar-unit-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px 10px; }
