@@ -74,12 +74,6 @@ function dateKey(date: Date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-function dateLabel(date: Date) {
-  return new Intl.DateTimeFormat("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" })
-    .format(date)
-    .replace(".", "");
-}
-
 const resourceCache = new Map<string, Record<string, any>>();
 
 function useResources(paths: string[]) {
@@ -496,24 +490,12 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit: _
   const fixedSlots: Row[] = data["/group-slots"] ?? [];
   const units: Unit[] = data["/units"] ?? [];
   const visibleUnits = selectedUnitId ? units.filter((unit) => unit.id === selectedUnitId) : [];
-  const calendarHours = Array.from({ length: 15 }, (_, index) => index + 6);
   const membersForSlot = (slotId: string, date: Date) => groupMembers.filter((member) => {
     if (member.group_slot_id !== slotId || member.status !== "active") return false;
     const start = String(member.starts_at ?? "").slice(0, 10);
     const end = member.ends_at ? String(member.ends_at).slice(0, 10) : "9999-12-31";
     const current = dateKey(date);
     return current >= start && current <= end;
-  });
-  const slotFor = (unitId: string, day: Date, hour: number) => fixedSlots.find((slot) => {
-    const currentDate = dateKey(day);
-    const startsOn = slot.starts_on ? String(slot.starts_on).slice(0, 10) : "0000-01-01";
-    const endsOn = slot.ends_on ? String(slot.ends_on).slice(0, 10) : "9999-12-31";
-    return slot.unit_id === unitId
-      && currentDate >= startsOn
-      && currentDate <= endsOn
-      && Number(String(slot.starts_at).slice(0, 2)) === hour
-      && (slot.weekdays ?? []).includes(day.getDay())
-      && slot.active !== false;
   });
   const slotsForDay = (unitId: string, day: Date) => fixedSlots.filter((slot) => {
     const currentDate = dateKey(day);
@@ -571,21 +553,6 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit: _
       await reload();
     } catch (actionError) { setNotice(messageOf(actionError)); }
   }
-
-  const openCalendarSlot = (day: Date, hour: number, unitId: string) => {
-    const appointment = appointments.find((row) => {
-      const starts = new Date(row.starts_at);
-      return row.unit_id === unitId && dateKey(starts) === dateKey(day) && starts.getHours() === hour;
-    });
-    if (appointment) setCalendarAppointment(appointment);
-    else {
-      const start = new Date(day);
-      start.setHours(hour, 0, 0, 0);
-      const end = new Date(start);
-      end.setMinutes(end.getMinutes() + 50);
-      setCalendarAppointment({ unit_id: unitId, starts_at: start.toISOString(), ends_at: end.toISOString(), status: "scheduled" });
-    }
-  };
 
   async function createGroup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -646,6 +613,12 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit: _
     } catch (actionError) { setNotice(messageOf(actionError)); }
   }
 
+  async function removeGroupMember(id: string) {
+    if (!window.confirm("Retirar este aluno da turma? A matrícula será preservada.")) return;
+    try { await api(`/group-slot-memberships/${id}`, { method: "DELETE" }); setNotice("Paciente removido da turma."); await reload(); }
+    catch (actionError) { setNotice(messageOf(actionError)); }
+  }
+
   return (
     <div className="content">
       <div className="page-title">
@@ -656,22 +629,12 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit: _
             Conflitos de profissional, sala e capacidade são validados pela API.
           </p>
         </div>
-        <label>
-          Período da agenda
-          <input
-            type="date"
-            value={fromDate}
-            onChange={(e) => setFromDate(e.target.value)}
-          />
-          <select value={rangeDays} onChange={(event) => setRangeDays(Number(event.target.value))} aria-label="Quantidade de dias exibidos">
-            <option value={7}>7 dias</option><option value={14}>14 dias</option><option value={30}>30 dias</option>
-          </select>
-          <div className="agenda-range-actions">
-            <button type="button" className="btn secondary" onClick={() => { const date = new Date(`${fromDate}T00:00:00`); date.setDate(date.getDate() - rangeDays); setFromDate(date.toISOString().slice(0, 10)); }}>← Anterior</button>
-            <button type="button" className="btn secondary" onClick={() => setFromDate(new Date().toISOString().slice(0, 10))}>Hoje</button>
-            <button type="button" className="btn secondary" onClick={() => { const date = new Date(`${fromDate}T00:00:00`); date.setDate(date.getDate() + rangeDays); setFromDate(date.toISOString().slice(0, 10)); }}>Próximo →</button>
-          </div>
-        </label>
+        <div className="calendar-month-controls" aria-label="Navegação do calendário">
+          <button type="button" className="btn secondary" aria-label="Mês anterior" onClick={() => { const date = new Date(`${fromDate}T00:00:00`); date.setMonth(date.getMonth() - 1); setFromDate(date.toISOString().slice(0, 10)); }}>‹</button>
+          <strong>{monthLabel}</strong>
+          <button type="button" className="btn secondary" aria-label="Próximo mês" onClick={() => { const date = new Date(`${fromDate}T00:00:00`); date.setMonth(date.getMonth() + 1); setFromDate(date.toISOString().slice(0, 10)); }}>›</button>
+          <button type="button" className="btn secondary" onClick={() => setFromDate(new Date().toISOString().slice(0, 10))}>Hoje</button>
+        </div>
       </div>
       {notice && (
         <div className="toast" role="status" aria-live="polite">
@@ -680,39 +643,28 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit: _
         </div>
       )}
       <ModuleState loading={loading} error={error} retry={reload} />
-      <section className="card fixed-calendar" aria-label="Calendário semanal de horários fixos">
+      <section className="card fixed-calendar month-calendar" aria-label="Calendário mensal de horários fixos">
         <div className="table-toolbar fixed-calendar-toolbar">
-          <div><p className="eyebrow">CALENDÁRIO FIXO</p><h2>Horários por unidade</h2></div>
-          <span>{rangeDays} dias · 06:00–20:00 · segunda a sexta</span>
+          <div><p className="eyebrow">CALENDÁRIO MENSAL</p><h2>Horários por unidade</h2></div>
+          <span>{visibleUnits[0]?.name ?? "Selecione uma unidade"}</span>
         </div>
         {visibleUnits.map((unit) => (
           <div className="fixed-calendar-unit" key={unit.id}>
-            <div className="fixed-calendar-unit-head"><h3>{unit.name}</h3><span>{fixedSlots.filter((slot) => slot.unit_id === unit.id).length} horários fixos</span></div>
             <div className="fixed-calendar-scroll">
-              <div className="fixed-calendar-grid" style={{ "--calendar-days": Math.max(calendarDays.length, 1) } as CSSProperties}>
-                <div className="fixed-calendar-corner">Hora</div>
-                {calendarDays.map((day) => <div className="fixed-calendar-day-head" key={dateKey(day)}>{dateLabel(day)}</div>)}
-                {calendarHours.flatMap((hour) => [
-                  <div className="fixed-calendar-hour" key={`hour-${hour}`}>{String(hour).padStart(2, "0")}:00</div>,
-                  ...calendarDays.map((day) => {
-                    const slot = slotFor(unit.id, day, hour);
-                    const members = slot ? membersForSlot(slot.id, day) : [];
-                    const isWeekday = day.getDay() >= 1 && day.getDay() <= 5;
-                    const appointment = appointments.find((row) => {
-                      const starts = new Date(row.starts_at);
-                      return row.unit_id === unit.id && dateKey(starts) === dateKey(day) && starts.getHours() === hour;
-                    });
-                    return <button type="button" className={`fixed-calendar-cell calendar-slot-button${!isWeekday ? " is-weekend" : ""}`} key={`${dateLabel(day)}-${hour}`} onClick={() => { if (slot && !appointment && onOpenEnrollment) onOpenEnrollment({ unitId: unit.id, groupSlotId: slot.id, startsAt: dateKey(day), unitName: unit.name, groupName: slot.name }); else openCalendarSlot(day, hour, unit.id); }} aria-label={`${dateLabel(day)} às ${String(hour).padStart(2, "0")}:00${slot && !appointment ? ", adicionar paciente e criar matrícula" : appointment ? `, ${appointment.patients?.name ?? "agendamento"}` : ", horário livre"}`}>
-                      {appointment ? <><strong className="calendar-appointment-name">{appointment.patients?.name ?? "Bloqueio"}</strong><span>{appointment.services?.name ?? "Atendimento"}</span><small>{appointment.status ?? "Agendado"} · editar</small></> : <>
-                      {slot ? <>
-                        <strong>{members.length}/{slot.capacity ?? 7} vagas</strong>
-                        {members.slice(0, 3).map((member) => <span key={member.id}>{member.patients?.name ?? "Paciente"}</span>)}
-                        {members.length > 3 && <small>+{members.length - 3} pacientes</small>}
-                        {!members.length && <small>Horário livre</small>}
-                      </> : isWeekday ? <small className="fixed-calendar-missing">Não configurado</small> : null}</>}
-                    </button>;
-                  }),
-                ])}
+              <div className="month-calendar-grid">
+                {(["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"] as const).map((day) => <div className="month-calendar-weekday" key={day}>{day}</div>)}
+                {calendarDays.map((day) => {
+                  const inMonth = day.getMonth() === new Date(`${fromDate}T00:00:00`).getMonth();
+                  const dayAppointments = appointments.filter((row) => row.unit_id === unit.id && dateKey(new Date(row.starts_at)) === dateKey(day));
+                  const slots = slotsForDay(unit.id, day);
+                  return <div className={`month-calendar-day${inMonth ? "" : " is-outside"}${dateKey(day) === dateKey(new Date()) ? " is-today" : ""}`} key={dateKey(day)}>
+                    <div className="month-calendar-date">{day.getDate()}</div>
+                    <div className="month-calendar-items">
+                      {dayAppointments.map((appointment) => <button type="button" className="month-calendar-item appointment-item" key={appointment.id} onClick={() => setCalendarAppointment(appointment)}><strong>{String(new Date(appointment.starts_at).getHours()).padStart(2, "0")}:{String(new Date(appointment.starts_at).getMinutes()).padStart(2, "0")} · {appointment.patients?.name ?? "Bloqueio"}</strong><small>{appointment.services?.name ?? "Atendimento"}</small></button>)}
+                      {slots.map((slot) => { const members = membersForSlot(slot.id, day); return <button type="button" className="month-calendar-item group-item" key={slot.id} onClick={() => { if (onOpenEnrollment) onOpenEnrollment({ unitId: unit.id, groupSlotId: slot.id, startsAt: dateKey(day), unitName: unit.name, groupName: slot.name }); }} aria-label={`${slot.name}, ${members.length} de ${slot.capacity ?? 7} vagas`}><strong>{String(slot.starts_at).slice(0, 5)} · {slot.name}</strong><small>{members.length}/{slot.capacity ?? 7} vagas · {members.slice(0, 2).map((member) => member.patients?.name ?? "Paciente").join(", ") || "Horário livre"}</small></button>; })}
+                    </div>
+                  </div>;
+                })}
               </div>
             </div>
           </div>
