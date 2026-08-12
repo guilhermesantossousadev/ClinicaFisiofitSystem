@@ -460,6 +460,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment }: { onOpen
   const [groupMembers, setGroupMembers] = useState<Row[]>([]);
   const [notice, setNotice] = useState("");
   const [calendarAppointment, setCalendarAppointment] = useState<Row | null | undefined>(undefined);
+  const [selectedGroupCell, setSelectedGroupCell] = useState<{ slot: Row; day: Date; members: Row[]; unitName: string } | null>(null);
   const [selectedGroupWeekdays, setSelectedGroupWeekdays] = useState<number[]>([1, 3]);
   const [groupTime, setGroupTime] = useState("09:00");
   useEffect(() => {
@@ -687,9 +688,11 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment }: { onOpen
                       const starts = new Date(row.starts_at);
                       return row.unit_id === unit.id && dateKey(starts) === dateKey(day) && starts.getHours() === hour;
                     });
-                    return <button type="button" className={`fixed-calendar-cell calendar-slot-button${!isWeekday ? " is-weekend" : ""}`} key={`${dateLabel(day)}-${hour}`} onClick={() => { if (slot && !appointment && onOpenEnrollment) onOpenEnrollment({ unitId: unit.id, groupSlotId: slot.id, startsAt: dateKey(day), unitName: unit.name, groupName: slot.name }); else openCalendarSlot(day, hour, unit.id); }} aria-label={`${dateLabel(day)} às ${String(hour).padStart(2, "0")}:00${slot && !appointment ? ", adicionar paciente e criar matrícula" : appointment ? `, ${appointment.patients?.name ?? "agendamento"}` : ", horário livre"}`}>
+                    return <button type="button" className={`fixed-calendar-cell calendar-slot-button${!isWeekday ? " is-weekend" : ""}`} key={`${dateLabel(day)}-${hour}`} onClick={() => { if (slot && !appointment) setSelectedGroupCell({ slot, day, members, unitName: unit.name }); else openCalendarSlot(day, hour, unit.id); }} aria-label={`${dateLabel(day)} às ${String(day.getHours() || hour).padStart(2, "0")}:00${slot && !appointment ? `, turma ${slot.name}, ${members.length} de ${slot.capacity ?? 7} vagas ocupadas` : appointment ? `, ${appointment.patients?.name ?? "agendamento"}` : ", horário livre"}`}>
                       {appointment ? <><strong className="calendar-appointment-name">{appointment.patients?.name ?? "Bloqueio"}</strong><span>{appointment.services?.name ?? "Atendimento"}</span><small>{appointment.status ?? "Agendado"} · editar</small></> : <>
                       {slot ? <>
+                        <small className="calendar-slot-unit">{unit.name}</small>
+                        <strong>{slot.name}</strong>
                         <strong>{members.length}/{slot.capacity ?? 7} vagas</strong>
                         {members.slice(0, 3).map((member) => <span key={member.id}>{member.patients?.name ?? "Paciente"}</span>)}
                         {members.length > 3 && <small>+{members.length - 3} pacientes</small>}
@@ -704,6 +707,22 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment }: { onOpen
         ))}
         {!units.length && <p className="empty-state">Cadastre uma unidade para visualizar a agenda.</p>}
       </section>
+      {selectedGroupCell && (
+        <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedGroupCell(null); }}>
+          <section className="modal group-members-drawer" role="dialog" aria-modal="true" aria-labelledby="group-members-title">
+            <div className="modal-head">
+              <div><p className="eyebrow">TURMA · {selectedGroupCell.unitName}</p><h2 id="group-members-title">{selectedGroupCell.slot.name}</h2><span className="group-members-drawer-meta">{dateLabel(selectedGroupCell.day)} · {String(selectedGroupCell.slot.starts_at).slice(0, 5)} · {selectedGroupCell.members.length}/{selectedGroupCell.slot.capacity ?? 7} vagas</span></div>
+              <button type="button" onClick={() => setSelectedGroupCell(null)} aria-label="Fechar alunos da turma">×</button>
+            </div>
+            <div className="group-members-drawer-body">
+              {selectedGroupCell.members.length >= Number(selectedGroupCell.slot.capacity ?? 7) && <div className="capacity-alert" role="status"><strong>Turma lotada</strong><span>Não há vagas disponíveis para cadastrar mais pessoas.</span></div>}
+              <h3>Alunos inscritos</h3>
+              {selectedGroupCell.members.length ? <ul className="group-members-drawer-list">{selectedGroupCell.members.map((member) => <li key={member.id}><span>{member.patients?.name ?? "Paciente"}</span><small>{member.patients?.phone ?? ""}</small></li>)}</ul> : <p className="empty-state">Nenhum aluno inscrito nesta turma.</p>}
+              <button type="button" className="btn primary group-members-add" disabled={selectedGroupCell.members.length >= Number(selectedGroupCell.slot.capacity ?? 7)} onClick={() => { onOpenEnrollment?.({ unitId: selectedGroupCell.slot.unit_id, groupSlotId: selectedGroupCell.slot.id, startsAt: dateKey(selectedGroupCell.day), unitName: selectedGroupCell.unitName, groupName: selectedGroupCell.slot.name }); setSelectedGroupCell(null); }}>Cadastrar mais pessoas</button>
+            </div>
+          </section>
+        </div>
+      )}
       {calendarAppointment !== undefined && (
         <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setCalendarAppointment(undefined); }}>
           <section className="modal calendar-edit-modal" role="dialog" aria-modal="true" aria-labelledby="calendar-edit-title">
