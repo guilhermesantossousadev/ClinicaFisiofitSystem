@@ -43,6 +43,9 @@ function setInlineError(field: HTMLInputElement | HTMLSelectElement | HTMLTextAr
 
 function configureField(field: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement, index: number) {
   if (!field.id) field.id = `${field.form?.id || "form"}-${field.name || "campo"}-${index}`;
+  field.labels?.forEach((label) => {
+    if (!label.htmlFor) label.htmlFor = field.id;
+  });
   if (field.required) field.setAttribute("aria-required", "true");
   const label = field.labels?.[0];
   if (label && field.required && !label.querySelector(".required-mark")) {
@@ -67,6 +70,7 @@ function configureField(field: HTMLInputElement | HTMLSelectElement | HTMLTextAr
 }
 
 function customMessage(field: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement) {
+  if (field.dataset.validationMessage && !field.validity.valid) return field.dataset.validationMessage;
   const value = field.value.trim();
   if (!value) return "";
   if (field.name === "cpf" && digits(value).length !== 11) return "Digite os 11 números do CPF.";
@@ -89,12 +93,14 @@ function validateForm(form: HTMLFormElement) {
     setInlineError(field, message);
     if (message) errors.push({ id: field.id, message });
   });
-  const start = form.elements.namedItem("starts_at") as HTMLInputElement | null;
-  const end = form.elements.namedItem("ends_at") as HTMLInputElement | null;
-  if (start?.value && end?.value && new Date(end.value) <= new Date(start.value)) {
-    const message = "O término precisa ser posterior ao início.";
-    setInlineError(end, message);
-    errors.push({ id: end.id, message });
+  for (const [startName, endName] of [["starts_at", "ends_at"], ["starts_on", "ends_on"]]) {
+    const start = form.elements.namedItem(startName) as HTMLInputElement | null;
+    const end = form.elements.namedItem(endName) as HTMLInputElement | null;
+    if (start?.value && end?.value && end.value < start.value) {
+      const message = "A data final não pode ser anterior à data inicial.";
+      setInlineError(end, message);
+      errors.push({ id: end.id, message });
+    }
   }
   for (const groupName of ["weekdays", "unitIds"]) {
     const group = [...form.querySelectorAll<HTMLInputElement>(`input[name="${groupName}"]`)];

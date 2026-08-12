@@ -1,4 +1,4 @@
-import { FormEvent, type CSSProperties, type FormEventHandler, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, type CSSProperties, type FormEventHandler, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { api } from "./api";
 import { supabase } from "./supabase";
@@ -114,7 +114,7 @@ function Select({
   label,
   required = true,
   defaultValue,
-  id = `${name}-field`,
+  id,
 }: {
   name: string;
   rows: Row[];
@@ -123,10 +123,13 @@ function Select({
   defaultValue?: string;
   id?: string;
 }) {
+  const generatedId = useId();
+  const fieldId = id ?? `${name}-${generatedId.replaceAll(":", "")}`;
+
   return (
     <div className="input-group">
-      <label htmlFor={id}>{label}</label>
-      <select id={id} name={name} required={required} defaultValue={defaultValue ?? ""}>
+      <label htmlFor={fieldId}>{label}</label>
+      <select id={fieldId} name={name} required={required} defaultValue={defaultValue ?? ""}>
         <option value="">Selecione</option>
         {rows.map((row) => (
           <option key={row.id} value={row.id}>
@@ -146,7 +149,7 @@ function PatientPicker({
   defaultValue = "",
   defaultLabel = "",
   onSelect,
-  id = `${name}-field`,
+  id,
 }: {
   name?: string;
   rows: Row[];
@@ -157,11 +160,16 @@ function PatientPicker({
   onSelect?: (patient: Row) => void;
   id?: string;
 }) {
+  const generatedId = useId();
+  const fieldId = id ?? `${name}-${generatedId.replaceAll(":", "")}`;
+  const optionsId = `${fieldId}-options`;
   const [query, setQuery] = useState(defaultLabel);
   const [selectedId, setSelectedId] = useState(defaultValue);
   const [options, setOptions] = useState<Row[]>(rows);
   const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
   useEffect(() => setOptions(rows), [rows]);
+  useEffect(() => setActiveIndex(-1), [options, query]);
   useEffect(() => {
     const search = query.trim();
     if (search.length < 2) return;
@@ -176,14 +184,77 @@ function PatientPicker({
     setSelectedId(patient.id);
     setQuery(patient.name ?? "Paciente");
     setOpen(false);
+    setActiveIndex(-1);
     onSelect?.(patient);
+  };
+  const selectable = query.trim().length >= 2 ? options.slice(0, 8) : [];
+  const hasInvalidFreeText = query.trim().length > 0 && !selectedId;
+  const handleKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Escape") {
+      setOpen(false);
+      setActiveIndex(-1);
+      return;
+    }
+    if (!selectable.length) return;
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setOpen(true);
+      setActiveIndex((current) => (current + 1) % selectable.length);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setOpen(true);
+      setActiveIndex((current) => (current <= 0 ? selectable.length - 1 : current - 1));
+    } else if (event.key === "Enter" && activeIndex >= 0) {
+      event.preventDefault();
+      choose(selectable[activeIndex]);
+    }
   };
   return (
     <div className="input-group patient-picker">
-      <label htmlFor={id}>{label}</label>
+      <label htmlFor={fieldId}>{label}</label>
       <input type="hidden" name={name} value={selectedId} />
-      <input id={id} type="text" value={query} required={required} autoComplete="off" placeholder="Digite nome, telefone ou CPF" role="combobox" aria-expanded={open} aria-controls={`${name}-options`} onFocus={() => setOpen(true)} onChange={(event) => { setQuery(event.target.value); setSelectedId(""); setOpen(true); }} />
-      {open && query.trim().length >= 2 && <div className="patient-picker-options" id={`${name}-options`} role="listbox">{options.length ? options.slice(0, 8).map((patient) => <button type="button" role="option" key={patient.id} onMouseDown={(event) => event.preventDefault()} onClick={() => choose(patient)}><strong>{patient.name}</strong><small>{patient.phone ?? patient.cpf ?? ""}</small></button>) : <span className="patient-picker-empty">Nenhum paciente encontrado.</span>}</div>}
+      <input
+        id={fieldId}
+        type="text"
+        value={query}
+        required={required}
+        pattern={hasInvalidFreeText ? "(?!)" : undefined}
+        title={hasInvalidFreeText ? "Selecione um paciente da lista." : undefined}
+        data-validation-message={hasInvalidFreeText ? "Selecione um paciente da lista." : undefined}
+        aria-invalid={hasInvalidFreeText ? "true" : undefined}
+        aria-expanded={open && selectable.length > 0}
+        aria-controls={optionsId}
+        aria-activedescendant={activeIndex >= 0 ? `${optionsId}-${selectable[activeIndex]?.id}` : undefined}
+        aria-autocomplete="list"
+        role="combobox"
+        autoComplete="off"
+        placeholder="Digite nome, telefone ou CPF"
+        onFocus={() => setOpen(selectable.length > 0)}
+        onKeyDown={handleKeyDown}
+        onChange={(event) => {
+          setQuery(event.target.value);
+          setSelectedId("");
+          setOpen(event.target.value.trim().length >= 2);
+        }}
+      />
+      {open && query.trim().length >= 2 && (
+        <div className="patient-picker-options" id={optionsId} role="listbox" aria-label={`${label}: resultados`}>
+          {selectable.length ? selectable.map((patient, index) => (
+            <div
+              id={`${optionsId}-${patient.id}`}
+              role="option"
+              aria-selected={index === activeIndex}
+              key={patient.id}
+              onMouseDown={(event) => event.preventDefault()}
+              onMouseEnter={() => setActiveIndex(index)}
+              onClick={() => choose(patient)}
+            >
+              <strong>{patient.name}</strong>
+              <small>{patient.phone ?? patient.cpf ?? ""}</small>
+            </div>
+          )) : <span className="patient-picker-empty" role="status">Nenhum paciente encontrado.</span>}
+        </div>
+      )}
     </div>
   );
 }
@@ -204,13 +275,63 @@ function DrawerForm({
   onClose?: () => void;
 }) {
   const [open, setOpen] = useState(openInitially);
+  const generatedId = useId();
+  const dialogId = `drawer-${generatedId.replaceAll(":", "")}`;
+  const titleId = `${dialogId}-title`;
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLElement>(null);
   const close = () => {
     setOpen(false);
     onClose?.();
+    requestAnimationFrame(() => triggerRef.current?.focus());
   };
+  useEffect(() => {
+    if (!open) return;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const focusables = () => dialogRef.current
+      ? [...dialogRef.current.querySelectorAll<HTMLElement>('button, input, select, textarea, a[href], [tabindex]:not([tabindex="-1"])')]
+        .filter((element) => !element.hasAttribute("disabled") && element.getAttribute("aria-hidden") !== "true")
+      : [];
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        close();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const elements = focusables();
+      const first = elements[0];
+      const last = elements.at(-1);
+      if (!first || !last) return;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    requestAnimationFrame(() => closeRef.current?.focus());
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      if (document.activeElement instanceof HTMLElement && dialogRef.current?.contains(document.activeElement)) {
+        previousFocus?.focus();
+      }
+    };
+  }, [open]);
   return (
     <>
-      <button className={`card drawer-create-trigger ${className}`} type="button" onClick={() => setOpen(true)}>
+      <button
+        ref={triggerRef}
+        className={`card drawer-create-trigger ${className}`}
+        type="button"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-controls={dialogId}
+        onClick={() => setOpen(true)}
+      >
         <span aria-hidden="true">＋</span>
         <span><strong>{title}</strong><small>Abrir formulário de cadastro</small></span>
         <span aria-hidden="true">→</span>
@@ -219,10 +340,17 @@ function DrawerForm({
         <div className="modal-backdrop creation-drawer-backdrop" role="presentation" onMouseDown={(event) => {
           if (event.target === event.currentTarget) close();
         }}>
-          <section className={`modal creation-drawer ${title.includes("turma") ? "agenda-group-drawer" : title.includes("agendamento") ? "agenda-appointment-drawer" : ""}`} role="dialog" aria-modal="true" aria-label={title}>
+          <section
+            ref={dialogRef}
+            id={dialogId}
+            className={`modal creation-drawer ${title.includes("turma") ? "agenda-group-drawer" : title.includes("agendamento") ? "agenda-appointment-drawer" : ""}`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+          >
             <div className="modal-head">
-              <h2>{title}</h2>
-              <button type="button" onClick={close} aria-label={`Fechar ${title}`}>×</button>
+              <h2 id={titleId}>{title}</h2>
+              <button ref={closeRef} type="button" onClick={close} aria-label={`Fechar ${title}`}>×</button>
             </div>
             <form className="modal-form creation-drawer-form" onSubmit={onSubmit}>
               {children}
@@ -325,12 +453,17 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment }: { onOpen
     const current = dateKey(date);
     return current >= start && current <= end;
   });
-  const slotFor = (unitId: string, day: Date, hour: number) => fixedSlots.find((slot) =>
-    slot.unit_id === unitId
+  const slotFor = (unitId: string, day: Date, hour: number) => fixedSlots.find((slot) => {
+    const currentDate = dateKey(day);
+    const startsOn = slot.starts_on ? String(slot.starts_on).slice(0, 10) : "0000-01-01";
+    const endsOn = slot.ends_on ? String(slot.ends_on).slice(0, 10) : "9999-12-31";
+    return slot.unit_id === unitId
+      && currentDate >= startsOn
+      && currentDate <= endsOn
       && Number(String(slot.starts_at).slice(0, 2)) === hour
       && (slot.weekdays ?? []).includes(day.getDay())
-      && slot.active !== false,
-  );
+      && slot.active !== false;
+  });
 
   async function createAppointment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -415,6 +548,8 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment }: { onOpen
           name: groupName,
           weekdays: selectedGroupWeekdays,
           starts_at: groupTime,
+          starts_on: value(form, "starts_on") || undefined,
+          ends_on: value(form, "ends_on") || undefined,
           duration_minutes: Number(value(form, "duration_minutes")),
           capacity: 7,
         }),
@@ -447,7 +582,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment }: { onOpen
     const enrollment = (data["/enrollments"] ?? []).find((row: Row) => row.id === enrollmentId);
     if (!enrollment) return;
     try {
-      await api(`/group-slots/${groupId}/members`, { method: "POST", body: JSON.stringify({ enrollment_id: enrollment.id, patient_id: enrollment.patient_id, starts_at: value(form, "starts_at") }) });
+      await api(`/group-slots/${groupId}/members`, { method: "POST", body: JSON.stringify({ enrollment_id: enrollment.id, patient_id: enrollment.patient_id, starts_at: value(form, "starts_at"), ends_at: value(form, "ends_at") || undefined }) });
       event.currentTarget.reset();
       setNotice("Paciente alocado na turma.");
       await reload();
@@ -653,6 +788,16 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment }: { onOpen
                 </label>
               ))}
             </div>
+            <div className="form-row">
+              <div className="input-group">
+                <label htmlFor="group-starts-on">Início do período *</label>
+                <input id="group-starts-on" name="starts_on" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required />
+              </div>
+              <div className="input-group">
+                <label htmlFor="group-ends-on">Fim do período</label>
+                <input id="group-ends-on" name="ends_on" type="date" />
+              </div>
+            </div>
             <div className="input-group">
               <label htmlFor="group-duration-minutes">Duração de cada aula (minutos) *</label>
               <input id="group-duration-minutes" name="duration_minutes" type="number" min="15" max="240" defaultValue="50" required />
@@ -688,7 +833,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment }: { onOpen
         showToggle={false}
       />
       <section className="card group-allocation-panel" aria-labelledby="group-allocation-title">
-        <div className="table-toolbar"><div><p className="eyebrow">ALOCAÇÃO</p><h2 id="group-allocation-title">Alunos nas turmas</h2><p className="form-instructions">Cadastre o paciente e faça a matrícula antes de adicionar uma vaga na turma.</p></div><button type="button" className="btn secondary" onClick={onOpenPatients}>Cadastrar paciente</button></div>
+          <div className="table-toolbar"><div><p className="eyebrow">ALOCAÇÃO</p><h2 id="group-allocation-title">Alunos nas turmas</h2><p className="form-instructions">Cadastre o paciente e faça a matrícula antes de adicionar uma vaga na turma.</p></div><button type="button" className="btn secondary" onClick={onOpenPatients}>Cadastrar paciente</button></div>
         <div className="group-allocation-grid">
           {(data["/group-slots"] ?? []).map((group: Row) => {
             const members = groupMembers.filter((member) => member.group_slot_id === group.id);
@@ -698,7 +843,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment }: { onOpen
               <button type="button" className="btn secondary" onClick={() => void generateGroup(group.id)}>Gerar horários</button>
               <div className="group-members-heading"><h3>Pacientes inscritos</h3><span>{members.length === 0 ? "Nenhum paciente nesta turma" : `${members.length} inscrito(s)`}</span></div>
               <ul aria-label={`Pacientes inscritos na turma ${group.name}`}>{members.map((member) => <li key={member.id}><span>{member.patients?.name ?? "Paciente"}</span><button type="button" onClick={() => void removeGroupMember(member.id)} aria-label={`Remover ${member.patients?.name ?? "paciente"} da turma`}>Remover</button></li>)}</ul>
-              <form className="group-member-form" onSubmit={(event) => void addGroupMember(event, group.id)} aria-label={`Adicionar paciente à turma ${group.name}`}><fieldset><legend>Adicionar paciente</legend><label>Matrícula<select name="enrollment_id" required aria-describedby={`group-help-${group.id}`}><option value="">Selecione uma matrícula</option>{available.map((enrollment: Row) => <option key={enrollment.id} value={enrollment.id}>{enrollment.patients?.name ?? enrollment.patient_id}</option>)}</select></label><label>Início<input name="starts_at" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required /></label><button className="btn primary">Adicionar à turma</button><small id={`group-help-${group.id}`}>{available.length ? "Apenas matrículas ainda não vinculadas aparecem aqui." : "Não há matrículas disponíveis. Cadastre e matricule o paciente primeiro."}</small></fieldset></form>
+              <form className="group-member-form" onSubmit={(event) => void addGroupMember(event, group.id)} aria-label={`Adicionar paciente à turma ${group.name}`}><fieldset><legend>Adicionar paciente</legend><label>Matrícula<select name="enrollment_id" required aria-describedby={`group-help-${group.id}`}><option value="">Selecione uma matrícula</option>{available.map((enrollment: Row) => <option key={enrollment.id} value={enrollment.id}>{enrollment.patients?.name ?? enrollment.patient_id}</option>)}</select></label><div className="form-row"><label>Início<input name="starts_at" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required /></label><label>Fim<input name="ends_at" type="date" /></label></div><button className="btn primary">Adicionar à turma</button><small id={`group-help-${group.id}`}>{available.length ? "Apenas matrículas ainda não vinculadas aparecem aqui." : "Não há matrículas disponíveis. Cadastre e matricule o paciente primeiro."}</small></fieldset></form>
             </article>;
           })}
         </div>
@@ -713,13 +858,15 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment }: { onOpen
             allocation: `${members.length}/${row.capacity ?? 7} · ${members.map((member: Row) => member.patients?.name).filter(Boolean).join(", ") || "Sem alunos"}`,
           };
         })}
-        fields={["name", "starts_at", "duration_minutes", "capacity", "allocation", "active"]}
+        fields={["name", "starts_on", "ends_on", "starts_at", "duration_minutes", "capacity", "allocation", "active"]}
         editFields={[
           { name: "unit_id", label: "Unidade", type: "select", required: true, options: data["/units"] ?? [] },
           { name: "room_id", label: "Sala", type: "select", required: true, options: data["/rooms"] ?? [] },
           { name: "professional_id", label: "Profissional", type: "select", required: true, options: data["/professionals"] ?? [] },
           { name: "service_id", label: "Serviço", type: "select", required: true, options: data["/services"] ?? [] },
           { name: "name", label: "Nome", required: true },
+          { name: "starts_on", label: "Início do período", type: "date" },
+          { name: "ends_on", label: "Fim do período", type: "date" },
           { name: "weekdays", label: "Dias da semana (0 domingo; 1 segunda...6 sábado)", required: true, value: (row) => (row.weekdays ?? []).join(",") },
           { name: "starts_at", label: "Horário", required: true },
           { name: "duration_minutes", label: "Duração (min)", type: "number", min: 15, max: 240, required: true },
@@ -728,6 +875,8 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment }: { onOpen
         ]}
         buildBody={(form) => ({
           name: value(form, "name"),
+          starts_on: value(form, "starts_on") || null,
+          ends_on: value(form, "ends_on") || null,
           unit_id: value(form, "unit_id"),
           room_id: value(form, "room_id"),
           professional_id: value(form, "professional_id"),
@@ -1105,14 +1254,14 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
       const existing = (data["/enrollments"] ?? []).find((row: Row) => row.patient_id === patientId && row.plan_id === planId && row.status !== "cancelled" && row.status !== "reversed" && !row.deleted_at);
       const response = existing ? { data: existing } : await api<Row>("/enrollments", {
         method: "POST",
-        body: JSON.stringify({ patient_id: patientId, plan_id: planId, unit_id: value(form, "unit_id"), starts_at: value(form, "starts_at"), due_day: Number(value(form, "due_day")), discount_cents: cents(value(form, "discount") || "0"), surcharge_cents: 0 }),
+        body: JSON.stringify({ patient_id: patientId, plan_id: planId, unit_id: value(form, "unit_id"), starts_at: value(form, "starts_at"), ends_at: value(form, "ends_at") || undefined, due_day: Number(value(form, "due_day")), discount_cents: cents(value(form, "discount") || "0"), surcharge_cents: 0 }),
       });
       const group = value(form, "group_slot_id");
       if (group && response.data)
-        await api(`/group-slots/${group}/members`, {
-          method: "POST",
-          body: JSON.stringify({ enrollment_id: response.data.id, patient_id: patientId, starts_at: value(form, "starts_at") }),
-        });
+          await api(`/group-slots/${group}/members`, {
+            method: "POST",
+            body: JSON.stringify({ enrollment_id: response.data.id, patient_id: patientId, starts_at: value(form, "starts_at"), ends_at: value(form, "ends_at") || undefined }),
+          });
       (event.target as HTMLFormElement).reset();
       setSelectedPatient(undefined);
       setPatientPickerVersion((version) => version + 1);
@@ -1236,13 +1385,19 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
           </div>
           {selectedPatient && <div className="agenda-context-summary" role="status"><strong>Paciente selecionado</strong><span>{selectedPatient.name}{selectedPatient.phone ? ` · ${selectedPatient.phone}` : ""}{selectedPatient.cpf ? ` · CPF ${selectedPatient.cpf}` : ""}</span></div>}
           {agendaContext ? <div className="agenda-context-summary" role="status"><input type="hidden" name="unit_id" value={agendaContext.unitId} /><input type="hidden" name="group_slot_id" value={agendaContext.groupSlotId} /><strong>{agendaContext.groupName ?? "Turma selecionada"}</strong><span>{agendaContext.unitName ?? "Unidade selecionada"} · horário escolhido na Agenda · {agendaContext.startsAt}</span><button type="button" onClick={onClearAgendaContext}>Trocar horário</button></div> : <div className="form-row"><Select name="unit_id" label="Unidade" rows={data["/units"] ?? []} /><Select name="group_slot_id" label="Turma (opcional)" rows={data["/group-slots"] ?? []} required={false} /></div>}
-          <div className="form-row">
-            <div className="input-group">
-              <label htmlFor="enrollment-starts-at">Início</label>
-              <input id="enrollment-starts-at" name="starts_at" type="date" defaultValue={agendaContext?.startsAt} readOnly={Boolean(agendaContext)} required />
+            <div className="form-row">
+              <div className="input-group">
+                <label htmlFor="enrollment-starts-at">Início</label>
+                <input id="enrollment-starts-at" name="starts_at" type="date" defaultValue={agendaContext?.startsAt} readOnly={Boolean(agendaContext)} required />
+              </div>
+              <div className="input-group">
+                <label htmlFor="enrollment-ends-at">Fim do período</label>
+                <input id="enrollment-ends-at" name="ends_at" type="date" />
+              </div>
             </div>
-            <div className="input-group">
-              <label htmlFor="enrollment-due-day">Dia do vencimento</label>
+            <div className="form-row">
+              <div className="input-group">
+                <label htmlFor="enrollment-due-day">Dia do vencimento</label>
               <input id="enrollment-due-day" name="due_day" type="number" min="1" max="31" required />
             </div>
           </div>
@@ -1301,7 +1456,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
       <OperationalTable
         title="Matrículas ativas"
         rows={enrollmentRows}
-        fields={["status", "starts_at", "due_day", "sessions_used", "total_plan_cents"]}
+        fields={["status", "starts_at", "ends_at", "due_day", "sessions_used", "total_plan_cents"]}
         actions={(row) => row.deleted_at ? null : <button type="button" onClick={() => void rollbackEnrollment(row.id)}>Reverter</button>}
       />
       <OperationalTable
@@ -2899,7 +3054,8 @@ function fieldLabel(field: string) {
   const labels: Record<string, string> = {
     name: "Nome", phone: "Telefone", email: "E-mail", active: "Status",
     kind: "Tipo", sessions_included: "Sessões", duration_days: "Duração",
-    price_cents: "Preço", status: "Status", starts_at: "Início",
+    price_cents: "Preço", status: "Status", starts_at: "Início", starts_on: "Início do período",
+    ends_at: "Fim do período", ends_on: "Fim do período",
     due_day: "Vencimento", sessions_used: "Sessões usadas",
     total_plan_cents: "Valor total do plano",
     allocation: "Alocação de pacientes",
@@ -2918,6 +3074,9 @@ function render(value: any, field: string) {
     return brl(Number(value));
   if (field === "kind") return ({ monthly: "Mensal", package: "Pacote", single: "Avulso" } as Record<string, string>)[String(value)] ?? String(value);
   if (field === "active") return value ? "Ativo" : "Inativo";
+  if (["starts_at", "ends_at", "starts_on", "ends_on"].includes(field) && /^\d{4}-\d{2}-\d{2}$/.test(String(value))) {
+    return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(new Date(`${value}T00:00:00`));
+  }
   if (typeof value === "object") return JSON.stringify(value);
   return String(value);
 }

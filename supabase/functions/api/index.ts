@@ -936,8 +936,13 @@ app.post("/group-slots", requireRoles(["admin", "manager", "reception"]), async 
     name: z.string().trim().min(3).max(100),
     weekdays: z.array(z.number().int().min(0).max(6)).min(1).max(7),
     starts_at: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/),
+    starts_on: z.string().date().optional(),
+    ends_on: z.string().date().optional(),
     duration_minutes: z.number().int().min(15).max(240),
     capacity: z.number().int().min(3).max(7).default(7),
+  }).refine((value) => !value.ends_on || Boolean(value.starts_on && value.ends_on >= value.starts_on), {
+    message: "A data final da turma não pode ser anterior à data inicial.",
+    path: ["ends_on"],
   }).parse(await context.req.json());
   if (!(await hasUnitAccess(context, input.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
   const db = context.get("db");
@@ -969,14 +974,17 @@ async function generateGroupAppointments(context: any, groupSlotId: string, from
   const db = context.get("db");
   const clinicId = context.get("profile").clinic_id;
   const { data: slot, error: slotError } = await db.from("group_slots")
-    .select("id,clinic_id,unit_id,room_id,professional_id,service_id,weekdays,starts_at,duration_minutes,active")
+    .select("id,clinic_id,unit_id,room_id,professional_id,service_id,weekdays,starts_at,starts_on,ends_on,duration_minutes,active")
     .eq("id", groupSlotId).eq("clinic_id", clinicId).is("deleted_at", null).single();
   if (slotError || !slot || !slot.active) return { created: 0, error: slotError };
+  const effectiveFrom = slot.starts_on && slot.starts_on > from ? slot.starts_on : from;
+  const effectiveTo = slot.ends_on && slot.ends_on < to ? slot.ends_on : to;
+  if (effectiveTo < effectiveFrom) return { created: 0 };
   const { data: existing } = await db.from("appointments").select("starts_at")
-    .eq("clinic_id", clinicId).eq("group_slot_id", groupSlotId).gte("starts_at", `${from}T00:00:00Z`).lt("starts_at", `${addDays(new Date(`${to}T00:00:00Z`), 1)}T00:00:00Z`).is("deleted_at", null);
+    .eq("clinic_id", clinicId).eq("group_slot_id", groupSlotId).gte("starts_at", `${effectiveFrom}T00:00:00Z`).lt("starts_at", `${addDays(new Date(`${effectiveTo}T00:00:00Z`), 1)}T00:00:00Z`).is("deleted_at", null);
   const known = new Set((existing ?? []).map((row: any) => new Date(row.starts_at).toISOString().slice(0, 16)));
   const rows: any[] = [];
-  for (let cursor = new Date(`${from}T00:00:00Z`); cursor <= new Date(`${to}T00:00:00Z`); cursor = new Date(cursor.getTime() + 86400000)) {
+  for (let cursor = new Date(`${effectiveFrom}T00:00:00Z`); cursor <= new Date(`${effectiveTo}T00:00:00Z`); cursor = new Date(cursor.getTime() + 86400000)) {
     if (!slot.weekdays.includes(cursor.getUTCDay())) continue;
     const [hours, minutes] = String(slot.starts_at).slice(0, 5).split(":").map(Number);
     const starts = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth(), cursor.getUTCDate(), hours, minutes));
@@ -1009,14 +1017,19 @@ app.patch("/group-slots/:id", requireRoles(["admin", "manager", "reception"]), a
     name: z.string().trim().min(3).max(120).optional(),
     weekdays: z.array(z.number().int().min(0).max(6)).min(1).max(7).optional(),
     starts_at: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/).optional(),
+    starts_on: z.string().date().nullable().optional(),
+    ends_on: z.string().date().nullable().optional(),
     duration_minutes: z.number().int().min(15).max(240).optional(),
     capacity: z.number().int().min(1).max(7).optional(),
     active: z.boolean().optional(),
   }).parse(await context.req.json());
   if (input.unit_id && !(await hasUnitAccess(context, input.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
-  if (input.unit_id || input.starts_at || input.weekdays) {
-    const current = await context.get("db").from("group_slots").select("unit_id,starts_at,weekdays").eq("id", id).eq("clinic_id", context.get("profile").clinic_id).is("deleted_at", null).single();
+  if (input.unit_id || input.starts_at || input.weekdays || input.starts_on !== undefined || input.ends_on !== undefined) {
+    const current = await context.get("db").from("group_slots").select("unit_id,starts_at,starts_on,ends_on,weekdays").eq("id", id).eq("clinic_id", context.get("profile").clinic_id).is("deleted_at", null).single();
     if (current.data) {
+      const startsOn = input.starts_on === undefined ? current.data.starts_on : input.starts_on;
+      const endsOn = input.ends_on === undefined ? current.data.ends_on : input.ends_on;
+      if (endsOn && (!startsOn || endsOn < startsOn)) return fail(context, 400, "INVALID_PERIOD", "A data final da turma não pode ser anterior à data inicial.");
       const unitId = input.unit_id ?? current.data.unit_id;
       const startsAt = input.starts_at ?? current.data.starts_at;
       const weekdays = input.weekdays ? [...new Set(input.weekdays)] : current.data.weekdays;
@@ -1406,7 +1419,7 @@ const workbookEntities = {
   patients: { table: "patients", required: ["name", "unit_id"], fields: ["name", "cpf", "birth_date", "phone", "email", "notes", "external_id"] },
   enrollments: { table: "enrollments", required: ["patient_id", "plan_id", "unit_id", "starts_at"], fields: ["patient_id", "plan_id", "unit_id", "starts_at", "ends_at", "due_day", "discount_cents", "surcharge_cents", "status"] },
   appointments: { table: "appointments", required: ["unit_id", "starts_at", "ends_at"], fields: ["unit_id", "patient_id", "professional_id", "service_id", "room_id", "enrollment_id", "starts_at", "ends_at", "status", "notes"] },
-  group_slots: { table: "group_slots", required: ["unit_id", "room_id", "professional_id", "service_id", "name", "weekdays", "starts_at", "duration_minutes"], fields: ["unit_id", "room_id", "professional_id", "service_id", "name", "weekdays", "starts_at", "duration_minutes", "capacity", "active"] },
+  group_slots: { table: "group_slots", required: ["unit_id", "room_id", "professional_id", "service_id", "name", "weekdays", "starts_at", "duration_minutes"], fields: ["unit_id", "room_id", "professional_id", "service_id", "name", "weekdays", "starts_at", "starts_on", "ends_on", "duration_minutes", "capacity", "active"] },
   charges: { table: "charges", required: ["patient_id", "unit_id", "description", "amount_cents", "due_at"], fields: ["patient_id", "enrollment_id", "unit_id", "description", "amount_cents", "due_at", "installment_number", "installment_count", "status"] },
   payments: { table: "payments", required: ["charge_id", "amount_cents", "method", "paid_at"], fields: ["charge_id", "amount_cents", "method", "paid_at", "reversed_at", "receipt_path"] },
   financial_entries: { table: "financial_entries", required: ["unit_id", "kind", "description", "category", "amount_cents", "competence_date"], fields: ["unit_id", "charge_id", "payment_id", "kind", "description", "category", "cost_center", "amount_cents", "competence_date", "settled_at"] },
