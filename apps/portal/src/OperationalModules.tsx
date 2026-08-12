@@ -3106,7 +3106,7 @@ function fieldLabel(field: string) {
 }
 function render(value: any, field: string) {
   if (value == null) return "—";
-  if (field.includes("amount") || field.includes("paid_cents") || field === "price_cents")
+  if (field.includes("amount") || field.includes("paid_cents") || field === "price_cents" || field === "total_plan_cents")
     return brl(Number(value));
   if (field === "kind") return ({ monthly: "Mensal", package: "Pacote", single: "Avulso" } as Record<string, string>)[String(value)] ?? String(value);
   if (field === "active") return value ? "Ativo" : "Inativo";
