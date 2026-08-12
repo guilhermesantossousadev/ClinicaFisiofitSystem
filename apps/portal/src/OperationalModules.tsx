@@ -431,13 +431,13 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit: _
   const [fromDate, setFromDate] = useState(() =>
     new Date().toISOString().slice(0, 10),
   );
-  const [rangeDays] = useState(31);
+  const [rangeDays] = useState(7);
   const range = useMemo(() => {
     const selected = new Date(`${fromDate}T00:00:00`);
-    const start = new Date(selected.getFullYear(), selected.getMonth(), 1);
-    start.setDate(start.getDate() - start.getDay());
-    const end = new Date(selected.getFullYear(), selected.getMonth() + 1, 0);
-    end.setDate(end.getDate() + (6 - end.getDay()) + 1);
+    const start = new Date(selected);
+    start.setDate(selected.getDate() - selected.getDay());
+    const end = new Date(start);
+    end.setDate(start.getDate() + 7);
     return { from: start.toISOString(), to: end.toISOString() };
   }, [fromDate]);
   const paths = [
@@ -457,6 +457,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit: _
   const [notice, setNotice] = useState("");
   const [calendarAppointment, setCalendarAppointment] = useState<Row | null | undefined>(undefined);
   const [selectedUnitId, setSelectedUnitId] = useState(() => window.localStorage.getItem("fisiofit:selected-unit") ?? "");
+  const [expandedGroupId, setExpandedGroupId] = useState("");
   const [selectedGroupWeekdays, setSelectedGroupWeekdays] = useState<number[]>([1, 3]);
   const [groupTime, setGroupTime] = useState("09:00");
   useEffect(() => {
@@ -476,17 +477,19 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit: _
   const groupName = `${selectedDayNames.join(" e ")} às ${groupTime}`;
   const calendarDays = useMemo(() => {
     const selected = new Date(`${fromDate}T00:00:00`);
-    const start = new Date(selected.getFullYear(), selected.getMonth(), 1);
-    start.setDate(start.getDate() - start.getDay());
-    const last = new Date(selected.getFullYear(), selected.getMonth() + 1, 0);
-    const total = last.getDate() + last.getDay() + (6 - last.getDay());
-    return Array.from({ length: total }, (_, index) => {
+    const start = new Date(selected);
+    start.setDate(selected.getDate() - selected.getDay());
+    return Array.from({ length: 7 }, (_, index) => {
       const day = new Date(start);
       day.setDate(start.getDate() + index);
       return day;
     });
   }, [fromDate]);
-  const monthLabel = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(new Date(`${fromDate}T00:00:00`));
+  const weekLabel = (() => {
+    const start = calendarDays[0];
+    const end = calendarDays[6];
+    return `${new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short" }).format(start)} – ${new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", year: "numeric" }).format(end)}`.replaceAll(".", "");
+  })();
   const fixedSlots: Row[] = data["/group-slots"] ?? [];
   const units: Unit[] = data["/units"] ?? [];
   const visibleUnits = selectedUnitId ? units.filter((unit) => unit.id === selectedUnitId) : [];
@@ -630,9 +633,9 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit: _
           </p>
         </div>
         <div className="calendar-month-controls" aria-label="Navegação do calendário">
-          <button type="button" className="btn secondary" aria-label="Mês anterior" onClick={() => { const date = new Date(`${fromDate}T00:00:00`); date.setMonth(date.getMonth() - 1); setFromDate(date.toISOString().slice(0, 10)); }}>‹</button>
-          <strong>{monthLabel}</strong>
-          <button type="button" className="btn secondary" aria-label="Próximo mês" onClick={() => { const date = new Date(`${fromDate}T00:00:00`); date.setMonth(date.getMonth() + 1); setFromDate(date.toISOString().slice(0, 10)); }}>›</button>
+          <button type="button" className="btn secondary" aria-label="Semana anterior" onClick={() => { const date = new Date(`${fromDate}T00:00:00`); date.setDate(date.getDate() - 7); setFromDate(date.toISOString().slice(0, 10)); }}>‹</button>
+          <strong>{weekLabel}</strong>
+          <button type="button" className="btn secondary" aria-label="Próxima semana" onClick={() => { const date = new Date(`${fromDate}T00:00:00`); date.setDate(date.getDate() + 7); setFromDate(date.toISOString().slice(0, 10)); }}>›</button>
           <button type="button" className="btn secondary" onClick={() => setFromDate(new Date().toISOString().slice(0, 10))}>Hoje</button>
         </div>
       </div>
@@ -643,9 +646,9 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit: _
         </div>
       )}
       <ModuleState loading={loading} error={error} retry={reload} />
-      <section className="card fixed-calendar month-calendar" aria-label="Calendário mensal de horários fixos">
+      <section className="card fixed-calendar month-calendar" aria-label="Calendário semanal de horários fixos">
         <div className="table-toolbar fixed-calendar-toolbar">
-          <div><p className="eyebrow">CALENDÁRIO MENSAL</p><h2>Horários por unidade</h2></div>
+          <div><p className="eyebrow">CALENDÁRIO SEMANAL</p><h2>Horários por unidade</h2></div>
           <span>{visibleUnits[0]?.name ?? "Selecione uma unidade"}</span>
         </div>
         {visibleUnits.map((unit) => (
@@ -654,10 +657,9 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit: _
               <div className="month-calendar-grid">
                 {(["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"] as const).map((day) => <div className="month-calendar-weekday" key={day}>{day}</div>)}
                 {calendarDays.map((day) => {
-                  const inMonth = day.getMonth() === new Date(`${fromDate}T00:00:00`).getMonth();
                   const dayAppointments = appointments.filter((row) => row.unit_id === unit.id && dateKey(new Date(row.starts_at)) === dateKey(day));
                   const slots = slotsForDay(unit.id, day);
-                  return <div className={`month-calendar-day${inMonth ? "" : " is-outside"}${dateKey(day) === dateKey(new Date()) ? " is-today" : ""}`} key={dateKey(day)}>
+                  return <div className={`month-calendar-day${dateKey(day) === dateKey(new Date()) ? " is-today" : ""}`} key={dateKey(day)}>
                     <div className="month-calendar-date">{day.getDate()}</div>
                     <div className="month-calendar-items">
                       {dayAppointments.map((appointment) => <button type="button" className="month-calendar-item appointment-item" key={appointment.id} onClick={() => setCalendarAppointment(appointment)}><strong>{String(new Date(appointment.starts_at).getHours()).padStart(2, "0")}:{String(new Date(appointment.starts_at).getMinutes()).padStart(2, "0")} · {appointment.patients?.name ?? "Bloqueio"}</strong><small>{appointment.services?.name ?? "Atendimento"}</small></button>)}
@@ -846,10 +848,10 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit: _
             const available = (data["/enrollments"] ?? []).filter((enrollment: Row) => !members.some((member) => member.enrollment_id === enrollment.id));
             return <article className="group-allocation-card" key={group.id}>
               <div><strong>{group.name}</strong><span>{members.length}/{group.capacity ?? 7} vagas ocupadas · {String(group.starts_at).slice(0, 5)}</span></div>
-              <button type="button" className="btn secondary" onClick={() => void generateGroup(group.id)}>Gerar horários</button>
+              <div className="group-card-actions"><button type="button" className="btn secondary" onClick={() => void generateGroup(group.id)}>Gerar horários</button><button type="button" className="btn secondary" onClick={() => setExpandedGroupId(expandedGroupId === group.id ? "" : group.id)}>{expandedGroupId === group.id ? "Fechar cadastro" : "Adicionar aluno"}</button></div>
               <div className="group-members-heading"><h3>Pacientes inscritos</h3><span>{members.length === 0 ? "Nenhum paciente nesta turma" : `${members.length} inscrito(s)`}</span></div>
               <ul aria-label={`Pacientes inscritos na turma ${group.name}`}>{members.map((member) => <li key={member.id}><span>{member.patients?.name ?? "Paciente"}</span><button type="button" onClick={() => void removeGroupMember(member.id)} aria-label={`Remover ${member.patients?.name ?? "paciente"} da turma`}>Remover</button></li>)}</ul>
-              <form className="group-member-form" onSubmit={(event) => void addGroupMember(event, group.id)} aria-label={`Adicionar paciente à turma ${group.name}`}><fieldset><legend>Adicionar paciente</legend><label>Matrícula<select name="enrollment_id" required aria-describedby={`group-help-${group.id}`}><option value="">Selecione uma matrícula</option>{available.map((enrollment: Row) => <option key={enrollment.id} value={enrollment.id}>{enrollment.patients?.name ?? enrollment.patient_id}</option>)}</select></label><div className="form-row"><label>Início<input name="starts_at" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required /></label><label>Fim<input name="ends_at" type="date" /></label></div><button className="btn primary">Adicionar à turma</button><small id={`group-help-${group.id}`}>{available.length ? "Apenas matrículas ainda não vinculadas aparecem aqui." : "Não há matrículas disponíveis. Cadastre e matricule o paciente primeiro."}</small></fieldset></form>
+              {expandedGroupId === group.id && <form className="group-member-form" onSubmit={(event) => void addGroupMember(event, group.id)} aria-label={`Adicionar paciente à turma ${group.name}`}><fieldset><legend>Adicionar paciente</legend><label>Matrícula<select name="enrollment_id" required aria-describedby={`group-help-${group.id}`}><option value="">Selecione uma matrícula</option>{available.map((enrollment: Row) => <option key={enrollment.id} value={enrollment.id}>{enrollment.patients?.name ?? enrollment.patient_id}</option>)}</select></label><div className="form-row"><label>Início<input name="starts_at" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required /></label><label>Fim<input name="ends_at" type="date" /></label></div><button className="btn primary" disabled={!available.length || members.length >= Number(group.capacity ?? 7)}>Adicionar à turma</button><small id={`group-help-${group.id}`}>{members.length >= Number(group.capacity ?? 7) ? "Turma lotada." : available.length ? "Apenas matrículas ainda não vinculadas aparecem aqui." : "Não há matrículas disponíveis. Cadastre e matricule o paciente primeiro."}</small></fieldset></form>}
             </article>;
           })}
         </div>
