@@ -241,34 +241,34 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 }
 
 /* ==========================================================================
-   SISTEMA DE DESIGN DE FORMULÁRIOS DA CLÍNICA FISIOFIT (2026 UX/UI REFACTOR)
+   SISTEMA DE DESIGN DE FORMULÁRIOS DA CLÍNICA FISIOFIT (FIDELIDADE 100% AO DESIGN)
    ========================================================================== */
 
 :root {
-  --form-control-height: 50px;
-  --form-control-radius: 12px;
-  --form-control-border: #9bb3c7;
+  --form-control-height: 52px;
+  --form-control-radius: 14px;
+  --form-control-border: #d2dfeb;
   --form-control-bg: #ffffff;
-  --form-control-text: #0f273d;
-  --form-control-placeholder: #687f94;
-  --form-control-shadow: 0 1px 3px rgba(15, 39, 61, 0.06), 0 1px 2px rgba(15, 39, 61, 0.04);
+  --form-control-text: #17324d;
+  --form-control-placeholder: #7c93a8;
+  --form-control-shadow: 0 1px 2px rgba(16, 42, 67, 0.04);
   --form-focus-border: #2788c9;
-  --form-focus-ring: 0 0 0 4px rgba(39, 136, 201, 0.16);
+  --form-focus-ring: 0 0 0 4px rgba(39, 136, 201, 0.14);
   --form-label-color: #17324d;
-  --form-section-gap: 20px;
+  --form-section-gap: 22px;
 }
 
-/* Backdrop e Modais Modernizados */
+/* Backdrop e Modais Modernizados conforme referência da imagem */
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(12, 28, 44, 0.48);
-  backdrop-filter: blur(8px);
+  background: rgba(16, 38, 58, 0.45);
+  backdrop-filter: blur(4px);
   z-index: 50;
   display: grid;
   place-items: center;
-  padding: 20px;
-  animation: modal-fade-in 220ms ease-out forwards;
+  padding: 24px;
+  animation: modal-fade-in 200ms ease-out forwards;
 }
 
 @keyframes modal-fade-in {
@@ -277,18 +277,18 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 }
 
 .modal, .edit-dialog, .mfa-card {
-  width: min(620px, 100%);
-  max-height: 90vh;
+  width: min(640px, 100%);
+  max-height: 92vh;
   overflow-y: auto;
   background: #ffffff;
-  border: 1px solid #d4e2ed;
-  border-radius: 20px;
-  box-shadow: 0 24px 64px -12px rgba(16, 38, 58, 0.18), 0 8px 24px -4px rgba(16, 38, 58, 0.08);
-  animation: modal-scale-up 240ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  border: 1px solid #e2ecf5;
+  border-radius: 24px;
+  box-shadow: 0 20px 60px -10px rgba(16, 38, 58, 0.16), 0 8px 20px -4px rgba(16, 38, 58, 0.06);
+  animation: modal-scale-up 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes modal-scale-up {
-  from { transform: scale(0.96) translateY(10px); opacity: 0; }
+  from { transform: scale(0.97) translateY(8px); opacity: 0; }
   to { transform: scale(1) translateY(0); opacity: 1; }
 }
 
@@ -296,40 +296,39 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 24px 28px 20px;
-  border-bottom: 1px solid #e3edf4;
-  background: #fafcfd;
+  padding: 28px 32px 20px;
+  border-bottom: 0;
+  background: #ffffff;
 }
 
 .modal-head h2, .edit-dialog-header h2 {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 800;
-  letter-spacing: -0.02em;
-  color: #102a43;
-  margin: 2px 0 0;
+  letter-spacing: -0.025em;
+  color: #17324d;
+  margin: 0;
 }
 
 .modal-head button, .dialog-close {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
-  border: 1px solid #dce8ef;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #e1ebf4;
   background: #ffffff;
-  border-radius: 50%;
-  color: #53697d;
-  font-size: 20px;
+  border-radius: 12px;
+  color: #65798a;
+  font-size: 22px;
   line-height: 1;
   transition: all 150ms ease;
   cursor: pointer;
 }
 
 .modal-head button:hover, .dialog-close:hover {
-  background: #edf5fa;
-  border-color: #b5cbdc;
-  color: #102a43;
-  transform: scale(1.05);
+  background: #f4f8fb;
+  border-color: #cbd9e5;
+  color: #17324d;
 }
 
 /* Formulário Container & Labels */
@@ -337,13 +336,12 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .login-card,
 .user-edit-form,
 .group-member-form {
-  --form-section-gap: 20px;
   display: grid;
   gap: var(--form-section-gap);
 }
 
 .modal-form:not(.inline-form) {
-  padding: clamp(22px, 4vw, 30px);
+  padding: 0 32px 32px;
 }
 
 .modal-form label,
@@ -352,9 +350,9 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .form-field-label {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 8px;
   color: var(--form-label-color);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   line-height: 1.3;
 }
@@ -365,12 +363,12 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   color: #17324d;
 }
 
-/* Inputs, Selects & Textareas Universais */
+/* Inputs, Selects & Textareas Universais idênticos à foto */
 .modal-form input:not([type="checkbox"]):not([type="radio"]),
 .modal-form select,
 .modal-form textarea,
@@ -382,18 +380,18 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .record-selector select {
   width: 100%;
   min-height: var(--form-control-height);
-  padding: 12px 16px;
+  padding: 13px 18px;
   border: 1px solid var(--form-control-border);
   border-radius: var(--form-control-radius);
   background: var(--form-control-bg);
   box-shadow: var(--form-control-shadow);
   color: var(--form-control-text);
   font-family: inherit;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 500;
   line-height: 1.4;
   outline: none;
-  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease, transform 100ms ease;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
 }
 
 .modal-form select,
@@ -401,16 +399,16 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .group-member-form select,
 .record-selector select {
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%3C17324D' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%3C17324D' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 14px center;
-  background-size: 16px;
-  padding-inline-end: 42px;
+  background-position: right 16px center;
+  background-size: 18px;
+  padding-inline-end: 46px;
 }
 
 .modal-form textarea,
 .user-edit-form textarea {
-  min-height: 110px;
+  min-height: 120px;
   resize: vertical;
 }
 
@@ -419,7 +417,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .login-card input::placeholder,
 .user-edit-form input::placeholder {
   color: var(--form-control-placeholder);
-  opacity: 0.85;
+  opacity: 1;
 }
 
 /* Interações Hover e Focus Visuals */
@@ -429,8 +427,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .login-card input:not([type="checkbox"]):not([type="radio"]):hover,
 .user-edit-form input:not([type="checkbox"]):not([type="radio"]):hover,
 .user-edit-form select:hover {
-  border-color: #6e8d082;
-  border-color: #728ca3;
+  border-color: #aebdca;
 }
 
 .modal-form input:not([type="checkbox"]):not([type="radio"]):focus,
@@ -445,12 +442,12 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   box-shadow: var(--form-focus-ring);
 }
 
-/* Form Grid Rows */
+/* Form Grid Rows de 2 colunas */
 .modal-form .form-row,
 .user-edit-form .form-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 18px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
   margin: 0;
 }
 
@@ -459,143 +456,51 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .user-edit-form fieldset,
 .group-member-form fieldset {
   margin: 0;
-  padding: 22px;
-  border: 1px solid #d8e5ef;
-  border-radius: 16px;
-  background: #f9fbfd;
+  padding: 24px;
+  border: 1px solid #dce7f0;
+  border-radius: 18px;
+  background: #f8fafc;
   display: grid;
-  gap: 16px;
+  gap: 18px;
 }
 
 .modal-form legend,
 .user-edit-form legend,
 .group-member-form legend {
-  padding: 0 10px;
-  color: #102a43;
-  font-size: 14px;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-}
-
-/* Checkboxes e Radios com estilo moderno */
-.weekday-checks label,
-.modal-form .check,
-.user-edit-form label:has(input[type="checkbox"]) {
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: center !important;
-  gap: 12px;
-  min-height: 48px;
-  padding: 10px 14px;
-  border: 1px solid #cbdbe6;
-  border-radius: 12px;
-  background: #ffffff;
-  color: #173f59;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 160ms ease;
-  box-shadow: 0 1px 2px rgba(16, 42, 67, 0.04);
-}
-
-.weekday-checks label:hover,
-.modal-form .check:hover {
-  border-color: #2788c9;
-  background: #f4fafc;
-}
-
-.modal-form input[type="checkbox"],
-.modal-form input[type="radio"],
-.user-edit-form input[type="checkbox"] {
-  width: 20px !important;
-  min-width: 20px;
-  height: 20px !important;
-  min-height: 20px;
-  margin: 0 !important;
-  accent-color: #2788c9;
-  cursor: pointer;
-}
-
-/* Patient Picker Autocomplete Estilizado */
-.patient-picker {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  font-size: 14px;
-  font-weight: 700;
+  padding: 0 8px;
   color: #17324d;
+  font-size: 15px;
+  font-weight: 800;
 }
 
-.patient-picker-options {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  z-index: 40;
-  margin-top: 6px;
-  max-height: 240px;
-  overflow-y: auto;
-  background: #ffffff;
-  border: 1px solid #9bb3c7;
-  border-radius: 14px;
-  box-shadow: 0 12px 32px rgba(16, 38, 58, 0.16);
-  padding: 6px;
-}
-
-.patient-picker-options button {
-  width: 100%;
-  padding: 10px 14px;
-  border: 0;
-  background: transparent;
-  border-radius: 9px;
-  text-align: left;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  transition: background-color 140ms ease;
-}
-
-.patient-picker-options button:hover {
-  background: #eaf5fc;
-}
-
-.patient-picker-options strong {
-  font-size: 14px;
-  color: #102a43;
-}
-
-.patient-picker-options small {
-  font-size: 12px;
-  color: #607789;
-}
-
-/* Botões do Formulário */
+/* Botões do Formulário no estilo azul Fisiofit */
 .modal-form .btn.primary,
 .login-card .btn.primary,
 .user-edit-form .btn.primary,
-.edit-dialog-actions .btn.primary {
-  min-height: 50px;
-  padding: 12px 24px;
-  border-radius: 12px;
+.edit-dialog-actions .btn.primary,
+.creation-drawer-form > .btn:last-child {
+  width: 100%;
+  min-height: 52px;
+  padding: 14px 28px;
+  border-radius: 14px;
   background: #2788c9;
   border: 1px solid #2788c9;
   color: #ffffff;
-  font-size: 15px;
-  font-weight: 750;
+  font-size: 16px;
+  font-weight: 700;
   letter-spacing: -0.01em;
-  box-shadow: 0 4px 14px rgba(39, 136, 201, 0.28);
-  transition: all 160ms ease;
+  box-shadow: none;
+  transition: background-color 160ms ease, border-color 160ms ease;
   cursor: pointer;
+  margin-top: 10px;
 }
 
 .modal-form .btn.primary:hover,
 .login-card .btn.primary:hover,
-.user-edit-form .btn.primary:hover {
+.user-edit-form .btn.primary:hover,
+.creation-drawer-form > .btn:last-child:hover {
   background: #1e75b0;
   border-color: #1e75b0;
-  box-shadow: 0 6px 18px rgba(39, 136, 201, 0.36);
-  transform: translateY(-1px);
 }
 
 .modal-actions,
@@ -604,27 +509,26 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   align-items: center;
   justify-content: flex-end;
   gap: 12px;
-  padding-top: 14px;
-  border-top: 1px solid #e3edf4;
-  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid #e6eff7;
+  margin-top: 10px;
 }
 
 /* Adaptações Mobile e Responsividade */
 @media (max-width: 640px) {
   .modal-backdrop {
-    padding: 12px;
+    padding: 16px;
   }
   .modal-form:not(.inline-form) {
-    padding: 20px 16px;
+    padding: 0 20px 24px;
+  }
+  .modal-head {
+    padding: 20px 20px 16px;
   }
   .modal-form .form-row,
   .user-edit-form .form-row {
     grid-template-columns: 1fr;
-    gap: 16px;
-  }
-  .modal-form .btn.primary,
-  .login-card .btn.primary {
-    width: 100%;
+    gap: 18px;
   }
 }
 
