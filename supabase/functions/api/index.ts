@@ -434,7 +434,7 @@ app.get("/professionals", listResource("professionals", "name"));
 app.get("/services", listResource("services", "name"));
 app.get("/plans", listResource("plans", "name"));
 app.get("/group-slots", listResource("group_slots", "starts_at"));
-app.get("/group-slot-memberships", async (context) => {
+app.get("/group-slot-memberships", requireRoles(["admin", "manager", "reception", "professional"]), async (context) => {
   const clinicId = context.get("profile").clinic_id;
   let query = context.get("db").from("group_slot_memberships")
     .select("id,group_slot_id,enrollment_id,patient_id,starts_at,ends_at,status,patients(name,phone)")
@@ -1088,6 +1088,19 @@ app.delete("/group-slot-memberships/:id", requireRoles(["admin", "manager", "rec
   const { data, error } = await context.get("db").from("group_slot_memberships")
     .update({ status: "cancelled", deleted_at: deletedAt, updated_at: deletedAt })
     .eq("id", id).eq("clinic_id", context.get("profile").clinic_id).is("deleted_at", null).select("id").single();
+  if (!error && data) await audit(context, "group_slot.member_removed", "group_slot_membership", id);
+  return databaseResult(context, data, error);
+});
+
+app.patch("/group-slot-memberships/:id", requireRoles(["admin", "manager", "reception"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const input = z.object({ starts_at: z.string().date(), ends_at: z.string().date().optional() }).refine((value) => !value.ends_at || value.ends_at >= value.starts_at, {
+    message: "A data final não pode ser anterior à inicial.",
+  }).parse(await context.req.json());
+  const { data, error } = await context.get("db").from("group_slot_memberships")
+    .update({ ...input, updated_at: new Date().toISOString() })
+    .eq("id", id).eq("clinic_id", context.get("profile").clinic_id).eq("status", "active").is("deleted_at", null).select("id,group_slot_id,starts_at,ends_at").single();
+  if (!error && data) await audit(context, "group_slot.member_updated", "group_slot_membership", id);
   return databaseResult(context, data, error);
 });
 
@@ -1695,6 +1708,11 @@ app.onError((error, context) => {
 
 function listResource(table: string, order: string, ascending = true) {
   return async (context: Parameters<typeof ok>[0]) => {
+    const module = moduleForPath(context.req.path);
+    if (module && context.get("profile").role !== "admin") {
+      const { data: permission } = await context.get("db").from("profile_permissions").select("can_view").eq("profile_id", context.get("user").id).eq("module", module).maybeSingle();
+      if (permission && !permission.can_view) return fail(context, 403, "MODULE_FORBIDDEN", "Seu usuário não tem acesso a este módulo.");
+    }
     const clinicId = context.get("profile").clinic_id;
     let query = context.get("db").from(table).select("*").eq("clinic_id", clinicId);
     const unitId = context.req.query("unitId");
@@ -1761,8 +1779,9 @@ function requireRoles(roles: Role[]) {
     }
     const module = moduleForPath(context.req.path);
     if (module && context.get("profile").role !== "admin") {
-      const { data } = await context.get("db").from("profile_permissions").select("can_view").eq("profile_id", context.get("user").id).eq("module", module).maybeSingle();
-      if (data && !data.can_view) return fail(context, 403, "MODULE_FORBIDDEN", "Seu usuário não tem acesso a este módulo.");
+      const { data } = await context.get("db").from("profile_permissions").select("can_view,can_edit").eq("profile_id", context.get("user").id).eq("module", module).maybeSingle();
+      const allowed = data ? (context.req.method === "GET" ? data.can_view : data.can_edit) : true;
+      if (!allowed) return fail(context, 403, "MODULE_FORBIDDEN", context.req.method === "GET" ? "Seu usuário não tem acesso a este módulo." : "Seu usuário não tem permissão para editar este módulo.");
     }
     await next();
   };
@@ -1773,6 +1792,7 @@ function moduleForPath(path: string): PermissionModule | null {
   const map: Record<string, PermissionModule> = {
     dashboard: "dashboard", appointments: "agenda", "group-slots": "agenda", patients: "patients", responsibles: "patients", consents: "patients",
     enrollments: "enrollments", charges: "enrollments", "record-templates": "records", "clinical-records": "records", attachments: "records",
+    plans: "enrollments", "group-slot-memberships": "agenda",
     payments: "finance", "financial-entries": "finance", commissions: "finance", closings: "finance", reports: "reports", imports: "imports",
     users: "users", units: "settings", rooms: "settings", professionals: "settings", services: "settings", privacy: "privacy", audit: "privacy",
   };

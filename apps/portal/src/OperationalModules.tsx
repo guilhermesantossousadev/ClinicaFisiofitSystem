@@ -433,7 +433,7 @@ function ModuleState({
 
 export type AgendaEnrollmentContext = { unitId: string; groupSlotId: string; startsAt: string; unitName?: string; groupName?: string };
 
-export function OperationalAgenda({ onOpenPatients, onOpenEnrollment }: { onOpenPatients?: () => void; onOpenEnrollment?: (context: AgendaEnrollmentContext) => void }) {
+export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit = true }: { onOpenPatients?: () => void; onOpenEnrollment?: (context: AgendaEnrollmentContext) => void; canEdit?: boolean }) {
   const [fromDate, setFromDate] = useState(() =>
     new Date().toISOString().slice(0, 10),
   );
@@ -461,6 +461,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment }: { onOpen
   const [notice, setNotice] = useState("");
   const [calendarAppointment, setCalendarAppointment] = useState<Row | null | undefined>(undefined);
   const [selectedGroupCell, setSelectedGroupCell] = useState<{ slot: Row; day: Date; members: Row[]; unitName: string } | null>(null);
+  const [selectedUnitId, setSelectedUnitId] = useState(() => window.localStorage.getItem("fisiofit:selected-unit") ?? "");
   const [selectedGroupWeekdays, setSelectedGroupWeekdays] = useState<number[]>([1, 3]);
   const [groupTime, setGroupTime] = useState("09:00");
   useEffect(() => {
@@ -468,6 +469,11 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment }: { onOpen
       .then((response) => setGroupMembers(response.data ?? []))
       .catch(() => setGroupMembers([]));
   }, [data["/group-slots"]]);
+  useEffect(() => {
+    const onUnitChanged = (event: Event) => setSelectedUnitId((event as CustomEvent<string>).detail ?? window.localStorage.getItem("fisiofit:selected-unit") ?? "");
+    window.addEventListener("fisiofit:unit-changed", onUnitChanged);
+    return () => window.removeEventListener("fisiofit:unit-changed", onUnitChanged);
+  }, []);
 
   const selectedDayNames = selectedGroupWeekdays.map(
     (day) => WEEKDAYS.find((option) => option.value === day)?.short ?? "",
@@ -483,6 +489,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment }: { onOpen
   }, [fromDate, rangeDays]);
   const fixedSlots: Row[] = data["/group-slots"] ?? [];
   const units: Unit[] = data["/units"] ?? [];
+  const visibleUnits = selectedUnitId ? units.filter((unit) => unit.id === selectedUnitId) : [];
   const calendarHours = Array.from({ length: 15 }, (_, index) => index + 6);
   const membersForSlot = (slotId: string, date: Date) => groupMembers.filter((member) => {
     if (member.group_slot_id !== slotId || member.status !== "active") return false;
@@ -628,8 +635,18 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment }: { onOpen
   }
 
   async function removeGroupMember(id: string) {
-    try { await api(`/group-slot-memberships/${id}`, { method: "DELETE" }); setNotice("Paciente removido da turma."); await reload(); }
+    if (!window.confirm("Retirar este aluno da turma? A matrícula será preservada.")) return;
+    try { await api(`/group-slot-memberships/${id}`, { method: "DELETE" }); setNotice("Paciente removido da turma."); setSelectedGroupCell(null); await reload(); }
     catch (actionError) { setNotice(messageOf(actionError)); }
+  }
+
+  async function updateGroupMember(id: string, form: FormData) {
+    try {
+      await api(`/group-slot-memberships/${id}`, { method: "PATCH", body: JSON.stringify({ starts_at: value(form, "starts_at"), ends_at: value(form, "ends_at") || undefined }) });
+      setNotice("Período do aluno atualizado.");
+      setSelectedGroupCell(null);
+      await reload();
+    } catch (actionError) { setNotice(messageOf(actionError)); }
   }
 
   return (
@@ -671,7 +688,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment }: { onOpen
           <div><p className="eyebrow">CALENDÁRIO FIXO</p><h2>Horários por unidade</h2></div>
           <span>{rangeDays} dias · 06:00–20:00 · segunda a sexta</span>
         </div>
-        {units.map((unit) => (
+        {visibleUnits.map((unit) => (
           <div className="fixed-calendar-unit" key={unit.id}>
             <div className="fixed-calendar-unit-head"><h3>{unit.name}</h3><span>{fixedSlots.filter((slot) => slot.unit_id === unit.id).length} horários fixos</span></div>
             <div className="fixed-calendar-scroll">
@@ -706,6 +723,8 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment }: { onOpen
           </div>
         ))}
         {!units.length && <p className="empty-state">Cadastre uma unidade para visualizar a agenda.</p>}
+        {units.length > 0 && !selectedUnitId && <p className="empty-state">Selecione uma unidade no filtro superior para visualizar a agenda.</p>}
+        {selectedUnitId && !visibleUnits.length && <p className="empty-state">A unidade selecionada não está disponível para este usuário.</p>}
       </section>
       {selectedGroupCell && (
         <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedGroupCell(null); }}>
@@ -717,8 +736,8 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment }: { onOpen
             <div className="group-members-drawer-body">
               {selectedGroupCell.members.length >= Number(selectedGroupCell.slot.capacity ?? 7) && <div className="capacity-alert" role="status"><strong>Turma lotada</strong><span>Não há vagas disponíveis para cadastrar mais pessoas.</span></div>}
               <h3>Alunos inscritos</h3>
-              {selectedGroupCell.members.length ? <ul className="group-members-drawer-list">{selectedGroupCell.members.map((member) => <li key={member.id}><span>{member.patients?.name ?? "Paciente"}</span><small>{member.patients?.phone ?? ""}</small></li>)}</ul> : <p className="empty-state">Nenhum aluno inscrito nesta turma.</p>}
-              <button type="button" className="btn primary group-members-add" disabled={selectedGroupCell.members.length >= Number(selectedGroupCell.slot.capacity ?? 7)} onClick={() => { onOpenEnrollment?.({ unitId: selectedGroupCell.slot.unit_id, groupSlotId: selectedGroupCell.slot.id, startsAt: dateKey(selectedGroupCell.day), unitName: selectedGroupCell.unitName, groupName: selectedGroupCell.slot.name }); setSelectedGroupCell(null); }}>Cadastrar mais pessoas</button>
+              {selectedGroupCell.members.length ? <ul className="group-members-drawer-list">{selectedGroupCell.members.map((member) => <li key={member.id}><div><span>{member.patients?.name ?? "Paciente"}</span><small>{member.patients?.phone ?? ""}</small></div><div className="group-member-actions">{canEdit && <button type="button" onClick={() => { const form = document.getElementById(`member-edit-${member.id}`); form?.toggleAttribute("hidden"); }}>Editar</button>}{canEdit && <button type="button" className="action-delete" onClick={() => void removeGroupMember(member.id)}>Retirar</button>}</div>{canEdit && <form id={`member-edit-${member.id}`} className="group-member-inline-edit" hidden onSubmit={(event) => { event.preventDefault(); void updateGroupMember(member.id, new FormData(event.currentTarget)); }}><label>Início<input name="starts_at" type="date" defaultValue={String(member.starts_at ?? "").slice(0, 10)} required /></label><label>Fim<input name="ends_at" type="date" defaultValue={member.ends_at ? String(member.ends_at).slice(0, 10) : ""} /></label><button className="btn secondary">Salvar período</button></form>}</li>)}</ul> : <p className="empty-state">Nenhum aluno inscrito nesta turma.</p>}
+              {canEdit && <button type="button" className="btn primary group-members-add" disabled={selectedGroupCell.members.length >= Number(selectedGroupCell.slot.capacity ?? 7)} onClick={() => { onOpenEnrollment?.({ unitId: selectedGroupCell.slot.unit_id, groupSlotId: selectedGroupCell.slot.id, startsAt: dateKey(selectedGroupCell.day), unitName: selectedGroupCell.unitName, groupName: selectedGroupCell.slot.name }); setSelectedGroupCell(null); }}>Cadastrar mais pessoas</button>}
             </div>
           </section>
         </div>
