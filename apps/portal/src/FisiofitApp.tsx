@@ -14,6 +14,7 @@ import {
   OperationalReports,
   OperationalUsers,
 } from "./OperationalModules";
+import type { AgendaEnrollmentContext } from "./OperationalModules";
 
 type View =
   | "Painel"
@@ -29,7 +30,8 @@ type View =
   | "Privacidade";
 type Role = "admin" | "manager" | "reception" | "professional" | "finance";
 type Unit = { id: string; name: string; active: boolean };
-type Profile = { name: string; role: Role };
+type PermissionModule = "dashboard" | "agenda" | "patients" | "enrollments" | "records" | "finance" | "reports" | "imports" | "users" | "settings" | "privacy";
+type Profile = { name: string; role: Role; profile_permissions?: Array<{ module: PermissionModule; can_view: boolean; can_edit: boolean }> };
 type Patient = {
   id: string;
   name: string;
@@ -91,6 +93,7 @@ const roleLabel: Record<Role, string> = {
   professional: "Profissional",
   finance: "Financeiro",
 };
+const navModule: Partial<Record<View, PermissionModule>> = { Painel: "dashboard", Agenda: "agenda", Pacientes: "patients", Matrículas: "enrollments", Prontuários: "records", Financeiro: "finance", Relatórios: "reports", Importações: "imports", Usuários: "users", Configurações: "settings", Privacidade: "privacy" };
 const brl = (cents: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
     cents / 100,
@@ -135,6 +138,7 @@ export default function FisiofitApp() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [agendaContext, setAgendaContext] = useState<AgendaEnrollmentContext>();
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     storeValue(`${storagePrefix}:view`, view);
@@ -181,14 +185,22 @@ export default function FisiofitApp() {
       .finally(() => setLoading(false));
   }, []);
   const visibleNav = useMemo(
-    () => nav.filter((item) => item.roles.includes(profile.role)),
-    [profile.role],
+    () => nav.filter((item) => item.roles.includes(profile.role) && (profile.role === "admin" || !profile.profile_permissions || profile.profile_permissions.some((permission) => permission.module === navModule[item.label] && permission.can_view))),
+    [profile.role, profile.profile_permissions],
   );
   useEffect(() => {
     if (!loading && !visibleNav.some((item) => item.label === view)) {
       setView(visibleNav[0]?.label ?? "Painel");
     }
   }, [loading, view, visibleNav]);
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileMenuOpen(false);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [mobileMenuOpen]);
   const mobilePrimaryNav = visibleNav.slice(0, 4);
   const mobileSecondaryNav = visibleNav.slice(4);
   const mobileViewIsSecondary = mobileSecondaryNav.some(
@@ -221,7 +233,9 @@ export default function FisiofitApp() {
     .join("")
     .toUpperCase();
   return (
-    <main className="app-shell" aria-busy={loading}>
+    <>
+      <a className="skip-link" href="#portal-content">Pular para o conteúdo principal</a>
+      <main className="app-shell" aria-busy={loading}>
       <aside className="sidebar">
         <button className="brand" onClick={() => navigate("Painel")}>
           <img className="brand-logo" src="/sistema/fisiofit-logo.jpg" alt="" />
@@ -318,7 +332,7 @@ export default function FisiofitApp() {
           </section>
         </div>
       )}
-      <section className="workspace">
+      <section className="workspace" id="portal-content">
         <header className="topbar">
           <div className="mobile-brand">
             <img
@@ -392,9 +406,9 @@ export default function FisiofitApp() {
         {view === "Painel" && (
           <Dashboard data={dashboard} name={profile.name} setView={setView} loading={loading} />
         )}{" "}
-        {view === "Agenda" && <OperationalAgenda />}{" "}
+        {view === "Agenda" && <OperationalAgenda onOpenPatients={() => navigate("Pacientes")} onOpenEnrollment={(context) => { setAgendaContext(context); navigate("Matrículas"); }} />}{" "}
         {view === "Pacientes" && <OperationalPatients />}{" "}
-        {view === "Matrículas" && <OperationalEnrollments />}{" "}
+        {view === "Matrículas" && <OperationalEnrollments agendaContext={agendaContext} onClearAgendaContext={() => setAgendaContext(undefined)} />}{" "}
         {view === "Prontuários" && <OperationalRecords />}{" "}
         {view === "Financeiro" && <OperationalFinance />}{" "}
         {view === "Relatórios" && <OperationalReports />}{" "}
@@ -403,7 +417,8 @@ export default function FisiofitApp() {
         {view === "Configurações" && <OperationalAdministration />}
         {view === "Privacidade" && <OperationalPrivacy />}
       </section>
-    </main>
+      </main>
+    </>
   );
 }
 

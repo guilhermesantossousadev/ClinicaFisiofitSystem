@@ -4,6 +4,7 @@ import { createClient, type User } from "npm:@supabase/supabase-js@2.49.1";
 import { z } from "npm:zod@3.24.2";
 
 type Role = "admin" | "manager" | "reception" | "professional" | "finance";
+type PermissionModule = "dashboard" | "agenda" | "patients" | "enrollments" | "records" | "finance" | "reports" | "imports" | "users" | "settings" | "privacy";
 type Variables = {
   requestId: string;
   user: User;
@@ -89,7 +90,7 @@ app.use("*", async (context, next) => {
   });
   const { data: profile, error: profileError } = await db
     .from("profiles")
-    .select("id, clinic_id, name, role, status, mfa_required")
+    .select("id, clinic_id, name, role, status, mfa_required, profile_permissions(module,can_view,can_edit)")
     .eq("id", authData.user.id)
     .is("deleted_at", null)
     .single();
@@ -299,7 +300,7 @@ app.get("/users", requireRoles(["admin", "manager"]), async (context) => {
   });
   const [{ data, error }, { data: clinic, error: clinicError }, { data: authUsers, error: authError }] = await Promise.all([
     db.from("profiles")
-    .select("id,name,role,status,mfa_required,created_at,profile_units(unit_id,units(id,name))")
+    .select("id,name,role,status,mfa_required,created_at,profile_units(unit_id,units(id,name)),profile_permissions(module,can_view,can_edit)")
     .eq("clinic_id", clinicId).is("deleted_at", null).order("name"),
     db.from("clinics").select("owner_profile_id").eq("id", clinicId).single(),
     admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
@@ -319,8 +320,9 @@ app.patch("/users/:id", requireRoles(["admin"]), async (context) => {
     role: z.enum(["admin", "manager", "reception", "professional", "finance"]).optional(),
     status: z.enum(["invited", "active", "blocked"]).optional(),
     unitIds: z.array(z.string().uuid()).optional(),
+    permissions: z.record(z.object({ canView: z.boolean(), canEdit: z.boolean() })).optional(),
   }).parse(await context.req.json());
-  const { unitIds, ...profileChanges } = input;
+  const { unitIds, permissions, ...profileChanges } = input;
   const db = context.get("db");
   const clinicId = context.get("profile").clinic_id;
   const { data: clinic, error: clinicError } = await db.from("clinics")
@@ -352,6 +354,13 @@ app.patch("/users/:id", requireRoles(["admin"]), async (context) => {
       );
       if (insertError) return databaseResult(context, null, insertError);
     }
+  }
+  if (permissions) {
+    const modules = Object.entries(permissions).map(([module, value]) => ({
+      profile_id: id, module, can_view: value.canView, can_edit: value.canEdit, updated_at: new Date().toISOString(),
+    }));
+    const { error: permissionError } = await db.from("profile_permissions").upsert(modules, { onConflict: "profile_id,module" });
+    if (permissionError) return databaseResult(context, null, permissionError);
   }
   await audit(context, "user.updated", "profile", id);
   return ok(context, data);
@@ -612,12 +621,22 @@ app.post("/enrollments", requireRoles(["admin", "manager", "reception", "finance
     surcharge_cents: z.number().int().nonnegative().default(0),
   }).parse(await context.req.json());
   const db = context.get("db");
-  const { data: plan, error: planError } = await db.from("plans").select("id,name,price_cents")
-    .eq("id", input.plan_id).eq("clinic_id", context.get("profile").clinic_id).single();
+  if (!(await hasUnitAccess(context, input.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+  const clinicId = context.get("profile").clinic_id;
+  const { data: unit } = await db.from("units").select("id").eq("id", input.unit_id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle();
+  if (!unit) return fail(context, 400, "INVALID_UNIT", "A unidade selecionada não pertence à clínica.");
+  const { data: patient } = await db.from("patients").select("id,primary_unit_id").eq("id", input.patient_id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle();
+  if (!patient) return fail(context, 404, "PATIENT_NOT_FOUND", "Paciente não encontrado nesta clínica.");
+  const { data: plan, error: planError } = await db.from("plans").select("id,name,price_cents,active")
+    .eq("id", input.plan_id).eq("clinic_id", clinicId).is("deleted_at", null).single();
   if (planError || !plan) return databaseResult(context, null, planError);
+  if (!plan.active) return fail(context, 400, "PLAN_INACTIVE", "O plano selecionado está inativo.");
+  if (input.ends_at && input.ends_at < input.starts_at) return fail(context, 400, "INVALID_PERIOD", "A data final não pode ser anterior à inicial.");
+  const { data: existing } = await db.from("enrollments").select("*").eq("clinic_id", clinicId).eq("patient_id", input.patient_id).eq("plan_id", input.plan_id).eq("unit_id", input.unit_id).eq("status", "active").is("deleted_at", null).maybeSingle();
+  if (existing) return ok(context, existing);
   const { data, error } = await db.from("enrollments").insert({
     ...input,
-    clinic_id: context.get("profile").clinic_id,
+    clinic_id: clinicId,
     status: "active",
   }).select().single();
   if (error || !data) return databaseResult(context, null, error);
@@ -632,7 +651,10 @@ app.post("/enrollments", requireRoles(["admin", "manager", "reception", "finance
     due_at: firstDueDate(input.starts_at, input.due_day),
     status: "pending",
   });
-  if (chargeError) return databaseResult(context, null, chargeError);
+  if (chargeError) {
+    await db.from("enrollments").update({ status: "cancelled", deleted_at: new Date().toISOString() }).eq("id", data.id).eq("clinic_id", clinicId);
+    return databaseResult(context, null, chargeError);
+  }
   await audit(context, "enrollment.created", "enrollment", data.id, input.unit_id);
   return ok(context, data, 201);
 });
@@ -655,6 +677,10 @@ app.post("/charges", requireRoles(["admin", "manager", "finance"]), async (conte
     installment_number: z.number().int().positive().optional(),
     installment_count: z.number().int().positive().optional(),
   }).parse(await context.req.json());
+  if (input.enrollment_id) {
+    const { data: enrollment } = await context.get("db").from("enrollments").select("id,patient_id,unit_id").eq("id", input.enrollment_id).eq("clinic_id", context.get("profile").clinic_id).eq("patient_id", input.patient_id).eq("unit_id", input.unit_id).eq("status", "active").is("deleted_at", null).maybeSingle();
+    if (!enrollment) return fail(context, 400, "INVALID_ENROLLMENT", "A matrícula não pertence ao paciente e à unidade informados.");
+  }
   return createClinicResource(context, "charges", { ...input, status: "pending" }, "charge.created", input.unit_id);
 });
 
@@ -717,6 +743,7 @@ app.get("/patients/:id", async (context) => {
 
 app.post("/patients", requireRoles(["admin", "manager", "reception"]), async (context) => {
   const input = patientSchema.parse(await context.req.json());
+  if (!(await hasUnitAccess(context, input.primary_unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
   const { data, error } = await context.get("db").from("patients").insert({
     ...input,
     clinic_id: context.get("profile").clinic_id,
@@ -728,6 +755,7 @@ app.post("/patients", requireRoles(["admin", "manager", "reception"]), async (co
 app.patch("/patients/:id", requireRoles(["admin", "manager", "reception"]), async (context) => {
   const id = z.string().uuid().parse(context.req.param("id"));
   const input = patientSchema.partial().extend({ active: z.boolean().optional() }).parse(await context.req.json());
+  if (input.primary_unit_id && !(await hasUnitAccess(context, input.primary_unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
   const { data, error } = await context.get("db").from("patients").update({
     ...input,
     updated_at: new Date().toISOString(),
@@ -913,9 +941,15 @@ app.post("/group-slots", requireRoles(["admin", "manager", "reception"]), async 
   }).parse(await context.req.json());
   if (!(await hasUnitAccess(context, input.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
   const db = context.get("db");
+  const normalizedWeekdays = [...new Set(input.weekdays)].sort();
+  const { data: conflictingSlots } = await db.from("group_slots").select("id,name,weekdays,starts_at")
+    .eq("clinic_id", context.get("profile").clinic_id).eq("unit_id", input.unit_id).eq("starts_at", input.starts_at).eq("active", true).is("deleted_at", null);
+  if ((conflictingSlots ?? []).some((slot: any) => (slot.weekdays ?? []).some((day: number) => normalizedWeekdays.includes(day)))) {
+    return fail(context, 409, "GROUP_SLOT_CONFLICT", "Já existe uma turma nesta unidade para o mesmo dia e horário. Escolha outro horário ou dia.");
+  }
   const { data, error } = await db.from("group_slots").insert({
     ...input,
-    weekdays: [...new Set(input.weekdays)].sort(),
+    weekdays: normalizedWeekdays,
     clinic_id: context.get("profile").clinic_id,
   }).select().single();
   if (!error && data) {
@@ -980,6 +1014,16 @@ app.patch("/group-slots/:id", requireRoles(["admin", "manager", "reception"]), a
     active: z.boolean().optional(),
   }).parse(await context.req.json());
   if (input.unit_id && !(await hasUnitAccess(context, input.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+  if (input.unit_id || input.starts_at || input.weekdays) {
+    const current = await context.get("db").from("group_slots").select("unit_id,starts_at,weekdays").eq("id", id).eq("clinic_id", context.get("profile").clinic_id).is("deleted_at", null).single();
+    if (current.data) {
+      const unitId = input.unit_id ?? current.data.unit_id;
+      const startsAt = input.starts_at ?? current.data.starts_at;
+      const weekdays = input.weekdays ? [...new Set(input.weekdays)] : current.data.weekdays;
+      const { data: conflicts } = await context.get("db").from("group_slots").select("id,weekdays").eq("clinic_id", context.get("profile").clinic_id).eq("unit_id", unitId).eq("starts_at", startsAt).eq("active", true).is("deleted_at", null).neq("id", id);
+      if ((conflicts ?? []).some((slot: any) => (slot.weekdays ?? []).some((day: number) => weekdays.includes(day)))) return fail(context, 409, "GROUP_SLOT_CONFLICT", "Já existe uma turma nesta unidade para o mesmo dia e horário. Escolha outro horário ou dia.");
+    }
+  }
   return updateClinicResource(context, "group_slots", id, { ...input, ...(input.weekdays ? { weekdays: [...new Set(input.weekdays)].sort() } : {}) }, "group_slot.updated", input.unit_id);
 });
 
@@ -1005,6 +1049,13 @@ app.post("/group-slots/:id/members", requireRoles(["admin", "manager", "receptio
   const { data: slot, error: slotError } = await db.from("group_slots").select("id,unit_id,capacity")
     .eq("id", groupSlotId).eq("clinic_id", clinicId).is("deleted_at", null).single();
   if (slotError || !slot) return databaseResult(context, null, slotError);
+  if (!(await hasUnitAccess(context, slot.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+  const { data: enrollment } = await db.from("enrollments").select("id,patient_id,unit_id,status,starts_at,ends_at")
+    .eq("id", input.enrollment_id).eq("clinic_id", clinicId).eq("patient_id", input.patient_id).eq("unit_id", slot.unit_id).eq("status", "active").is("deleted_at", null).maybeSingle();
+  if (!enrollment) return fail(context, 400, "INVALID_ENROLLMENT", "A matrícula não corresponde ao paciente e à unidade desta turma.");
+  if (input.ends_at && input.ends_at < input.starts_at) return fail(context, 400, "INVALID_PERIOD", "A data final não pode ser anterior à inicial.");
+  const { data: existingMembership } = await db.from("group_slot_memberships").select("id").eq("clinic_id", clinicId).eq("group_slot_id", groupSlotId).eq("patient_id", input.patient_id).eq("status", "active").is("deleted_at", null).maybeSingle();
+  if (existingMembership) return ok(context, existingMembership);
   const { count, error: countError } = await db.from("group_slot_memberships").select("id", { count: "exact", head: true })
     .eq("clinic_id", clinicId).eq("group_slot_id", groupSlotId).eq("status", "active").is("deleted_at", null);
   if (countError) return databaseResult(context, null, countError);
@@ -1695,8 +1746,24 @@ function requireRoles(roles: Role[]) {
     if (!roles.includes(context.get("profile").role)) {
       return fail(context, 403, "FORBIDDEN", "Seu perfil não possui permissão para esta operação.");
     }
+    const module = moduleForPath(context.req.path);
+    if (module && context.get("profile").role !== "admin") {
+      const { data } = await context.get("db").from("profile_permissions").select("can_view").eq("profile_id", context.get("user").id).eq("module", module).maybeSingle();
+      if (data && !data.can_view) return fail(context, 403, "MODULE_FORBIDDEN", "Seu usuário não tem acesso a este módulo.");
+    }
     await next();
   };
+}
+
+function moduleForPath(path: string): PermissionModule | null {
+  const match = path.match(/^\/([^/]+)/)?.[1];
+  const map: Record<string, PermissionModule> = {
+    dashboard: "dashboard", appointments: "agenda", "group-slots": "agenda", patients: "patients", responsibles: "patients", consents: "patients",
+    enrollments: "enrollments", charges: "enrollments", "record-templates": "records", "clinical-records": "records", attachments: "records",
+    payments: "finance", "financial-entries": "finance", commissions: "finance", closings: "finance", reports: "reports", imports: "imports",
+    users: "users", units: "settings", rooms: "settings", professionals: "settings", services: "settings", privacy: "privacy", audit: "privacy",
+  };
+  return match ? map[match] ?? null : null;
 }
 
 function ok(context: any, data: unknown, status = 200) {
@@ -1979,6 +2046,18 @@ async function importNotionCore(db: any, clinicId: string, unitId: string, inven
     staged: Object.values(inventories).reduce((sum, rows) => sum + rows.length, 0),
     pending,
   };
+}
+
+const adminDeletableResources = ["units", "rooms", "services", "professionals", "plans", "record-templates"] as const;
+for (const resource of adminDeletableResources) {
+  app.delete(`/${resource}/:id`, requireRoles(["admin"]), async (context) => {
+    const id = z.string().uuid().parse(context.req.param("id"));
+    const deletedAt = new Date().toISOString();
+    const { data, error } = await context.get("db").from(resource).update({ active: false, deleted_at: deletedAt, updated_at: deletedAt })
+      .eq("id", id).eq("clinic_id", context.get("profile").clinic_id).is("deleted_at", null).select("id").single();
+    if (!error && data) await audit(context, `${resource.replace(/s$/, "")}.deleted`, resource.replace(/s$/, ""), id);
+    return databaseResult(context, data, error);
+  });
 }
 
 const openApiDocument = {

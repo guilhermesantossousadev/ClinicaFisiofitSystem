@@ -12,6 +12,132 @@
   box-shadow: 0 16px 36px rgb(16 38 58 / 16%);
 }
 
+/* Contrato final de alinhamento: todos os formulários usam a mesma régua visual. */
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form, .login-card, .mfa-card, .group-member-form) {
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) {
+  align-items: stretch;
+}
+
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) > label,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) .form-row > label,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) fieldset label {
+  display: grid;
+  grid-template-rows: auto minmax(52px, auto);
+  align-content: start;
+  align-items: start;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+}
+
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) label > span {
+  min-height: 21px;
+}
+
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) .form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 20px;
+  width: 100%;
+  min-width: 0;
+  margin: 0 0 20px;
+}
+
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) > label,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) > fieldset,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) > .check,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) > .form-instructions {
+  width: 100%;
+  min-width: 0;
+  margin-block: 0 20px;
+}
+
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) input:not([type="checkbox"]):not([type="radio"]),
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) select,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) textarea,
+:where(.login-card, .mfa-card) input:not([type="checkbox"]):not([type="radio"]) {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 52px;
+  height: 52px;
+  margin: 0;
+  padding: 13px 16px;
+  border: 1px solid var(--form-control-border);
+  border-radius: var(--form-control-radius);
+  line-height: 1.4;
+}
+
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) textarea {
+  height: auto;
+  min-height: 120px;
+  resize: vertical;
+}
+
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) fieldset {
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
+}
+
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) .btn,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) .modal-actions,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) .edit-dialog-actions {
+  margin-top: 0;
+}
+
+.login-card, .mfa-card { gap: 22px; }
+.login-card label, .mfa-card .form-field-label { gap: 8px; margin: 0; }
+.login-card input, .mfa-card input { height: 52px; margin: 0; }
+
+@media (max-width: 640px) {
+  :where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) .form-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+}
+
+/* Correção estrutural: o asterisco obrigatório é um nó separado dentro do label.
+   Labels em grid colocam esse nó em uma linha própria; bloco mantém rótulo e * juntos. */
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) > label,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) .form-row > label,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) fieldset label {
+  display: block;
+  min-width: 0;
+  margin: 0;
+  line-height: 1.35;
+}
+
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) > label > input,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) > label > select,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) > label > textarea,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) .form-row > label > input,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) .form-row > label > select,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) .form-row > label > textarea {
+  margin-top: 8px;
+}
+
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) fieldset .weekday-checks label,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) label:has(> input[type="checkbox"]),
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) label:has(> input[type="radio"]) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin: 0;
+}
+
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) label:has(> input[type="checkbox"]) input,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) label:has(> input[type="radio"]) input {
+  margin: 0;
+}
+
 .global-results button {
   display: grid;
   width: 100%;
@@ -240,163 +366,298 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   .administration-tab-panel { animation: none; }
 }
 
-/* Padrão visual único para formulários — inspirado na referência enviada */
+/* ==========================================================================
+   SISTEMA DE DESIGN DE FORMULÁRIOS DA CLÍNICA FISIOFIT (FIDELIDADE 100% AO DESIGN)
+   ========================================================================== */
+
 :root {
   --form-control-height: 52px;
-  --form-control-radius: 11px;
-  --form-control-border: #aebdca;
-  --form-control-shadow: 0 1px 2px rgb(16 42 67 / 10%);
-  --form-focus-ring: 0 0 0 4px rgb(9 109 168 / 14%);
-}
-
-.modal-form,
-.login-card {
+  --form-control-radius: 14px;
+  --form-control-border: #d2dfeb;
+  --form-control-bg: #ffffff;
+  --form-control-text: #17324d;
+  --form-control-placeholder: #7c93a8;
+  --form-control-shadow: 0 1px 2px rgba(16, 42, 67, 0.04);
+  --form-focus-border: #2788c9;
+  --form-focus-ring: 0 0 0 4px rgba(39, 136, 201, 0.14);
+  --form-label-color: #17324d;
   --form-section-gap: 22px;
 }
 
+/* Backdrop e Modais Modernizados conforme referência da imagem */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 38, 58, 0.45);
+  backdrop-filter: blur(4px);
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  animation: modal-fade-in 200ms ease-out forwards;
+}
+
+@keyframes modal-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal, .edit-dialog, .mfa-card {
+  width: min(640px, 100%);
+  max-height: 92vh;
+  overflow-y: auto;
+  background: #ffffff;
+  border: 1px solid #e2ecf5;
+  border-radius: 24px;
+  box-shadow: 0 20px 60px -10px rgba(16, 38, 58, 0.16), 0 8px 20px -4px rgba(16, 38, 58, 0.06);
+  animation: modal-scale-up 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes modal-scale-up {
+  from { transform: scale(0.97) translateY(8px); opacity: 0; }
+  to { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.modal-head, .edit-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28px 32px 20px;
+  border-bottom: 0;
+  background: #ffffff;
+}
+
+.modal-head h2, .edit-dialog-header h2 {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  color: #17324d;
+  margin: 0;
+}
+
+.modal-head button, .dialog-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #e1ebf4;
+  background: #ffffff;
+  border-radius: 12px;
+  color: #65798a;
+  font-size: 22px;
+  line-height: 1;
+  transition: all 150ms ease;
+  cursor: pointer;
+}
+
+.modal-head button:hover, .dialog-close:hover {
+  background: #f4f8fb;
+  border-color: #cbd9e5;
+  color: #17324d;
+}
+
+/* Formulário Container & Labels */
+.modal-form,
+.login-card,
+.user-edit-form,
+.group-member-form {
+  display: grid;
+  gap: var(--form-section-gap);
+}
+
 .modal-form:not(.inline-form) {
-  padding: clamp(22px, 4vw, 32px);
+  padding: 0 32px 32px;
 }
 
 .modal-form label,
-.login-card label {
-  color: #142f43;
+.login-card label,
+.user-edit-form label,
+.form-field-label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--form-label-color);
   font-size: 15px;
-  font-weight: 650;
-  line-height: 1.35;
+  font-weight: 700;
+  line-height: 1.3;
 }
 
+.modal-form label > span,
+.login-card label > span,
+.form-field-label > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 15px;
+  font-weight: 700;
+  color: #17324d;
+}
+
+/* Inputs, Selects & Textareas Universais idênticos à foto */
 .modal-form input:not([type="checkbox"]):not([type="radio"]),
 .modal-form select,
 .modal-form textarea,
-.login-card input:not([type="checkbox"]):not([type="radio"]) {
+.login-card input:not([type="checkbox"]):not([type="radio"]),
+.user-edit-form input:not([type="checkbox"]):not([type="radio"]),
+.user-edit-form select,
+.group-member-form select,
+.group-member-form input,
+.record-selector select {
   width: 100%;
   min-height: var(--form-control-height);
-  margin-top: 8px;
-  padding: 13px 16px;
+  padding: 13px 18px;
   border: 1px solid var(--form-control-border);
   border-radius: var(--form-control-radius);
-  background: #fff;
+  background: var(--form-control-bg);
   box-shadow: var(--form-control-shadow);
-  color: #102a43;
+  color: var(--form-control-text);
+  font-family: inherit;
   font-size: 16px;
   font-weight: 500;
   line-height: 1.4;
+  outline: none;
   transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
 }
 
-.modal-form select {
-  appearance: auto;
-  padding-inline-end: 40px;
+.modal-form select,
+.user-edit-form select,
+.group-member-form select,
+.record-selector select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%3C17324D' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  background-size: 18px;
+  padding-inline-end: 46px;
 }
 
-.modal-form textarea {
-  min-height: 128px;
+.modal-form textarea,
+.user-edit-form textarea {
+  min-height: 120px;
   resize: vertical;
 }
 
 .modal-form input::placeholder,
 .modal-form textarea::placeholder,
-.login-card input::placeholder {
-  color: #718596;
+.login-card input::placeholder,
+.user-edit-form input::placeholder {
+  color: var(--form-control-placeholder);
   opacity: 1;
 }
 
+/* Interações Hover e Focus Visuals */
 .modal-form input:not([type="checkbox"]):not([type="radio"]):hover,
 .modal-form select:hover,
 .modal-form textarea:hover,
-.login-card input:not([type="checkbox"]):not([type="radio"]):hover {
-  border-color: #7893a5;
+.login-card input:not([type="checkbox"]):not([type="radio"]):hover,
+.user-edit-form input:not([type="checkbox"]):not([type="radio"]):hover,
+.user-edit-form select:hover {
+  border-color: #aebdca;
 }
 
 .modal-form input:not([type="checkbox"]):not([type="radio"]):focus,
 .modal-form select:focus,
 .modal-form textarea:focus,
-.login-card input:not([type="checkbox"]):not([type="radio"]):focus {
-  border-color: #096da8;
-  background: #fff;
+.login-card input:not([type="checkbox"]):not([type="radio"]):focus,
+.user-edit-form input:not([type="checkbox"]):not([type="radio"]):focus,
+.user-edit-form select:focus,
+.record-selector select:focus {
+  border-color: var(--form-focus-border);
+  background: #ffffff;
   box-shadow: var(--form-focus-ring);
-  outline: 0;
 }
 
-.modal-form .form-row {
+/* Form Grid Rows de 2 colunas */
+.modal-form .form-row,
+.user-edit-form .form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  margin: 0;
+}
+
+/* Fieldset e Grupos Lógicos */
+.modal-form fieldset,
+.user-edit-form fieldset,
+.group-member-form fieldset {
+  margin: 0;
+  padding: 24px;
+  border: 1px solid #dce7f0;
+  border-radius: 18px;
+  background: #f8fafc;
+  display: grid;
   gap: 18px;
-  margin: var(--form-section-gap) 0;
 }
 
-.modal-form > label + label,
-.modal-form > label + fieldset,
-.modal-form > fieldset + label {
-  margin-top: var(--form-section-gap);
-}
-
-.modal-form input[type="checkbox"],
-.modal-form input[type="radio"] {
-  width: 22px !important;
-  min-width: 22px;
-  height: 22px !important;
-  min-height: 22px;
-  margin: 0 !important;
-  accent-color: #096da8;
-}
-
-.weekday-checks {
-  gap: 10px;
-}
-
-.weekday-checks label,
-.modal-form .check {
-  min-height: 48px;
-  gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid #c7d5de;
-  border-radius: 10px;
-  background: #fff;
-  color: #173f59;
-  font-size: 14px;
-  box-shadow: 0 1px 2px rgb(16 42 67 / 5%);
-}
-
-.modal-form fieldset {
-  margin-block: var(--form-section-gap);
-  padding: 20px;
-  border-color: #c5d4de;
-  border-radius: 13px;
-  background: #fbfdfe;
-}
-
-.modal-form legend {
-  color: #142f43;
+.modal-form legend,
+.user-edit-form legend,
+.group-member-form legend {
+  padding: 0 8px;
+  color: #17324d;
   font-size: 15px;
-  font-weight: 750;
+  font-weight: 800;
 }
 
+/* Botões do Formulário no estilo azul Fisiofit */
 .modal-form .btn.primary,
-.login-card .btn.primary {
-  min-height: 50px;
-  padding-inline: 22px;
-  border-radius: 10px;
-  font-size: 15px;
-  box-shadow: 0 5px 14px rgb(9 109 168 / 20%);
+.login-card .btn.primary,
+.user-edit-form .btn.primary,
+.edit-dialog-actions .btn.primary,
+.creation-drawer-form > .btn:last-child {
+  width: 100%;
+  min-height: 52px;
+  padding: 14px 28px;
+  border-radius: 14px;
+  background: #2788c9;
+  border: 1px solid #2788c9;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  box-shadow: none;
+  transition: background-color 160ms ease, border-color 160ms ease;
+  cursor: pointer;
+  margin-top: 10px;
 }
 
-.login-card label {
-  margin: 20px 0;
+.modal-form .btn.primary:hover,
+.login-card .btn.primary:hover,
+.user-edit-form .btn.primary:hover,
+.creation-drawer-form > .btn:last-child:hover {
+  background: #1e75b0;
+  border-color: #1e75b0;
 }
 
-.login-card input:not([type="checkbox"]):not([type="radio"]) {
-  height: var(--form-control-height);
+.modal-actions,
+.edit-dialog-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid #e6eff7;
+  margin-top: 10px;
 }
 
-@container (max-width: 520px) {
-  .modal-form .form-row { grid-template-columns: 1fr; }
+/* Adaptações Mobile e Responsividade */
+@media (max-width: 640px) {
+  .modal-backdrop {
+    padding: 16px;
+  }
+  .modal-form:not(.inline-form) {
+    padding: 0 20px 24px;
+  }
+  .modal-head {
+    padding: 20px 20px 16px;
+  }
+  .modal-form .form-row,
+  .user-edit-form .form-row {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
 }
 
-@media (max-width: 520px) {
-  .modal-form:not(.inline-form) { padding: 20px; }
-  .modal-form .form-row { grid-template-columns: 1fr; gap: 18px; }
-  .modal-form .btn.primary, .login-card .btn.primary { width: 100%; }
-}
 
 /* Responsividade mobile-first do portal operacional */
 html, body, #root { width: 100%; max-width: 100%; }
@@ -619,6 +880,60 @@ body { overflow-x: clip; }
   .mobile-profile-actions > button { padding-inline: 14px; border: 1px solid var(--line); border-radius: 9px; background: #fff; }
   .toast { right: 12px; bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom) + 12px); left: 12px; }
 }
+
+/* O marcador obrigatório pertence à linha do rótulo, nunca à grade dos campos. */
+.required-mark { display: inline !important; margin-inline-start: 3px; line-height: 1; }
+.creation-drawer-form > label,
+.creation-drawer-form .form-row > label,
+.creation-drawer-form fieldset label,
+.administration-form label,
+.patient-search label,
+.inline-form label,
+.report-toolbar label,
+.modal-form label,
+.user-edit-form label {
+  display: block;
+}
+.creation-drawer-form > label > input,
+.creation-drawer-form > label > select,
+.creation-drawer-form > label > textarea,
+.creation-drawer-form .form-row label > input,
+.creation-drawer-form .form-row label > select,
+.creation-drawer-form .form-row label > textarea,
+.creation-drawer-form fieldset label > input,
+.creation-drawer-form fieldset label > select,
+.creation-drawer-form fieldset label > textarea,
+.administration-form label > input,
+.administration-form label > select,
+.administration-form label > textarea,
+.modal-form label > input,
+.modal-form label > select,
+.modal-form label > textarea,
+.user-edit-form label > input,
+.user-edit-form label > select,
+.user-edit-form label > textarea {
+  display: block;
+  margin-top: 8px;
+}
+.patient-picker { display: block !important; }
+.patient-picker > input[type="text"] { display: block; margin-top: 8px; }
+.patient-picker-options { margin-top: 0; }
+.agenda-context-summary { display: grid; gap: 5px; margin: 0 0 18px; padding: 14px 16px; border: 1px solid #b8d6e5; border-radius: 10px; background: #eef8fc; color: var(--ink); }
+.agenda-context-summary strong { font-size: 15px; }
+.agenda-context-summary span { color: var(--muted); font-size: 13px; }
+.agenda-context-summary button { justify-self: start; min-height: 36px; padding: 6px 0; border: 0; background: transparent; color: var(--blue); font-weight: 800; text-decoration: underline; }
+.calendar-slot-wrapper { position: relative; min-width: 0; min-height: 72px; }
+.calendar-slot-wrapper .calendar-slot-button { min-height: 72px; }
+.calendar-add-member-button { position: absolute; right: 5px; bottom: 5px; z-index: 4; min-height: 28px; padding: 4px 7px; border: 1px solid #75aaca; border-radius: 6px; background: #fff; color: var(--blue); font-size: 10px; font-weight: 800; }
+.calendar-add-member-button:hover, .calendar-add-member-button:focus-visible { background: var(--green-2); }
+
+.patient-picker { position: relative; display: grid; gap: 5px; }
+.patient-picker-options { position: absolute; z-index: 30; top: calc(100% + 4px); right: 0; left: 0; max-height: 280px; overflow-y: auto; padding: 4px; border: 1px solid var(--line); border-radius: 10px; background: #fff; box-shadow: 0 12px 30px rgb(16 38 58 / 16%); }
+.patient-picker-options button { display: grid; width: 100%; gap: 2px; padding: 10px; border: 0; border-radius: 7px; background: #fff; text-align: left; }
+.patient-picker-options button:hover, .patient-picker-options button:focus-visible { background: var(--green-2); }
+.patient-picker-options strong { font-size: 14px; }
+.patient-picker-options small, .patient-picker-empty { color: var(--muted); font-size: 12px; }
+.patient-picker-empty { display: block; padding: 12px 10px; }
 
 @media (max-width: 420px) {
   .mobile-brand strong { display: none; }
@@ -918,6 +1233,29 @@ body { background: var(--canvas); }
 .agenda-range-actions { display: flex; gap: 6px; width: 100%; }
 .agenda-range-actions .btn { min-height: 38px; padding-inline: 12px; }
 .group-allocation-panel { margin-top: 20px; }
+.fixed-calendar { margin: 20px 0; overflow: hidden; }
+.fixed-calendar-toolbar { padding: 18px 20px; border-bottom: 1px solid var(--line); }
+.fixed-calendar-unit { border-bottom: 1px solid var(--line); }
+.fixed-calendar-unit:last-child { border-bottom: 0; }
+.fixed-calendar-unit-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px 10px; }
+.fixed-calendar-unit-head h3 { margin: 0; font-size: 15px; color: var(--ink); }
+.fixed-calendar-unit-head span { color: var(--muted); font-size: 11px; }
+.fixed-calendar-scroll { overflow-x: auto; padding: 0 20px 20px; }
+.fixed-calendar-grid { min-width: 720px; display: grid; grid-template-columns: 64px repeat(var(--calendar-days), minmax(112px, 1fr)); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+.fixed-calendar-grid > div { min-height: 58px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.fixed-calendar-corner, .fixed-calendar-day-head { min-height: 42px !important; display: grid; place-items: center; background: #f6fafb; color: var(--muted); font-size: 11px; font-weight: 800; text-transform: capitalize; }
+.fixed-calendar-hour { display: grid; place-items: start center; padding-top: 12px; color: var(--muted); font-size: 11px; font-weight: 700; background: #fbfdfe; }
+.fixed-calendar-cell { display: grid; align-content: start; gap: 3px; padding: 8px; background: #fff; font-size: 11px; }
+.fixed-calendar-cell strong { color: var(--blue); font-size: 11px; }
+.fixed-calendar-cell span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+.fixed-calendar-cell small { color: var(--muted); font-size: 10px; }
+.calendar-slot-button { width: 100%; text-align: left; border-radius: 0; cursor: pointer; transition: background .15s, box-shadow .15s; }
+.calendar-slot-button:hover, .calendar-slot-button:focus-visible { background: #eef7f4; box-shadow: inset 0 0 0 2px #77aa9e; outline: none; }
+.calendar-slot-button .calendar-appointment-name { color: #236b5e; }
+.calendar-slot-button span { font-size: 10px; }
+.calendar-slot-button small { font-size: 9px; }
+.fixed-calendar-cell.is-weekend { background: #f8f9fa; }
+.fixed-calendar-missing { color: #a7484c !important; }
 .group-allocation-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 14px; padding: 18px; }
 .group-allocation-card { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: #fbfdfe; }
 .group-allocation-card > div { display: grid; gap: 4px; }
@@ -1298,4 +1636,246 @@ body { background: var(--canvas); }
   .user-edit-form select,
   .user-edit-form textarea { font-size: 16px; }
   .modal-form fieldset, .user-edit-form fieldset { padding: 17px 15px; border-radius: 12px; }
+}
+.permission-grid { display: grid; grid-template-columns: minmax(140px, 1fr) 1fr 1fr; gap: .65rem 1rem; align-items: center; padding: .75rem; border: 1px solid var(--line, #dbe3e0); border-radius: 12px; }
+.permission-grid label { display: flex; gap: .45rem; align-items: center; font-size: .9rem; }
+.permission-grid input { width: 18px; height: 18px; }
+@media (max-width: 680px) { .permission-grid { grid-template-columns: 1fr 1fr; } .permission-grid strong:first-child { grid-column: 1 / -1; } }
+
+/* Grid único de formulários: campos com a mesma altura, largura e baseline. */
+.creation-drawer-form,
+.administration-form,
+.user-edit-form,
+.patient-search,
+.inline-form,
+.report-toolbar {
+  --control-height: 52px;
+}
+.creation-drawer-form > label,
+.creation-drawer-form .form-row > label,
+.creation-drawer-form fieldset label,
+.administration-form label,
+.patient-search label,
+.inline-form label,
+.report-toolbar label {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+  color: var(--form-label, #29485c);
+  font-size: 14px;
+  font-weight: 750;
+  line-height: 1.35;
+}
+.creation-drawer-form > .form-row,
+.creation-drawer-form fieldset .form-row,
+.administration-form .form-row,
+.inline-form .form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 18px;
+}
+.creation-drawer-form input:not([type="checkbox"]):not([type="radio"]),
+.creation-drawer-form select,
+.creation-drawer-form textarea,
+.administration-form input:not([type="checkbox"]):not([type="radio"]),
+.administration-form select,
+.administration-form textarea,
+.patient-search input,
+.inline-form input:not([type="checkbox"]):not([type="radio"]),
+.inline-form select,
+.inline-form textarea,
+.report-toolbar select {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--control-height);
+  padding: 0 14px;
+  border: 1px solid var(--form-border, #b8c8d5);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.3;
+  box-shadow: 0 1px 2px rgb(23 50 77 / 5%);
+}
+.creation-drawer-form textarea,
+.administration-form textarea,
+.inline-form textarea { min-height: 112px; padding-block: 13px; resize: vertical; }
+.creation-drawer-form input:focus-visible,
+.creation-drawer-form select:focus-visible,
+.creation-drawer-form textarea:focus-visible,
+.administration-form input:focus-visible,
+.administration-form select:focus-visible,
+.administration-form textarea:focus-visible,
+.patient-search input:focus-visible,
+.inline-form input:focus-visible,
+.inline-form select:focus-visible,
+.inline-form textarea:focus-visible,
+.report-toolbar select:focus-visible {
+  border-color: var(--form-focus, #2788c9);
+  outline: 3px solid var(--form-focus-ring, rgb(39 136 201 / 16%));
+  outline-offset: 0;
+}
+.creation-drawer-form .btn,
+.administration-form .btn { align-self: end; min-height: 52px; }
+@media (max-width: 720px) {
+  .creation-drawer-form > .form-row,
+  .creation-drawer-form fieldset .form-row,
+  .administration-form .form-row,
+  .inline-form .form-row { grid-template-columns: 1fr; gap: 16px; }
+  .creation-drawer-form input:not([type="checkbox"]):not([type="radio"]),
+  .creation-drawer-form select,
+  .creation-drawer-form textarea,
+  .administration-form input:not([type="checkbox"]):not([type="radio"]),
+  .administration-form select,
+  .administration-form textarea,
+  .patient-search input,
+  .inline-form input:not([type="checkbox"]):not([type="radio"]),
+  .inline-form select,
+  .inline-form textarea { font-size: 16px; }
+  .creation-drawer-form .btn,
+  .administration-form .btn { width: 100%; }
+}
+
+/* Acessibilidade e legibilidade: escala confortável, foco consistente e navegação previsível. */
+.skip-link {
+  position: fixed;
+  z-index: 200;
+  top: 10px;
+  left: 10px;
+  transform: translateY(-180%);
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: #17324d;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  text-decoration: none;
+  box-shadow: 0 6px 18px rgb(16 38 58 / 20%);
+}
+.skip-link:focus { transform: translateY(0); }
+
+.portal-enhancement,
+body { font-size: 16px; }
+.sidebar .nav-item { font-size: 14px; }
+.nav-label { font-size: 11px; }
+.brand small, .profile small, .privacy-card small { font-size: 12px; }
+.topbar input, .topbar select { font-size: 14px; }
+.content { line-height: 1.5; }
+.page-title p, .card-head p, .form-instructions, .field-hint { font-size: 14px; line-height: 1.5; }
+.eyebrow { font-size: 11px; }
+.metric-copy small, .table-head-row, .table-search input { font-size: 12px; }
+.metric-copy span, .operational-row small, .card-head small { font-size: 12px; }
+.metric-copy strong { font-size: 24px; }
+.btn, .text-button, .filter-btn, .row-actions button { min-height: 44px; font-size: 14px; }
+.status { font-size: 12px; }
+.table-row { font-size: 13px; }
+.table-row small, .person-cell small { font-size: 12px; }
+.empty-state { font-size: 14px; }
+.global-results button { min-height: 52px; font-size: 14px; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 3px solid var(--focus, #e8a83e);
+  outline-offset: 3px;
+}
+.mobile-menu-backdrop { overscroll-behavior: contain; }
+.mobile-nav-item { min-height: 60px; font-size: 12px; }
+
+@media (max-width: 720px) {
+  .content { padding-top: 24px; }
+  .page-title h1 { font-size: clamp(26px, 8vw, 32px); }
+  .metric-copy small, .metric-copy span, .operational-row small { font-size: 13px; }
+  .metric-copy strong { font-size: clamp(22px, 7vw, 28px); }
+  .mobile-nav-item { font-size: 12px; }
+  .mobile-menu-item { min-height: 52px; font-size: 14px; }
+}
+
+@media (prefers-contrast: more) {
+  :root { --line: #7893a5; --muted: #40576b; }
+  .nav-item.active, .mobile-nav-item.active { outline: 2px solid currentColor; }
+}
+
+.group-allocation-panel .table-toolbar { align-items: flex-start; gap: 16px; }
+.group-allocation-panel .table-toolbar > div { min-width: 0; flex: 1; }
+.group-allocation-panel .table-toolbar .form-instructions { margin: 6px 0 0; }
+.group-allocation-panel .table-toolbar > .btn { flex: 0 0 auto; }
+.group-members-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-top: 14px; }
+.group-members-heading h3 { margin: 0; color: var(--ink); font-size: 14px; }
+.group-members-heading span, .group-member-form small { color: var(--muted); font-size: 12px; line-height: 1.45; }
+.group-member-form fieldset { display: grid; grid-template-columns: minmax(0, 1fr) 150px auto; align-items: end; gap: 10px; margin: 14px 0 0; padding: 12px; border: 1px solid var(--line); border-radius: 10px; }
+.group-member-form legend { grid-column: 1 / -1; padding: 0 4px; color: var(--ink); font-size: 13px; font-weight: 800; }
+.group-member-form label { display: grid; gap: 5px; color: #29485c; font-size: 12px; font-weight: 700; }
+.group-member-form select, .group-member-form input { width: 100%; min-height: 44px; padding: 8px 10px; border: 1px solid #9fb4c2; border-radius: 8px; background: #fff; font-size: 14px; }
+.group-member-form small { grid-column: 1 / -1; }
+@media (max-width: 720px) {
+  .group-allocation-panel .table-toolbar { flex-direction: column; }
+  .group-allocation-panel .table-toolbar > .btn { width: 100%; }
+  .group-member-form fieldset { grid-template-columns: 1fr; }
+  .group-member-form legend, .group-member-form small { grid-column: auto; }
+  .group-member-form .btn { width: 100%; }
+}
+
+/* Override final: uma única régua para todos os campos e linhas de formulário. */
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) > label,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) .form-row > label,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) fieldset label {
+  display: grid;
+  grid-template-rows: auto minmax(52px, auto);
+  align-content: start;
+  align-items: start;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+}
+
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) .form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 20px;
+  width: 100%;
+  min-width: 0;
+  margin: 0 0 20px;
+}
+
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) > label,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) > fieldset,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) > .check,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) > .form-instructions {
+  width: 100%;
+  min-width: 0;
+  margin-block: 0 20px;
+}
+
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) input:not([type="checkbox"]):not([type="radio"]),
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) select,
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) textarea,
+:where(.login-card, .mfa-card) input:not([type="checkbox"]):not([type="radio"]) {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 52px;
+  height: 52px;
+  margin: 0;
+  padding: 13px 16px;
+  border-radius: var(--form-control-radius);
+  line-height: 1.4;
+}
+
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) textarea {
+  height: auto;
+  min-height: 120px;
+  resize: vertical;
+}
+
+.login-card, .mfa-card { gap: 22px; }
+.login-card label, .mfa-card .form-field-label { gap: 8px; margin: 0; }
+.login-card input, .mfa-card input { height: 52px; margin: 0; }
+
+@media (max-width: 640px) {
+  :where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) .form-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
 }

@@ -69,43 +69,51 @@ export default function LoginPage() {
               Ambiente local: conecte o projeto Supabase para habilitar o acesso.
             </div>
           )}
-          <label>
-            E-mail
-            <input
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="voce@fisiofit.com.br"
-              required
-            />
-          </label>
-          <label>
-            Senha
-            <input
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="••••••••"
-              minLength={8}
-              required
-            />
-          </label>
+          <div className="form-field-group">
+            <label className="form-field-label">
+              <span>E-mail profissional</span>
+              <input
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="voce@fisiofit.com.br"
+                required
+              />
+            </label>
+          </div>
+          <div className="form-field-group">
+            <label className="form-field-label">
+              <span>Sua senha</span>
+              <input
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="••••••••"
+                minLength={8}
+                required
+              />
+            </label>
+          </div>
           {error && <div className="login-error" role="alert">{error}</div>}
           {message && <div className="login-success" role="status">{message}</div>}
           <button className="btn primary login-submit" disabled={busy || !isSupabaseConfigured}>
             {busy ? "Entrando…" : "Entrar com segurança"}
           </button>
-          <button
-            className="login-recovery"
-            type="button"
-            onClick={requestPassword}
-            disabled={busy || !isSupabaseConfigured}
-          >
-            Esqueci ou ainda não tenho senha
-          </button>
-          <a href="mailto:administracao@fisiofit.com.br">Precisa de acesso? Fale com a administradora</a>
+          <div className="login-actions">
+            <button
+              className="login-recovery"
+              type="button"
+              onClick={requestPassword}
+              disabled={busy || !isSupabaseConfigured}
+            >
+              Esqueci ou ainda não tenho senha
+            </button>
+            <a href="mailto:administracao@fisiofit.com.br" className="login-support-link">
+              Precisa de acesso? Fale com a administradora
+            </a>
+          </div>
         </form>
       </section>
     </main>

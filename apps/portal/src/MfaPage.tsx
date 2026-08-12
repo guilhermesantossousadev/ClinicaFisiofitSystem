@@ -128,19 +128,22 @@ export default function MfaPage() {
             Gerar um novo QR Code
           </button>
         )}
-        <label>
-          Código de 6 dígitos
-          <input
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            pattern="[0-9]{6}"
-            maxLength={6}
-            value={code}
-            onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))}
-            placeholder="000000"
-            required
-          />
-        </label>
+        <div className="form-field-group">
+          <label className="form-field-label">
+            <span>Código de 6 dígitos</span>
+            <input
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              pattern="[0-9]{6}"
+              maxLength={6}
+              value={code}
+              onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))}
+              placeholder="000000"
+              className="mfa-code-input"
+              required
+            />
+          </label>
+        </div>
         {error && <div className="login-error" role="alert">{error}</div>}
         <button className="btn primary login-submit" disabled={busy || code.length !== 6}>
           {busy ? "Verificando…" : "Confirmar e entrar"}
