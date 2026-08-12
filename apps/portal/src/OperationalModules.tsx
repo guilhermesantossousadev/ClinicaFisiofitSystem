@@ -505,7 +505,18 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit: _
     const startsOn = slot.starts_on ? String(slot.starts_on).slice(0, 10) : "0000-01-01";
     const endsOn = slot.ends_on ? String(slot.ends_on).slice(0, 10) : "9999-12-31";
     return slot.unit_id === unitId && currentDate >= startsOn && currentDate <= endsOn && (slot.weekdays ?? []).includes(day.getDay()) && slot.active !== false;
-  }).sort((a, b) => String(a.starts_at).localeCompare(String(b.starts_at)));
+  }).reduce<Row[]>((unique, slot) => {
+    const time = String(slot.starts_at);
+    const existingIndex = unique.findIndex((candidate) => String(candidate.starts_at) === time);
+    if (existingIndex < 0) return [...unique, slot];
+    const existing = unique[existingIndex];
+    const membersCount = (candidate: Row) => membersForSlot(candidate.id, day).length;
+    const isGeneric = (candidate: Row) => /^horário fixo/i.test(String(candidate.name ?? ""));
+    const shouldReplace = membersCount(slot) > membersCount(existing)
+      || (membersCount(slot) === membersCount(existing) && isGeneric(existing) && !isGeneric(slot));
+    if (shouldReplace) unique[existingIndex] = slot;
+    return unique;
+  }, []).sort((a, b) => String(a.starts_at).localeCompare(String(b.starts_at)));
 
   async function createAppointment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
