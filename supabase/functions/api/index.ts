@@ -967,6 +967,8 @@ app.post("/group-slots", requireRoles(["admin", "manager", "reception"]), async 
 });
 */
 
+});
+
 function addDays(date: Date, days: number) {
   const next = new Date(date);
   next.setDate(next.getDate() + days);
@@ -1013,6 +1015,8 @@ app.post("/group-slots/:id/generate", requireRoles(["admin", "manager", "recepti
 });
 */
 
+});
+
 app.patch("/group-slots/:id", requireRoles(["admin", "manager", "reception"]), async (context) => {
   return fail(context, 405, "FIXED_SCHEDULE", "Os horários e turmas são fixos. Altere apenas os alunos.");
 /*
@@ -1049,6 +1053,8 @@ app.patch("/group-slots/:id", requireRoles(["admin", "manager", "reception"]), a
 });
 */
 
+});
+
 app.delete("/group-slots/:id", requireRoles(["admin", "manager", "reception"]), async (context) => {
   return fail(context, 405, "FIXED_SCHEDULE", "Os horários e turmas são fixos e não podem ser excluídos.");
 /*
@@ -1060,6 +1066,8 @@ app.delete("/group-slots/:id", requireRoles(["admin", "manager", "reception"]), 
   return databaseResult(context, data, error);
 });
 */
+
+});
 
 app.post("/group-slots/:id/members", requireRoles(["admin", "manager", "reception"]), async (context) => {
   const groupSlotId = z.string().uuid().parse(context.req.param("id"));
