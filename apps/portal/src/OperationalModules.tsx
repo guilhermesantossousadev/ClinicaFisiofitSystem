@@ -141,6 +141,37 @@ function Select({
   );
 }
 
+function PlanSelect({ rows }: { rows: Row[] }) {
+  const generatedId = useId();
+  const fieldId = `plan-${generatedId.replaceAll(":", "")}`;
+  const [selectedPlanId, setSelectedPlanId] = useState("");
+  const selectedPlan = rows.find((row) => row.id === selectedPlanId);
+
+  return (
+    <div className="input-group">
+      <label htmlFor={fieldId}>Plano</label>
+      <select id={fieldId} name="plan_id" required value={selectedPlanId} onChange={(event) => setSelectedPlanId(event.target.value)}>
+        <option value="">Selecione</option>
+        {rows.map((row) => (
+          <option key={row.id} value={row.id}>
+            {row.name} · {brl(Number(row.price_cents ?? 0))}
+          </option>
+        ))}
+      </select>
+      {selectedPlan && (
+        <div className="plan-summary" role="status" aria-live="polite">
+          <strong>{brl(Number(selectedPlan.price_cents ?? 0))}</strong>
+          <span>
+            {selectedPlan.sessions_included ? `${selectedPlan.sessions_included} sessões` : "Sessões não definidas"}
+            {selectedPlan.duration_days ? ` · ${selectedPlan.duration_days} dias` : ""}
+            {selectedPlan.active === false ? " · Inativo" : " · Ativo"}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PatientPicker({
   name = "patient_id",
   rows,
@@ -1381,7 +1412,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
           <h2>Nova matrícula</h2>
           <div className="form-row">
             <PatientPicker key={patientPickerVersion} name="patient_id" label="Paciente" rows={patients} onSelect={setSelectedPatient} />
-            <Select name="plan_id" label="Plano" rows={data["/plans"] ?? []} />
+            <PlanSelect rows={data["/plans"] ?? []} />
           </div>
           {selectedPatient && <div className="agenda-context-summary" role="status"><strong>Paciente selecionado</strong><span>{selectedPatient.name}{selectedPatient.phone ? ` · ${selectedPatient.phone}` : ""}{selectedPatient.cpf ? ` · CPF ${selectedPatient.cpf}` : ""}</span></div>}
           {agendaContext ? <div className="agenda-context-summary" role="status"><input type="hidden" name="unit_id" value={agendaContext.unitId} /><input type="hidden" name="group_slot_id" value={agendaContext.groupSlotId} /><strong>{agendaContext.groupName ?? "Turma selecionada"}</strong><span>{agendaContext.unitName ?? "Unidade selecionada"} · horário escolhido na Agenda · {agendaContext.startsAt}</span><button type="button" onClick={onClearAgendaContext}>Trocar horário</button></div> : <div className="form-row"><Select name="unit_id" label="Unidade" rows={data["/units"] ?? []} /><Select name="group_slot_id" label="Turma (opcional)" rows={data["/group-slots"] ?? []} required={false} /></div>}
@@ -1450,6 +1481,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
           duration_days: Number(value(form, "duration_days")) || null,
           price_cents: cents(value(form, "price")),
         })}
+        allowDelete
         onChanged={reload}
         onNotice={setNotice}
       />
