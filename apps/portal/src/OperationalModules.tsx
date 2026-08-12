@@ -21,15 +21,6 @@ const PLAN_PERIODS = {
 
 type PlanPeriod = keyof typeof PLAN_PERIODS;
 type WeeklyFrequency = 1 | 2 | 3;
-const WEEKDAYS = [
-  { value: 1, label: "Segunda-feira", short: "Segunda" },
-  { value: 2, label: "Terça-feira", short: "Terça" },
-  { value: 3, label: "Quarta-feira", short: "Quarta" },
-  { value: 4, label: "Quinta-feira", short: "Quinta" },
-  { value: 5, label: "Sexta-feira", short: "Sexta" },
-  { value: 6, label: "Sábado", short: "Sábado" },
-  { value: 0, label: "Domingo", short: "Domingo" },
-] as const;
 
 function messageOf(error: unknown) {
   const message = error instanceof Error
@@ -427,11 +418,10 @@ function ModuleState({
 
 export type AgendaEnrollmentContext = { unitId: string; groupSlotId: string; startsAt: string; unitName?: string; groupName?: string };
 
-export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit: _canEdit = true }: { onOpenPatients?: () => void; onOpenEnrollment?: (context: AgendaEnrollmentContext) => void; canEdit?: boolean }) {
+export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit = true }: { onOpenPatients?: () => void; onOpenEnrollment?: (context: AgendaEnrollmentContext) => void; canEdit?: boolean }) {
   const [fromDate, setFromDate] = useState(() =>
     new Date().toISOString().slice(0, 10),
   );
-  const [rangeDays] = useState(7);
   const range = useMemo(() => {
     const selected = new Date(`${fromDate}T00:00:00`);
     const start = new Date(selected);
@@ -458,8 +448,6 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit: _
   const [calendarAppointment, setCalendarAppointment] = useState<Row | null | undefined>(undefined);
   const [selectedUnitId, setSelectedUnitId] = useState(() => window.localStorage.getItem("fisiofit:selected-unit") ?? "");
   const [expandedGroupId, setExpandedGroupId] = useState("");
-  const [selectedGroupWeekdays, setSelectedGroupWeekdays] = useState<number[]>([1, 3]);
-  const [groupTime, setGroupTime] = useState("09:00");
   useEffect(() => {
     void api<Row[]>("/group-slot-memberships")
       .then((response) => setGroupMembers(response.data ?? []))
@@ -471,10 +459,6 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit: _
     return () => window.removeEventListener("fisiofit:unit-changed", onUnitChanged);
   }, []);
 
-  const selectedDayNames = selectedGroupWeekdays.map(
-    (day) => WEEKDAYS.find((option) => option.value === day)?.short ?? "",
-  );
-  const groupName = `${selectedDayNames.join(" e ")} às ${groupTime}`;
   const calendarDays = useMemo(() => {
     const selected = new Date(`${fromDate}T00:00:00`);
     const start = new Date(selected);
@@ -568,51 +552,6 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit: _
     } catch (actionError) { setNotice(messageOf(actionError)); }
   }
 
-  async function createGroup(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    if (!selectedGroupWeekdays.length) {
-      setNotice("Escolha pelo menos um dia da semana para a turma.");
-      return;
-    }
-    try {
-      await api("/group-slots", {
-        method: "POST",
-        body: JSON.stringify({
-          unit_id: value(form, "unit_id"),
-          room_id: value(form, "room_id"),
-          professional_id: value(form, "professional_id"),
-          service_id: value(form, "service_id"),
-          name: groupName,
-          weekdays: selectedGroupWeekdays,
-          starts_at: groupTime,
-          starts_on: value(form, "starts_on") || undefined,
-          ends_on: value(form, "ends_on") || undefined,
-          duration_minutes: Number(value(form, "duration_minutes")),
-          capacity: 7,
-        }),
-      });
-      (event.target as HTMLFormElement).reset();
-      setSelectedGroupWeekdays([1, 3]);
-      setGroupTime("09:00");
-      setNotice(`${groupName} criada com capacidade para 7 alunos.`);
-      await reload();
-    } catch (actionError) {
-      setNotice(messageOf(actionError));
-    }
-  }
-
-  async function generateGroup(groupId: string) {
-    try {
-      const start = new Date(`${fromDate}T00:00:00`);
-      const end = new Date(start);
-      end.setDate(end.getDate() + rangeDays - 1);
-      await api(`/group-slots/${groupId}/generate`, { method: "POST", body: JSON.stringify({ from: fromDate, to: end.toISOString().slice(0, 10) }) });
-      setNotice("Horários recorrentes gerados para o período selecionado.");
-      await reload();
-    } catch (actionError) { setNotice(messageOf(actionError)); }
-  }
-
   async function addGroupMember(event: FormEvent<HTMLFormElement>, groupId: string) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -675,8 +614,8 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit: _
                   return <div className={`month-calendar-day${dateKey(day) === dateKey(new Date()) ? " is-today" : ""}`} key={dateKey(day)}>
                     <div className="month-calendar-date">{day.getDate()}</div>
                     <div className="month-calendar-items">
-                      {dayAppointments.map((appointment) => <button type="button" className="month-calendar-item appointment-item" key={appointment.id} onClick={() => setCalendarAppointment(appointment)}><strong>{String(new Date(appointment.starts_at).getHours()).padStart(2, "0")}:{String(new Date(appointment.starts_at).getMinutes()).padStart(2, "0")} · {appointment.patients?.name ?? "Bloqueio"}</strong><small>{appointment.services?.name ?? "Atendimento"}</small></button>)}
-                      {slots.map((slot) => { const members = membersForSlot(slot.id, day); return <button type="button" className="month-calendar-item group-item" key={slot.id} onClick={() => { if (onOpenEnrollment) onOpenEnrollment({ unitId: unit.id, groupSlotId: slot.id, startsAt: dateKey(day), unitName: unit.name, groupName: slot.name }); }} aria-label={`${slot.name}, ${members.length} de ${slot.capacity ?? 7} vagas`}><strong>{String(slot.starts_at).slice(0, 5)} · {slot.name}</strong><small>{members.length}/{slot.capacity ?? 7} vagas · {members.slice(0, 2).map((member) => member.patients?.name ?? "Paciente").join(", ") || "Horário livre"}</small></button>; })}
+                      {dayAppointments.map((appointment) => <button type="button" className="month-calendar-item appointment-item" key={appointment.id} disabled={!canEdit} onClick={() => setCalendarAppointment(appointment)} aria-label={`${appointment.patients?.name ?? "Bloqueio"}${canEdit ? ", editar agendamento" : ""}`}><strong>{String(new Date(appointment.starts_at).getHours()).padStart(2, "0")}:{String(new Date(appointment.starts_at).getMinutes()).padStart(2, "0")} · {appointment.patients?.name ?? "Bloqueio"}</strong><small>{appointment.services?.name ?? "Atendimento"}</small></button>)}
+                      {slots.map((slot) => { const members = membersForSlot(slot.id, day); return <button type="button" className="month-calendar-item group-item" key={slot.id} disabled={!canEdit} onClick={() => { if (canEdit && onOpenEnrollment) onOpenEnrollment({ unitId: unit.id, groupSlotId: slot.id, startsAt: dateKey(day), unitName: unit.name, groupName: slot.name }); }} aria-label={`${slot.name}, ${members.length} de ${slot.capacity ?? 7} vagas${canEdit ? ", abrir matrícula" : ""}`}><strong>{String(slot.starts_at).slice(0, 5)} · {slot.name}</strong><small>{members.length}/{slot.capacity ?? 7} vagas · {members.slice(0, 2).map((member) => member.patients?.name ?? "Paciente").join(", ") || "Horário livre"}</small></button>; })}
                     </div>
                   </div>;
                 })}
@@ -694,7 +633,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit: _
             <div className="modal-head"><div><p className="eyebrow">AGENDA</p><h2 id="calendar-edit-title">{calendarAppointment?.id ? "Editar agendamento" : "Novo agendamento"}</h2></div><button type="button" onClick={() => setCalendarAppointment(undefined)} aria-label="Fechar">×</button></div>
             <form className="modal-form" onSubmit={saveCalendarAppointment}>
               <div className="form-row"><Select name="unit_id" label="Unidade" rows={units} defaultValue={calendarAppointment?.unit_id} /><PatientPicker label="Paciente" rows={patients} required={false} defaultValue={calendarAppointment?.patient_id} defaultLabel={calendarAppointment?.patients?.name} /></div>
-              <div className="form-row"><Select name="professional_id" label="Profissional" rows={data["/professionals"] ?? []} /><Select name="service_id" label="Serviço" rows={data["/services"] ?? []} required={false} /></div>
+              <div className="form-row"><Select name="professional_id" label="Profissional" rows={data["/professionals"] ?? []} defaultValue={calendarAppointment?.professional_id} /><Select name="service_id" label="Serviço" rows={data["/services"] ?? []} required={false} defaultValue={calendarAppointment?.service_id} /></div>
               <div className="form-row"><label>Início<input name="starts_at" type="datetime-local" defaultValue={calendarAppointment?.starts_at ? localDateTime(calendarAppointment.starts_at) : ""} required /></label><label>Término<input name="ends_at" type="datetime-local" defaultValue={calendarAppointment?.ends_at ? localDateTime(calendarAppointment.ends_at) : ""} required /></label></div>
               <div className="form-row"><label>Status<select name="status" defaultValue={calendarAppointment?.status ?? "scheduled"}><option value="scheduled">Agendado</option><option value="confirmed">Confirmado</option><option value="attending">Em atendimento</option><option value="missed">Falta</option><option value="cancelled">Cancelado</option></select></label><label>Observações<textarea name="notes" defaultValue={calendarAppointment?.notes ?? ""} rows={2} /></label></div>
               <div className="modal-actions"><button type="button" className="btn secondary" onClick={() => setCalendarAppointment(undefined)}>Cancelar</button><button className="btn primary">Salvar alterações</button></div>
@@ -702,7 +641,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit: _
           </section>
         </div>
       )}
-      <div className="dashboard-grid">
+      {canEdit && <div className="dashboard-grid">
         <DrawerForm title="Novo agendamento" onSubmit={createAppointment}>
           <h2>Novo agendamento</h2>
           <p className="form-instructions"><span aria-hidden="true">*</span> indica campo obrigatório.</p>
@@ -757,80 +696,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit: _
           </fieldset>
           <button className="btn primary">Agendar</button>
         </DrawerForm>
-        <DrawerForm title="Nova turma com horário fixo" onSubmit={createGroup}>
-          <h2>Nova turma com horário fixo</h2>
-          <p className="form-instructions"><span aria-hidden="true">*</span> indica campo obrigatório.</p>
-          <fieldset>
-            <legend>Local e atendimento</legend>
-            <div className="form-row">
-              <Select
-                name="unit_id"
-                label="Unidade *"
-                rows={data["/units"] ?? []}
-              />
-              <Select name="room_id" label="Sala *" rows={data["/rooms"] ?? []} />
-            </div>
-            <div className="form-row">
-              <Select
-                name="professional_id"
-                label="Profissional *"
-                rows={data["/professionals"] ?? []}
-              />
-              <Select
-                name="service_id"
-                label="Serviço *"
-                rows={data["/services"] ?? []}
-              />
-            </div>
-          </fieldset>
-          <fieldset>
-            <legend>Frequência e horário</legend>
-            <div className="form-row">
-              <div className="input-group">
-                <label>Dias por semana</label>
-                <strong className="field-hint">{selectedGroupWeekdays.length} selecionado(s)</strong>
-              </div>
-              <div className="input-group">
-                <label htmlFor="group-starts-at">Horário fixo *</label>
-                <input id="group-starts-at" name="starts_at" type="time" value={groupTime} onChange={(event) => setGroupTime(event.target.value)} required />
-              </div>
-            </div>
-            <div className="weekday-picker" aria-label="Dias da semana da turma">
-              {WEEKDAYS.map((day) => (
-                <label className="weekday-option" key={day.value}>
-                  <input
-                    type="checkbox"
-                    checked={selectedGroupWeekdays.includes(day.value)}
-                    onChange={() => setSelectedGroupWeekdays((current) => current.includes(day.value)
-                      ? current.filter((value) => value !== day.value)
-                      : [...current, day.value])}
-                  />
-                  <span>{day.short}</span>
-                </label>
-              ))}
-            </div>
-            <div className="form-row">
-              <div className="input-group">
-                <label htmlFor="group-starts-on">Início do período *</label>
-                <input id="group-starts-on" name="starts_on" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required />
-              </div>
-              <div className="input-group">
-                <label htmlFor="group-ends-on">Fim do período</label>
-                <input id="group-ends-on" name="ends_on" type="date" />
-              </div>
-            </div>
-            <div className="input-group">
-              <label htmlFor="group-duration-minutes">Duração de cada aula (minutos) *</label>
-              <input id="group-duration-minutes" name="duration_minutes" type="number" min="15" max="240" defaultValue="50" required />
-            </div>
-          </fieldset>
-          <div className="plan-summary" aria-live="polite">
-            <strong>{groupName}</strong>
-            <span>Horário fixo recorrente · até 7 alunos · de 1 a 7 dias por semana</span>
-          </div>
-          <button className="btn primary">Criar turma (7 vagas)</button>
-        </DrawerForm>
-      </div>
+      </div>}
       <EditableOperationalTable
         title="Atendimentos da semana"
         resource="appointments"
@@ -852,25 +718,26 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit: _
         onNotice={setNotice}
         allowDelete
         showToggle={false}
+        canEdit={canEdit}
       />
       <section className="card group-allocation-panel" aria-labelledby="group-allocation-title">
-          <div className="table-toolbar"><div><p className="eyebrow">ALOCAÇÃO</p><h2 id="group-allocation-title">Alunos nas turmas</h2><p className="form-instructions">Cadastre o paciente e faça a matrícula antes de adicionar uma vaga na turma.</p></div><button type="button" className="btn secondary" onClick={onOpenPatients}>Cadastrar paciente</button></div>
+          <div className="table-toolbar"><div><p className="eyebrow">ALOCAÇÃO</p><h2 id="group-allocation-title">Alunos nos horários fixos</h2><p className="form-instructions">Os horários são permanentes. Aqui você apenas adiciona ou retira alunos.</p></div>{canEdit && <button type="button" className="btn secondary" onClick={onOpenPatients}>Cadastrar paciente</button>}</div>
         <div className="group-allocation-grid">
           {(data["/group-slots"] ?? []).map((group: Row) => {
             const members = groupMembers.filter((member) => member.group_slot_id === group.id);
             const available = (data["/enrollments"] ?? []).filter((enrollment: Row) => !members.some((member) => member.enrollment_id === enrollment.id));
             return <article className="group-allocation-card" key={group.id}>
               <div><strong>{group.name}</strong><span>{members.length}/{group.capacity ?? 7} vagas ocupadas · {String(group.starts_at).slice(0, 5)}</span></div>
-              <div className="group-card-actions"><button type="button" className="btn secondary" onClick={() => void generateGroup(group.id)}>Gerar horários</button><button type="button" className="btn secondary" onClick={() => setExpandedGroupId(expandedGroupId === group.id ? "" : group.id)}>{expandedGroupId === group.id ? "Fechar cadastro" : "Adicionar aluno"}</button></div>
+              {canEdit && <div className="group-card-actions"><button type="button" className="btn secondary" onClick={() => setExpandedGroupId(expandedGroupId === group.id ? "" : group.id)}>{expandedGroupId === group.id ? "Fechar cadastro" : "Adicionar aluno"}</button></div>}
               <div className="group-members-heading"><h3>Pacientes inscritos</h3><span>{members.length === 0 ? "Nenhum paciente nesta turma" : `${members.length} inscrito(s)`}</span></div>
-              <ul aria-label={`Pacientes inscritos na turma ${group.name}`}>{members.map((member) => <li key={member.id}><span>{member.patients?.name ?? "Paciente"}</span><button type="button" onClick={() => void removeGroupMember(member.id)} aria-label={`Remover ${member.patients?.name ?? "paciente"} da turma`}>Remover</button></li>)}</ul>
-              {expandedGroupId === group.id && <form className="group-member-form" onSubmit={(event) => void addGroupMember(event, group.id)} aria-label={`Adicionar paciente à turma ${group.name}`}><fieldset><legend>Adicionar paciente</legend><label>Matrícula<select name="enrollment_id" required aria-describedby={`group-help-${group.id}`}><option value="">Selecione uma matrícula</option>{available.map((enrollment: Row) => <option key={enrollment.id} value={enrollment.id}>{enrollment.patients?.name ?? enrollment.patient_id}</option>)}</select></label><div className="form-row"><label>Início<input name="starts_at" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required /></label><label>Fim<input name="ends_at" type="date" /></label></div><button className="btn primary" disabled={!available.length || members.length >= Number(group.capacity ?? 7)}>Adicionar à turma</button><small id={`group-help-${group.id}`}>{members.length >= Number(group.capacity ?? 7) ? "Turma lotada." : available.length ? "Apenas matrículas ainda não vinculadas aparecem aqui." : "Não há matrículas disponíveis. Cadastre e matricule o paciente primeiro."}</small></fieldset></form>}
+              <ul aria-label={`Pacientes inscritos na turma ${group.name}`}>{members.map((member) => <li key={member.id}><span>{member.patients?.name ?? "Paciente"}</span>{canEdit && <button type="button" onClick={() => void removeGroupMember(member.id)} aria-label={`Remover ${member.patients?.name ?? "paciente"} da turma`}>Remover</button>}</li>)}</ul>
+              {expandedGroupId === group.id && <form className="group-member-form" onSubmit={(event) => void addGroupMember(event, group.id)} aria-label={`Adicionar paciente ao horário ${group.name}`}><fieldset><legend>Adicionar aluno</legend><label>Matrícula<select name="enrollment_id" required aria-describedby={`group-help-${group.id}`}><option value="">Selecione uma matrícula</option>{available.map((enrollment: Row) => <option key={enrollment.id} value={enrollment.id}>{enrollment.patients?.name ?? enrollment.patient_id}</option>)}</select></label><label>Início do vínculo<input name="starts_at" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required /></label><button className="btn primary" disabled={!available.length || members.length >= Number(group.capacity ?? 7)}>Adicionar aluno</button><small id={`group-help-${group.id}`}>{members.length >= Number(group.capacity ?? 7) ? "Horário lotado." : available.length ? "Apenas matrículas ainda não vinculadas aparecem aqui." : "Não há matrículas disponíveis. Cadastre e matricule o paciente primeiro."}</small></fieldset></form>}
             </article>;
           })}
         </div>
       </section>
       <EditableOperationalTable
-        title="Turmas fixas"
+        title="Horários fixos"
         resource="group-slots"
         rows={(data["/group-slots"] ?? []).map((row: Row) => {
           const members = groupMembers.filter((member: Row) => member.group_slot_id === row.id);
@@ -879,7 +746,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit: _
             allocation: `${members.length}/${row.capacity ?? 7} · ${members.map((member: Row) => member.patients?.name).filter(Boolean).join(", ") || "Sem alunos"}`,
           };
         })}
-        fields={["name", "starts_on", "ends_on", "starts_at", "duration_minutes", "capacity", "allocation", "active"]}
+        fields={["name", "weekdays", "starts_at", "duration_minutes", "capacity", "allocation"]}
         editFields={[
           { name: "unit_id", label: "Unidade", type: "select", required: true, options: data["/units"] ?? [] },
           { name: "room_id", label: "Sala", type: "select", required: true, options: data["/rooms"] ?? [] },
@@ -910,6 +777,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit: _
         })}
         onChanged={reload}
         onNotice={setNotice}
+        canEdit={false}
       />
     </div>
   );
@@ -2893,6 +2761,7 @@ function EditableOperationalTable({
   onOpen,
   allowDelete = false,
   showToggle = true,
+  canEdit = true,
   total,
   page,
   pageSize,
@@ -2909,6 +2778,7 @@ function EditableOperationalTable({
   onOpen?: (row: Row) => void | Promise<void>;
   allowDelete?: boolean;
   showToggle?: boolean;
+  canEdit?: boolean;
   total?: number;
   page?: number;
   pageSize?: number;
@@ -2991,15 +2861,15 @@ function EditableOperationalTable({
             </div>)}
             <div className="row-actions" aria-label={`Ações de ${row.name}`}>
               {onOpen && <button type="button" onClick={() => void onOpen(row)}>Detalhes</button>}
-              <button type="button" onClick={() => setEditing(row)}>Editar</button>
-              {showToggle && <button
+              {canEdit && <button type="button" onClick={() => setEditing(row)}>Editar</button>}
+              {canEdit && showToggle && <button
                   type="button"
                   className={row.active === false ? "action-activate" : "action-inactivate"}
                   onClick={() => void toggle(row)}
                 >
                   {row.active === false ? "Reativar" : "Inativar"}
                 </button>}
-              {allowDelete && <button type="button" className="action-delete" onClick={() => void remove(row)}>Excluir</button>}
+              {canEdit && allowDelete && <button type="button" className="action-delete" onClick={() => void remove(row)}>Excluir</button>}
             </div>
           </div>
         ))}

@@ -928,6 +928,8 @@ app.patch("/appointments/:id/status", requireRoles(["admin", "manager", "recepti
 });
 
 app.post("/group-slots", requireRoles(["admin", "manager", "reception"]), async (context) => {
+  return fail(context, 405, "FIXED_SCHEDULE", "Os horários são fixos e não podem ser cadastrados. Altere apenas os alunos da turma.");
+/*
   const input = z.object({
     unit_id: z.string().uuid(),
     room_id: z.string().uuid(),
@@ -963,6 +965,7 @@ app.post("/group-slots", requireRoles(["admin", "manager", "reception"]), async 
   }
   return databaseResult(context, data, error, 201);
 });
+*/
 
 function addDays(date: Date, days: number) {
   const next = new Date(date);
@@ -999,6 +1002,8 @@ async function generateGroupAppointments(context: any, groupSlotId: string, from
 }
 
 app.post("/group-slots/:id/generate", requireRoles(["admin", "manager", "reception"]), async (context) => {
+  return fail(context, 405, "FIXED_SCHEDULE", "Os horários fixos não precisam ser gerados.");
+/*
   const id = z.string().uuid().parse(context.req.param("id"));
   const input = z.object({ from: z.string().date(), to: z.string().date() }).parse(await context.req.json());
   if (input.to < input.from) return fail(context, 400, "INVALID_RANGE", "A data final deve ser posterior à inicial.");
@@ -1006,8 +1011,11 @@ app.post("/group-slots/:id/generate", requireRoles(["admin", "manager", "recepti
   if (result.error) return databaseResult(context, null, result.error);
   return context.json({ data: { created: result.created } });
 });
+*/
 
 app.patch("/group-slots/:id", requireRoles(["admin", "manager", "reception"]), async (context) => {
+  return fail(context, 405, "FIXED_SCHEDULE", "Os horários e turmas são fixos. Altere apenas os alunos.");
+/*
   const id = z.string().uuid().parse(context.req.param("id"));
   const input = z.object({
     unit_id: z.string().uuid().optional(),
@@ -1039,8 +1047,11 @@ app.patch("/group-slots/:id", requireRoles(["admin", "manager", "reception"]), a
   }
   return updateClinicResource(context, "group_slots", id, { ...input, ...(input.weekdays ? { weekdays: [...new Set(input.weekdays)].sort() } : {}) }, "group_slot.updated", input.unit_id);
 });
+*/
 
 app.delete("/group-slots/:id", requireRoles(["admin", "manager", "reception"]), async (context) => {
+  return fail(context, 405, "FIXED_SCHEDULE", "Os horários e turmas são fixos e não podem ser excluídos.");
+/*
   const id = z.string().uuid().parse(context.req.param("id"));
   const deletedAt = new Date().toISOString();
   const { data, error } = await context.get("db").from("group_slots").update({ active: false, deleted_at: deletedAt, updated_at: deletedAt })
@@ -1048,6 +1059,7 @@ app.delete("/group-slots/:id", requireRoles(["admin", "manager", "reception"]), 
   if (!error && data) await audit(context, "group_slot.deleted", "group_slot", id, data.unit_id);
   return databaseResult(context, data, error);
 });
+*/
 
 app.post("/group-slots/:id/members", requireRoles(["admin", "manager", "reception"]), async (context) => {
   const groupSlotId = z.string().uuid().parse(context.req.param("id"));
