@@ -53,6 +53,12 @@ function brl(amountCents: number) {
   }).format(amountCents / 100);
 }
 
+function planTotalCents(plan: Row) {
+  const monthlyPrice = Number(plan.price_cents ?? 0);
+  const months = Math.max(1, Math.round(Number(plan.duration_days ?? 30) / 30));
+  return monthlyPrice * months;
+}
+
 function isoLocal(raw: string) {
   return new Date(raw).toISOString();
 }
@@ -1331,7 +1337,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
   }
   const enrollmentRows = (data["/enrollments"] ?? []).map((row: Row) => {
     const plan = (data["/plans"] ?? []).find((item: Row) => item.id === row.plan_id);
-    const planPrice = Number(plan?.price_cents ?? 0);
+    const planPrice = plan ? planTotalCents(plan) : 0;
     const discount = Number(row.discount_cents ?? 0);
     const surcharge = Number(row.surcharge_cents ?? 0);
     return {
@@ -1341,7 +1347,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
   });
   const planRows = (data["/plans"] ?? []).map((row: Row) => ({
     ...row,
-    total_plan_cents: Number(row.price_cents ?? 0),
+    total_plan_cents: planTotalCents(row),
   }));
   return (
     <div className="content">
