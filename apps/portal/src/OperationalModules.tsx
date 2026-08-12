@@ -2,6 +2,7 @@ import { FormEvent, type CSSProperties, type FormEventHandler, type KeyboardEven
 import * as XLSX from "xlsx";
 import { api } from "./api";
 import { supabase } from "./supabase";
+import { FormSection, SelectField, TextareaField, TextField } from "./FormPrimitives";
 
 type Row = Record<string, any>;
 type Unit = { id: string; name: string };
@@ -118,17 +119,14 @@ function Select({
   const fieldId = id ?? `${name}-${generatedId.replaceAll(":", "")}`;
 
   return (
-    <div className="input-group">
-      <label htmlFor={fieldId}>{label}</label>
-      <select id={fieldId} name={name} required={required} defaultValue={defaultValue ?? ""}>
+    <SelectField id={fieldId} name={name} label={label} required={required} defaultValue={defaultValue ?? ""}>
         <option value="">Selecione</option>
         {rows.map((row) => (
           <option key={row.id} value={row.id}>
             {row.name ?? row.description}
           </option>
         ))}
-      </select>
-    </div>
+    </SelectField>
   );
 }
 
@@ -932,44 +930,38 @@ export function OperationalPatients() {
       <DrawerForm title="Novo paciente" onSubmit={create}>
         <h2>Novo paciente</h2>
         <p className="form-instructions"><span aria-hidden="true">*</span> indica campo obrigatório.</p>
-        <fieldset>
-          <legend>Identificação e contato</legend>
+        <FormSection legend="Identificação e contato">
           <div className="form-row">
-            <label>Nome completo<input name="name" autoComplete="name" required /></label>
+            <TextField name="name" label="Nome completo" autoComplete="name" required />
             <Select name="primary_unit_id" label="Unidade principal" rows={data["/units"] ?? []} />
           </div>
           <div className="form-row">
-            <label>CPF<input name="cpf" /></label>
-            <label>Nascimento<input name="birth_date" type="date" autoComplete="bday" /></label>
+            <TextField name="cpf" label="CPF" inputMode="numeric" placeholder="000.000.000-00" />
+            <TextField name="birth_date" label="Nascimento" type="date" autoComplete="bday" />
           </div>
           <div className="form-row">
-            <label>Telefone<input name="phone" type="tel" /></label>
-            <label>E-mail<input name="email" type="email" /></label>
+            <TextField name="phone" label="Telefone" type="tel" autoComplete="tel" placeholder="(11) 99999-9999" />
+            <TextField name="email" label="E-mail" type="email" autoComplete="email" />
           </div>
-        </fieldset>
-        <fieldset>
-          <legend>Endereço</legend>
+        </FormSection>
+        <FormSection legend="Endereço">
           <div className="form-row">
-            <label>Rua<input name="street" /></label>
-            <label>Número<input name="number" /></label>
+            <TextField name="street" label="Rua" autoComplete="street-address" />
+            <TextField name="number" label="Número" inputMode="numeric" />
           </div>
           <div className="form-row">
-            <label>Cidade<input name="city" /></label>
-            <label>Estado<input name="state" maxLength={2} /></label>
+            <TextField name="city" label="Cidade" autoComplete="address-level2" />
+            <TextField name="state" label="Estado" maxLength={2} autoComplete="address-level1" />
           </div>
-          <label>CEP<input name="zip" /></label>
-        </fieldset>
-        <fieldset>
-          <legend>Dados fiscais</legend>
+          <TextField name="zip" label="CEP" inputMode="numeric" autoComplete="postal-code" />
+        </FormSection>
+        <FormSection legend="Dados fiscais">
           <div className="form-row">
-            <label>Nome fiscal<input name="fiscal_name" /></label>
-            <label>Documento fiscal<input name="fiscal_document" /></label>
+            <TextField name="fiscal_name" label="Nome fiscal" />
+            <TextField name="fiscal_document" label="Documento fiscal" />
           </div>
-        </fieldset>
-        <label>
-          Observações
-          <textarea name="notes" rows={3} />
-        </label>
+        </FormSection>
+        <TextareaField name="notes" label="Observações" rows={3} />
         <button className="btn primary">Cadastrar paciente</button>
       </DrawerForm>
       <EditableOperationalTable
@@ -2896,13 +2888,13 @@ function EditableOperationalTable({
             </div>
             <form className="modal-form" onSubmit={save}>
               {editFields.map((field) => (
-                <label key={field.name}>
-                  {field.label}{field.required ? " *" : ""}
-                  {field.type === "select" ? <select name={field.name} required={field.required} defaultValue={String(field.value ? field.value(editing) ?? "" : editing[field.name] ?? "")}>
+                field.type === "select" ? <SelectField key={field.name} name={field.name} label={field.label} required={field.required} defaultValue={String(field.value ? field.value(editing) ?? "" : editing[field.name] ?? "")}>
                     <option value="">Selecione</option>
                     {(field.options ?? []).map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
-                  </select> : field.type === "textarea" ? <textarea name={field.name} rows={4} defaultValue={String(field.value ? field.value(editing) ?? "" : editing[field.name] ?? "")} /> : <input
+                  </SelectField> : field.type === "textarea" ? <TextareaField key={field.name} name={field.name} label={field.label} rows={4} defaultValue={String(field.value ? field.value(editing) ?? "" : editing[field.name] ?? "")} /> : <TextField
+                    key={field.name}
                     name={field.name}
+                    label={field.label}
                     type={field.type ?? "text"}
                     required={field.required}
                     min={field.min}
@@ -2910,8 +2902,7 @@ function EditableOperationalTable({
                     maxLength={field.maxLength}
                     step={field.step}
                     defaultValue={String(field.value ? field.value(editing) ?? "" : editing[field.name] ?? "")}
-                  />}
-                </label>
+                  />
               ))}
               <div className="edit-dialog-actions">
                 <button type="button" className="btn secondary" onClick={() => setEditing(null)} disabled={saving}>Cancelar</button>
