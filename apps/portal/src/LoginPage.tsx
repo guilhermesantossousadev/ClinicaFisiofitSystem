@@ -2,6 +2,7 @@ import { FormEvent, useState } from "react";
 import { Redirect } from "wouter";
 import { isSupabaseConfigured, supabase } from "./supabase";
 import { useAuth } from "./AuthProvider";
+import { TextField } from "./FormPrimitives";
 
 export default function LoginPage() {
   const { session, loading } = useAuth();
@@ -70,9 +71,8 @@ export default function LoginPage() {
             </div>
           )}
           <div className="form-field-group">
-            <label className="form-field-label">
-              <span>E-mail profissional</span>
-              <input
+            <TextField
+                label="E-mail profissional"
                 type="email"
                 autoComplete="email"
                 value={email}
@@ -80,12 +80,10 @@ export default function LoginPage() {
                 placeholder="voce@fisiofit.com.br"
                 required
               />
-            </label>
           </div>
           <div className="form-field-group">
-            <label className="form-field-label">
-              <span>Sua senha</span>
-              <input
+            <TextField
+                label="Sua senha"
                 type="password"
                 autoComplete="current-password"
                 value={password}
@@ -94,7 +92,6 @@ export default function LoginPage() {
                 minLength={8}
                 required
               />
-            </label>
           </div>
           {error && <div className="login-error" role="alert">{error}</div>}
           {message && <div className="login-success" role="status">{message}</div>}

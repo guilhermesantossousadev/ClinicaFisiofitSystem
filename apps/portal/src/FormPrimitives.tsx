@@ -27,11 +27,11 @@ function FieldMessage({ id, hint, error }: Pick<BaseProps, "hint" | "error"> & {
   return <small id={id} className={error ? "form-field-error" : "form-field-hint"}>{error ?? hint}</small>;
 }
 
-export function FormField({ label, hint, error, id, required, children }: BaseProps & { children: ReactNode }) {
+export function FormField({ label, hint, error, id, required, className = "", children }: BaseProps & { className?: string; children: ReactNode }) {
   const controlId = useFieldId(id, label);
   const messageId = `${controlId}-message`;
   return (
-    <div className="form-field">
+    <div className={`form-field ${className}`.trim()}>
       <FieldLabel id={controlId} label={label} required={required} />
       {children}
       <FieldMessage id={messageId} hint={hint} error={error} />

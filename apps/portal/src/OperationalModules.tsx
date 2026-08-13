@@ -2,7 +2,7 @@ import { FormEvent, type CSSProperties, type FormEventHandler, type KeyboardEven
 import * as XLSX from "xlsx";
 import { api } from "./api";
 import { supabase } from "./supabase";
-import { FormSection, SelectField, TextareaField, TextField } from "./FormPrimitives";
+import { CheckboxField, FormField, FormSection, SelectField, TextareaField, TextField } from "./FormPrimitives";
 
 type Row = Record<string, any>;
 type Unit = { id: string; name: string };
@@ -137,16 +137,15 @@ function PlanSelect({ rows }: { rows: Row[] }) {
   const selectedPlan = rows.find((row) => row.id === selectedPlanId);
 
   return (
-    <div className="input-group">
-      <label htmlFor={fieldId}>Plano</label>
-      <select id={fieldId} name="plan_id" required value={selectedPlanId} onChange={(event) => setSelectedPlanId(event.target.value)}>
+    <div className="input-group plan-select">
+      <SelectField id={fieldId} name="plan_id" label="Plano" required value={selectedPlanId} onChange={(event) => setSelectedPlanId(event.target.value)}>
         <option value="">Selecione</option>
         {rows.map((row) => (
           <option key={row.id} value={row.id}>
             {row.name} · {brl(Number(row.price_cents ?? 0))}
           </option>
         ))}
-      </select>
+      </SelectField>
       {selectedPlan && (
         <div className="plan-summary" role="status" aria-live="polite">
           <strong>{brl(Number(selectedPlan.price_cents ?? 0))}</strong>
@@ -230,8 +229,7 @@ function PatientPicker({
     }
   };
   return (
-    <div className="input-group patient-picker">
-      <label htmlFor={fieldId}>{label}</label>
+    <FormField className="input-group patient-picker" label={label} id={fieldId} required={required}>
       <input type="hidden" name={name} value={selectedId} />
       <input
         id={fieldId}
@@ -275,7 +273,7 @@ function PatientPicker({
           )) : <span className="patient-picker-empty" role="status">Nenhum paciente encontrado.</span>}
         </div>
       )}
-    </div>
+    </FormField>
   );
 }
 
@@ -661,8 +659,8 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
             <form className="modal-form" onSubmit={saveCalendarAppointment}>
               <div className="form-row"><Select name="unit_id" label="Unidade" rows={units} defaultValue={calendarAppointment?.unit_id} /><PatientPicker label="Paciente" rows={patients} required={false} defaultValue={calendarAppointment?.patient_id} defaultLabel={calendarAppointment?.patients?.name} /></div>
               <div className="form-row"><Select name="professional_id" label="Profissional" rows={data["/professionals"] ?? []} defaultValue={calendarAppointment?.professional_id} /><Select name="service_id" label="Serviço" rows={data["/services"] ?? []} required={false} defaultValue={calendarAppointment?.service_id} /></div>
-              <div className="form-row"><label>Início<input name="starts_at" type="datetime-local" defaultValue={calendarAppointment?.starts_at ? localDateTime(calendarAppointment.starts_at) : ""} required /></label><label>Término<input name="ends_at" type="datetime-local" defaultValue={calendarAppointment?.ends_at ? localDateTime(calendarAppointment.ends_at) : ""} required /></label></div>
-              <div className="form-row"><label>Status<select name="status" defaultValue={calendarAppointment?.status ?? "scheduled"}><option value="scheduled">Agendado</option><option value="confirmed">Confirmado</option><option value="attending">Em atendimento</option><option value="missed">Falta</option><option value="cancelled">Cancelado</option></select></label><label>Observações<textarea name="notes" defaultValue={calendarAppointment?.notes ?? ""} rows={2} /></label></div>
+              <div className="form-row"><TextField name="starts_at" label="Início" type="datetime-local" defaultValue={calendarAppointment?.starts_at ? localDateTime(calendarAppointment.starts_at) : ""} required /><TextField name="ends_at" label="Término" type="datetime-local" defaultValue={calendarAppointment?.ends_at ? localDateTime(calendarAppointment.ends_at) : ""} required /></div>
+              <div className="form-row"><SelectField name="status" label="Status" defaultValue={calendarAppointment?.status ?? "scheduled"}><option value="scheduled">Agendado</option><option value="confirmed">Confirmado</option><option value="attending">Em atendimento</option><option value="missed">Falta</option><option value="cancelled">Cancelado</option></SelectField><TextareaField name="notes" label="Observações" defaultValue={calendarAppointment?.notes ?? ""} rows={2} /></div>
               <div className="modal-actions"><button type="button" className="btn secondary" onClick={() => setCalendarAppointment(undefined)}>Cancelar</button><button className="btn primary">Salvar alterações</button></div>
             </form>
           </section>
@@ -705,20 +703,11 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
                 rows={data["/rooms"] ?? []}
                 required={false}
               />
-              <div className="input-group">
-                <label htmlFor="appointment-starts-at">Início *</label>
-                <input id="appointment-starts-at" name="starts_at" type="datetime-local" required />
-              </div>
+              <TextField id="appointment-starts-at" name="starts_at" label="Início" type="datetime-local" required />
             </div>
             <div className="form-row">
-              <div className="input-group">
-                <label htmlFor="appointment-ends-at">Término *</label>
-                <input id="appointment-ends-at" name="ends_at" type="datetime-local" required />
-              </div>
-              <div className="input-group">
-                <label htmlFor="appointment-notes">Observações</label>
-                <input id="appointment-notes" name="notes" />
-              </div>
+              <TextField id="appointment-ends-at" name="ends_at" label="Término" type="datetime-local" required />
+              <TextField id="appointment-notes" name="notes" label="Observações" />
             </div>
           </fieldset>
           <button className="btn primary">Agendar</button>
@@ -946,9 +935,8 @@ export function OperationalPatients() {
       )}
       <ModuleState loading={loading} error={error} retry={reload} />
       <form className="card patient-search" role="search" onSubmit={submitSearch}>
-        <label htmlFor="patient-search-input">Buscar pacientes</label>
         <div>
-          <input id="patient-search-input" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nome, telefone ou CPF" />
+          <TextField id="patient-search-input" label="Buscar pacientes" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nome, telefone ou CPF" />
           <button className="btn primary">Buscar</button>
           {appliedSearch && <button type="button" className="btn secondary" onClick={() => { setSearch(""); setAppliedSearch(""); setPage(1); }}>Limpar</button>}
         </div>
@@ -1068,29 +1056,14 @@ export function OperationalPatients() {
               <form onSubmit={responsible}>
                 <h3>Adicionar responsável</h3>
                 <div className="form-row">
-                  <label>
-                    Nome
-                    <input name="name" required />
-                  </label>
-                  <label>
-                    Relação
-                    <input name="relationship" />
-                  </label>
+                  <TextField name="name" label="Nome" required />
+                  <TextField name="relationship" label="Relação" />
                 </div>
                 <div className="form-row">
-                  <label>
-                    CPF
-                    <input name="cpf" />
-                  </label>
-                  <label>
-                    Telefone
-                    <input name="phone" />
-                  </label>
+                  <TextField name="cpf" label="CPF" />
+                  <TextField name="phone" label="Telefone" />
                 </div>
-                <label>
-                  E-mail
-                  <input name="email" type="email" />
-                </label>
+                <TextField name="email" label="E-mail" type="email" />
                 <button className="btn primary">Salvar responsável</button>
               </form>
               <h3>Linha do tempo</h3>
@@ -1251,41 +1224,32 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
         <DrawerForm title="Novo plano" onSubmit={createPlan}>
           <h2>Novo plano</h2>
           <div className="form-row">
-            <div className="input-group">
-              <label htmlFor="plan-period">Período</label>
-              <select
+            <SelectField
+                label="Período"
                 id="plan-period"
                 name="period"
                 value={planPeriod}
-                onChange={(event) => setPlanPeriod(event.target.value as PlanPeriod)}
-              >
+                onChange={(event) => setPlanPeriod(event.target.value as PlanPeriod)}>
                 <option value="monthly">Mensal</option>
                 <option value="quarterly">Trimestral</option>
                 <option value="semiannual">Semestral</option>
-              </select>
-            </div>
-            <div className="input-group">
-              <label htmlFor="plan-weekly-frequency">Frequência</label>
-              <select
+              </SelectField>
+            <SelectField
+                label="Frequência"
                 id="plan-weekly-frequency"
                 name="weekly_frequency"
                 value={weeklyFrequency}
-                onChange={(event) => setWeeklyFrequency(Number(event.target.value) as WeeklyFrequency)}
-              >
+                onChange={(event) => setWeeklyFrequency(Number(event.target.value) as WeeklyFrequency)}>
                 <option value="1">1x por semana</option>
                 <option value="2">2x por semana</option>
                 <option value="3">3x por semana</option>
-              </select>
-            </div>
+              </SelectField>
           </div>
           <div className="plan-summary" aria-live="polite">
             <strong>{planName}</strong>
             <span>{planSessions} sessões durante {selectedPeriod.months} {selectedPeriod.months === 1 ? "mês" : "meses"}</span>
           </div>
-          <div className="input-group">
-            <label htmlFor="plan-price">Preço do plano</label>
-            <input id="plan-price" name="price" type="number" min="0" step=".01" inputMode="decimal" required />
-          </div>
+          <TextField id="plan-price" name="price" label="Preço do plano" type="number" min="0" step=".01" inputMode="decimal" required />
           <button className="btn primary">Criar plano</button>
         </DrawerForm>
         <DrawerForm title="Nova matrícula" onSubmit={enroll} openInitially={openEnrollment || Boolean(agendaContext)} onClose={onClearAgendaContext}>
@@ -1297,25 +1261,13 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
           {selectedPatient && <div className="agenda-context-summary" role="status"><strong>Paciente selecionado</strong><span>{selectedPatient.name}{selectedPatient.phone ? ` · ${selectedPatient.phone}` : ""}{selectedPatient.cpf ? ` · CPF ${selectedPatient.cpf}` : ""}</span></div>}
           {agendaContext ? <div className="agenda-context-summary" role="status"><input type="hidden" name="unit_id" value={agendaContext.unitId} /><input type="hidden" name="group_slot_id" value={agendaContext.groupSlotId} /><strong>{agendaContext.groupName ?? "Turma selecionada"}</strong><span>{agendaContext.unitName ?? "Unidade selecionada"} · horário escolhido na Agenda · {agendaContext.startsAt}</span><button type="button" onClick={onClearAgendaContext}>Trocar horário</button></div> : <div className="form-row"><Select name="unit_id" label="Unidade" rows={data["/units"] ?? []} /><Select name="group_slot_id" label="Turma (opcional)" rows={data["/group-slots"] ?? []} required={false} /></div>}
             <div className="form-row">
-              <div className="input-group">
-                <label htmlFor="enrollment-starts-at">Início</label>
-                <input id="enrollment-starts-at" name="starts_at" type="date" defaultValue={agendaContext?.startsAt} readOnly={Boolean(agendaContext)} required />
-              </div>
-              <div className="input-group">
-                <label htmlFor="enrollment-ends-at">Fim do período</label>
-                <input id="enrollment-ends-at" name="ends_at" type="date" />
-              </div>
+              <TextField id="enrollment-starts-at" name="starts_at" label="Início" type="date" defaultValue={agendaContext?.startsAt} readOnly={Boolean(agendaContext)} required />
+              <TextField id="enrollment-ends-at" name="ends_at" label="Fim do período" type="date" />
             </div>
             <div className="form-row">
-              <div className="input-group">
-                <label htmlFor="enrollment-due-day">Dia do vencimento</label>
-              <input id="enrollment-due-day" name="due_day" type="number" min="1" max="31" required />
-            </div>
+              <TextField id="enrollment-due-day" name="due_day" label="Dia do vencimento" type="number" min="1" max="31" required />
           </div>
-          <div className="input-group">
-            <label htmlFor="enrollment-discount">Desconto</label>
-            <input id="enrollment-discount" name="discount" type="number" step=".01" defaultValue="0" />
-          </div>
+          <TextField id="enrollment-discount" name="discount" label="Desconto" type="number" step=".01" defaultValue="0" />
           <button className="btn primary">Matricular</button>
         </DrawerForm>
       </div>
@@ -1329,19 +1281,13 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
             name: `${row.description} — ${brl(row.amount_cents - row.paid_cents)}`,
           }))}
         />
-        <div className="input-group">
-          <label htmlFor="payment-amount">Valor</label>
-          <input id="payment-amount" name="amount" type="number" step=".01" required />
-        </div>
-        <div className="input-group">
-          <label htmlFor="payment-method">Forma</label>
-          <select id="payment-method" name="method">
+        <TextField id="payment-amount" name="amount" label="Valor" type="number" step=".01" required />
+        <SelectField id="payment-method" name="method" label="Forma">
             <option value="pix">PIX</option>
             <option value="card">Cartão</option>
             <option value="cash">Dinheiro</option>
             <option value="transfer">Transferência</option>
-          </select>
-        </div>
+        </SelectField>
         <button className="btn primary">Receber</button>
       </form>
       <EditableOperationalTable
@@ -1503,17 +1449,14 @@ export function OperationalRecords() {
         </div>
         <div className="record-header-note"><span>Fluxo clínico</span><strong>Avaliação inicial + evoluções</strong></div>
       </div>
-      <label className="card record-selector">
-        Paciente
-        <select value={patientId} onChange={(e) => loadRecords(e.target.value)}>
+      <SelectField className="card record-selector" label="Paciente" value={patientId} onChange={(e) => loadRecords(e.target.value)}>
           <option value="">Selecione</option>
           {patients.map((row: Row) => (
             <option key={row.id} value={row.id}>
               {row.name}
             </option>
           ))}
-        </select>
-      </label>
+      </SelectField>
       {notice && (
         <div className="toast">
           <span>✓</span>
@@ -1525,9 +1468,9 @@ export function OperationalRecords() {
         <DrawerForm title="Novo registro" onSubmit={createRecord}>
           <h2>Novo registro</h2>
           <div className="form-row">
-            <label>Tipo de registro<select name="kind" value={draftKind} onChange={(event) => setDraftKind(event.target.value as "assessment" | "evolution")}>
+            <SelectField name="kind" label="Tipo de registro" value={draftKind} onChange={(event) => setDraftKind(event.target.value as "assessment" | "evolution")}>
               <option value="assessment">Avaliação inicial</option><option value="evolution">Evolução</option>
-            </select></label>
+            </SelectField>
             <Select
               name="template_id"
               label="Modelo (opcional)"
@@ -1549,18 +1492,18 @@ export function OperationalRecords() {
           </div>
           {draftKind === "assessment" ? <>
             <fieldset className="clinical-fieldset"><legend>Dados da avaliação</legend>
-              <div className="form-row"><label>Diagnóstico clínico<textarea name="text" rows={2} /></label><label>Queixa principal<textarea name="complaint" rows={2} required /></label></div>
-              <label>História da moléstia atual<textarea name="current_history" rows={3} /></label>
-              <label>História pregressa<textarea name="previous_history" rows={3} /></label>
-              <div className="form-row"><label>Peso / altura / sinais vitais<input name="measures" placeholder="Peso · Altura · PA · FC · FR" /></label><label>Encurtamentos<textarea name="exam" rows={2} /></label></div>
-              <label>Força muscular e exame físico<textarea name="exam_detail" rows={3} /></label>
-              <label>Conduta inicial<textarea name="conduct" rows={3} /></label>
+              <div className="form-row"><TextareaField name="text" label="Diagnóstico clínico" rows={2} /><TextareaField name="complaint" label="Queixa principal" rows={2} required /></div>
+              <TextareaField name="current_history" label="História da moléstia atual" rows={3} />
+              <TextareaField name="previous_history" label="História pregressa" rows={3} />
+              <div className="form-row"><TextField name="measures" label="Peso / altura / sinais vitais" placeholder="Peso · Altura · PA · FC · FR" /><TextareaField name="exam" label="Encurtamentos" rows={2} /></div>
+              <TextareaField name="exam_detail" label="Força muscular e exame físico" rows={3} />
+              <TextareaField name="conduct" label="Conduta inicial" rows={3} />
             </fieldset>
           </> : <>
             <fieldset className="clinical-fieldset"><legend>Evolução da sessão</legend>
-              <label>Observações clínicas<textarea name="text" rows={3} required placeholder="Como o paciente chegou, queixas e resposta ao atendimento…" /></label>
-              <div className="exercise-grid" aria-label="Focos trabalhados"><span>Foco da sessão</span>{["Alongamento", "Fortalecimento", "Mobilidade", "Ex. postural", "Equilíbrio", "Outro"].map((item) => <label key={item}><input type="checkbox" name="exercise" value={item} />{item}</label>)}</div>
-              <label>Observações e conduta<textarea name="observations" rows={4} placeholder="Descreva exercícios, orientações e próximos passos…" /></label>
+              <TextareaField name="text" label="Observações clínicas" rows={3} required placeholder="Como o paciente chegou, queixas e resposta ao atendimento…" />
+              <div className="exercise-grid" aria-label="Focos trabalhados"><span>Foco da sessão</span>{["Alongamento", "Fortalecimento", "Mobilidade", "Ex. postural", "Equilíbrio", "Outro"].map((item) => <CheckboxField key={item} label={item} name="exercise" value={item} />)}</div>
+              <TextareaField name="observations" label="Observações e conduta" rows={4} placeholder="Descreva exercícios, orientações e próximos passos…" />
             </fieldset>
           </>}
           <button className="btn primary">Salvar rascunho</button>
@@ -1721,47 +1664,27 @@ export function OperationalFinance() {
               label="Unidade"
               rows={data["/units"] ?? []}
             />
-            <label>
-              Tipo
-              <select name="kind">
+            <SelectField name="kind" label="Tipo">
                 <option value="income">Entrada</option>
                 <option value="expense">Saída</option>
-              </select>
-            </label>
+            </SelectField>
           </div>
-          <label>
-            Descrição
-            <input name="description" required />
-          </label>
+          <TextField name="description" label="Descrição" required />
           <div className="form-row">
-            <label>
-              Categoria
-              <input name="category" required />
-            </label>
-            <label>
-              Centro de custo
-              <input name="cost_center" />
-            </label>
+            <TextField name="category" label="Categoria" required />
+            <TextField name="cost_center" label="Centro de custo" />
           </div>
           <div className="form-row">
-            <label>
-              Valor
-              <input name="amount" type="number" step=".01" required />
-            </label>
-            <label>
-              Competência
-              <input
+            <TextField name="amount" label="Valor" type="number" step=".01" required />
+            <TextField
+              label="Competência"
                 name="date"
                 type="date"
                 required
                 defaultValue={today.toISOString().slice(0, 10)}
               />
-            </label>
           </div>
-          <label className="check">
-            <input type="checkbox" name="settled" />
-            Já realizado
-          </label>
+          <CheckboxField name="settled" label="Já realizado" />
           <button className="btn primary">Lançar</button>
         </DrawerForm>
         <DrawerForm title="Nova comissão" onSubmit={commission}>
@@ -1773,17 +1696,11 @@ export function OperationalFinance() {
             rows={data["/professionals"] ?? []}
           />
           <div className="form-row">
-            <label>
-              Base
-              <select name="basis">
+            <SelectField name="basis" label="Base">
                 <option value="appointment">Atendimento</option>
                 <option value="payment">Recebimento</option>
-              </select>
-            </label>
-            <label>
-              Valor
-              <input name="amount" type="number" step=".01" required />
-            </label>
+            </SelectField>
+            <TextField name="amount" label="Valor" type="number" step=".01" required />
           </div>
           <button className="btn primary">Calcular comissão</button>
         </DrawerForm>
@@ -1882,7 +1799,8 @@ export function OperationalReports() {
           <p>Doze meses lado a lado, previsto e realizado.</p>
         </div>
         <div className="title-actions">
-          <input
+          <TextField
+            label="Ano"
             type="number"
             value={year}
             onChange={(e) => setYear(Number(e.target.value))}
@@ -2068,14 +1986,11 @@ export function OperationalImports() {
       <ModuleState loading={loading} error={error} retry={reload} />
       <form className="card modal-form" onSubmit={(e) => run(e, true)}>
         <div className="form-row">
-          <label>
-            Origem
-            <select name="source">
+          <SelectField name="source" label="Origem">
               <option value="manual">Planilha manual</option>
               <option value="oluma">Oluma</option>
               <option value="notion">Notion</option>
-            </select>
-          </label>
+          </SelectField>
           <Select
             name="unit_id"
             label="Unidade de destino"
@@ -2117,34 +2032,28 @@ export function OperationalImports() {
             </button>
           )}
         </section>
-        <label>
-          Arquivo XLSX ou CSV
-          <input
+        <TextField
+          label="Arquivo XLSX ou CSV"
             type="file"
             accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
             onChange={choose}
             required
           />
-        </label>
         {sheetNames.length > 1 && (
-          <label>Aba da planilha
-            <select value={selectedSheet} onChange={(event) => {
+          <SelectField label="Aba da planilha" value={selectedSheet} onChange={(event) => {
               const input = event.currentTarget.form?.querySelector<HTMLInputElement>('input[type="file"]');
               if (input?.files?.[0]) void readWorkbook(input.files[0], event.target.value);
             }}>
               {sheetNames.map((sheet) => <option key={sheet} value={sheet}>{sheet}</option>)}
-            </select>
-          </label>
+          </SelectField>
         )}
         <p>{rows.length} linhas carregadas{selectedSheet ? ` da aba “${selectedSheet}”` : ""}.</p>
         {workbookSheets.length > 0 && <section className="notion-import-panel" aria-labelledby="workbook-mapping-title">
           <h2 id="workbook-mapping-title">Mapeamento das abas</h2>
           <p>Escolha o tipo de informação correspondente a cada aba. As colunas são identificadas automaticamente pelos nomes dos cabeçalhos.</p>
-          {workbookSheets.map((sheet) => <label key={sheet.name}>{sheet.name} ({sheet.rows.length} linhas)
-            <select value={sheet.entity} onChange={(event) => setWorkbookSheets((current) => current.map((item) => item.name === sheet.name ? { ...item, entity: event.target.value } : item))}>
+          {workbookSheets.map((sheet) => <SelectField key={sheet.name} label={`${sheet.name} (${sheet.rows.length} linhas)`} value={sheet.entity} onChange={(event) => setWorkbookSheets((current) => current.map((item) => item.name === sheet.name ? { ...item, entity: event.target.value } : item))}>
               {workbookEntityOptions.map(([entity, label]) => <option key={entity} value={entity}>{label}</option>)}
-            </select>
-          </label>)}
+          </SelectField>)}
         </section>}
         <div className="title-actions">
           <button className="btn secondary" type="submit">
@@ -2309,36 +2218,21 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
       {canManageUsers && <DrawerForm title="Convidar colaboradora" onSubmit={invite}>
         <h2>Convidar colaboradora</h2>
         <div className="form-row">
-          <label>
-            Nome
-            <input name="name" required />
-          </label>
-          <label>
-            E-mail
-            <input name="email" type="email" required />
-          </label>
+          <TextField name="name" label="Nome" required />
+          <TextField name="email" label="E-mail" type="email" required />
         </div>
-        <label>
-          Perfil
-          <select name="role">
+        <SelectField name="role" label="Perfil">
             <option value="reception">Recepção</option>
             <option value="professional">Profissional</option>
             <option value="finance">Financeiro</option>
             <option value="manager">Gestor</option>
             <option value="admin">Administrador</option>
-          </select>
-        </label>
-        <label>
-          Unidades
-          <div className="weekday-checks">
+        </SelectField>
+        <FormSection legend="Unidades"><div className="weekday-checks">
             {(data["/units"] ?? []).map((u: Unit) => (
-              <label key={u.id}>
-                <input type="checkbox" name="unitIds" value={u.id} />
-                {u.name}
-              </label>
+              <CheckboxField key={u.id} name="unitIds" value={u.id} label={u.name} />
             ))}
-          </div>
-        </label>
+          </div></FormSection>
         <button className="btn primary">Enviar convite</button>
       </DrawerForm>}
       <section className="card table-card bespoke-table users-list-table">
@@ -2390,22 +2284,20 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
           {canManageUsers && editingUserId === row.id && !row.is_owner && (
             <form className="user-edit-form" onSubmit={(event) => saveUser(event, row.id)}>
               <div className="form-row">
-                <label>Nome<input name="name" defaultValue={row.name} required minLength={3} /></label>
-                <label>Perfil<select name="role" defaultValue={row.role}>
+                <TextField name="name" label="Nome" defaultValue={row.name} required minLength={3} />
+                <SelectField name="role" label="Perfil" defaultValue={row.role}>
                   <option value="reception">Recepção</option><option value="professional">Profissional</option>
                   <option value="finance">Financeiro</option><option value="manager">Gestor</option><option value="admin">Administrador</option>
-                </select></label>
-                <label>Situação<select name="status" defaultValue={row.status}>
+                </SelectField>
+                <SelectField name="status" label="Situação" defaultValue={row.status}>
                   <option value="invited">Convidada</option><option value="active">Ativa</option><option value="blocked">Bloqueada</option>
-                </select></label>
+                </SelectField>
               </div>
               <fieldset><legend>Unidades</legend><div className="weekday-checks">
-                {(data["/units"] ?? []).map((unit: Unit) => <label key={unit.id}>
-                  <input type="checkbox" name="unitIds" value={unit.id} defaultChecked={(row.profile_units ?? []).some((item: Row) => item.unit_id === unit.id)} />{unit.name}
-                </label>)}
+                {(data["/units"] ?? []).map((unit: Unit) => <CheckboxField key={unit.id} name="unitIds" value={unit.id} label={unit.name} defaultChecked={(row.profile_units ?? []).some((item: Row) => item.unit_id === unit.id)} />)}
               </div></fieldset>
               <fieldset><legend>Acesso por módulo</legend><div className="permission-grid"><strong>Módulo</strong><strong>Visualizar</strong><strong>Editar</strong>
-                {permissionModules.map(([module, label]) => { const permission = (row.profile_permissions ?? []).find((item: Row) => item.module === module); return <><span key={`${row.id}-${module}-label`}>{label}</span><label key={`${row.id}-${module}-view`}><input type="checkbox" name={`permission-${module}`} defaultChecked={permission?.can_view} /> Pode visualizar</label><label key={`${row.id}-${module}-edit`}><input type="checkbox" name={`permission-edit-${module}`} defaultChecked={permission?.can_edit} /> Pode editar</label></>; })}
+                {permissionModules.map(([module, label]) => { const permission = (row.profile_permissions ?? []).find((item: Row) => item.module === module); return <><span key={`${row.id}-${module}-label`}>{label}</span><CheckboxField key={`${row.id}-${module}-view`} name={`permission-${module}`} label="Pode visualizar" defaultChecked={permission?.can_view} /><CheckboxField key={`${row.id}-${module}-edit`} name={`permission-edit-${module}`} label="Pode editar" defaultChecked={permission?.can_edit} /></>; })}
               </div><small>Editar inclui visualizar. O administrador mantém o acesso total.</small></fieldset>
               <button className="btn primary" type="submit" disabled={updatingUserId === row.id}>{updatingUserId === row.id ? "Salvando…" : "Salvar alterações"}</button>
             </form>
@@ -2437,9 +2329,9 @@ function FormularioUnidade({ data, reload, setNotice, submit }: AdministrationSe
     }))}>
       <h2>Nova unidade</h2>
       <p className="form-instructions">Cadastre os dados de identificação e localização da unidade.</p>
-      <label>Nome *<input name="name" required /></label>
-      <div className="form-row"><label>Telefone<input name="phone" type="tel" /></label><label>Rua<input name="street" /></label></div>
-      <div className="form-row"><label>Cidade<input name="city" /></label><label>Estado<input name="state" maxLength={2} /></label></div>
+      <TextField name="name" label="Nome" required />
+      <div className="form-row"><TextField name="phone" label="Telefone" type="tel" /><TextField name="street" label="Rua" /></div>
+      <div className="form-row"><TextField name="city" label="Cidade" /><TextField name="state" label="Estado" maxLength={2} /></div>
       <button className="btn primary">Salvar unidade</button>
     </DrawerForm>
     <EditableOperationalTable title="Unidades" resource="units" rows={data["/units"] ?? []} fields={["name", "phone", "active"]}
@@ -2454,8 +2346,8 @@ function FormularioSala({ data, reload, setNotice, submit }: AdministrationSecti
     <DrawerForm title="Nova sala" className="administration-form" onSubmit={(event) => submit(event, "/rooms", (form) => ({ unit_id: value(form, "unit_id"), name: value(form, "name"), capacity: Number(value(form, "capacity")) }))}>
       <h2>Nova sala</h2><p className="form-instructions">Vincule a sala a uma unidade e informe sua capacidade.</p>
       <Select name="unit_id" label="Unidade *" rows={data["/units"] ?? []} />
-      <label>Nome *<input name="name" required /></label>
-      <label>Capacidade *<input name="capacity" type="number" min="1" max="20" defaultValue="7" required /></label>
+      <TextField name="name" label="Nome" required />
+      <TextField name="capacity" label="Capacidade" type="number" min="1" max="20" defaultValue="7" required />
       <button className="btn primary">Salvar sala</button>
     </DrawerForm>
     <EditableOperationalTable title="Salas" resource="rooms" rows={data["/rooms"] ?? []} fields={["name", "capacity", "active"]}
@@ -2468,8 +2360,8 @@ function FormularioServico({ data, reload, setNotice, submit }: AdministrationSe
   return <div className="administration-section">
     <DrawerForm title="Novo serviço" className="administration-form" onSubmit={(event) => submit(event, "/services", (form) => ({ name: value(form, "name"), duration_minutes: Number(value(form, "duration")), price_cents: cents(value(form, "price")), active: true }))}>
       <h2>Novo serviço</h2><p className="form-instructions">Defina duração e preço padrão do atendimento.</p>
-      <label>Nome *<input name="name" required /></label>
-      <div className="form-row"><label>Duração (min) *<input name="duration" type="number" min="5" max="480" required /></label><label>Preço *<input name="price" type="number" step=".01" min="0" required /></label></div>
+      <TextField name="name" label="Nome" required />
+      <div className="form-row"><TextField name="duration" label="Duração (min)" type="number" min="5" max="480" required /><TextField name="price" label="Preço" type="number" step=".01" min="0" required /></div>
       <button className="btn primary">Salvar serviço</button>
     </DrawerForm>
     <EditableOperationalTable title="Serviços" resource="services" rows={data["/services"] ?? []} fields={["name", "duration_minutes", "price_cents", "active"]}
@@ -2482,9 +2374,9 @@ function FormularioProfissional({ data, reload, setNotice, submit }: Administrat
   return <div className="administration-section">
     <DrawerForm title="Novo profissional" className="administration-form" onSubmit={(event) => submit(event, "/professionals", (form) => ({ name: value(form, "name"), council: value(form, "council") || undefined, specialty: value(form, "specialty") || undefined, unitIds: form.getAll("unitIds"), active: true }))}>
       <h2>Novo profissional</h2><p className="form-instructions">Informe os dados profissionais e selecione ao menos uma unidade.</p>
-      <label>Nome *<input name="name" required /></label>
-      <div className="form-row"><label>Conselho<input name="council" /></label><label>Especialidade<input name="specialty" /></label></div>
-      <fieldset><legend>Unidades *</legend><div className="weekday-checks">{(data["/units"] ?? []).map((unit: Unit) => <label key={unit.id}><input type="checkbox" name="unitIds" value={unit.id} />{unit.name}</label>)}</div></fieldset>
+      <TextField name="name" label="Nome" required />
+      <div className="form-row"><TextField name="council" label="Conselho" /><TextField name="specialty" label="Especialidade" /></div>
+      <FormSection legend="Unidades"><div className="weekday-checks">{(data["/units"] ?? []).map((unit: Unit) => <CheckboxField key={unit.id} name="unitIds" value={unit.id} label={unit.name} />)}</div></FormSection>
       <button className="btn primary">Salvar profissional</button>
     </DrawerForm>
     <EditableOperationalTable title="Profissionais" resource="professionals" rows={data["/professionals"] ?? []} fields={["name", "council", "specialty", "active"]}
@@ -2497,8 +2389,8 @@ function FormularioModeloClinico({ data, reload, setNotice, submit }: Administra
   return <div className="administration-section">
     <DrawerForm title="Novo modelo clínico" className="administration-form" onSubmit={(event) => submit(event, "/record-templates", (form) => ({ name: value(form, "name"), kind: value(form, "kind"), specialty: value(form, "specialty") || undefined, schema: {}, active: true }))}>
       <h2>Novo modelo clínico</h2><p className="form-instructions">Crie uma base para avaliações ou evoluções clínicas.</p>
-      <label>Nome *<input name="name" required minLength={3} /></label>
-      <div className="form-row"><label>Tipo *<select name="kind"><option value="assessment">Avaliação</option><option value="evolution">Evolução</option></select></label><label>Especialidade<input name="specialty" /></label></div>
+      <TextField name="name" label="Nome" required minLength={3} />
+      <div className="form-row"><SelectField name="kind" label="Tipo" required><option value="assessment">Avaliação</option><option value="evolution">Evolução</option></SelectField><TextField name="specialty" label="Especialidade" /></div>
       <button className="btn primary">Salvar modelo</button>
     </DrawerForm>
     <EditableOperationalTable title="Modelos clínicos" resource="record-templates" rows={data["/record-templates"] ?? []} fields={["name", "kind", "specialty", "active"]}
@@ -2651,23 +2543,12 @@ export function OperationalPrivacy() {
       <div className="dashboard-grid">
         <DrawerForm title="Nova solicitação" onSubmit={request}>
           <h2>Nova solicitação</h2>
-          <label>
-            Solicitante
-            <input name="name" required />
-          </label>
+          <TextField name="name" label="Solicitante" required />
           <div className="form-row">
-            <label>
-              E-mail
-              <input name="email" type="email" />
-            </label>
-            <label>
-              Telefone
-              <input name="phone" />
-            </label>
+            <TextField name="email" label="E-mail" type="email" />
+            <TextField name="phone" label="Telefone" />
           </div>
-          <label>
-            Direito solicitado
-            <select name="kind">
+          <SelectField name="kind" label="Direito solicitado">
               <option value="access">Acesso</option>
               <option value="correction">Correção</option>
               <option value="sharing">Compartilhamentos</option>
@@ -2675,46 +2556,28 @@ export function OperationalPrivacy() {
               <option value="portability">Portabilidade</option>
               <option value="revocation">Revogação</option>
               <option value="deletion">Eliminação aplicável</option>
-            </select>
-          </label>
+          </SelectField>
           <button className="btn primary">Registrar solicitação</button>
         </DrawerForm>
         <DrawerForm title="Novo incidente" onSubmit={incident}>
           <h2>Novo incidente</h2>
-          <label>
-            Título
-            <input name="title" required />
-          </label>
-          <label>
-            Descrição
-            <textarea name="description" rows={3} required minLength={10} />
-          </label>
+          <TextField name="title" label="Título" required />
+          <TextareaField name="description" label="Descrição" rows={3} required minLength={10} />
           <div className="form-row">
-            <label>
-              Severidade
-              <select name="severity">
+            <SelectField name="severity" label="Severidade">
                 <option value="low">Baixa</option>
                 <option value="medium">Média</option>
                 <option value="high">Alta</option>
                 <option value="critical">Crítica</option>
-              </select>
-            </label>
-            <label>
-              Descoberto em
-              <input name="discovered_at" type="datetime-local" required />
-            </label>
+            </SelectField>
+            <TextField name="discovered_at" label="Descoberto em" type="datetime-local" required />
           </div>
-          <label>
-            Categorias afetadas
-            <input
+          <TextField
+            label="Categorias afetadas"
               name="categories"
               placeholder="saúde, financeiro, autenticação"
             />
-          </label>
-          <label>
-            Mitigação
-            <textarea name="mitigation" rows={2} />
-          </label>
+          <TextareaField name="mitigation" label="Mitigação" rows={2} />
           <button className="btn primary">Registrar incidente</button>
         </DrawerForm>
       </div>

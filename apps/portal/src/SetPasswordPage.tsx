@@ -3,6 +3,7 @@ import { Redirect, useLocation } from "wouter";
 import { useAuth } from "./AuthProvider";
 import { api } from "./api";
 import { supabase } from "./supabase";
+import { TextField } from "./FormPrimitives";
 
 export default function SetPasswordPage() {
   const { loading, session } = useAuth();
@@ -84,9 +85,8 @@ export default function SetPasswordPage() {
         <h2>Crie sua senha</h2>
         <p>Use pelo menos 10 caracteres. Recomendamos letras, números e símbolos.</p>
         <div className="form-field-group">
-          <label className="form-field-label">
-            <span>Nova senha</span>
-            <input
+          <TextField
+            label="Nova senha"
               type="password"
               autoComplete="new-password"
               minLength={10}
@@ -95,12 +95,10 @@ export default function SetPasswordPage() {
               placeholder="Mínimo 10 caracteres"
               required
             />
-          </label>
         </div>
         <div className="form-field-group">
-          <label className="form-field-label">
-            <span>Confirmar senha</span>
-            <input
+          <TextField
+            label="Confirmar senha"
               type="password"
               autoComplete="new-password"
               minLength={10}
@@ -109,7 +107,6 @@ export default function SetPasswordPage() {
               placeholder="Digite exatamente a mesma senha"
               required
             />
-          </label>
         </div>
         {error && <div className="login-error" role="alert">{error}</div>}
         <button

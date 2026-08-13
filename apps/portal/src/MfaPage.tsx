@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { Redirect, useLocation } from "wouter";
 import { useAuth } from "./AuthProvider";
 import { supabase } from "./supabase";
+import { TextField } from "./FormPrimitives";
 
 export default function MfaPage() {
   const { session } = useAuth();
@@ -129,9 +130,8 @@ export default function MfaPage() {
           </button>
         )}
         <div className="form-field-group">
-          <label className="form-field-label">
-            <span>Código de 6 dígitos</span>
-            <input
+          <TextField
+            label="Código de 6 dígitos"
               inputMode="numeric"
               autoComplete="one-time-code"
               pattern="[0-9]{6}"
@@ -142,7 +142,6 @@ export default function MfaPage() {
               className="mfa-code-input"
               required
             />
-          </label>
         </div>
         {error && <div className="login-error" role="alert">{error}</div>}
         <button className="btn primary login-submit" disabled={busy || code.length !== 6}>
