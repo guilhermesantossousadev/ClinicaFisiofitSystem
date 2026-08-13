@@ -416,7 +416,7 @@ function ModuleState({
 
 export type AgendaEnrollmentContext = { unitId: string; groupSlotId: string; startsAt: string; unitName?: string; groupName?: string };
 
-export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit = true }: { onOpenPatients?: () => void; onOpenEnrollment?: (context: AgendaEnrollmentContext) => void; canEdit?: boolean }) {
+export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnrollment, canEdit = true }: { onOpenPatients?: () => void; onOpenEnrollment?: (context: AgendaEnrollmentContext) => void; canEdit?: boolean }) {
   const [fromDate, setFromDate] = useState(() =>
     new Date().toISOString().slice(0, 10),
   );
@@ -445,7 +445,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit = 
   const [notice, setNotice] = useState("");
   const [calendarAppointment, setCalendarAppointment] = useState<Row | null | undefined>(undefined);
   const [selectedUnitId, setSelectedUnitId] = useState(() => window.localStorage.getItem("fisiofit:selected-unit") ?? "");
-  const [expandedGroupId, setExpandedGroupId] = useState("");
+  const [selectedGroupCell, setSelectedGroupCell] = useState<{ slot: Row; day: Date; unitName: string } | null>(null);
   useEffect(() => {
     void api<Row[]>("/group-slot-memberships")
       .then((response) => setGroupMembers(response.data ?? []))
@@ -561,12 +561,14 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit = 
       event.currentTarget.reset();
       setNotice("Paciente alocado na turma.");
       await reload();
+      const memberships = await api<Row[]>("/group-slot-memberships");
+      setGroupMembers(memberships.data ?? []);
     } catch (actionError) { setNotice(messageOf(actionError)); }
   }
 
   async function removeGroupMember(id: string) {
     if (!window.confirm("Retirar este aluno da turma? A matrícula será preservada.")) return;
-    try { await api(`/group-slot-memberships/${id}`, { method: "DELETE" }); setNotice("Paciente removido da turma."); await reload(); }
+    try { await api(`/group-slot-memberships/${id}`, { method: "DELETE" }); setNotice("Paciente removido da turma."); await reload(); const memberships = await api<Row[]>("/group-slot-memberships"); setGroupMembers(memberships.data ?? []); }
     catch (actionError) { setNotice(messageOf(actionError)); }
   }
 
@@ -613,7 +615,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit = 
                     <div className="month-calendar-date">{day.getDate()}</div>
                     <div className="month-calendar-items">
                       {dayAppointments.map((appointment) => <button type="button" className="month-calendar-item appointment-item" key={appointment.id} disabled={!canEdit} onClick={() => setCalendarAppointment(appointment)} aria-label={`${appointment.patients?.name ?? "Bloqueio"}${canEdit ? ", editar agendamento" : ""}`}><strong>{String(new Date(appointment.starts_at).getHours()).padStart(2, "0")}:{String(new Date(appointment.starts_at).getMinutes()).padStart(2, "0")} · {appointment.patients?.name ?? "Bloqueio"}</strong><small>{appointment.services?.name ?? "Atendimento"}</small></button>)}
-                      {slots.map((slot) => { const members = membersForSlot(slot.id, day); return <button type="button" className="month-calendar-item group-item" key={slot.id} disabled={!canEdit} onClick={() => { if (canEdit && onOpenEnrollment) onOpenEnrollment({ unitId: unit.id, groupSlotId: slot.id, startsAt: dateKey(day), unitName: unit.name, groupName: slot.name }); }} aria-label={`${slot.name}, ${members.length} de ${slot.capacity ?? 7} vagas${canEdit ? ", abrir matrícula" : ""}`}><strong>{String(slot.starts_at).slice(0, 5)} · {slot.name}</strong><small>{members.length}/{slot.capacity ?? 7} vagas · {members.slice(0, 2).map((member) => member.patients?.name ?? "Paciente").join(", ") || "Horário livre"}</small></button>; })}
+                      {slots.map((slot) => { const members = membersForSlot(slot.id, day); return <button type="button" className="month-calendar-item group-item" key={slot.id} onClick={() => setSelectedGroupCell({ slot, day, unitName: unit.name })} aria-label={`${slot.name}, ${members.length} de ${slot.capacity ?? 7} vagas, abrir lista de pacientes`}><strong>{String(slot.starts_at).slice(0, 5)} · {slot.name}</strong><small>{members.length}/{slot.capacity ?? 7} vagas · {members.slice(0, 2).map((member) => member.patients?.name ?? "Paciente").join(", ") || "Horário livre"}</small></button>; })}
                     </div>
                   </div>;
                 })}
@@ -625,6 +627,33 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit = 
         {units.length > 0 && !selectedUnitId && <p className="empty-state">Selecione uma unidade no filtro superior para visualizar a agenda.</p>}
         {selectedUnitId && !visibleUnits.length && <p className="empty-state">A unidade selecionada não está disponível para este usuário.</p>}
       </section>
+      {selectedGroupCell && (() => {
+        const selectedMembers = membersForSlot(selectedGroupCell.slot.id, selectedGroupCell.day);
+        const capacity = Number(selectedGroupCell.slot.capacity ?? 7);
+        const available = (data["/enrollments"] ?? []).filter((enrollment: Row) => !selectedMembers.some((member) => member.enrollment_id === enrollment.id));
+        const full = selectedMembers.length >= capacity;
+        const selectedDate = new Intl.DateTimeFormat("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }).format(selectedGroupCell.day).replace(".", "");
+        return <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedGroupCell(null); }}>
+          <section className="modal group-members-drawer" role="dialog" aria-modal="true" aria-labelledby="group-members-title">
+            <div className="modal-head">
+              <div><p className="eyebrow">HORÁRIO · {selectedGroupCell.unitName}</p><h2 id="group-members-title">{selectedGroupCell.slot.name}</h2><span className="group-members-drawer-meta">{selectedDate} · {String(selectedGroupCell.slot.starts_at).slice(0, 5)} · {selectedMembers.length}/{capacity} vagas</span></div>
+              <button type="button" onClick={() => setSelectedGroupCell(null)} aria-label="Fechar lista de pacientes">×</button>
+            </div>
+            <div className="group-members-drawer-body">
+              {full && <div className="capacity-alert" role="status"><strong>Horário lotado</strong><span>Não há vagas disponíveis para adicionar mais pacientes.</span></div>}
+              <h3>Pacientes inscritos</h3>
+              {selectedMembers.length ? <ul className="group-members-drawer-list">{selectedMembers.map((member) => <li key={member.id}><div><span>{member.patients?.name ?? "Paciente"}</span><small>{member.patients?.phone ?? ""}</small></div>{canEdit && <div className="group-member-actions"><button type="button" className="action-delete" onClick={() => void removeGroupMember(member.id)}>Retirar da turma</button></div>}</li>)}</ul> : <p className="empty-state">Nenhum paciente está inscrito neste horário.</p>}
+              {canEdit && <form className="group-member-form" onSubmit={(event) => void addGroupMember(event, selectedGroupCell.slot.id)} aria-label={`Adicionar paciente ao horário ${selectedGroupCell.slot.name}`}>
+                <FormSection legend="Adicionar paciente">
+                  <div className="form-row"><Select name="enrollment_id" label="Matrícula" rows={available.map((enrollment: Row) => ({ ...enrollment, name: enrollment.patients?.name ?? enrollment.patient_id }))} required={!full} /><TextField name="starts_at" label="Início do vínculo" type="date" defaultValue={dateKey(selectedGroupCell.day)} required={!full} /></div>
+                  <button className="btn primary group-members-add" disabled={full || !available.length}>{full ? "Horário lotado" : "Adicionar paciente"}</button>
+                  <small>{full ? "A capacidade máxima foi atingida." : available.length ? "Apenas matrículas ainda não vinculadas aparecem aqui." : "Não há matrículas disponíveis. Cadastre e matricule o paciente primeiro."}</small>
+                </FormSection>
+              </form>}
+            </div>
+          </section>
+        </div>;
+      })()}
       {calendarAppointment !== undefined && (
         <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setCalendarAppointment(undefined); }}>
           <section className="modal calendar-edit-modal" role="dialog" aria-modal="true" aria-labelledby="calendar-edit-title">
@@ -723,13 +752,10 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment, canEdit = 
         <div className="group-allocation-grid">
           {(data["/group-slots"] ?? []).map((group: Row) => {
             const members = groupMembers.filter((member) => member.group_slot_id === group.id);
-            const available = (data["/enrollments"] ?? []).filter((enrollment: Row) => !members.some((member) => member.enrollment_id === enrollment.id));
             return <article className="group-allocation-card" key={group.id}>
               <div><strong>{group.name}</strong><span>{members.length}/{group.capacity ?? 7} vagas ocupadas · {String(group.starts_at).slice(0, 5)}</span></div>
-              {canEdit && <div className="group-card-actions"><button type="button" className="btn secondary" onClick={() => setExpandedGroupId(expandedGroupId === group.id ? "" : group.id)}>{expandedGroupId === group.id ? "Fechar cadastro" : "Adicionar aluno"}</button></div>}
               <div className="group-members-heading"><h3>Pacientes inscritos</h3><span>{members.length === 0 ? "Nenhum paciente nesta turma" : `${members.length} inscrito(s)`}</span></div>
               <ul aria-label={`Pacientes inscritos na turma ${group.name}`}>{members.map((member) => <li key={member.id}><span>{member.patients?.name ?? "Paciente"}</span>{canEdit && <button type="button" onClick={() => void removeGroupMember(member.id)} aria-label={`Remover ${member.patients?.name ?? "paciente"} da turma`}>Remover</button>}</li>)}</ul>
-              {expandedGroupId === group.id && <form className="group-member-form" onSubmit={(event) => void addGroupMember(event, group.id)} aria-label={`Adicionar paciente ao horário ${group.name}`}><fieldset><legend>Adicionar aluno</legend><label>Matrícula<select name="enrollment_id" required aria-describedby={`group-help-${group.id}`}><option value="">Selecione uma matrícula</option>{available.map((enrollment: Row) => <option key={enrollment.id} value={enrollment.id}>{enrollment.patients?.name ?? enrollment.patient_id}</option>)}</select></label><label>Início do vínculo<input name="starts_at" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required /></label><button className="btn primary" disabled={!available.length || members.length >= Number(group.capacity ?? 7)}>Adicionar aluno</button><small id={`group-help-${group.id}`}>{members.length >= Number(group.capacity ?? 7) ? "Horário lotado." : available.length ? "Apenas matrículas ainda não vinculadas aparecem aqui." : "Não há matrículas disponíveis. Cadastre e matricule o paciente primeiro."}</small></fieldset></form>}
             </article>;
           })}
         </div>
