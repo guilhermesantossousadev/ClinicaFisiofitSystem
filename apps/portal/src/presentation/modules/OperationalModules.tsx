@@ -1,8 +1,8 @@
 import { FormEvent, type CSSProperties, type FormEventHandler, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
-import { api } from "./api";
-import { supabase } from "./supabase";
-import { CheckboxField, FormField, FormSection, SelectField, TextareaField, TextField } from "./FormPrimitives";
+import { api } from "../../infrastructure/http/api";
+import { supabase } from "../../infrastructure/supabase/client";
+import { CheckboxField, FormField, FormSection, SelectField, TextareaField, TextField } from "../components/FormPrimitives";
 
 type Row = Record<string, any>;
 type Unit = { id: string; name: string };

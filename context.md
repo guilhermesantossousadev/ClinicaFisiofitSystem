@@ -110,7 +110,7 @@ A API é um arquivo Hono único, com middleware global, schemas Zod locais, hand
 
 ### 3.4 Organização do frontend
 
-O portal usa estado local React e chamadas `fetch` encapsuladas em `apps/portal/src/api.ts`. `FisiofitApp.tsx` monta shell, navegação e painel; `OperationalModules.tsx` concentra as dez interfaces operacionais. O site usa páginas e componentes React com Tailwind. Não há store global, biblioteca de consulta/cache nem SSR.
+O portal usa estado local React e chamadas `fetch` encapsuladas em `apps/portal/src/infrastructure/http/api.ts`. `apps/portal/src/presentation/app/FisiofitApp.tsx` monta shell, navegação e painel; `apps/portal/src/presentation/modules/OperationalModules.tsx` concentra as dez interfaces operacionais. O site usa páginas e componentes React com Tailwind. Não há store global, biblioteca de consulta/cache nem SSR.
 
 ### 3.5 Serviços externos e integrações
 
@@ -614,9 +614,9 @@ Excluir branches de trabalho somente após merge confirmado. Preservar `hostinge
 | Scripts, engines e workspaces | `package.json` |
 | Lock de dependências | `package-lock.json` |
 | Portal/rotas Auth | `apps/portal/src/main.tsx`, `apps/portal/src/AuthProvider.tsx` |
-| Portal operacional | `apps/portal/src/FisiofitApp.tsx`, `apps/portal/src/OperationalModules.tsx` |
-| Cliente API | `apps/portal/src/api.ts`, `apps/portal/src/supabase.ts` |
-| Site e rotas | `apps/site/src/App.tsx`, `apps/site/src/pages`, `apps/site/src/components` |
+| Portal operacional | `apps/portal/src/presentation/app/FisiofitApp.tsx`, `apps/portal/src/presentation/modules/OperationalModules.tsx` |
+| Cliente API | `apps/portal/src/infrastructure/http/api.ts`, `apps/portal/src/infrastructure/supabase/client.ts` |
+| Site e rotas | `apps/site/src/presentation/app/App.tsx`, `apps/site/src/presentation/pages`, `apps/site/src/presentation/components` |
 | Design | `packages/design-system/src/index.ts`, CSS das apps |
 | Contratos compartilhados | `packages/contracts/src/index.ts` |
 | API/rotas/regras | `supabase/functions/api/index.ts` |

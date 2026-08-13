@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { api, list } from "./api";
-import "./portal-enhancements.css";
-import { useAuth } from "./AuthProvider";
+import { api, list } from "../../infrastructure/http/api";
+import "../styles/portal-enhancements.css";
+import { useAuth } from "../auth/AuthProvider";
 import {
   OperationalAdministration,
   OperationalAgenda,
@@ -13,87 +13,10 @@ import {
   OperationalRecords,
   OperationalReports,
   OperationalUsers,
-} from "./OperationalModules";
-import type { AgendaEnrollmentContext } from "./OperationalModules";
-
-type View =
-  | "Painel"
-  | "Agenda"
-  | "Pacientes"
-  | "Matrículas"
-  | "Prontuários"
-  | "Financeiro"
-  | "Relatórios"
-  | "Importações"
-  | "Usuários"
-  | "Configurações"
-  | "Privacidade";
-type Role = "admin" | "manager" | "reception" | "professional" | "finance";
-type Unit = { id: string; name: string; active: boolean };
-type PermissionModule = "dashboard" | "agenda" | "patients" | "enrollments" | "records" | "finance" | "reports" | "imports" | "users" | "settings" | "privacy";
-type Profile = { name: string; role: Role; profile_permissions?: Array<{ module: PermissionModule; can_view: boolean; can_edit: boolean }> };
-type Patient = {
-  id: string;
-  name: string;
-  phone?: string;
-  cpf?: string;
-  primary_unit_id: string;
-};
-type DashboardData = {
-  activePatients: number;
-  appointmentsToday: number;
-  overdueCharges: number;
-  overdueAmountCents: number;
-  receivedMonthCents: number;
-  paidExpensesMonthCents: number;
-  appointments: Array<{
-    id: string;
-    status: string;
-    starts_at: string;
-    patients?: { name: string } | null;
-    professionals?: { name: string } | null;
-    services?: { name: string } | null;
-    units?: { name: string } | null;
-  }>;
-};
-
-const nav: Array<{ label: View; icon: string; roles: Role[] }> = [
-  {
-    label: "Painel",
-    icon: "⌂",
-    roles: ["admin", "manager", "reception", "professional", "finance"],
-  },
-  {
-    label: "Agenda",
-    icon: "□",
-    roles: ["admin", "manager", "reception", "professional"],
-  },
-  { label: "Pacientes", icon: "♙", roles: ["admin", "manager", "reception"] },
-  {
-    label: "Matrículas",
-    icon: "◇",
-    roles: ["admin", "manager", "reception", "finance"],
-  },
-  {
-    label: "Prontuários",
-    icon: "▤",
-    roles: ["admin", "manager", "professional"],
-  },
-  { label: "Financeiro", icon: "R$", roles: ["admin", "manager", "finance"] },
-  { label: "Relatórios", icon: "↗", roles: ["admin", "manager", "finance"] },
-  { label: "Importações", icon: "⇧", roles: ["admin", "manager"] },
-  { label: "Usuários", icon: "⚙", roles: ["admin", "manager"] },
-  { label: "Configurações", icon: "⌖", roles: ["admin", "manager"] },
-  { label: "Privacidade", icon: "✓", roles: ["admin", "manager"] },
-];
-const roleLabel: Record<Role, string> = {
-  admin: "Administrador",
-  manager: "Gestor",
-  reception: "Recepção",
-  professional: "Profissional",
-  finance: "Financeiro",
-};
-const navModule: Partial<Record<View, PermissionModule>> = { Painel: "dashboard", Agenda: "agenda", Pacientes: "patients", Matrículas: "enrollments", Prontuários: "records", Financeiro: "finance", Relatórios: "reports", Importações: "imports", Usuários: "users", Configurações: "settings", Privacidade: "privacy" };
+} from "../modules/OperationalModules";
+import type { AgendaEnrollmentContext } from "../modules/OperationalModules";
+import type { DashboardData, Patient, Profile, Unit, View } from "../../domain/portal";
+import { isView, nav, navModule, roleLabel } from "../../application/portal/navigation";
 const brl = (cents: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
     cents / 100,
@@ -113,10 +36,6 @@ function storeValue(key: string, value: string) {
   } catch {
     // O portal continua funcionando quando o navegador bloqueia armazenamento.
   }
-}
-
-function isView(value: string): value is View {
-  return nav.some((item) => item.label === value);
 }
 
 export default function FisiofitApp() {

@@ -1,9 +1,9 @@
 import { FormEvent, useState } from "react";
 import { Redirect, useLocation } from "wouter";
 import { useAuth } from "./AuthProvider";
-import { api } from "./api";
-import { supabase } from "./supabase";
-import { TextField } from "./FormPrimitives";
+import { api } from "../../infrastructure/http/api";
+import { supabase } from "../../infrastructure/supabase/client";
+import { TextField } from "../components/FormPrimitives";
 
 export default function SetPasswordPage() {
   const { loading, session } = useAuth();

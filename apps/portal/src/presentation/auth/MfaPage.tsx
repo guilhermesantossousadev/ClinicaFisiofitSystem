@@ -1,8 +1,8 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Redirect, useLocation } from "wouter";
 import { useAuth } from "./AuthProvider";
-import { supabase } from "./supabase";
-import { TextField } from "./FormPrimitives";
+import { supabase } from "../../infrastructure/supabase/client";
+import { TextField } from "../components/FormPrimitives";
 
 export default function MfaPage() {
   const { session } = useAuth();

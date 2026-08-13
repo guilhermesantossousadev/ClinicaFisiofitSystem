@@ -1,5 +1,5 @@
 import type { ApiEnvelope, ApiError, Paginated } from "@fisiofit/contracts";
-import { supabase } from "./supabase";
+import { supabase } from "../supabase/client";
 
 const apiBase = `${import.meta.env.VITE_SUPABASE_URL ?? ""}/functions/v1/api/v1`;
 

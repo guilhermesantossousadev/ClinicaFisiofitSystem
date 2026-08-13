@@ -1,8 +1,8 @@
 import { FormEvent, useState } from "react";
 import { Redirect } from "wouter";
-import { isSupabaseConfigured, supabase } from "./supabase";
+import { isSupabaseConfigured, supabase } from "../../infrastructure/supabase/client";
 import { useAuth } from "./AuthProvider";
-import { TextField } from "./FormPrimitives";
+import { TextField } from "../components/FormPrimitives";
 
 export default function LoginPage() {
   const { session, loading } = useAuth();

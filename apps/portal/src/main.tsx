@@ -2,22 +2,22 @@ import React, { lazy, Suspense } from "react";
 import ReactDOM from "react-dom/client";
 import { Redirect, Route, Router, Switch } from "wouter";
 import { appBasePath, brandCssVariables } from "@fisiofit/design-system";
-import { AuthProvider, useAuth } from "./AuthProvider";
-import LoginPage from "./LoginPage";
-import MfaPage from "./MfaPage";
-import OnboardingPage from "./OnboardingPage";
-import SetPasswordPage from "./SetPasswordPage";
-import FormAccessibility from "./FormAccessibility";
-import { api } from "./api";
-import { isSupabaseConfigured } from "./supabase";
-import "./index.css";
-import "./portal-enhancements.css";
+import { AuthProvider, useAuth } from "./presentation/auth/AuthProvider";
+import LoginPage from "./presentation/auth/LoginPage";
+import MfaPage from "./presentation/auth/MfaPage";
+import OnboardingPage from "./presentation/auth/OnboardingPage";
+import SetPasswordPage from "./presentation/auth/SetPasswordPage";
+import FormAccessibility from "./presentation/components/FormAccessibility";
+import { api } from "./infrastructure/http/api";
+import { isSupabaseConfigured } from "./infrastructure/supabase/client";
+import "./presentation/styles/index.css";
+import "./presentation/styles/portal-enhancements.css";
 
 for (const [name, value] of Object.entries(brandCssVariables)) {
   document.documentElement.style.setProperty(name, value);
 }
 
-const FisiofitApp = lazy(() => import("./FisiofitApp"));
+const FisiofitApp = lazy(() => import("./presentation/app/FisiofitApp"));
 
 function ProtectedApp() {
   const { loading, session } = useAuth();

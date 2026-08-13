@@ -72,11 +72,11 @@ test("mantém context.md como fonte única da verdade e não restaura o legado",
 
 test("protege recuperação administrativa e consentimento de cookies", async () => {
   const [login, setPassword, api, siteHtml, cookieConsent] = await Promise.all([
-    readFile(new URL("../apps/portal/src/LoginPage.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../apps/portal/src/SetPasswordPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../apps/portal/src/presentation/auth/LoginPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../apps/portal/src/presentation/auth/SetPasswordPage.tsx", import.meta.url), "utf8"),
     readFile(new URL("../supabase/functions/api/index.ts", import.meta.url), "utf8"),
     readFile(new URL("../apps/site/index.html", import.meta.url), "utf8"),
-    readFile(new URL("../apps/site/src/components/CookieConsent.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../apps/site/src/presentation/components/CookieConsent.tsx", import.meta.url), "utf8"),
   ]);
   assert.match(login, /resetPasswordForEmail/);
   assert.match(login, /\/sistema\/set-password/);
@@ -113,7 +113,7 @@ test("isola consultas operacionais por clínica", async () => {
 
 test("preserva a área atual do portal entre recarregamentos", async () => {
   const portal = await readFile(
-    new URL("../apps/portal/src/FisiofitApp.tsx", import.meta.url),
+    new URL("../apps/portal/src/presentation/app/FisiofitApp.tsx", import.meta.url),
     "utf8",
   );
   assert.match(portal, /localStorage\.getItem\(key\)/);

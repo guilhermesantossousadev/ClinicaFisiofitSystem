@@ -1,8 +1,8 @@
 import { FormEvent, useState } from "react";
 import { Redirect, useLocation } from "wouter";
-import { api } from "./api";
+import { api } from "../../infrastructure/http/api";
 import { useAuth } from "./AuthProvider";
-import { TextField } from "./FormPrimitives";
+import { TextField } from "../components/FormPrimitives";
 
 export default function OnboardingPage() {
   const { session } = useAuth();
