@@ -5,6 +5,7 @@ import { z } from "npm:zod@3.24.2";
 
 type Role = "admin" | "manager" | "reception" | "professional" | "finance";
 type PermissionModule = "dashboard" | "agenda" | "patients" | "enrollments" | "records" | "finance" | "reports" | "imports" | "users" | "settings" | "privacy";
+type DatabaseClient = ReturnType<typeof createClient<any>>;
 type Variables = {
   requestId: string;
   user: User;
@@ -16,7 +17,7 @@ type Variables = {
     status: string;
     mfa_required: boolean;
   };
-  db: ReturnType<typeof createClient>;
+  db: DatabaseClient;
 };
 
 const app = new Hono<{ Variables: Variables }>().basePath("/api/v1");
@@ -77,17 +78,13 @@ app.use("*", async (context, next) => {
 
   const url = requiredEnv("SUPABASE_URL");
   const anonKey = requiredEnv("SUPABASE_ANON_KEY");
-  const serviceKey = requiredEnv("SUPABASE_SERVICE_ROLE_KEY");
-  const authClient = createClient(url, anonKey, {
+  const db = createClient<any>(url, anonKey, {
     global: { headers: { Authorization: auth } },
     auth: { persistSession: false },
   });
-  const { data: authData, error: authError } = await authClient.auth.getUser();
+  const { data: authData, error: authError } = await db.auth.getUser();
   if (authError || !authData.user) return fail(context, 401, "UNAUTHENTICATED", "Sessão inválida ou expirada.");
 
-  const db = createClient(url, serviceKey, {
-    auth: { persistSession: false },
-  });
   const { data: profile, error: profileError } = await db
     .from("profiles")
     .select("id, clinic_id, name, role, status, mfa_required, profile_permissions(module,can_view,can_edit)")
@@ -100,14 +97,11 @@ app.use("*", async (context, next) => {
   }
 
   if (!profile) {
-    const { count: clinicCount, error: clinicError } = await db
-      .from("clinics")
-      .select("id", { count: "exact", head: true })
-      .is("deleted_at", null);
-    if (clinicError) {
+    const { data: bootstrapAvailable, error: bootstrapError } = await db.rpc("bootstrap_available");
+    if (bootstrapError) {
       return fail(context, 500, "PROFILE_LOOKUP_FAILED", "Não foi possível validar seu acesso agora.");
     }
-    return clinicCount === 0
+    return bootstrapAvailable
       ? fail(context, 403, "BOOTSTRAP_REQUIRED", "A configuração inicial da clínica ainda não foi concluída.")
       : fail(context, 403, "MEMBERSHIP_NOT_FOUND", "Esta conta não possui acesso à clínica.");
   }
@@ -156,7 +150,7 @@ const patientSchema = z.object({
   notes: z.string().max(4000).optional(),
 });
 
-const appointmentSchema = z.object({
+const appointmentFields = z.object({
   unit_id: z.string().uuid(),
   patient_id: z.string().uuid().optional(),
   professional_id: z.string().uuid(),
@@ -167,7 +161,9 @@ const appointmentSchema = z.object({
   starts_at: z.string().datetime({ offset: true }),
   ends_at: z.string().datetime({ offset: true }),
   notes: z.string().max(1000).optional(),
-}).refine((value) => value.ends_at > value.starts_at, {
+});
+
+const appointmentSchema = appointmentFields.refine((value) => value.ends_at > value.starts_at, {
   path: ["ends_at"],
   message: "O término deve ocorrer depois do início.",
 });
@@ -199,7 +195,7 @@ app.get("/me", (context) => ok(context, {
   profile: context.get("profile"),
 }));
 
-app.get("/dashboard", async (context) => {
+app.get("/dashboard", requireRoles(["admin", "manager"]), async (context) => {
   const clinicId = context.get("profile").clinic_id;
   const date = z.string().date().default(
     new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date()),
@@ -209,6 +205,9 @@ app.get("/dashboard", async (context) => {
   const monthStart = `${date.slice(0, 7)}-01`;
   const unitId = context.req.query("unitId");
   const db = context.get("db");
+  if (unitId && !(await hasUnitAccess(context, z.string().uuid().parse(unitId)))) {
+    return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+  }
 
   const nextWeek = new Date(`${date}T00:00:00-03:00`);
   nextWeek.setDate(nextWeek.getDate() + 7);
@@ -284,6 +283,16 @@ app.post("/users/invite", requireRoles(["admin"]), async (context) => {
       input.unitIds.map((unitId) => ({ profile_id: invited.user.id, unit_id: unitId })),
     );
     if (unitsError) return databaseResult(context, null, unitsError);
+  }
+  const initialPermissions = defaultPermissionsForRole(input.role).map((permission) => ({
+    profile_id: invited.user.id,
+    module: permission.module,
+    can_view: permission.canView,
+    can_edit: permission.canEdit,
+  }));
+  if (initialPermissions.length) {
+    const { error: permissionsError } = await context.get("db").from("profile_permissions").insert(initialPermissions);
+    if (permissionsError) return databaseResult(context, null, permissionsError);
   }
   await audit(context, "user.invited", "profile", invited.user.id);
   return ok(context, { id: invited.user.id, email: input.email, status: "invited" }, 201);
@@ -426,7 +435,7 @@ app.delete("/users/:id", requireRoles(["admin"]), async (context) => {
   return ok(context, data);
 });
 
-app.get("/units", async (context) => {
+app.get("/units", requireRoles(["admin", "manager", "reception", "professional", "finance"]), async (context) => {
   const { data, error } = await context.get("db").from("units").select("*").is("deleted_at", null).order("name");
   return databaseResult(context, data, error);
 });
@@ -456,11 +465,11 @@ app.patch("/units/:id", requireRoles(["admin"]), async (context) => {
   return updateClinicResource(context, "units", id, input, "unit.updated");
 });
 
-app.get("/rooms", listResource("rooms", "name"));
-app.get("/professionals", listResource("professionals", "name"));
-app.get("/services", listResource("services", "name"));
-app.get("/plans", listResource("plans", "name"));
-app.get("/group-slots", listResource("group_slots", "starts_at"));
+app.get("/rooms", requireRoles(["admin", "manager", "reception", "professional"]), listResource("rooms", "name"));
+app.get("/professionals", requireRoles(["admin", "manager", "reception", "professional", "finance"]), listResource("professionals", "name"));
+app.get("/services", requireRoles(["admin", "manager", "reception", "professional"]), listResource("services", "name"));
+app.get("/plans", requireRoles(["admin", "manager", "reception", "finance"]), listResource("plans", "name"));
+app.get("/group-slots", requireRoles(["admin", "manager", "reception", "professional"]), listResource("group_slots", "starts_at"));
 app.get("/group-slot-memberships", requireRoles(["admin", "manager", "reception", "professional"]), async (context) => {
   const clinicId = context.get("profile").clinic_id;
   let query = context.get("db").from("group_slot_memberships")
@@ -471,12 +480,12 @@ app.get("/group-slot-memberships", requireRoles(["admin", "manager", "reception"
   const { data, error } = await query.order("created_at", { ascending: true }).limit(1000);
   return databaseResult(context, data, error);
 });
-app.get("/enrollments", listResource("enrollments", "created_at", false));
-app.get("/charges", listResource("charges", "due_at", false));
-app.get("/payments", listResource("payments", "paid_at", false));
-app.get("/commissions", listResource("commissions", "created_at", false));
-app.get("/fiscal-documents", listResource("fiscal_documents", "created_at", false));
-app.get("/notifications", listResource("notifications", "scheduled_at", false));
+app.get("/enrollments", requireRoles(["admin", "manager", "reception", "finance"]), listResource("enrollments", "created_at", false));
+app.get("/charges", requireRoles(["admin", "manager", "finance"]), listResource("charges", "due_at", false));
+app.get("/payments", requireRoles(["admin", "manager", "finance"]), listResource("payments", "paid_at", false));
+app.get("/commissions", requireRoles(["admin", "manager", "finance"]), listResource("commissions", "created_at", false));
+app.get("/fiscal-documents", requireRoles(["admin", "manager", "finance"]), listResource("fiscal_documents", "created_at", false));
+app.get("/notifications", requireRoles(["admin", "manager", "reception"]), listResource("notifications", "scheduled_at", false));
 app.get("/audit", requireRoles(["admin", "manager"]), listResource("audit_events", "occurred_at", false));
 app.get("/privacy/requests", requireRoles(["admin", "manager"]), listResource("data_subject_requests", "created_at", false));
 app.get("/privacy/incidents", requireRoles(["admin"]), listResource("privacy_incidents", "created_at", false));
@@ -636,7 +645,7 @@ app.patch("/plans/:id", requireRoles(["admin", "manager", "finance"]), async (co
   return updateClinicResource(context, "plans", id, input, "plan.updated");
 });
 
-app.post("/enrollments", requireRoles(["admin", "manager", "reception", "finance"]), async (context) => {
+app.post("/enrollments", requireRoles(["admin", "manager", "finance"]), async (context) => {
   const input = z.object({
     patient_id: z.string().uuid(),
     plan_id: z.string().uuid(),
@@ -686,7 +695,7 @@ app.post("/enrollments", requireRoles(["admin", "manager", "reception", "finance
   return ok(context, data, 201);
 });
 
-app.post("/enrollments/:id/rollback", requireRoles(["admin", "manager", "reception", "finance"]), async (context) => {
+app.post("/enrollments/:id/rollback", requireRoles(["admin", "manager", "finance"]), async (context) => {
   const id = z.string().uuid().parse(context.req.param("id"));
   const input = z.object({ reason: z.string().trim().min(10).max(1000) }).parse(await context.req.json());
   const { data, error } = await context.get("db").rpc("rollback_enrollment", { p_enrollment_id: id, p_reason: input.reason, p_request_id: context.get("requestId") });
@@ -739,7 +748,7 @@ app.patch("/record-templates/:id", requireRoles(["admin", "manager"]), async (co
   return databaseResult(context, data, error);
 });
 
-app.get("/patients", async (context) => {
+app.get("/patients", requireRoles(["admin", "manager", "reception", "professional"]), async (context) => {
   const clinicId = context.get("profile").clinic_id;
   const page = positiveInt(context.req.query("page"), 1);
   const pageSize = Math.min(positiveInt(context.req.query("pageSize"), 25), 100);
@@ -753,13 +762,17 @@ app.get("/patients", async (context) => {
     query = query.or(`name.ilike.%${term}%,phone.ilike.%${term}%,cpf.ilike.%${term}%`);
   }
   const unitId = context.req.query("unitId");
-  if (unitId) query = query.eq("primary_unit_id", z.string().uuid().parse(unitId));
+  if (unitId) {
+    const parsedUnitId = z.string().uuid().parse(unitId);
+    if (!(await hasUnitAccess(context, parsedUnitId))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+    query = query.eq("primary_unit_id", parsedUnitId);
+  }
   const from = (page - 1) * pageSize;
   const { data, error, count } = await query.order("name").range(from, from + pageSize - 1);
   return databaseResult(context, { items: data ?? [], page, pageSize, total: count ?? 0 }, error);
 });
 
-app.get("/patients/:id", async (context) => {
+app.get("/patients/:id", requireRoles(["admin", "manager", "reception", "professional"]), async (context) => {
   const id = z.string().uuid().parse(context.req.param("id"));
   const { data, error } = await context.get("db").from("patients").select("*")
     .eq("id", id).eq("clinic_id", context.get("profile").clinic_id)
@@ -782,6 +795,11 @@ app.post("/patients", requireRoles(["admin", "manager", "reception"]), async (co
 app.patch("/patients/:id", requireRoles(["admin", "manager", "reception"]), async (context) => {
   const id = z.string().uuid().parse(context.req.param("id"));
   const input = patientSchema.partial().extend({ active: z.boolean().optional() }).parse(await context.req.json());
+  const { data: currentPatient } = await context.get("db").from("patients").select("primary_unit_id")
+    .eq("id", id).eq("clinic_id", context.get("profile").clinic_id).is("deleted_at", null).maybeSingle();
+  if (!currentPatient || !(await hasUnitAccess(context, currentPatient.primary_unit_id))) {
+    return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso à unidade atual deste paciente.");
+  }
   if (input.primary_unit_id && !(await hasUnitAccess(context, input.primary_unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
   const { data, error } = await context.get("db").from("patients").update({
     ...input,
@@ -794,6 +812,11 @@ app.patch("/patients/:id", requireRoles(["admin", "manager", "reception"]), asyn
 
 app.delete("/patients/:id", requireRoles(["admin", "manager", "reception"]), async (context) => {
   const id = z.string().uuid().parse(context.req.param("id"));
+  const { data: currentPatient } = await context.get("db").from("patients").select("primary_unit_id")
+    .eq("id", id).eq("clinic_id", context.get("profile").clinic_id).is("deleted_at", null).maybeSingle();
+  if (!currentPatient || !(await hasUnitAccess(context, currentPatient.primary_unit_id))) {
+    return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso à unidade deste paciente.");
+  }
   const deletedAt = new Date().toISOString();
   const { data, error } = await context.get("db").from("patients").update({
     active: false,
@@ -805,7 +828,7 @@ app.delete("/patients/:id", requireRoles(["admin", "manager", "reception"]), asy
   return databaseResult(context, data, error);
 });
 
-app.get("/patients/:id/responsibles", async (context) => {
+app.get("/patients/:id/responsibles", requireRoles(["admin", "manager", "reception", "professional"]), async (context) => {
   const patientId = z.string().uuid().parse(context.req.param("id"));
   const { data, error } = await context.get("db").from("responsibles").select("*")
     .eq("clinic_id", context.get("profile").clinic_id).eq("patient_id", patientId)
@@ -825,7 +848,7 @@ app.post("/patients/:id/responsibles", requireRoles(["admin", "manager", "recept
   return createClinicResource(context, "responsibles", { ...input, patient_id: patientId }, "responsible.created");
 });
 
-app.get("/patients/:id/consents", async (context) => {
+app.get("/patients/:id/consents", requireRoles(["admin", "manager", "reception", "professional"]), async (context) => {
   const patientId = z.string().uuid().parse(context.req.param("id"));
   const { data, error } = await context.get("db").from("consents").select("*")
     .eq("clinic_id", context.get("profile").clinic_id).eq("patient_id", patientId)
@@ -853,7 +876,7 @@ app.post("/patients/:id/consents", requireRoles(["admin", "manager", "reception"
   }, "consent.recorded");
 });
 
-app.get("/patients/:id/timeline", async (context) => {
+app.get("/patients/:id/timeline", requireRoles(["admin", "manager"]), async (context) => {
   const id = z.string().uuid().parse(context.req.param("id"));
   const db = context.get("db");
   const clinicId = context.get("profile").clinic_id;
@@ -871,7 +894,7 @@ app.get("/patients/:id/timeline", async (context) => {
   }, error);
 });
 
-app.get("/appointments", async (context) => {
+app.get("/appointments", requireRoles(["admin", "manager", "reception", "professional"]), async (context) => {
   const from = z.string().datetime({ offset: true }).parse(context.req.query("from"));
   const to = z.string().datetime({ offset: true }).parse(context.req.query("to"));
   const unit = context.req.query("unitId");
@@ -880,8 +903,19 @@ app.get("/appointments", async (context) => {
     .select("*,patients(id,name),professionals(id,name),services(id,name,color),rooms(id,name)")
     .eq("clinic_id", context.get("profile").clinic_id)
     .gte("starts_at", from).lt("starts_at", to).is("deleted_at", null);
-  if (unit) query = query.eq("unit_id", z.string().uuid().parse(unit));
-  if (professional) query = query.eq("professional_id", z.string().uuid().parse(professional));
+  if (unit) {
+    const parsedUnitId = z.string().uuid().parse(unit);
+    if (!(await hasUnitAccess(context, parsedUnitId))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+    query = query.eq("unit_id", parsedUnitId);
+  }
+  if (context.get("profile").role === "professional") {
+    const ownProfessionalId = await professionalForUser(context);
+    if (!ownProfessionalId) return fail(context, 403, "PROFESSIONAL_NOT_LINKED", "Seu usuário não está vinculado a um profissional.");
+    if (professional && professional !== ownProfessionalId) return fail(context, 403, "PROFESSIONAL_FORBIDDEN", "Você só pode consultar sua própria agenda.");
+    query = query.eq("professional_id", ownProfessionalId);
+  } else if (professional) {
+    query = query.eq("professional_id", z.string().uuid().parse(professional));
+  }
   const { data, error } = await query.order("starts_at");
   return databaseResult(context, data, error);
 });
@@ -889,6 +923,9 @@ app.get("/appointments", async (context) => {
 app.post("/appointments", requireRoles(["admin", "manager", "reception", "professional"]), async (context) => {
   const input = appointmentSchema.parse(await context.req.json());
   if (!(await hasUnitAccess(context, input.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+  if (context.get("profile").role === "professional" && !(await isOwnProfessional(context, input.professional_id))) {
+    return fail(context, 403, "PROFESSIONAL_FORBIDDEN", "Você só pode criar agendamentos para si próprio.");
+  }
   const db = context.get("db");
   const { data: conflict, error: conflictError } = await db.rpc("check_appointment_conflict", {
     p_unit_id: input.unit_id,
@@ -913,10 +950,18 @@ app.post("/appointments", requireRoles(["admin", "manager", "reception", "profes
 
 app.patch("/appointments/:id", requireRoles(["admin", "manager", "reception", "professional"]), async (context) => {
   const id = z.string().uuid().parse(context.req.param("id"));
-  const input = appointmentSchema.extend({
+  const input = appointmentFields.extend({
     status: z.enum(["scheduled", "confirmed", "attending", "missed", "cancelled"]).optional(),
+  }).refine((value) => value.ends_at > value.starts_at, {
+    path: ["ends_at"],
+    message: "O término deve ocorrer depois do início.",
   }).parse(await context.req.json());
+  const currentAppointment = await getAuthorizedAppointment(context, id);
+  if (currentAppointment instanceof Response) return currentAppointment;
   if (!(await hasUnitAccess(context, input.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+  if (context.get("profile").role === "professional" && !(await isOwnProfessional(context, input.professional_id))) {
+    return fail(context, 403, "PROFESSIONAL_FORBIDDEN", "Você não pode transferir o atendimento para outro profissional.");
+  }
   const db = context.get("db");
   const { data: conflict, error: conflictError } = await db.rpc("check_appointment_conflict", {
     p_unit_id: input.unit_id, p_professional_id: input.professional_id, p_room_id: input.room_id ?? null,
@@ -932,6 +977,8 @@ app.patch("/appointments/:id", requireRoles(["admin", "manager", "reception", "p
 
 app.delete("/appointments/:id", requireRoles(["admin", "manager", "reception", "professional"]), async (context) => {
   const id = z.string().uuid().parse(context.req.param("id"));
+  const currentAppointment = await getAuthorizedAppointment(context, id);
+  if (currentAppointment instanceof Response) return currentAppointment;
   const deletedAt = new Date().toISOString();
   const { data, error } = await context.get("db").from("appointments").update({ status: "cancelled", deleted_at: deletedAt, updated_at: deletedAt })
     .eq("id", id).eq("clinic_id", context.get("profile").clinic_id).is("deleted_at", null).select("id,unit_id").single();
@@ -941,6 +988,8 @@ app.delete("/appointments/:id", requireRoles(["admin", "manager", "reception", "
 
 app.patch("/appointments/:id/status", requireRoles(["admin", "manager", "reception", "professional"]), async (context) => {
   const id = z.string().uuid().parse(context.req.param("id"));
+  const currentAppointment = await getAuthorizedAppointment(context, id);
+  if (currentAppointment instanceof Response) return currentAppointment;
   const input = z.object({
     status: z.enum(["scheduled", "confirmed", "attending", "missed", "cancelled"]),
     notes: z.string().max(1000).optional(),
@@ -1153,6 +1202,11 @@ app.patch("/group-slot-memberships/:id", requireRoles(["admin", "manager", "rece
 
 app.post("/appointments/:id/complete", requireRoles(["admin", "manager", "professional"]), async (context) => {
   const id = z.string().uuid().parse(context.req.param("id"));
+  const currentAppointment = await getAuthorizedAppointment(context, id);
+  if (currentAppointment instanceof Response) return currentAppointment;
+  if (context.get("profile").role === "professional" && !(await isOwnProfessional(context, currentAppointment.professional_id))) {
+    return fail(context, 403, "PROFESSIONAL_FORBIDDEN", "Você só pode concluir seus próprios atendimentos.");
+  }
   const { data, error } = await context.get("db").rpc("complete_appointment", {
     p_appointment_id: id,
     p_request_id: context.get("requestId"),
@@ -1304,7 +1358,11 @@ app.get("/financial-entries", requireRoles(["admin", "manager", "finance"]), asy
   let query = context.get("db").from("financial_entries").select("*")
     .eq("clinic_id", context.get("profile").clinic_id)
     .gte("competence_date", from).lte("competence_date", to).is("deleted_at", null);
-  if (unit) query = query.eq("unit_id", z.string().uuid().parse(unit));
+  if (unit) {
+    const parsedUnitId = z.string().uuid().parse(unit);
+    if (!(await hasUnitAccess(context, parsedUnitId))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+    query = query.eq("unit_id", parsedUnitId);
+  }
   const { data, error } = await query.order("competence_date", { ascending: false });
   return databaseResult(context, data, error);
 });
@@ -1385,6 +1443,12 @@ app.post("/closings", requireRoles(["admin", "manager", "finance"]), async (cont
     unit_id: z.string().uuid().optional(),
     reference_month: z.string().regex(/^\d{4}-\d{2}$/),
   }).parse(await context.req.json());
+  if (input.unit_id && !(await hasUnitAccess(context, input.unit_id))) {
+    return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+  }
+  if (!input.unit_id && context.get("profile").role !== "admin") {
+    return fail(context, 403, "UNIT_REQUIRED", "Selecione uma unidade para realizar o fechamento.");
+  }
   const db = context.get("db");
   const month = `${input.reference_month}-01`;
   let summaryQuery = db.from("monthly_financial_summary").select("*").eq("month", month);
@@ -1427,7 +1491,11 @@ app.get("/reports/annual", requireRoles(["admin", "manager", "finance"]), async 
   const unit = context.req.query("unitId");
   let query = context.get("db").from("monthly_financial_summary").select("*")
     .gte("month", `${year}-01-01`).lte("month", `${year}-12-31`);
-  if (unit) query = query.eq("unit_id", z.string().uuid().parse(unit));
+  if (unit) {
+    const parsedUnitId = z.string().uuid().parse(unit);
+    if (!(await hasUnitAccess(context, parsedUnitId))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+    query = query.eq("unit_id", parsedUnitId);
+  }
   const { data, error } = await query.order("month");
   if (!error) await audit(context, "report.annual.viewed", "report", null, unit);
   return databaseResult(context, normalizeAnnual(data ?? [], year), error);
@@ -1437,7 +1505,11 @@ app.get("/reports/monthly", requireRoles(["admin", "manager", "finance"]), async
   const month = z.string().regex(/^\d{4}-\d{2}$/).parse(context.req.query("month"));
   const unit = context.req.query("unitId");
   let query = context.get("db").from("monthly_financial_summary").select("*").eq("month", `${month}-01`);
-  if (unit) query = query.eq("unit_id", z.string().uuid().parse(unit));
+  if (unit) {
+    const parsedUnitId = z.string().uuid().parse(unit);
+    if (!(await hasUnitAccess(context, parsedUnitId))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+    query = query.eq("unit_id", parsedUnitId);
+  }
   const { data, error } = await query;
   return databaseResult(context, data, error);
 });
@@ -1755,16 +1827,13 @@ app.onError((error, context) => {
 
 function listResource(table: string, order: string, ascending = true) {
   return async (context: Parameters<typeof ok>[0]) => {
-    const module = moduleForPath(context.req.path);
-    if (module && context.get("profile").role !== "admin") {
-      const { data: permission } = await context.get("db").from("profile_permissions").select("can_view").eq("profile_id", context.get("user").id).eq("module", module).maybeSingle();
-      if (permission && !permission.can_view) return fail(context, 403, "MODULE_FORBIDDEN", "Seu usuário não tem acesso a este módulo.");
-    }
     const clinicId = context.get("profile").clinic_id;
     let query = context.get("db").from(table).select("*").eq("clinic_id", clinicId);
     const unitId = context.req.query("unitId");
     if (unitId && ["rooms", "group_slots", "enrollments", "charges", "commissions", "financial_entries", "clinical_records"].includes(table)) {
-      query = query.eq("unit_id", z.string().uuid().parse(unitId));
+      const parsedUnitId = z.string().uuid().parse(unitId);
+      if (!(await hasUnitAccess(context, parsedUnitId))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+      query = query.eq("unit_id", parsedUnitId);
     }
     if (![
       "audit_events",
@@ -1802,10 +1871,8 @@ async function createClinicResource(
 }
 
 async function hasUnitAccess(context: Parameters<typeof ok>[0], unitId: string) {
-  if (context.get("profile").role === "admin") return true;
-  const { data, error } = await context.get("db").from("profile_units")
-    .select("unit_id").eq("profile_id", context.get("user").id).eq("unit_id", unitId).maybeSingle();
-  return !error && Boolean(data);
+  const { data, error } = await context.get("db").rpc("has_unit_access", { target_unit: unitId });
+  return !error && data === true;
 }
 
 async function professionalForUser(context: Parameters<typeof ok>[0]) {
@@ -1824,18 +1891,57 @@ function requireRoles(roles: Role[]) {
     if (!roles.includes(context.get("profile").role)) {
       return fail(context, 403, "FORBIDDEN", "Seu perfil não possui permissão para esta operação.");
     }
-    const module = moduleForPath(context.req.path);
+    const module = moduleForPath(context.req.path, context.req.method);
     if (module && context.get("profile").role !== "admin") {
-      const { data } = await context.get("db").from("profile_permissions").select("can_view,can_edit").eq("profile_id", context.get("user").id).eq("module", module).maybeSingle();
-      const allowed = data ? (context.req.method === "GET" ? data.can_view : data.can_edit) : true;
+      const { data, error } = await context.get("db").from("profile_permissions").select("can_view,can_edit").eq("profile_id", context.get("user").id).eq("module", module).maybeSingle();
+      const allowed = !error && Boolean(data) && (context.req.method === "GET" ? data.can_view : data.can_edit);
       if (!allowed) return fail(context, 403, "MODULE_FORBIDDEN", context.req.method === "GET" ? "Seu usuário não tem acesso a este módulo." : "Seu usuário não tem permissão para editar este módulo.");
     }
     await next();
   };
 }
 
-function moduleForPath(path: string): PermissionModule | null {
-  const match = path.match(/^\/([^/]+)/)?.[1];
+async function getAuthorizedAppointment(context: Parameters<typeof ok>[0], appointmentId: string) {
+  const { data, error } = await context.get("db").from("appointments")
+    .select("id,unit_id,professional_id")
+    .eq("id", appointmentId)
+    .eq("clinic_id", context.get("profile").clinic_id)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (error || !data) return fail(context, 403, "APPOINTMENT_FORBIDDEN", "Você não possui acesso a este atendimento.");
+  if (!(await hasUnitAccess(context, data.unit_id))) {
+    return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso à unidade deste atendimento.");
+  }
+  if (context.get("profile").role === "professional" && !(await isOwnProfessional(context, data.professional_id))) {
+    return fail(context, 403, "PROFESSIONAL_FORBIDDEN", "Você só pode operar seus próprios atendimentos.");
+  }
+  return data;
+}
+
+function defaultPermissionsForRole(role: Role): Array<{ module: PermissionModule; canView: boolean; canEdit: boolean }> {
+  const access: Partial<Record<Role, Partial<Record<PermissionModule, "view" | "edit">>>> = {
+    manager: {
+      dashboard: "edit", agenda: "edit", patients: "edit", enrollments: "edit", records: "edit",
+      finance: "edit", reports: "view", imports: "edit", users: "view", settings: "edit", privacy: "edit",
+    },
+    reception: { agenda: "edit", patients: "edit", enrollments: "view" },
+    professional: { agenda: "edit", patients: "view", records: "edit" },
+    finance: { enrollments: "view", finance: "edit", reports: "view" },
+  };
+  return Object.entries(access[role] ?? {}).map(([module, permission]) => ({
+    module: module as PermissionModule,
+    canView: true,
+    canEdit: permission === "edit",
+  }));
+}
+
+function moduleForPath(path: string, method = "GET"): PermissionModule | null {
+  const normalizedPath = path.replace(/^\/api\/v1(?=\/|$)/, "");
+  const match = normalizedPath.match(/^\/([^/]+)/)?.[1];
+  if (method === "GET" && match && ["units", "rooms", "professionals", "services"].includes(match)) {
+    // São dados de referência filtrados por papel e RLS, não acesso ao módulo de configurações.
+    return null;
+  }
   const map: Record<string, PermissionModule> = {
     dashboard: "dashboard", appointments: "agenda", "group-slots": "agenda", patients: "patients", responsibles: "patients", consents: "patients",
     enrollments: "enrollments", charges: "enrollments", "record-templates": "records", "clinical-records": "records", attachments: "records",
@@ -1893,6 +1999,17 @@ async function updateClinicResource(
 ) {
   if (!Object.keys(changes).length) {
     return fail(context, 400, "EMPTY_UPDATE", "Informe ao menos uma alteração.");
+  }
+  if (unitId && !(await hasUnitAccess(context, unitId))) {
+    return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso à unidade de destino.");
+  }
+  const unitColumn = table === "rooms" ? "unit_id" : null;
+  if (unitColumn) {
+    const { data: current } = await context.get("db").from(table).select(unitColumn)
+      .eq("id", id).eq("clinic_id", context.get("profile").clinic_id).is("deleted_at", null).maybeSingle();
+    if (!current || !(await hasUnitAccess(context, current[unitColumn]))) {
+      return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso à unidade atual deste registro.");
+    }
   }
   const { data, error } = await context.get("db").from(table).update({
     ...changes,

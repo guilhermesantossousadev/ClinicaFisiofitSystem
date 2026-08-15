@@ -1,8 +1,8 @@
 # CONTEXT.md — Plataforma Fisiofit
 
-**Versão:** 2.0.0
+**Versão:** 2.1.0
 
-**Data de referência:** 2 de agosto de 2026
+**Data de referência:** 15 de agosto de 2026
 
 **Classificação:** interno; contém arquitetura e riscos, mas não credenciais
 
@@ -79,7 +79,7 @@ Equipe ─────> Portal React/Vite ──> Supabase Auth
                       └── JWT ──> Edge Function Hono ──> PostgreSQL
                                              │            ├── funções/triggers
                                              │            └── auditoria/RLS
-                                             └──────────> Storage privado (schema apenas)
+                                             └──────────> Storage privado (RLS por clínica/paciente)
 ```
 
 Não há aplicativo móvel, servidor Node próprio, cache, broker, worker ou fila executável no repositório.
@@ -106,7 +106,7 @@ Versões remotas efetivamente implantadas não foram verificadas.
 
 ### 3.3 Organização do backend
 
-A API é um arquivo Hono único, com middleware global, schemas Zod locais, handlers e auxiliares. Usa `SUPABASE_SERVICE_ROLE_KEY` para o cliente de banco e aplica filtros de clínica em muitos handlers; por isso RLS não protege automaticamente chamadas da API. Funções SQL concentram conclusão de atendimento e pagamento. Não há camada formal de controllers/services/repositories.
+A API é um arquivo Hono único, com middleware global, schemas Zod locais, handlers e auxiliares. Desde a migration `202608150001_harden_authorization.sql`, operações de domínio usam `SUPABASE_ANON_KEY` com o Bearer JWT original, fazendo PostgreSQL e Storage aplicarem RLS com `auth.uid()`. `SUPABASE_SERVICE_ROLE_KEY` permanece restrita a chamadas administrativas do Supabase Auth, como convite, consulta e bloqueio de contas; não é o cliente armazenado no contexto dos handlers. Funções SQL concentram conclusão de atendimento, pagamento e rollback. Não há camada formal de controllers/services/repositories.
 
 ### 3.4 Organização do frontend
 
@@ -115,7 +115,7 @@ O portal usa estado local React e chamadas `fetch` encapsuladas em `apps/portal/
 ### 3.5 Serviços externos e integrações
 
 - Supabase Auth, Edge Functions, PostgreSQL e Storage: implementados/configurados no repositório; estado remoto não verificado.
-- Hostinger: empacotamento e workflow implementados; publicação efetiva não verificada.
+- Hostinger: empacotamento e workflow implementados; execuções anteriores do workflow foram confirmadas no GitHub, mas a versão desta atualização deve ser registrada após o novo deploy.
 - Google Ads: carregamento condicional após consentimento local.
 - WhatsApp, Google Maps e Instagram: links públicos no site; não são integrações transacionais da API.
 - NFS-e e mensageria: apenas interfaces de provider e tabelas; sem adapter, fornecedor, worker ou envio.
@@ -161,7 +161,7 @@ Sem variáveis públicas, o portal permite renderização de prévia sem sessão
 | `VITE_SUPABASE_ANON_KEY` | portal/build | chave pública do cliente |
 | `SUPABASE_URL` | Edge Function | obrigatória |
 | `SUPABASE_ANON_KEY` | Edge Function | valida usuário |
-| `SUPABASE_SERVICE_ROLE_KEY` | Edge Function | secreta; nunca expor no frontend |
+| `SUPABASE_SERVICE_ROLE_KEY` | Edge Function | secreta; somente operações administrativas do Supabase Auth; nunca usar como cliente geral nem expor no frontend |
 | `APP_ORIGIN` | Edge Function | origem CORS; há default do domínio institucional |
 
 Somente arquivos `.env.example` foram usados para esta lista; valores reais não foram lidos nem registrados.
@@ -193,7 +193,7 @@ O teste Node inspeciona `dist/`; portanto o build deve precedê-lo em validaçã
 
 ### 4.7 Deploy
 
-O workflow manual `.github/workflows/hostinger-build.yml` gera `dist/` e força a branch `hostinger-deploy` com apenas os artefatos. Não há workflow versionado para aplicar migrations ou publicar a Edge Function. A publicação e o estado remoto são **não verificados**.
+O workflow manual `.github/workflows/hostinger-build.yml` gera `dist/` e força a branch `hostinger-deploy` com apenas os artefatos. Migrations e Edge Functions são publicadas separadamente pela CLI Supabase; não há workflow versionado para o backend. Cada deploy deve registrar separadamente commit, execução Hostinger, migration remota e versão da função. O código da Fase 1 está validado local/estaticamente, mas sua aplicação remota ainda precisa ser confirmada.
 
 ### 4.8 Ambientes disponíveis
 
@@ -214,14 +214,14 @@ O workflow manual `.github/workflows/hostinger-build.yml` gera `dist/` e força 
 | Agenda/turmas | Implementado | API e `OperationalAgenda` | Agenda com períodos de 7/14/30 dias, turmas recorrentes, geração automática de horários e alocação/remoção de pacientes |
 | Pacientes | Parcial | endpoints e `OperationalPatients` | Cria/edita paciente; detalhes associados sem edição/remoção completa |
 | Matrículas/cobranças | Parcial | endpoints/UI | Criação e recebimento; sem gestão completa de estados |
-| Prontuário | Parcial | endpoints/UI/triggers | Criação, assinatura e retificação; autorização profissional insuficiente |
+| Prontuário | Parcial | endpoints/UI/triggers/RLS | Criação, assinatura e retificação; profissional limitado à própria autoria e aos próprios atendimentos no código da Fase 1; falta teste integrado em banco real |
 | Financeiro | Parcial | endpoints/UI/funções SQL | Lançamentos, pagamentos, comissões e fechamento; sem estorno/reabertura |
 | Relatórios | Parcial | endpoints/UI | Anual, CSV e impressão do navegador; sem PDF/XLSX gerado pelo backend |
 | Importações | Parcial | endpoint/UI | XLSX/CSV por abas para unidades, salas, profissionais, serviços, planos, pacientes, matrículas, agenda, turmas, cobranças, pagamentos, financeiro, comissões, prontuários e modelos; validação e lote auditável, ainda sem transação única/rollback |
 | Usuários | Parcial | endpoints/UI | Convite e alteração; não há remoção e o redirect do convite diverge do fluxo de senha |
 | Configurações | Parcial | endpoints/UI | Somente criação/listagem de entidades centrais |
 | Privacidade/auditoria | Parcial | migration, endpoints/UI | Solicitações e incidentes; política pública ainda provisória |
-| Storage/anexos | Parcial | buckets/tabela | Sem endpoint ou interface de upload/download |
+| Storage/anexos | Parcial | buckets/tabela/endpoints/RLS | URL assinada de upload, listagem e remoção implementadas; falta teste integrado e fluxo completo de download na interface |
 | NFS-e/notificações | Planejado | providers e tabelas | Sem implementação operacional |
 
 ### 5.1 Correção de estado anterior
@@ -255,6 +255,7 @@ PostgreSQL 17 é configurado para a stack Supabase local. O acesso web usa `@sup
 1. `202607290001_initial_schema.sql`: tipos, tabelas, índices, funções, views, RLS e buckets.
 2. `202607290002_bootstrap_admin.sql`: vincula uma conta Auth preexistente e cria/atualiza perfil administrador. É dependente de estado remoto e contém identidade nominal; exige revisão antes de reutilização em outro ambiente.
 3. `202608020001_owner_and_privacy.sql`: proprietário protegido, consentimentos enriquecidos e domínio de privacidade.
+4. `202608150001_harden_authorization.sql`: autorização fail-closed, políticas por papel/unidade, Storage RLS, permissões iniciais e endurecimento das RPCs `SECURITY DEFINER`.
 
 Não foram encontradas migrations duplicadas, mas a segunda migration falha se o usuário Auth esperado não existir.
 
@@ -323,7 +324,7 @@ Validação retorna 422; autenticação 401; MFA/papel 403; duplicidade 409; out
 
 ### 8.1 Multiunidade e acesso
 
-Admin consolida a clínica; demais perfis deveriam operar somente unidades de `profile_units`. `has_unit_access` existe no banco, mas, como a API usa service role, a restrição precisa ser aplicada explicitamente em cada handler. Isso não ocorre de forma uniforme e é risco vigente.
+Admin consolida a própria clínica. Os demais perfis operam somente unidades presentes em `profile_units`. A API consulta com o JWT do usuário, valida `unitId` nos handlers sensíveis e a RLS repete a restrição por meio de `has_unit_access`. Profissionais recebem escopo adicional de propriedade: agenda e prontuário exigem o `professional_id` vinculado ao usuário. Tabelas sem `unit_id` direto resolvem o escopo pelo registro-pai, como paciente, cobrança ou turma.
 
 ### 8.2 Validações
 
@@ -370,11 +371,11 @@ MFA TOTP é exigido pela API para `admin`, `manager` e `finance`. `reception` e 
 
 ### 9.4 Permissões
 
-Papéis protegem mutações sensíveis e a navegação do portal. A conta proprietária não pode ser rebaixada, bloqueada, removida da clínica, ter MFA desativado nem perder unidades, por validação de API e triggers.
+Papéis protegem endpoints, RLS e navegação. `profile_permissions` somente restringe o papel e usa default deny: linha ausente, erro de consulta ou flag falsa bloqueiam a operação. Convites recebem permissões iniciais explícitas. Somente admin da mesma clínica pode escrever permissões; a política antiga com `WITH CHECK (true)` é removida pela migration corretiva. A conta proprietária não pode ser rebaixada, bloqueada, removida da clínica, ter MFA desativado nem perder unidades, por validação de API e triggers.
 
 ### 9.5 Proteções de endpoints
 
-`/health`, `/openapi.json` e `/bootstrap` precedem o middleware geral; bootstrap valida seu próprio Bearer. Os demais exigem sessão e perfil. Não há rate limiting, proteção CSRF específica ou checagem central de unidade. CORS aceita a origem configurada e qualquer `localhost`.
+`/health`, `/openapi.json` e `/bootstrap` precedem o middleware geral; bootstrap valida seu próprio Bearer. Os demais exigem sessão, perfil ativo, papel permitido e, quando mapeado, permissão explícita de módulo. Dashboard fica restrito a admin/manager; prontuário exclui recepção/financeiro; financeiro exclui recepção/profissional; agenda profissional é limitada ao vínculo próprio. RLS e RPCs repetem as verificações de clínica, unidade e ator. Não há rate limiting ou proteção CSRF específica. CORS aceita a origem configurada e qualquer `localhost`.
 
 ### 9.6 Privacidade e dados sensíveis
 
@@ -450,6 +451,7 @@ A visibilidade de menu melhora UX, mas não substitui autorização do backend. 
 | DB-02 | Dinheiro em centavos; tempo absoluto em `timestamptz` | schema e API | Vigente |
 | CLIN-01 | Prontuário assinado imutável e retificado por novo registro | trigger e endpoints | Vigente |
 | AUDIT-01 | Auditoria append-only | trigger | Vigente |
+| AUTHZ-01 | Defesa em profundidade com JWT na API, guard de papel/módulo e RLS por unidade | migration `202608150001` e middleware da Edge Function | Implementado; integração remota pendente de confirmação |
 | DEPLOY-01 | Artefato Hostinger único em branch dedicada | script/workflow | Vigente, implantação não verificada |
 | INTEG-01 | Providers fiscal/mensagem desacoplados | interfaces compartilhadas | Planejado, sem adapter |
 
@@ -459,7 +461,7 @@ Páginas demonstrativas como implementação principal do portal estão superada
 
 ### 12.2 Decisões ainda pendentes
 
-Fornecedor de NFS-e/mensageria; política central de escopo por unidade; homologação; backup/PITR; geração de documentos fiscais; E2E autenticado completo.
+Fornecedor de NFS-e/mensageria; homologação; backup/PITR; geração de documentos fiscais; E2E autenticado completo; automação do deploy Supabase.
 
 ---
 
@@ -471,7 +473,7 @@ Não há testes que executem handlers Hono. `tests/platform.test.mjs` valida inv
 
 ### 13.2 Testes do frontend
 
-Cinco testes Vitest validam schemas compartilhados. Não há teste de componentes, fluxos Auth ou E2E.
+Sete testes Vitest validam contratos e regras puras do portal. Não há teste de componentes, fluxos Auth ou E2E.
 
 ### 13.3 Testes de integração
 
@@ -479,7 +481,7 @@ Ausentes para API↔PostgreSQL, Auth/MFA, papéis, unidades, Storage e providers
 
 ### 13.4 Testes de banco e migrations
 
-`supabase/tests/database.test.sql` contém 12 asserções pgTAP de existência/default; não exercita RLS, transações, triggers negativas ou migrations do zero no CI.
+`supabase/tests/database.test.sql` contém 12 asserções pgTAP de existência/default. `supabase/tests/authorization.test.sql` acrescenta 24 verificações estruturais de políticas, privilégios de RPC, Storage e remoção das políticas amplas. A nova suíte foi validada estaticamente, mas não executada porque o ambiente atual não possui Docker/Podman; ainda faltam fixtures negativas executando a matriz completa de usuários.
 
 ### 13.5 Verificações do pipeline
 
@@ -487,7 +489,7 @@ CI executa typecheck, build e testes JavaScript. Build não prova operação rem
 
 ### 13.6 Lacunas de cobertura
 
-Prioridade: autorização por unidade/papel; prontuário; idempotência; matrícula+cobrança; conflito/capacidade; fechamento; importação parcial; conta proprietária; recuperação/MFA; consentimento de Ads.
+Prioridade: executar a matriz de autorização em banco real; idempotência; matrícula+cobrança; conflito/capacidade; fechamento; importação parcial; conta proprietária; recuperação/MFA; consentimento de Ads.
 
 ---
 
@@ -495,13 +497,12 @@ Prioridade: autorização por unidade/papel; prontuário; idempotência; matríc
 
 | Prioridade | Problema | Impacto | Evidência | Correção recomendada |
 |---|---|---|---|---|
-| P0 | API usa service role sem escopo central por unidade | Perfil pode acessar/escrever unidade não autorizada | middleware e handlers não chamam `has_unit_access` | cliente com RLS efetiva ou guard central obrigatório |
-| P0 | Profissional pode consultar/criar/assinar prontuário de qualquer paciente/profissional da clínica | Violação clínica/LGPD | endpoints filtram por paciente/id, não por profissional/unidade | autorizar vínculo de profissional, atendimento e unidade |
+| P0 | Fase 1 de autorização ainda não foi exercitada contra um banco Supabase real nesta sessão | Defeito semântico de policy pode bloquear fluxo ou deixar acesso residual | Docker/Podman indisponível para reset e pgTAP | executar reset, pgTAP e matriz papel×unidade antes de liberar uso clínico |
 | P1 | Status genérico permite `completed` sem consumir sessão | saldo divergente | PATCH status versus RPC de conclusão | proibir transição ou delegar à RPC |
 | P1 | Algumas operações compostas não são atômicas | registros órfãos/parciais | múltiplos inserts nos handlers | RPC/transação compensável; rollback de importações e matrículas já possui RPC dedicada |
 | P1 | Convite redireciona a `/sistema/login` | usuário convidado pode não entrar no fluxo de definição de senha | `users/invite` versus `SetPasswordPage` | alinhar redirect a `/set-password` e testar |
 | P1 | Migration de bootstrap depende de UUID Auth preexistente | reset/novo ambiente pode falhar | `202607290002_bootstrap_admin.sql` | separar bootstrap de estado específico ou documentar pré-condição automatizada |
-| P1 | Sem testes reais de autorização/RLS | regressões críticas não detectadas | suíte atual | integração com perfis e unidades |
+| P1 | Testes de autorização ainda são majoritariamente estruturais | regressões de comportamento podem não ser detectadas | `authorization.test.sql` | criar fixtures com dois tenants, unidades e cinco papéis, mais testes REST/RPC |
 | P2 | Capacidade de turma ignora vigência dos membros | bloqueio indevido de vaga futura | consulta de membros ativos | considerar intervalo e normalizar status |
 | P2 | Comissão zero vira despesa de 1 centavo | distorção financeira | schema aceita zero e aprovação usa `Math.max` | proibir zero ou manter valor exatamente |
 | P2 | OpenAPI incompleta e schemas duplicados | deriva contratual | documento parcial e Zod duplicado | gerar/compartilhar contratos |
@@ -512,7 +513,7 @@ Prioridade: autorização por unidade/papel; prontuário; idempotência; matríc
 
 ### 14.1 Riscos de segurança
 
-Os dois riscos P0 são bloqueadores de produção. Também faltam rate limit e testes de isolamento. A service role deve permanecer somente no backend.
+A exposição arquitetural por `service_role` geral e a autorização profissional insuficiente foram corrigidas no código da Fase 1. A liberação clínica continua bloqueada até a migration e a Edge Function serem confirmadas no ambiente remoto e a matriz papel×unidade×recurso passar em banco real. Também falta rate limiting. A service role deve permanecer restrita ao Supabase Auth no backend.
 
 ### 14.2 Riscos de arquitetura
 
@@ -524,12 +525,13 @@ Deploy de banco/API não está automatizado; homologação, restauração e esta
 
 ### 14.4 Ordem recomendada de correção
 
-1. Isolamento por unidade e prontuário.
-2. Transições/atomicidade financeiras e clínicas.
-3. Testes integrados de Auth, RLS e migrations.
-4. Convites, bootstrap e ambiente de homologação.
-5. Contratos/paginação/modularização.
-6. Integrações e documentos somente após segurança operacional.
+1. Aplicar e validar a Fase 1 no Supabase remoto e em banco limpo.
+2. Eliminar cache entre usuários e validar IDs relacionados.
+3. Corrigir transições/atomicidade financeiras, clínicas e de importação.
+4. Ampliar testes integrados de Auth, RLS e migrations.
+5. Convites, bootstrap e ambiente de homologação.
+6. Contratos/paginação/modularização.
+7. Integrações e documentos somente após segurança operacional.
 
 ---
 
@@ -587,7 +589,7 @@ Preservar Node `>=20`, CI Node 22, base `/sistema/`, SPA fallbacks e formato de 
 
 ### 16.2 Commits
 
-Commits devem ser coesos, sem secrets, builds, `.env` ou dados reais. Esta análise não autoriza commit.
+Commits devem ser coesos, sem secrets, builds, `.env` ou dados reais. Commits e deploys exigem autorização explícita do responsável.
 
 ### 16.3 Pull requests ou merge requests
 
@@ -626,7 +628,7 @@ Excluir branches de trabalho somente após merge confirmado. Preservar `hostinge
 | Supabase local/Auth/Storage | `supabase/config.toml` |
 | Variáveis permitidas | `.env.example`, `apps/portal/.env.example` |
 | Testes frontend/contratos | `apps/portal/src/contracts.test.ts` |
-| Testes de banco | `supabase/tests/database.test.sql` |
+| Testes de banco | `supabase/tests/database.test.sql`, `supabase/tests/authorization.test.sql` |
 | Testes de plataforma | `tests/platform.test.mjs` |
 | CI | `.github/workflows/ci.yml` |
 | Build/Hostinger | `scripts/assemble-hostinger.mjs`, `.github/workflows/hostinger-build.yml` |
@@ -662,6 +664,8 @@ Não existem fontes executáveis para containers, Kubernetes, Terraform, cache, 
 | 2026-08-02 | Infraestrutura | Há CI e empacotamento Hostinger, mas não há deploy versionado de migration/Edge Function nem homologação configurada | workflows e ausência de manifests |
 | 2026-08-02 | Verificação | Alegações antigas sobre conta, MFA, função e front remoto não foram tratadas como prova atual | ausência de evidência executável/local |
 | 2026-08-02 | Privacidade | Consentimento de Ads está implementado; texto jurídico público ainda tem campos pendentes | `CookieConsent.tsx`, `PrivacyPage.tsx` |
+| 2026-08-15 | Segurança | API de domínio usa JWT do usuário; RLS/RPCs aplicam papel, unidade e vínculo profissional; permissões ausentes negam acesso | `202608150001_harden_authorization.sql`, `supabase/functions/api/index.ts` |
+| 2026-08-15 | Verificação | Typecheck, lint, build, testes JavaScript, parser PostgreSQL e `deno check` passaram; pgTAP não executou sem runtime de containers | comandos locais e `supabase/tests/authorization.test.sql` |
 
 ---
 

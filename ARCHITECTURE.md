@@ -34,6 +34,33 @@ apps/portal/src/
 
 O portal usa `@fisiofit/contracts` como fonte compartilhada dos contratos da API. O backend correspondente fica em `supabase/functions/api`; a camada `infrastructure` é o adaptador que conecta a apresentação a esse backend.
 
+## Backend Supabase
+
+```text
+Portal ── Bearer JWT ──> Edge Function Hono
+                              │
+                              ├── guard de papel + permissão de módulo
+                              └── cliente Supabase anon + JWT
+                                      │
+                                      ├── PostgreSQL com RLS
+                                      ├── RPCs SECURITY DEFINER protegidas
+                                      └── Storage privado com RLS
+```
+
+O cliente de domínio da Edge Function preserva o JWT original. Dessa forma, `auth.uid()` permanece disponível e RLS atua como segunda barreira. `SUPABASE_SERVICE_ROLE_KEY` é criada somente dentro dos handlers administrativos do Supabase Auth e nunca é armazenada em `context.db`.
+
+A migration incremental `supabase/migrations/202608150001_harden_authorization.sql` é a fonte vigente para autorização. Ela substitui as políticas amplas do schema inicial sem reescrever migrations aplicadas, implementa default deny em `profile_permissions`, limita dados por unidade e protege chamadas diretas às RPCs.
+
+### Matriz de isolamento
+
+- `admin`: toda a própria clínica e suas unidades.
+- `manager`: módulos concedidos e unidades atribuídas.
+- `reception`: pacientes e agenda nas unidades atribuídas; sem prontuário ou financeiro.
+- `professional`: agenda própria, pacientes vinculados e prontuários de sua autoria.
+- `finance`: matrículas, cobranças, pagamentos, lançamentos e relatórios das unidades atribuídas; sem dados clínicos.
+
+Permissão de módulo restringe o papel, nunca o amplia. Ausência de registro ou erro na leitura de `profile_permissions` nega acesso.
+
 ## Site institucional
 
 ```text
@@ -58,6 +85,9 @@ Como o site atualmente é uma aplicação de conteúdo sem persistência ou caso
 3. `infrastructure` implementa integrações externas e pode depender de `domain` e contratos compartilhados.
 4. `presentation` renderiza a interface e coordena os casos de uso; não deve criar clientes externos diretamente.
 5. `main.tsx` é o composition root: somente ele deve montar providers, router, CSS global e a árvore principal.
+6. Handlers de domínio usam exclusivamente o cliente Supabase com JWT; `service_role` não pode ser injetada no contexto geral.
+7. Toda rota sensível deve possuir papel explícito, permissão fail-closed e validação de unidade/propriedade, repetidas pela RLS ou RPC.
+8. Migrations aplicadas são imutáveis; correções de segurança entram em nova migration ordenada.
 
 ## Onde adicionar arquivos novos
 
@@ -83,3 +113,13 @@ npm test
 ```
 
 Eles validam os dois frontends, os pacotes compartilhados e os testes de plataforma.
+
+Para backend e banco, também são obrigatórios:
+
+```bash
+npx deno check --no-config --node-modules-dir=none supabase/functions/api/index.ts
+npm run supabase:start
+npm run supabase:test
+```
+
+Os testes Supabase exigem Docker ou Podman. O deploy web usa o workflow `hostinger-build.yml`; migrations e Edge Functions são publicadas separadamente pela CLI Supabase e devem apontar para o mesmo projeto antes da liberação.
