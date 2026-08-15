@@ -2247,24 +2247,40 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
   .sidebar .sidebar-nav-toolbar {
     box-sizing: border-box;
-    width: calc(100% - 8px);
-    margin: 0 4px 14px !important;
-    padding: 8px 8px 10px !important;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    width: 100%;
+    min-height: 56px;
+    margin: 0 0 14px !important;
+    padding: 8px 12px 10px !important;
     border-bottom: 1px solid #d9e3ea !important;
+    background: #fff !important;
+    box-shadow: 0 8px 12px -12px rgb(16 38 58 / 55%);
+    isolation: isolate;
+  }
+
+  .sidebar .sidebar-nav-toolbar-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .sidebar .sidebar-toggle {
     box-sizing: border-box;
     display: inline-flex !important;
+    flex: 0 0 auto;
     width: auto !important;
     min-width: 40px;
     min-height: 38px;
     margin: 2px 0 2px 4px !important;
-    padding: 7px 11px !important;
+    padding: 8px 14px !important;
     border: 2px solid #8fa8b8 !important;
     border-radius: 10px !important;
     background: #fff !important;
     box-shadow: 0 2px 6px rgb(16 38 58 / 12%);
+    white-space: nowrap;
   }
 
   .sidebar .sidebar-toggle:hover {
