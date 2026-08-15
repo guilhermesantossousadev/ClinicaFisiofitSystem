@@ -53,7 +53,7 @@ Portal ── Bearer JWT ──> Edge Function Hono
                                       └── Storage privado com RLS
 ```
 
-O cliente de domínio da Edge Function preserva o JWT original. Dessa forma, `auth.uid()` permanece disponível e RLS atua como segunda barreira. `SUPABASE_SERVICE_ROLE_KEY` é criada somente dentro dos handlers administrativos do Supabase Auth e nunca é armazenada em `context.db`.
+O cliente de domínio da Edge Function preserva o JWT original. Dessa forma, `auth.uid()` permanece disponível e RLS atua como segunda barreira. Como o projeto emite JWTs ES256, a checagem legada `verify_jwt` do gateway fica desativada e o middleware da própria função valida cada Bearer com `auth.getUser()` antes dos endpoints protegidos. `SUPABASE_SERVICE_ROLE_KEY` é criada somente dentro dos handlers administrativos do Supabase Auth e nunca é armazenada em `context.db`.
 
 `supabase/functions/api/index.ts` é o composition root da Edge Function:
 middlewares e dependências comuns permanecem nele, enquanto os handlers são
@@ -150,5 +150,5 @@ build do pacote Hostinger, bundle da Edge Function e ausência de source maps. O
 commit `df69c42` foi publicado pelo workflow Hostinger `31892944841`; os novos
 hashes, canonical, Open Graph e MIME `image/avif` foram conferidos no domínio. As
 migrations remotas estão sincronizadas até `202608160003` e a Edge Function `api`
-está ativa na versão 41. Isso não substitui a homologação comportamental da matriz
+está ativa na versão 42. Isso não substitui a homologação comportamental da matriz
 papel × unidade × recurso nem os testes pgTAP em banco limpo.

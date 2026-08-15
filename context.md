@@ -103,7 +103,7 @@ Não há aplicativo móvel, servidor Node próprio, cache, broker, worker ou fil
 | Hospedagem web | Hostinger via branch de artefatos | versão não aplicável | workflow manual |
 
 Em 15 de agosto de 2026, todas as migrations até `202608160003` foram confirmadas
-no histórico remoto, a Edge Function `api` ficou ativa na versão 41 e os artefatos
+no histórico remoto, a Edge Function `api` ficou ativa na versão 42 e os artefatos
 web da Fase 6/7 foram verificados no domínio de produção.
 
 ### 3.3 Organização do backend
@@ -115,7 +115,9 @@ Handlers Hono ficam separados em `routes/agenda.ts`, `pacientes.ts`,
 operações de domínio usam `SUPABASE_ANON_KEY` com o Bearer JWT original, fazendo
 PostgreSQL e Storage aplicarem RLS com `auth.uid()`. `SUPABASE_SERVICE_ROLE_KEY`
 permanece restrita a chamadas administrativas do Supabase Auth. Funções SQL
-concentram conclusão de atendimento, pagamento e rollback.
+concentram conclusão de atendimento, pagamento e rollback. O projeto Auth emite
+JWTs ES256; por isso `verify_jwt` do gateway legado fica desativado e o middleware
+da função valida o Bearer com `auth.getUser()` antes de qualquer rota protegida.
 
 ### 3.4 Organização do frontend
 
@@ -134,8 +136,8 @@ conexões somente para o projeto Supabase usado pela aplicação.
 
 ### 3.5 Serviços externos e integrações
 
-- Supabase Auth, Edge Functions, PostgreSQL e Storage: projeto remoto vinculado e acessível; histórico sincronizado até `202608160003` e Edge Function `api` ativa na versão 41 em 15 de agosto de 2026. Auth e health da API responderam por HTTP em 15 de agosto de 2026; envio/abertura real do e-mail e a matriz comportamental de RLS ainda não foram homologados.
-- Hostinger: workflow `31898092300` do commit `83fe074` concluído em 15 de agosto de 2026; a CSP corrigida e o redirect canônico do portal foram confirmados no domínio público, além dos hashes do site/portal, canonical, Open Graph e MIME AVIF validados na publicação anterior.
+- Supabase Auth, Edge Functions, PostgreSQL e Storage: projeto remoto vinculado e acessível; histórico sincronizado até `202608160003` e Edge Function `api` ativa na versão 42 em 15 de agosto de 2026. Auth, middleware autenticado e health da API responderam por HTTP; envio/abertura real do e-mail e a matriz comportamental de RLS ainda não foram homologados.
+- Hostinger: workflow `31898551474` do commit `71723e5` concluído em 15 de agosto de 2026; o asset com a correção do loop de sessão, a CSP e o redirect canônico do portal foram confirmados no domínio público.
 - Google Ads: carregamento condicional após consentimento local.
 - WhatsApp, Google Maps e Instagram: links públicos no site; não são integrações transacionais da API.
 - NFS-e e mensageria: apenas interfaces de provider e tabelas; sem adapter, fornecedor, worker ou envio.
@@ -224,8 +226,8 @@ branch `hostinger-deploy` a partir do commit `df69c42`.
 
 - **Local:** configurado no repositório.
 - **Homologação:** não identificada em configuração executável.
-- **Produção web:** Hostinger confirmada em 15 de agosto de 2026 com a correção de Auth do commit `83fe074`, CSP específica do portal, redirect canônico, assets da Fase 6/7 e MIME `image/avif`.
-- **Produção Supabase:** project ref vinculado `eeltguuoxpfttjznugla`; migrations sincronizadas até `202608160003` e Edge Function `api` ativa na versão 41.
+- **Produção web:** Hostinger confirmada em 15 de agosto de 2026 com a correção de Auth do commit `71723e5`, CSP específica do portal, redirect canônico, assets da Fase 6/7 e MIME `image/avif`.
+- **Produção Supabase:** project ref vinculado `eeltguuoxpfttjznugla`; migrations sincronizadas até `202608160003` e Edge Function `api` ativa na versão 42 com `verify_jwt=false` e validação no middleware.
 
 ---
 
@@ -389,7 +391,7 @@ Supabase Auth com e-mail/senha, convite, recuperação PKCE e sessão persistida
 
 ### 9.2 Sessões e tokens
 
-O portal envia Bearer JWT. A API confirma o usuário com `auth.getUser()`. MFA é decidido pela claim `aal` do token já autenticado. Expiração configurada localmente: 3600 segundos.
+O portal envia a chave pública em `apikey` e o JWT da sessão em `Authorization`. A API confirma o usuário com `auth.getUser()`. MFA é decidido pela claim `aal` do token já autenticado. Expiração configurada localmente: 3600 segundos. Um `401` da API só encerra a sessão depois que o próprio Auth também rejeita o usuário; isso evita loops causados por indisponibilidade ou divergência do gateway.
 
 ### 9.3 Perfis de acesso
 
@@ -686,7 +688,7 @@ Não existem fontes executáveis para containers, Kubernetes, Terraform, cache, 
 - [x] Validar que caminhos citados existem.
 - [x] Não incluir valores de secrets nem ler `.env.local`.
 - [x] Validar Hostinger: workflow e assets públicos confirmados em 2026-08-15.
-- [x] Validar deploy Supabase remoto: migrations até `202608160003` presentes e Edge Function `api` ativa na versão 41 em 2026-08-15.
+- [x] Validar deploy Supabase remoto: migrations até `202608160003` presentes e Edge Function `api` ativa na versão 42 em 2026-08-15.
 - [ ] Validar Auth real, matriz comportamental de RLS e entrega de e-mail.
 - [ ] Executar testes de banco: depende da stack Supabase local.
 
@@ -708,6 +710,7 @@ Não existem fontes executáveis para containers, Kubernetes, Terraform, cache, 
 | 2026-08-15 | Deploy | Hostinger serviu os mesmos assets da branch `hostinger-deploy`; migration `202608150001` foi aplicada e a Edge Function `api` ficou ativa na versão 37 | GitHub Actions, domínio público e consultas da Supabase CLI |
 | 2026-08-15 | Fases 6/7 | Portal e API modularizados; acessibilidade, SEO, AVIF e source maps tratados; Hostinger publicou `df69c42` e API chegou à versão 41 | testes locais, workflow `31892944841`, HTTP de produção e Supabase CLI |
 | 2026-08-15 | Login e recuperação | CSP específica do portal libera o Supabase, `www` converge para a origem canônica, recuperação usa PKCE e falhas assíncronas/links expirados recebem tratamento explícito; publicada pelo workflow `31898092300` | headers HTTP de produção, Auth remoto, código, typecheck, lint, build e testes |
+| 2026-08-15 | Sessão autenticada | Cliente envia `apikey` e Bearer; gateway legado deixa de rejeitar JWT ES256; middleware continua validando com `auth.getUser()`; `401` com sessão Auth válida não força logout | Edge Function v42, workflow `31898551474`, asset público e testes |
 
 ---
 
