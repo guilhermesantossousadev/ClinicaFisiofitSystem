@@ -14,6 +14,39 @@ export type DataSubjectRequestStatus = "received"|"identity_check"|"in_review"|"
 export type PrivacyIncidentSeverity = "low"|"medium"|"high"|"critical";
 export type OwnerProtectedErrorCode = "PROTECTED_OWNER_ACCOUNT";
 
+export const PUBLIC_PRIVACY_POLICY = {
+  version: "2.0",
+  updatedAt: "15 de agosto de 2026",
+  controller: {
+    legalName: "Maria Leonilda Cordeiro dos Santos",
+    tradeName: "Clínica Fisiofit",
+    document: "CNPJ 30.379.368/0001-73",
+    privacyEmail: "contato@clinicafisiofitsabara.com",
+  },
+  sections: [
+    {
+      title: "Quais dados tratamos",
+      text: "Neste site, os dados preenchidos no formulário de contato permanecem no seu dispositivo até que você escolha enviá-los pelo WhatsApp. No atendimento e no sistema interno, podemos tratar dados cadastrais, de contato, financeiros e de saúde necessários à prestação dos serviços.",
+    },
+    {
+      title: "Finalidades e bases legais",
+      text: "Tratamos dados para responder solicitações, executar serviços contratados, organizar atendimentos, cumprir obrigações legais, regulatórias e profissionais, exercer direitos e proteger pacientes e a clínica. Comunicações promocionais e publicidade dependem de consentimento quando ele for exigido.",
+    },
+    {
+      title: "Compartilhamentos",
+      text: "Os dados podem ser tratados por fornecedores de infraestrutura e comunicação estritamente necessários, incluindo Supabase, Hostinger e Meta/WhatsApp, conforme a finalidade de cada serviço. Tecnologias do Google para publicidade e medição permanecem desativadas até a sua autorização no banner de cookies.",
+    },
+    {
+      title: "Conservação e segurança",
+      text: "Conservamos os dados somente pelo período necessário às finalidades informadas e ao cumprimento de obrigações legais, regulatórias e profissionais. Adotamos medidas técnicas e administrativas proporcionais ao risco, como controle de acesso, autenticação, registros de auditoria e armazenamento privado nos ambientes aplicáveis.",
+    },
+    {
+      title: "Seus direitos",
+      text: "Você pode solicitar confirmação de tratamento, acesso, correção, portabilidade quando aplicável, informações sobre compartilhamentos, oposição, revogação de consentimento e eliminação nos casos previstos em lei. Alguns registros clínicos e financeiros precisam ser conservados por obrigação legal ou regulatória.",
+    },
+  ],
+} as const;
+
 export const uuidSchema = z.string().uuid();
 export const moneySchema = z.number().int().nonnegative();
 export const isoDateSchema = z.string().datetime({ offset: true });

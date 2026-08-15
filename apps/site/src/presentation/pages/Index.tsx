@@ -38,7 +38,7 @@ const Index = () => (
           </div>
         </div>
         <div className="relative min-h-[440px] overflow-hidden rounded-[2.25rem] bg-sky shadow-soft md:min-h-[560px]">
-          <img src={heroImage} alt="Fisioterapeuta orientando paciente em exercício funcional individualizado" className="absolute inset-0 h-full w-full object-cover" />
+          <img src={heroImage} alt="Profissional da Clínica Fisiofit sentada em uma bola de Pilates no estúdio" className="absolute inset-0 h-full w-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-navy/55 via-transparent to-blue/10" />
           <div className="absolute bottom-6 left-6 right-6 flex items-center gap-4 rounded-2xl border border-white/50 bg-white/90 p-4 shadow-lg backdrop-blur-md">
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-mint text-teal"><Check /></span>

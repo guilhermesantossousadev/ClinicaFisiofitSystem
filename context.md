@@ -221,7 +221,7 @@ O workflow manual `.github/workflows/hostinger-build.yml` gera `dist/` e força 
 | Importações | Parcial | endpoint/UI | XLSX/CSV por abas para unidades, salas, profissionais, serviços, planos, pacientes, matrículas, agenda, turmas, cobranças, pagamentos, financeiro, comissões, prontuários e modelos; validação e lote auditável, ainda sem transação única/rollback |
 | Usuários | Parcial | endpoints/UI | Convite e alteração; não há remoção e o redirect do convite diverge do fluxo de senha |
 | Configurações | Parcial | endpoints/UI | Somente criação/listagem de entidades centrais |
-| Privacidade/auditoria | Parcial | migration, endpoints/UI | Solicitações e incidentes; política pública ainda provisória |
+| Privacidade/auditoria | Parcial | migration, endpoints/UI | Solicitações e incidentes parciais; política pública final centralizada em `packages/contracts` |
 | Storage/anexos | Parcial | buckets/tabela/endpoints/RLS | URL assinada de upload, listagem e remoção implementadas; falta teste integrado e fluxo completo de download na interface |
 | NFS-e/notificações | Planejado | providers e tabelas | Sem implementação operacional |
 
@@ -380,7 +380,7 @@ Papéis protegem endpoints, RLS e navegação. `profile_permissions` somente res
 
 ### 9.6 Privacidade e dados sensíveis
 
-O site registra consentimento publicitário em `localStorage` e só injeta Google Ads após aceite. A política de privacidade declara dados institucionais pendentes, logo não está pronta para produção. Dados clínicos/financeiros são sensíveis; logs da API incluem mensagem de erro do banco e devem ser revisados para evitar vazamento operacional.
+O site tenta registrar o consentimento publicitário em `localStorage`, trata bloqueios de armazenamento sem interromper a navegação e só injeta Google Ads e Google Fonts após aceite. A política pública final e os dados da controladora são centralizados em `packages/contracts`. Dados clínicos/financeiros são sensíveis; logs da API incluem mensagem de erro do banco e devem ser revisados para evitar vazamento operacional.
 
 ---
 
@@ -508,7 +508,6 @@ Prioridade: executar a matriz de autorização em banco real; idempotência; mat
 | P2 | Comissão zero vira despesa de 1 centavo | distorção financeira | schema aceita zero e aprovação usa `Math.max` | proibir zero ou manter valor exatamente |
 | P2 | OpenAPI incompleta e schemas duplicados | deriva contratual | documento parcial e Zod duplicado | gerar/compartilhar contratos |
 | P2 | Listagens genéricas sem paginação e busca global limitada | escala/UX | limite 500 e primeira página de 100 | paginação consistente no servidor |
-| P2 | Política pública contém dados pendentes | risco jurídico de publicação | `PrivacyPage.tsx` | validação jurídica e dados da controladora |
 | P3 | Arquivos monolíticos | manutenção difícil | API ~1.186 linhas; módulos ~2.056 | modularizar por domínio sem alterar contratos |
 | P3 | Arquivos monolíticos | manutenção difícil | API e módulos operacionais concentram muitos domínios | modularizar por domínio sem alterar contratos |
 
@@ -667,6 +666,7 @@ Não existem fontes executáveis para containers, Kubernetes, Terraform, cache, 
 | 2026-08-02 | Infraestrutura | Há CI e empacotamento Hostinger, mas não há deploy versionado de migration/Edge Function nem homologação configurada | workflows e ausência de manifests |
 | 2026-08-02 | Verificação | Alegações antigas sobre conta, MFA, função e front remoto não foram tratadas como prova atual | ausência de evidência executável/local |
 | 2026-08-02 | Privacidade | Consentimento de Ads está implementado; texto jurídico público ainda tem campos pendentes | `CookieConsent.tsx`, `PrivacyPage.tsx` |
+| 2026-08-15 | Privacidade | Política pública final está centralizada nos contratos; Google Ads e Google Fonts dependem de aceite, com fallback para bloqueio de armazenamento | `packages/contracts`, `CookieConsent.tsx`, `PrivacyPage.tsx` |
 | 2026-08-15 | Segurança | API de domínio usa JWT do usuário; RLS/RPCs aplicam papel, unidade e vínculo profissional; permissões ausentes negam acesso | `202608150001_harden_authorization.sql`, `supabase/functions/api/index.ts` |
 | 2026-08-15 | Verificação | Typecheck, lint, build, testes JavaScript, parser PostgreSQL e `deno check` passaram; pgTAP não executou sem runtime de containers | comandos locais e `supabase/tests/authorization.test.sql` |
 | 2026-08-15 | Deploy | Hostinger serviu os mesmos assets da branch `hostinger-deploy`; migration `202608150001` foi aplicada e a Edge Function `api` ficou ativa na versão 37 | GitHub Actions, domínio público e consultas da Supabase CLI |
