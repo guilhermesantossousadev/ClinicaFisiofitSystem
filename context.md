@@ -125,6 +125,9 @@ em `OperationalShared.tsx`. O site usa páginas e componentes React com Tailwind
 SEO por rota e imagens AVIF. Não há store global, biblioteca de consulta/cache,
 SSR ou spinner global de mutações.
 
+O `.htaccess` público declara `image/avif` explicitamente para que a Hostinger
+sirva os ativos otimizados com o tipo MIME correto.
+
 ### 3.5 Serviços externos e integrações
 
 - Supabase Auth, Edge Functions, PostgreSQL e Storage: projeto remoto vinculado e acessível; migration `202608150001` aplicada e Edge Function `api` ativa na versão 37 em 15 de agosto de 2026. Fluxos Auth, e-mail e a matriz comportamental de RLS não foram homologados nesta sessão.

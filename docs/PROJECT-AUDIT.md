@@ -29,6 +29,7 @@ frontend, site, Edge Function, migrations, testes, CI e publicação.
 - Verificação HTTP dos endereços públicos.
 - Bundle sintático da Edge Function e ausência de source maps no portal.
 - Conversão das imagens públicas pesadas para AVIF e metadados SEO por rota.
+- Configuração explícita do MIME `image/avif` na Hostinger.
 
 ## Pontos de atenção
 
