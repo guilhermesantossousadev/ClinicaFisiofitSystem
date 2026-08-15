@@ -17,6 +17,11 @@ import {
 import type { AgendaEnrollmentContext } from "../modules/OperationalModules";
 import type { DashboardData, Patient, Profile, Unit, View } from "../../domain/portal";
 import { isView, nav, navModule, roleLabel } from "../../application/portal/navigation";
+const sidebarGroups: Array<{ label: string; items: View[] }> = [
+  { label: "Operação", items: ["Painel", "Agenda", "Pacientes", "Matrículas", "Prontuários"] },
+  { label: "Gestão", items: ["Financeiro", "Relatórios", "Importações"] },
+  { label: "Administração", items: ["Usuários", "Configurações", "Privacidade"] },
+];
 const brl = (cents: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
     cents / 100,
@@ -179,17 +184,24 @@ export default function FisiofitApp() {
           <span className="sidebar-toggle-label">{sidebarCollapsed ? "Maximizar menu" : "Minimizar menu"}</span>
         </button>
         <nav aria-label="Navegação principal">
-          {visibleNav.map((item) => (
-            <button
-              key={item.label}
-              className={view === item.label ? "nav-item active" : "nav-item"}
-              onClick={() => navigate(item.label)}
-              aria-current={view === item.label ? "page" : undefined}
-            >
-              <span className="nav-icon">{item.icon}</span>
-              {item.label}
-            </button>
-          ))}
+          {sidebarGroups.map((group) => {
+            const groupItems = visibleNav.filter((item) => group.items.includes(item.label));
+            if (!groupItems.length) return null;
+            return <section className="sidebar-nav-group" key={group.label} aria-labelledby={`sidebar-group-${group.label}`}>
+              <h2 className="nav-label" id={`sidebar-group-${group.label}`}>{group.label}</h2>
+              {groupItems.map((item) => (
+                <button
+                  key={item.label}
+                  className={view === item.label ? "nav-item active" : "nav-item"}
+                  onClick={() => navigate(item.label)}
+                  aria-current={view === item.label ? "page" : undefined}
+                >
+                  <span className="nav-icon" aria-hidden="true">{item.icon}</span>
+                  <span className="nav-item-label">{item.label}</span>
+                </button>
+              ))}
+            </section>;
+          })}
         </nav>
         <div className="privacy-card">
           <span className="privacy-icon">✓</span>
