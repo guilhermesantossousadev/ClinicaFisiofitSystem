@@ -2024,9 +2024,17 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .group-member-form legend { grid-column: 1 / -1; padding: 0 4px; color: var(--ink); font-size: 13px; font-weight: 800; }
 .group-member-form label { display: grid; gap: 5px; color: #29485c; font-size: 12px; font-weight: 700; }
 .group-member-form select, .group-member-form input { width: 100%; min-height: 44px; padding: 8px 10px; border: 1px solid #9fb4c2; border-radius: 8px; background: #fff; font-size: 14px; }
-.group-member-form .form-section { margin: 0; }
-.group-member-form-actions { display: grid; gap: 8px; margin-top: 14px; }
+.group-member-form .form-section { display: block; margin: 0; }
+.group-member-form .form-row { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(170px, 1fr); align-items: start; gap: 16px; margin: 14px 0 0; }
+.group-member-form .form-field { min-width: 0; }
+.group-member-form-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(190px, 1fr); align-items: center; gap: 16px; margin-top: 16px; }
+.group-member-form-actions .group-members-add { width: 100%; }
 .group-member-form-actions .form-instructions { margin: 0; }
+
+@media (max-width: 600px) {
+  .group-member-form .form-row,
+  .group-member-form-actions { grid-template-columns: 1fr; }
+}
 @media (max-width: 720px) {
   .group-allocation-panel .table-toolbar { flex-direction: column; }
   .group-allocation-panel .table-toolbar > .btn { width: 100%; }
