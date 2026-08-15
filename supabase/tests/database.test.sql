@@ -1,5 +1,5 @@
 begin;
-select plan(12);
+select plan(14);
 
 select has_table('public', 'patients', 'pacientes existe');
 select has_table('public', 'group_slots', 'turmas semanais existem');
@@ -7,6 +7,8 @@ select has_table('public', 'group_slot_memberships', 'vínculos de alunos às tu
 select has_table('public', 'clinical_records', 'prontuário existe');
 select has_function('public', 'register_payment', 'pagamento transacional existe');
 select has_function('public', 'complete_appointment', 'conclusão idempotente de atendimento existe');
+select has_function('public', 'approve_commission', 'aprovação transacional de comissão existe');
+select has_function('public', 'import_rows_transactional', 'importação transacional em lote existe');
 select has_function('public', 'check_appointment_conflict', 'verificação de conflito existe');
 select has_column('public', 'clinics', 'owner_profile_id', 'clínica possui conta proprietária');
 select has_table('public', 'data_subject_requests', 'solicitações LGPD existem');

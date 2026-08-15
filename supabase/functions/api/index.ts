@@ -1417,27 +1417,11 @@ app.post("/commissions", requireRoles(["admin", "manager", "finance"]), async (c
 
 app.post("/commissions/:id/approve", requireRoles(["admin", "manager", "finance"]), async (context) => {
   const id = z.string().uuid().parse(context.req.param("id"));
-  const db = context.get("db");
-  const { data, error } = await db.from("commissions").update({
-    status: "approved",
-    approved_by: context.get("user").id,
-    approved_at: new Date().toISOString(),
-  }).eq("id", id).eq("clinic_id", context.get("profile").clinic_id).eq("status", "pending")
-    .select().single();
-  if (error || !data) return databaseResult(context, null, error);
-  const { error: entryError } = await db.from("financial_entries").insert({
-    clinic_id: context.get("profile").clinic_id,
-    unit_id: data.unit_id,
-    kind: "expense",
-    description: "Comissão profissional aprovada",
-    category: "Comissões",
-    cost_center: "Equipe",
-    amount_cents: Math.max(data.amount_cents, 1),
-    competence_date: new Date().toISOString().slice(0, 10),
+  const { data, error } = await context.get("db").rpc("approve_commission", {
+    p_commission_id: id,
+    p_request_id: context.get("requestId"),
   });
-  if (entryError) return databaseResult(context, null, entryError);
-  await audit(context, "commission.approved", "commission", id, data.unit_id);
-  return ok(context, data);
+  return databaseResult(context, data, error);
 });
 
 app.get("/closings", requireRoles(["admin", "manager", "finance"]), listResource("monthly_closings", "reference_month", false));
@@ -1632,39 +1616,36 @@ app.post("/imports/workbook", requireRoles(["admin", "manager"]), async (context
   }
   if (input.dryRun) return ok(context, { dryRun: true, total: prepared.length, accepted: prepared.filter((item) => !issues.some((issue) => issue.sheet === item.sheet && issue.row === item.row)).length, issues });
   const valid = prepared.filter((item) => !issues.some((issue) => issue.sheet === item.sheet && issue.row === item.row));
-  const { data: batch, error: batchError } = await db.from("import_batches").insert({ clinic_id: clinicId, source: "manual", filename: input.filename, mapping: { sheets: input.sheets.map((sheet) => ({ name: sheet.name, entity: sheet.entity })) }, status: "processing", totals: { total: prepared.length }, errors: issues, idempotency_key: key, created_by: context.get("user").id }).select().single();
-  if (batchError || !batch) return databaseResult(context, null, batchError);
-  const imported: Record<string, number> = {}; const insertErrors: Array<{ sheet: string; row: number; reason: string }> = [];
-  for (const entity of Object.keys(workbookEntities) as WorkbookEntity[]) {
-    const group = valid.filter((item) => item.entity === entity); if (!group.length) continue;
-    const rows = group.map((item) => {
-      const values = { ...item.values };
-      if (entity === "professionals") delete values.unit_id;
-      if (entity === "patients") { values.primary_unit_id = values.unit_id; delete values.unit_id; values.migration_source = "manual"; }
-      if (entity === "payments") values.idempotency_key = `${key}-${item.sheet}-${item.row}`;
-      return { ...values, clinic_id: clinicId };
-    });
-    const { data, error } = await db.from(workbookEntities[entity].table).insert(rows).select("id");
-    if (error) insertErrors.push(...group.map((item) => ({ sheet: item.sheet, row: item.row, reason: error.message })));
-    else {
-      imported[entity] = data?.length ?? 0;
-      if (data) {
-        await db.from("migration_items").insert(data.map((created: { id: string }, index: number) => ({
-          clinic_id: clinicId, batch_id: batch.id, source: "manual", entity_type: entity,
-          external_id: `${group[index].sheet}:${group[index].row}`, payload: group[index].values,
-          status: "imported", target_table: workbookEntities[entity].table, target_id: created.id,
-        })));
-      }
-      if (entity === "professionals" && data) {
-        const links = data.map((professional: { id: string }, index: number) => ({ professional_id: professional.id, unit_id: group[index].values.unit_id }));
-        const { error: linkError } = await db.from("professional_units").insert(links);
-        if (linkError) insertErrors.push(...group.map((item) => ({ sheet: item.sheet, row: item.row, reason: linkError.message })));
-      }
+  const entityOrder = Object.keys(workbookEntities) as WorkbookEntity[];
+  const rows = [...valid].sort((left, right) => entityOrder.indexOf(left.entity) - entityOrder.indexOf(right.entity)).map((item) => {
+    const values = { ...item.values };
+    const unitId = item.entity === "professionals" ? String(values.unit_id ?? "") : undefined;
+    if (item.entity === "professionals") delete values.unit_id;
+    if (item.entity === "patients") {
+      values.primary_unit_id = values.unit_id;
+      delete values.unit_id;
+      values.migration_source = "manual";
     }
-  }
-  const allErrors = [...issues, ...insertErrors]; await db.from("import_batches").update({ status: insertErrors.length ? "failed" : "completed", totals: { total: prepared.length, imported }, errors: allErrors, updated_at: new Date().toISOString() }).eq("id", batch.id);
-  await audit(context, "import.workbook.completed", "import_batch", batch.id, null, { imported, errors: allErrors.length });
-  return ok(context, { batchId: batch.id, imported, issues: allErrors }, 201);
+    if (item.entity === "payments") values.idempotency_key = `${key}-${item.sheet}-${item.row}`;
+    return {
+      entity: item.entity,
+      external_id: `${item.sheet}:${item.row}`,
+      payload: item.values,
+      values,
+      ...(unitId ? { unit_id: unitId } : {}),
+    };
+  });
+  const { data, error } = await db.rpc("import_rows_transactional", {
+    p_source: "manual",
+    p_filename: input.filename,
+    p_unit_id: null,
+    p_rows: rows,
+    p_mapping: { sheets: input.sheets.map((sheet) => ({ name: sheet.name, entity: sheet.entity })) },
+    p_issues: issues,
+    p_idempotency_key: key,
+    p_request_id: context.get("requestId"),
+  });
+  return transactionalImportResult(context, data, error);
 });
 
 const notionSources = {
@@ -1708,52 +1689,24 @@ app.post("/imports/notion", requireRoles(["admin", "manager"]), async (context) 
     return ok(context, { dryRun: true, unit, counts, issues, total: Object.values(counts).reduce((a, b) => a + b, 0) });
   }
 
-  const { data: batch, error: batchError } = await db.from("import_batches").insert({
-    clinic_id: clinicId,
-    source: "notion",
-    filename: "[Oluma] Fisiofit Unidade I (API)",
-    source_page_id: "2ffff160-df01-81c0-b764-e4345252868f",
-    mapping: { unit_id: input.unit_id, unit_name: unit.name, sources: notionSources },
-    status: "processing",
-    stage: "extract",
-    totals: { total: Object.values(counts).reduce((a, b) => a + b, 0), counts },
-    errors: issues,
-    idempotency_key: key,
-    created_by: context.get("user").id,
-  }).select().single();
-  if (batchError || !batch) return databaseResult(context, null, batchError);
-
-  const staged = Object.entries(inventories).flatMap(([entityType, pages]) => pages.map((page) => ({
-    clinic_id: clinicId,
-    batch_id: batch.id,
-    source: "notion",
-    entity_type: entityType,
-    external_id: page.id,
-    source_url: page.url,
-    payload: notionPlainPage(page),
-    status: "staged",
-  })));
-  const { error: stageError } = await db.from("migration_items").upsert(staged, {
-    onConflict: "clinic_id,source,entity_type,external_id",
+  const { rows, issues: importIssues } = prepareNotionImport(inventories, input.unit_id, issues);
+  const { data, error } = await db.rpc("import_rows_transactional", {
+    p_source: "notion",
+    p_filename: "[Oluma] Fisiofit Unidade I (API)",
+    p_unit_id: input.unit_id,
+    p_rows: rows,
+    p_mapping: {
+      unit_id: input.unit_id,
+      unit_name: unit.name,
+      source_page_id: "2ffff160-df01-81c0-b764-e4345252868f",
+      sources: notionSources,
+      counts,
+    },
+    p_issues: importIssues,
+    p_idempotency_key: key,
+    p_request_id: context.get("requestId"),
   });
-  if (stageError) {
-    await db.from("import_batches").update({ status: "failed", errors: [...issues, { reason: stageError.message }] }).eq("id", batch.id);
-    return databaseResult(context, null, stageError);
-  }
-
-  const importResult = await importNotionCore(db, clinicId, input.unit_id, inventories);
-  await db.from("import_batches").update({
-    status: "completed",
-    stage: "reconciled",
-    totals: { total: staged.length, counts, ...importResult },
-    errors: [...issues, ...importResult.pending],
-    completed_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  }).eq("id", batch.id);
-  await audit(context, "import.notion.completed", "import_batch", batch.id, input.unit_id, {
-    counts, imported: importResult.imported, pending: importResult.pending.length,
-  });
-  return ok(context, { batchId: batch.id, unit, counts, ...importResult }, 201);
+  return transactionalImportResult(context, data, error, { unit, counts });
 });
 
 app.post("/imports/patients", requireRoles(["admin", "manager"]), async (context) => {
@@ -1792,30 +1745,27 @@ app.post("/imports/patients", requireRoles(["admin", "manager"]), async (context
   });
   if (input.dryRun) return ok(context, { accepted: accepted.length, rejected, total: input.rows.length });
 
-  const { data: batch, error: batchError } = await db.from("import_batches").insert({
-    clinic_id: context.get("profile").clinic_id,
-    source: input.source,
-    filename: input.filename,
-    mapping: {},
-    status: "processing",
-    totals: { total: input.rows.length, accepted: accepted.length, rejected: rejected.length },
-    idempotency_key: key,
-    created_by: context.get("user").id,
-  }).select().single();
-  if (batchError || !batch) return databaseResult(context, null, batchError);
-  const { data, error } = await db.from("patients").insert(accepted.map((row) => ({
-    ...row,
-    clinic_id: context.get("profile").clinic_id,
-    primary_unit_id: input.unit_id,
-    migration_source: input.source,
-  }))).select("id");
-  await db.from("import_batches").update({
-    status: error ? "failed" : "completed",
-    totals: { total: input.rows.length, imported: data?.length ?? 0, rejected: rejected.length },
-    updated_at: new Date().toISOString(),
-  }).eq("id", batch.id);
-  if (!error) await audit(context, "import.patients.completed", "import_batch", batch.id, input.unit_id);
-  return databaseResult(context, { batchId: batch.id, imported: data?.length ?? 0, rejected }, error, 201);
+  const rows = accepted.map((row, index) => ({
+    entity: "patients",
+    external_id: row.external_id ?? `${key}:${index + 2}`,
+    payload: row,
+    values: {
+      ...row,
+      primary_unit_id: input.unit_id,
+      migration_source: input.source,
+    },
+  }));
+  const { data, error } = await db.rpc("import_rows_transactional", {
+    p_source: input.source,
+    p_filename: input.filename,
+    p_unit_id: input.unit_id,
+    p_rows: rows,
+    p_mapping: {},
+    p_issues: rejected,
+    p_idempotency_key: key,
+    p_request_id: context.get("requestId"),
+  });
+  return transactionalImportResult(context, data, error, { rejected });
 });
 
 app.onError((error, context) => {
@@ -2063,6 +2013,26 @@ function databaseResult(context: any, data: unknown, error: any, status = 200) {
   return ok(context, data, status);
 }
 
+function transactionalImportResult(
+  context: any,
+  data: any,
+  error: any,
+  details: Record<string, unknown> = {},
+) {
+  if (error) return databaseResult(context, null, error);
+  const result = { ...details, ...(data ?? {}) };
+  if (data?.status === "failed") {
+    return fail(
+      context,
+      400,
+      "IMPORT_BATCH_FAILED",
+      "Nenhuma linha foi importada porque o lote apresentou uma falha.",
+      result,
+    );
+  }
+  return ok(context, result, 201);
+}
+
 async function audit(
   context: any,
   action: string,
@@ -2272,71 +2242,65 @@ function validateNotionInventory(inventories: Record<string, NotionPage[]>) {
   return issues;
 }
 
-async function importNotionCore(db: any, clinicId: string, unitId: string, inventories: Record<string, NotionPage[]>) {
-  const pending = validateNotionInventory(inventories);
-  let professionalsImported = 0;
-  let patientsImported = 0;
-
-  const professionals = (inventories.professionals ?? []).flatMap((page) => {
+function prepareNotionImport(
+  inventories: Record<string, NotionPage[]>,
+  unitId: string,
+  validationIssues: Array<{ entityType: string; externalId: string; reason: string }>,
+) {
+  const issues = [...validationIssues];
+  const rows = Object.entries(inventories).flatMap(([entity, pages]) => pages.map((page) => {
+    const base = {
+      entity,
+      external_id: page.id,
+      source_url: page.url,
+      payload: notionPlainPage(page),
+    };
     const name = notionTitle(page);
-    if (name.length < 3) {
-      pending.push({ entityType: "professionals", externalId: page.id, reason: "Fisioterapeuta sem nome válido" });
-      return [];
+    if (entity === "professionals") {
+      if (name.length < 3) {
+        issues.push({ entityType: entity, externalId: page.id, reason: "Fisioterapeuta sem nome válido" });
+        return { ...base, status: "pending" };
+      }
+      return {
+        ...base,
+        unit_id: unitId,
+        values: {
+          name,
+          council: notionText(page, "Número CREFITO") || null,
+          active: notionText(page, "Situação") !== "Inativo",
+          migration_source: "notion",
+          external_id: page.id,
+        },
+      };
     }
-    return [{
-      clinic_id: clinicId,
-      name,
-      council: notionText(page, "Número CREFITO") || null,
-      active: notionText(page, "Situação") !== "Inativo",
-      migration_source: "notion",
-      external_id: page.id,
-    }];
-  });
-  if (professionals.length) {
-    const { data, error } = await db.from("professionals").upsert(professionals, {
-      onConflict: "clinic_id,migration_source,external_id",
-    }).select("id");
-    if (error) throw error;
-    professionalsImported = data?.length ?? 0;
-  }
-
-  const patients = (inventories.patients ?? []).flatMap((page) => {
-    const name = notionTitle(page);
-    if (name.length < 3) return [];
-    const address = notionText(page, "Endereço");
-    const notes = [
-      notionText(page, "Gênero") ? `Gênero: ${notionText(page, "Gênero")}` : "",
-      notionText(page, "Número Convênio") ? `Número do convênio: ${notionText(page, "Número Convênio")}` : "",
-      notionText(page, "Status do Cliente") ? `Status original: ${notionText(page, "Status do Cliente")}` : "",
-    ].filter(Boolean).join("\n");
-    return [{
-      clinic_id: clinicId,
-      primary_unit_id: unitId,
-      name,
-      cpf: normalizeCpf(notionText(page, "CPF")) ?? null,
-      birth_date: notionText(page, "Dt. Nascimento") || null,
-      phone: notionText(page, "Telefone") || null,
-      email: notionText(page, "E-mail") || null,
-      address: address ? { formatted: address } : {},
-      notes: notes || null,
-      migration_source: "notion",
-      external_id: page.id,
-      created_at: notionText(page, "Cadastrado Em") || page.created_time || new Date().toISOString(),
-    }];
-  });
-  if (patients.length) {
-    const { data, error } = await db.from("patients").upsert(patients, {
-      onConflict: "clinic_id,migration_source,external_id",
-    }).select("id");
-    if (error) throw error;
-    patientsImported = data?.length ?? 0;
-  }
-
-  return {
-    imported: { professionals: professionalsImported, patients: patientsImported },
-    staged: Object.values(inventories).reduce((sum, rows) => sum + rows.length, 0),
-    pending,
-  };
+    if (entity === "patients") {
+      if (name.length < 3) return { ...base, status: "pending" };
+      const address = notionText(page, "Endereço");
+      const notes = [
+        notionText(page, "Gênero") ? `Gênero: ${notionText(page, "Gênero")}` : "",
+        notionText(page, "Número Convênio") ? `Número do convênio: ${notionText(page, "Número Convênio")}` : "",
+        notionText(page, "Status do Cliente") ? `Status original: ${notionText(page, "Status do Cliente")}` : "",
+      ].filter(Boolean).join("\n");
+      return {
+        ...base,
+        values: {
+          primary_unit_id: unitId,
+          name,
+          cpf: normalizeCpf(notionText(page, "CPF")) ?? null,
+          birth_date: notionText(page, "Dt. Nascimento") || null,
+          phone: notionText(page, "Telefone") || null,
+          email: notionText(page, "E-mail") || null,
+          address: address ? { formatted: address } : {},
+          notes: notes || null,
+          migration_source: "notion",
+          external_id: page.id,
+          created_at: notionText(page, "Cadastrado Em") || page.created_time || new Date().toISOString(),
+        },
+      };
+    }
+    return { ...base, status: "staged" };
+  }));
+  return { rows, issues };
 }
 
 const adminDeletableResources = ["units", "rooms", "services", "professionals", "plans", "record-templates"] as const;

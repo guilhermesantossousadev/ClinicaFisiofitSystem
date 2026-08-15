@@ -1,5 +1,5 @@
 begin;
-select plan(24);
+select plan(28);
 
 select ok(
   not exists (select 1 from pg_policies where schemaname = 'public' and policyname like '%_clinic_select'),
@@ -40,11 +40,15 @@ select ok((select prosecdef from pg_proc where oid = 'public.complete_appointmen
 select ok((select prosecdef from pg_proc where oid = 'public.register_payment(uuid,integer,text,timestamptz,text,uuid)'::regprocedure), 'register_payment é SECURITY DEFINER');
 select ok((select prosecdef from pg_proc where oid = 'public.reverse_payment(uuid,text,uuid)'::regprocedure), 'reverse_payment é SECURITY DEFINER');
 select ok((select prosecdef from pg_proc where oid = 'public.rollback_import_batch(uuid,text,uuid)'::regprocedure), 'rollback_import_batch é SECURITY DEFINER');
+select ok((select prosecdef from pg_proc where oid = 'public.approve_commission(uuid,uuid)'::regprocedure), 'approve_commission é SECURITY DEFINER');
+select ok((select prosecdef from pg_proc where oid = 'public.import_rows_transactional(text,text,uuid,jsonb,jsonb,jsonb,text,uuid)'::regprocedure), 'import_rows_transactional é SECURITY DEFINER');
 
 select ok(not has_function_privilege('anon', 'public.complete_appointment(uuid,uuid)', 'EXECUTE'), 'anon não executa complete_appointment');
 select ok(not has_function_privilege('anon', 'public.register_payment(uuid,integer,text,timestamptz,text,uuid)', 'EXECUTE'), 'anon não executa register_payment');
 select ok(not has_function_privilege('anon', 'public.reverse_payment(uuid,text,uuid)', 'EXECUTE'), 'anon não executa reverse_payment');
 select ok(not has_function_privilege('anon', 'public.rollback_import_batch(uuid,text,uuid)', 'EXECUTE'), 'anon não executa rollback_import_batch');
+select ok(not has_function_privilege('anon', 'public.approve_commission(uuid,uuid)', 'EXECUTE'), 'anon não executa approve_commission');
+select ok(not has_function_privilege('anon', 'public.import_rows_transactional(text,text,uuid,jsonb,jsonb,jsonb,text,uuid)', 'EXECUTE'), 'anon não executa import_rows_transactional');
 
 select ok(has_function_privilege('authenticated', 'public.complete_appointment(uuid,uuid)', 'EXECUTE'), 'authenticated pode chamar complete_appointment sujeito à validação interna');
 select ok(has_function_privilege('authenticated', 'public.register_payment(uuid,integer,text,timestamptz,text,uuid)', 'EXECUTE'), 'authenticated pode chamar register_payment sujeito à validação interna');
