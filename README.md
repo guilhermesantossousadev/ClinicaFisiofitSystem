@@ -36,6 +36,7 @@ Nenhum push ou publicação deve acontecer sem autorização explícita.
 - `packages/contracts`: envelopes e contratos compartilhados.
 - `packages/design-system`: tokens e configuração visual compartilhada.
 - `supabase/functions/api`: Edge Function Hono com a API do portal.
+- `supabase/functions/api/routes`: handlers organizados por domínio operacional.
 - `supabase/migrations`: schema, RLS, funções SQL e operações transacionais.
 - `scripts/assemble-hostinger.mjs`: monta o pacote final da Hostinger.
 - `.github/workflows`: validação contínua e publicação manual da Hostinger.
@@ -78,3 +79,7 @@ supabase functions deploy api --project-ref <PROJECT_REF>
 ```
 
 Migrations de rollback e reversão de pagamentos são aplicadas antes da função.
+
+O portal mantém cada visão em `presentation/modules/Operational*.tsx`; o arquivo
+`OperationalModules.tsx` é somente o barrel público. O site publica imagens AVIF,
+metadados canônicos por rota e o build de produção do portal não gera source maps.

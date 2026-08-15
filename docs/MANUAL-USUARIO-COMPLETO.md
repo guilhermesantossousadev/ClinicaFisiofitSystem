@@ -10,7 +10,8 @@ financeiro devem concluir o segundo fator. Ao terminar, clique em **Sair**.
 
 A barra lateral mostra somente os módulos liberados para seu usuário. O filtro
 de unidade altera os dados exibidos; confira a unidade antes de salvar.
-Campos com `*` são obrigatórios. Mensagens de sucesso confirmam o salvamento;
+Campos com `*` são obrigatórios. Ao salvar, apenas o botão acionado mostra o
+processamento. Mensagens de sucesso confirmam o salvamento;
 mensagens de erro devem ser corrigidas antes de tentar novamente.
 
 ## Rotinas por área
@@ -64,6 +65,7 @@ acesso com o usuário. Bloqueie acessos imediatamente quando houver desligamento
 - **Conflito de agenda:** revise profissional, sala e horário; não crie duplicata.
 - **E-mail não chegou:** confira spam e solicite reenvio ao administrador.
 - **Número incorreto no painel:** confira filtros, cadastros e período; preserve o histórico.
+- **Botão processando:** aguarde a conclusão da ação; não atualize a página nem repita o clique.
 
 ## Glossário
 

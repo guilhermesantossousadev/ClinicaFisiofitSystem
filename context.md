@@ -106,11 +106,24 @@ Em 15 de agosto de 2026, a migration `202608150001` foi confirmada no histórico
 
 ### 3.3 Organização do backend
 
-A API é um arquivo Hono único, com middleware global, schemas Zod locais, handlers e auxiliares. Desde a migration `202608150001_harden_authorization.sql`, operações de domínio usam `SUPABASE_ANON_KEY` com o Bearer JWT original, fazendo PostgreSQL e Storage aplicarem RLS com `auth.uid()`. `SUPABASE_SERVICE_ROLE_KEY` permanece restrita a chamadas administrativas do Supabase Auth, como convite, consulta e bloqueio de contas; não é o cliente armazenado no contexto dos handlers. Funções SQL concentram conclusão de atendimento, pagamento e rollback. Não há camada formal de controllers/services/repositories.
+A Edge Function usa `index.ts` como composition root de middleware e dependências.
+Handlers Hono ficam separados em `routes/agenda.ts`, `pacientes.ts`,
+`prontuarios.ts`, `financeiro.ts`, `importacoes.ts`, `usuarios.ts` e
+`privacidade.ts`. Desde a migration `202608150001_harden_authorization.sql`,
+operações de domínio usam `SUPABASE_ANON_KEY` com o Bearer JWT original, fazendo
+PostgreSQL e Storage aplicarem RLS com `auth.uid()`. `SUPABASE_SERVICE_ROLE_KEY`
+permanece restrita a chamadas administrativas do Supabase Auth. Funções SQL
+concentram conclusão de atendimento, pagamento e rollback.
 
 ### 3.4 Organização do frontend
 
-O portal usa estado local React e chamadas `fetch` encapsuladas em `apps/portal/src/infrastructure/http/api.ts`. `apps/portal/src/presentation/app/FisiofitApp.tsx` monta shell, navegação e painel; `apps/portal/src/presentation/modules/OperationalModules.tsx` concentra as dez interfaces operacionais. O site usa páginas e componentes React com Tailwind. Não há store global, biblioteca de consulta/cache nem SSR.
+O portal usa estado local React e chamadas `fetch` encapsuladas em
+`apps/portal/src/infrastructure/http/api.ts`. `FisiofitApp.tsx` monta shell,
+navegação e painel. `OperationalModules.tsx` expõe uma fachada estável e cada
+interface operacional vive em seu próprio `Operational*.tsx`, com helpers comuns
+em `OperationalShared.tsx`. O site usa páginas e componentes React com Tailwind,
+SEO por rota e imagens AVIF. Não há store global, biblioteca de consulta/cache,
+SSR ou spinner global de mutações.
 
 ### 3.5 Serviços externos e integrações
 
@@ -189,11 +202,15 @@ O teste Node inspeciona `dist/`; portanto o build deve precedê-lo em validaçã
 
 ### 4.6 Integração contínua
 
-`.github/workflows/ci.yml` roda em pull requests e pushes para `main`: `npm ci`, typecheck, build e testes. Não executa lint nem pgTAP.
+`.github/workflows/ci.yml` roda em pull requests e pushes para `main`: `npm ci`,
+typecheck, lint, build e testes. Não executa pgTAP.
 
 ### 4.7 Deploy
 
-O workflow manual `.github/workflows/hostinger-build.yml` gera `dist/` e força a branch `hostinger-deploy` com apenas os artefatos. O workflow do commit `3e8e7be` passou e os assets do site e portal foram confirmados em `clinicafisiofitsabara.com`. Migrations e Edge Functions são publicadas separadamente pela CLI Supabase; não há workflow versionado para o backend. O deploy Supabase da Fase 1 permanece pendente porque este ambiente não possui sessão/token da CLI.
+O workflow manual `.github/workflows/hostinger-build.yml` gera `dist/` e força a
+branch `hostinger-deploy` com apenas os artefatos. Migrations e Edge Functions são
+publicadas separadamente pela CLI Supabase; não há workflow versionado para o
+backend. A publicação da Fase 6/7 será registrada aqui após os deploys finais.
 
 ### 4.8 Ambientes disponíveis
 
@@ -420,7 +437,10 @@ Hooks locais (`useState`, `useEffect`, `useMemo`) e contexto somente para Auth. 
 
 ### 11.3 Componentes compartilhados
 
-O site compartilha layout, header, footer e primitivas. O portal compartilha helpers e estruturas dentro de arquivos grandes. `OperationalModules.tsx` com mais de 2.000 linhas é débito de manutenção.
+O site compartilha layout, header, footer, SEO e primitivas. O portal compartilha
+primitivas de formulário e helpers em `OperationalShared.tsx`; as nove visões
+operacionais foram separadas por domínio. `OperationalModules.tsx` contém apenas
+exports e não concentra mais implementação.
 
 ### 11.4 Design system
 
@@ -432,7 +452,10 @@ Há media queries/classes responsivas e navegação móvel. Não foi feita valid
 
 ### 11.6 Acessibilidade
 
-Existem labels, skip link no site e textos alternativos em pontos principais. Não há teste automatizado de acessibilidade; ícones textuais e estados dinâmicos precisam de auditoria.
+Existem labels, skip links e textos alternativos. Inputs, selects e textareas
+associam dicas/erros por `aria-describedby`; dialogs preservam foco e formulários
+assíncronos sinalizam `aria-busy` somente na ação local. Ainda não há teste
+automatizado com axe/leitor de tela.
 
 ### 11.7 Restrições de interface
 
@@ -455,6 +478,9 @@ A visibilidade de menu melhora UX, mas não substitui autorização do backend. 
 | AUTHZ-01 | Defesa em profundidade com JWT na API, guard de papel/módulo e RLS por unidade | migration `202608150001` e middleware da Edge Function | Implantado no Supabase remoto em 2026-08-15; matriz comportamental ainda pendente |
 | DEPLOY-01 | Artefato Hostinger único em branch dedicada | script/workflow e assets remotos | Vigente; deploy web confirmado em 2026-08-15 |
 | INTEG-01 | Providers fiscal/mensagem desacoplados | interfaces compartilhadas | Planejado, sem adapter |
+| FRONT-02 | Interfaces operacionais separadas por domínio | reduz acoplamento e tamanho do composition root | Vigente desde a Fase 6/7 |
+| API-02 | Handlers Hono registrados por arquivo de rota | isola domínios sem alterar contratos HTTP | Vigente desde a Fase 6/7 |
+| SEO-01 | Canonical/Open Graph por rota, AVIF e source maps desativados no portal | indexação, desempenho e menor exposição de fontes | Vigente desde a Fase 6/7 |
 
 ### 12.1 Decisões superadas
 
@@ -470,7 +496,9 @@ Fornecedor de NFS-e/mensageria; homologação; backup/PITR; geração de documen
 
 ### 13.1 Testes do backend
 
-Não há testes que executem handlers Hono. `tests/platform.test.mjs` valida invariantes de plataforma e padrões no arquivo da API.
+Não há testes que executem handlers Hono. `tests/platform.test.mjs` valida
+invariantes na composição da API e em todos os arquivos de rotas; o bundle da
+Edge Function foi verificado com esbuild.
 
 ### 13.2 Testes do frontend
 
@@ -486,7 +514,8 @@ Ausentes para API↔PostgreSQL, Auth/MFA, papéis, unidades, Storage e providers
 
 ### 13.5 Verificações do pipeline
 
-CI executa typecheck, build e testes JavaScript. Build não prova operação remota. Lint está declarado nas apps, mas ESLint não aparece como dependência e o CI não o chama.
+CI executa typecheck, lint, build e testes JavaScript. Build não prova operação
+remota. ESLint também foi executado localmente na Fase 6/7.
 
 ### 13.6 Lacunas de cobertura
 

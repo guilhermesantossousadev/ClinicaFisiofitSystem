@@ -1,6 +1,6 @@
 # Documentação do Sistema Fisiofit
 
-**Versão:** 1.1 · **Atualizado em:** 10/08/2026
+**Versão:** 1.2 · **Atualizado em:** 15/08/2026
 
 ## 1. Objetivo
 
@@ -15,6 +15,11 @@ administração de usuários.
 - `supabase/functions/api`: API HTTP com autenticação, validação, regras de negócio e auditoria.
 - `supabase/migrations`: banco PostgreSQL, RLS, funções e trilha de auditoria.
 - `packages/contracts`: contratos compartilhados entre frontend e API.
+
+O portal organiza cada visão em um arquivo `Operational*.tsx`. A Edge Function
+mantém middleware/composição em `index.ts` e handlers em `api/routes`, sem alterar
+URLs ou envelopes. O site usa SEO dinâmico e imagens AVIF; o portal não publica
+source maps de produção.
 
 O portal usa sessão Supabase, MFA obrigatório para administradores, gestores e
 financeiro, separação por clínica/unidade e bloqueio de contas arquivadas.
@@ -64,6 +69,10 @@ Não compartilhar senhas, não colocar dados clínicos em observações operacio
 confirmar paciente/unidade antes de salvar e registrar consentimentos somente
 após manifestação do paciente ou responsável. Prontuários assinados devem ser
 retificados, nunca sobrescritos.
+
+Campos com ajuda ou erro anunciam essa mensagem ao leitor de tela. Durante um
+salvamento, somente o formulário e o botão acionados ficam ocupados; aguarde a
+mensagem local antes de repetir a operação.
 
 ## 7. Operação e manutenção
 

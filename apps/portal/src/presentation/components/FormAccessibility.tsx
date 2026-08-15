@@ -121,29 +121,6 @@ export default function FormAccessibility() {
 
   useEffect(() => {
     let formCount = 0;
-    let activeTrigger: HTMLButtonElement | null = null;
-    const requests = new Map<string, HTMLButtonElement>();
-    const loadingTimers = new WeakMap<HTMLButtonElement, number>();
-    const stopLoading = (button: HTMLButtonElement) => {
-      const timer = loadingTimers.get(button);
-      if (timer) window.clearTimeout(timer);
-      loadingTimers.delete(button);
-      button.classList.remove("is-loading");
-      button.removeAttribute("aria-busy");
-      button.removeAttribute("data-loading-label");
-      if (activeTrigger === button) activeTrigger = null;
-    };
-    const startLoading = (button: HTMLButtonElement) => {
-      const previousTimer = loadingTimers.get(button);
-      if (previousTimer) window.clearTimeout(previousTimer);
-      button.classList.add("is-loading");
-      button.setAttribute("aria-busy", "true");
-      button.setAttribute("data-loading-label", "Processando");
-      activeTrigger = button;
-      loadingTimers.set(button, window.setTimeout(() => {
-        if (![...requests.values()].includes(button)) stopLoading(button);
-      }, 450));
-    };
     const enhance = () => document.querySelectorAll<HTMLFormElement>("form").forEach((form) => {
       if (!form.id) form.id = `fisiofit-form-${++formCount}`;
       form.noValidate = true;
@@ -191,50 +168,16 @@ export default function FormAccessibility() {
       const form = event.target;
       if (!(form instanceof HTMLFormElement)) return;
       const nextErrors = validateForm(form);
-      if (!nextErrors.length) {
-        const submitter = event.submitter;
-        if (submitter instanceof HTMLButtonElement) startLoading(submitter);
-        return;
-      }
+      if (!nextErrors.length) return;
       event.preventDefault();
       event.stopImmediatePropagation();
       trigger.current = document.activeElement as HTMLElement;
       setErrors(nextErrors);
     };
-    const apiError = (event: Event) => {
-      const message = (event as CustomEvent<{ message?: string }>).detail?.message;
-      trigger.current = document.activeElement as HTMLElement;
-      setErrors([{ message: message || "Não foi possível salvar. Tente novamente." }]);
-    };
-    const click = (event: MouseEvent) => {
-      const button = event.target instanceof Element ? event.target.closest("button") : null;
-      if (!(button instanceof HTMLButtonElement) || button.disabled) return;
-      if (button.classList.contains("is-loading")) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        return;
-      }
-      startLoading(button);
-    };
-    const requestStart = (event: Event) => {
-      const id = (event as CustomEvent<{ id?: string }>).detail?.id;
-      if (id && activeTrigger) requests.set(id, activeTrigger);
-    };
-    const requestEnd = (event: Event) => {
-      const id = (event as CustomEvent<{ id?: string }>).detail?.id;
-      if (!id) return;
-      const button = requests.get(id);
-      requests.delete(id);
-      if (button && ![...requests.values()].includes(button)) stopLoading(button);
-    };
     document.addEventListener("focusout", blur, true);
     document.addEventListener("input", input, true);
     document.addEventListener("submit", submit, true);
-    document.addEventListener("click", click, true);
-    window.addEventListener("fisiofit:api-error", apiError);
-    window.addEventListener("fisiofit:request-start", requestStart);
-    window.addEventListener("fisiofit:request-end", requestEnd);
-    return () => { observer.disconnect(); document.removeEventListener("focusout", blur, true); document.removeEventListener("input", input, true); document.removeEventListener("submit", submit, true); document.removeEventListener("click", click, true); window.removeEventListener("fisiofit:api-error", apiError); window.removeEventListener("fisiofit:request-start", requestStart); window.removeEventListener("fisiofit:request-end", requestEnd); };
+    return () => { observer.disconnect(); document.removeEventListener("focusout", blur, true); document.removeEventListener("input", input, true); document.removeEventListener("submit", submit, true); };
   }, []);
 
   useEffect(() => { if (errors.length) closeButton.current?.focus(); }, [errors]);

@@ -7,6 +7,6 @@ export default defineConfig({
   resolve: {
     dedupe: ["react", "react-dom"],
   },
-  build: { outDir: "dist", sourcemap: true },
+  build: { outDir: "dist", sourcemap: false },
   server: { host: "::", port: 3000, strictPort: true },
 });

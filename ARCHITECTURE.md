@@ -27,12 +27,18 @@ apps/portal/src/
 │   ├── app/FisiofitApp.tsx       # composição da área autenticada
 │   ├── auth/                     # login, MFA, onboarding e provider de sessão
 │   ├── components/               # primitives de formulário e acessibilidade
-│   ├── modules/OperationalModules.tsx
+│   ├── modules/Operational*.tsx  # uma visão por domínio + helpers compartilhados
 │   └── styles/                   # CSS global e melhorias do portal
 └── main.tsx                      # composition root e inicialização React
 ```
 
 O portal usa `@fisiofit/contracts` como fonte compartilhada dos contratos da API. O backend correspondente fica em `supabase/functions/api`; a camada `infrastructure` é o adaptador que conecta a apresentação a esse backend.
+
+`OperationalModules.tsx` é apenas a fachada de exports. Agenda, pacientes,
+matrículas, prontuários, financeiro, relatórios, usuários, configurações e
+privacidade vivem em arquivos independentes; `OperationalShared.tsx` concentra
+somente primitivas e helpers reutilizados. Formulários associam dicas/erros por
+`aria-describedby` e estados ocupados pertencem à ação assíncrona local.
 
 ## Backend Supabase
 
@@ -48,6 +54,13 @@ Portal ── Bearer JWT ──> Edge Function Hono
 ```
 
 O cliente de domínio da Edge Function preserva o JWT original. Dessa forma, `auth.uid()` permanece disponível e RLS atua como segunda barreira. `SUPABASE_SERVICE_ROLE_KEY` é criada somente dentro dos handlers administrativos do Supabase Auth e nunca é armazenada em `context.db`.
+
+`supabase/functions/api/index.ts` é o composition root da Edge Function:
+middlewares e dependências comuns permanecem nele, enquanto os handlers são
+registrados por `routes/agenda.ts`, `pacientes.ts`, `prontuarios.ts`,
+`financeiro.ts`, `importacoes.ts`, `usuarios.ts` e `privacidade.ts`. Os envelopes,
+tipos e schemas consumidos pelo portal continuam centralizados em
+`packages/contracts`.
 
 A migration incremental `supabase/migrations/202608150001_harden_authorization.sql` é a fonte vigente para autorização. Ela substitui as políticas amplas do schema inicial sem reescrever migrations aplicadas, implementa default deny em `profile_permissions`, limita dados por unidade e protege chamadas diretas às RPCs.
 
@@ -77,6 +90,10 @@ apps/site/src/
 ```
 
 Como o site atualmente é uma aplicação de conteúdo sem persistência ou casos de uso próprios, `domain` e `application` ficam preparados para futuras regras sem criar abstrações artificiais.
+
+As páginas públicas usam metadados de título, descrição, canonical e Open Graph
+atualizados por rota. Fotografias de conteúdo são publicadas em AVIF com dimensões
+explícitas, lazy loading abaixo da dobra e prioridade alta apenas para a imagem hero.
 
 ## Regras de dependência
 
@@ -108,11 +125,13 @@ Os comandos principais continuam sendo:
 
 ```bash
 npm run typecheck
+npm run lint
 npm run build
 npm test
 ```
 
-Eles validam os dois frontends, os pacotes compartilhados e os testes de plataforma.
+Eles validam os dois frontends, os pacotes compartilhados e os testes de plataforma;
+typecheck, lint, build e testes também fazem parte da CI e do workflow de publicação.
 
 Para backend e banco, também são obrigatórios:
 
@@ -126,4 +145,9 @@ Os testes Supabase exigem Docker ou Podman. O deploy web usa o workflow `hosting
 
 ## Estado de implantação verificado
 
-Em 15 de agosto de 2026, o site e o portal foram publicados pela branch `hostinger-deploy` e seus hashes de assets foram conferidos no domínio de produção. No mesmo dia, a migration `202608150001_harden_authorization.sql` foi aplicada ao projeto Supabase vinculado e a Edge Function `api` foi confirmada ativa na versão 37. Essa confirmação de implantação não substitui a homologação comportamental da matriz papel × unidade × recurso nem os testes pgTAP em banco limpo.
+Em 15 de agosto de 2026, a Fase 6/7 foi validada localmente com typecheck, lint,
+testes, build do pacote Hostinger, verificação sintática/bundle da Edge Function e
+ausência de source maps no portal. O registro da publicação correspondente deve
+ser atualizado após a execução dos deploys. Essa confirmação não substitui a
+homologação comportamental da matriz papel × unidade × recurso nem os testes pgTAP
+em banco limpo.

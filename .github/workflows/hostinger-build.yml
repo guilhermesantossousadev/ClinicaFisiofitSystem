@@ -30,6 +30,9 @@ jobs:
       - name: Validar tipos
         run: npm run typecheck
 
+      - name: Validar código
+        run: npm run lint
+
       - name: Gerar pacote único
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}

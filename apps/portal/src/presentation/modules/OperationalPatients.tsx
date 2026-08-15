@@ -1,0 +1,289 @@
+import { FormEvent, useState } from "react";
+import { api } from "../../infrastructure/http/api";
+import { FormSection, TextareaField, TextField } from "../components/FormPrimitives";
+import { Row, messageOf, value, useResources, Select, DrawerForm, ModuleState, EditableOperationalTable } from "./OperationalShared";
+
+export function OperationalPatients() {
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
+  const pageSize = 20;
+  const patientPath = `/patients?page=${page}&pageSize=${pageSize}${appliedSearch ? `&search=${encodeURIComponent(appliedSearch)}` : ""}`;
+  const paths = [patientPath, "/units"];
+  const { data, loading, error, reload } = useResources(paths);
+  const patients: Row[] = data[patientPath]?.items ?? [];
+  const total = Number(data[patientPath]?.total ?? 0);
+  const [selected, setSelected] = useState<Row | null>(null);
+  const [detail, setDetail] = useState<{
+    responsibles: Row[];
+    consents: Row[];
+    timeline?: Row;
+  }>({ responsibles: [], consents: [] });
+  const [notice, setNotice] = useState("");
+  function submitSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPage(1);
+    setAppliedSearch(search.trim());
+  }
+  async function create(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const f = new FormData(event.currentTarget);
+    const address = {
+      street: value(f, "street"),
+      number: value(f, "number"),
+      city: value(f, "city"),
+      state: value(f, "state"),
+      zip: value(f, "zip"),
+    };
+    try {
+      await api("/patients", {
+        method: "POST",
+        body: JSON.stringify({
+          primary_unit_id: value(f, "primary_unit_id"),
+          name: value(f, "name"),
+          cpf: value(f, "cpf") || undefined,
+          birth_date: value(f, "birth_date") || undefined,
+          phone: value(f, "phone") || undefined,
+          email: value(f, "email") || undefined,
+          address,
+          tax_data: {
+            fiscal_name: value(f, "fiscal_name"),
+            document: value(f, "fiscal_document"),
+          },
+          notes: value(f, "notes") || undefined,
+        }),
+      });
+      (event.target as HTMLFormElement).reset();
+      await reload();
+      setNotice("Paciente cadastrado.");
+    } catch (e) {
+      setNotice(messageOf(e));
+    }
+  }
+  async function open(row: Row) {
+    setSelected(row);
+    try {
+      const [responsibles, consents, timeline] = await Promise.all([
+        api<Row[]>(`/patients/${row.id}/responsibles`),
+        api<Row[]>(`/patients/${row.id}/consents`),
+        api<Row>(`/patients/${row.id}/timeline`),
+      ]);
+      setDetail({
+        responsibles: responsibles.data ?? [],
+        consents: consents.data ?? [],
+        timeline: timeline.data ?? undefined,
+      });
+    } catch (e) {
+      setNotice(messageOf(e));
+    }
+  }
+  async function responsible(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selected) return;
+    const f = new FormData(event.currentTarget);
+    try {
+      await api(`/patients/${selected.id}/responsibles`, {
+        method: "POST",
+        body: JSON.stringify({
+          name: value(f, "name"),
+          relationship: value(f, "relationship"),
+          cpf: value(f, "cpf") || undefined,
+          phone: value(f, "phone") || undefined,
+          email: value(f, "email") || undefined,
+        }),
+      });
+      (event.target as HTMLFormElement).reset();
+      await open(selected);
+    } catch (e) {
+      setNotice(messageOf(e));
+    }
+  }
+  async function consent(kind: string, granted: boolean) {
+    if (!selected) return;
+    const purposes: Record<string, string> = {
+      whatsapp: "Contato operacional pelo WhatsApp",
+      data_processing: "Registro de ciência sobre o tratamento de dados",
+    };
+    try {
+      await api(`/patients/${selected.id}/consents`, {
+        method: "POST",
+        body: JSON.stringify({
+          kind,
+          granted,
+          purpose: purposes[kind] ?? kind,
+          legal_basis:
+            kind === "whatsapp" ? "consent" : "healthcare_and_legal_obligation",
+          notice_version: "1.0",
+          source: "portal",
+        }),
+      });
+      await open(selected);
+    } catch (e) {
+      setNotice(messageOf(e));
+    }
+  }
+  return (
+    <div className="content">
+      <div className="page-title">
+        <div>
+          <p className="eyebrow">CADASTRO COMPLETO</p>
+          <h1>Pacientes</h1>
+          <p>
+            Dados pessoais, fiscais, responsável, consentimentos e linha do
+            tempo.
+          </p>
+        </div>
+      </div>
+      {notice && (
+        <div className="toast">
+          <span>✓</span>
+          {notice}
+        </div>
+      )}
+      <ModuleState loading={loading} error={error} retry={reload} />
+      <form className="card patient-search" role="search" onSubmit={submitSearch}>
+        <div>
+          <TextField id="patient-search-input" label="Buscar pacientes" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nome, telefone ou CPF" />
+          <button className="btn primary">Buscar</button>
+          {appliedSearch && <button type="button" className="btn secondary" onClick={() => { setSearch(""); setAppliedSearch(""); setPage(1); }}>Limpar</button>}
+        </div>
+      </form>
+      <DrawerForm title="Novo paciente" onSubmit={create}>
+        <h2>Novo paciente</h2>
+        <p className="form-instructions"><span aria-hidden="true">*</span> indica campo obrigatório.</p>
+        <FormSection legend="Identificação e contato">
+          <div className="form-row">
+            <TextField name="name" label="Nome completo" autoComplete="name" required />
+            <Select name="primary_unit_id" label="Unidade principal" rows={data["/units"] ?? []} />
+          </div>
+          <div className="form-row">
+            <TextField name="cpf" label="CPF" inputMode="numeric" placeholder="000.000.000-00" />
+            <TextField name="birth_date" label="Nascimento" type="date" autoComplete="bday" />
+          </div>
+          <div className="form-row">
+            <TextField name="phone" label="Telefone" type="tel" autoComplete="tel" placeholder="(11) 99999-9999" />
+            <TextField name="email" label="E-mail" type="email" autoComplete="email" />
+          </div>
+        </FormSection>
+        <FormSection legend="Endereço">
+          <div className="form-row">
+            <TextField name="street" label="Rua" autoComplete="street-address" />
+            <TextField name="number" label="Número" inputMode="numeric" />
+          </div>
+          <div className="form-row">
+            <TextField name="city" label="Cidade" autoComplete="address-level2" />
+            <TextField name="state" label="Estado" maxLength={2} autoComplete="address-level1" />
+          </div>
+          <TextField name="zip" label="CEP" inputMode="numeric" autoComplete="postal-code" />
+        </FormSection>
+        <FormSection legend="Dados fiscais">
+          <div className="form-row">
+            <TextField name="fiscal_name" label="Nome fiscal" />
+            <TextField name="fiscal_document" label="Documento fiscal" />
+          </div>
+        </FormSection>
+        <TextareaField name="notes" label="Observações" rows={3} />
+        <button className="btn primary">Cadastrar paciente</button>
+      </DrawerForm>
+      <EditableOperationalTable
+        title="Pacientes cadastrados"
+        resource="patients"
+        rows={patients}
+        fields={["name", "phone", "email", "zip", "active"]}
+        editFields={[
+          { name: "name", label: "Nome completo", required: true },
+          { name: "primary_unit_id", label: "Unidade principal", type: "select", required: true, options: data["/units"] ?? [] },
+          { name: "cpf", label: "CPF" },
+          { name: "birth_date", label: "Nascimento", type: "date" },
+          { name: "phone", label: "Telefone", type: "tel" },
+          { name: "email", label: "E-mail", type: "email" },
+          { name: "street", label: "Rua", value: (row) => row.address?.street },
+          { name: "number", label: "Número", value: (row) => row.address?.number },
+          { name: "city", label: "Cidade", value: (row) => row.address?.city },
+          { name: "state", label: "Estado", value: (row) => row.address?.state, maxLength: 2 },
+          { name: "zip", label: "CEP", value: (row) => row.address?.zip },
+          { name: "fiscal_name", label: "Nome fiscal", value: (row) => row.tax_data?.fiscal_name },
+          { name: "fiscal_document", label: "Documento fiscal", value: (row) => row.tax_data?.document },
+          { name: "notes", label: "Observações", type: "textarea" },
+        ]}
+        buildBody={(form) => ({
+          primary_unit_id: value(form, "primary_unit_id"),
+          name: value(form, "name"),
+          cpf: value(form, "cpf") || undefined,
+          birth_date: value(form, "birth_date") || undefined,
+          phone: value(form, "phone") || undefined,
+          email: value(form, "email") || undefined,
+          address: {
+            street: value(form, "street"), number: value(form, "number"),
+            city: value(form, "city"), state: value(form, "state"), zip: value(form, "zip"),
+          },
+          tax_data: { fiscal_name: value(form, "fiscal_name"), document: value(form, "fiscal_document") },
+          notes: value(form, "notes") || undefined,
+        })}
+        onChanged={reload}
+        onNotice={setNotice}
+        onOpen={open}
+        allowDelete
+        total={total}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={setPage}
+      />
+      {selected && (
+        <div className="modal-backdrop" onClick={() => setSelected(null)}>
+          <section
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="patient-dialog-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-head">
+              <div>
+                <p className="eyebrow">PACIENTE</p>
+                <h2 id="patient-dialog-title">{selected.name}</h2>
+                <p>{selected.cpf ?? "CPF não informado"}</p>
+              </div>
+              <button type="button" aria-label="Fechar detalhes do paciente" onClick={() => setSelected(null)}>×</button>
+            </div>
+            <div className="modal-form">
+              <h3>Consentimentos</h3>
+              <div className="row-actions">
+                <button onClick={() => consent("whatsapp", true)}>
+                  Autorizar contato
+                </button>
+                <button onClick={() => consent("whatsapp", false)}>
+                  Revogar contato
+                </button>
+                <button onClick={() => consent("data_processing", true)}>
+                  Autorizar tratamento de dados
+                </button>
+              </div>
+              <p>{detail.consents.length} registros de consentimento.</p>
+              <form onSubmit={responsible}>
+                <h3>Adicionar responsável</h3>
+                <div className="form-row">
+                  <TextField name="name" label="Nome" required />
+                  <TextField name="relationship" label="Relação" />
+                </div>
+                <div className="form-row">
+                  <TextField name="cpf" label="CPF" />
+                  <TextField name="phone" label="Telefone" />
+                </div>
+                <TextField name="email" label="E-mail" type="email" />
+                <button className="btn primary">Salvar responsável</button>
+              </form>
+              <h3>Linha do tempo</h3>
+              <p>
+                {detail.timeline?.appointments?.length ?? 0} atendimentos ·{" "}
+                {detail.timeline?.records?.length ?? 0} registros clínicos ·{" "}
+                {detail.timeline?.charges?.length ?? 0} cobranças
+              </p>
+            </div>
+          </section>
+        </div>
+      )}
+    </div>
+  );
+}
+

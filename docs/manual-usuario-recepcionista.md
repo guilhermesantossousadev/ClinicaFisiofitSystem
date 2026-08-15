@@ -94,6 +94,7 @@ No topo, use o seletor de unidade para escolher uma unidade específica ou **Tod
 
 - Botões como **Novo paciente**, **Novo agendamento** e **Nova matrícula** abrem formulários.
 - Campos com `*` são obrigatórios.
+- Ao salvar, somente o botão acionado indica processamento; aguarde a confirmação antes de clicar novamente.
 - Após salvar, procure uma mensagem de confirmação, como “Paciente cadastrado” ou “Pagamento registrado”.
 - Em tabelas, use **Editar** para corrigir dados.
 - Ao fechar um formulário sem salvar, as informações digitadas podem ser perdidas.
@@ -330,6 +331,9 @@ Confirme a conexão, o e-mail digitado e tente novamente em alguns minutos. Veri
 
 Atualize a página uma vez. Confirme a unidade selecionada. Se aparecer **Tentar novamente**, use o botão. Persistindo, registre o horário, a tela e a mensagem e encaminhe à gestora.
 
+Se apenas o botão estiver processando, aguarde a conclusão dessa ação. Não atualize
+a página nem repita o clique, pois o restante do portal continua disponível.
+
 ### Conflito ao criar agendamento
 
 Revise profissional, sala, unidade, início e fim. O sistema bloqueia conflitos reais. Escolha outro horário ou solicite orientação.
@@ -361,4 +365,3 @@ Isso pode ser limitação de permissão do perfil Recepção. Solicite à admini
 
 Antes de salvar: **quem, onde, quando e quanto?**  
 Antes de sair: **agenda atualizada, pagamentos conferidos e sessão encerrada?**
-

@@ -41,27 +41,33 @@ export function FormField({ label, hint, error, id, required, className = "", ch
 
 export function TextField({ label, hint, error, id, required, ...props }: BaseProps & InputHTMLAttributes<HTMLInputElement>) {
   const controlId = useFieldId(id, label);
+  const messageId = `${controlId}-message`;
+  const describedBy = [props["aria-describedby"], hint || error ? messageId : undefined].filter(Boolean).join(" ") || undefined;
   return (
     <FormField label={label} hint={hint} error={error} id={controlId} required={required}>
-      <input {...props} id={controlId} required={required} aria-invalid={error ? "true" : undefined} />
+      <input {...props} id={controlId} required={required} aria-invalid={error ? "true" : undefined} aria-describedby={describedBy} />
     </FormField>
   );
 }
 
 export function TextareaField({ label, hint, error, id, required, ...props }: BaseProps & TextareaHTMLAttributes<HTMLTextAreaElement>) {
   const controlId = useFieldId(id, label);
+  const messageId = `${controlId}-message`;
+  const describedBy = [props["aria-describedby"], hint || error ? messageId : undefined].filter(Boolean).join(" ") || undefined;
   return (
     <FormField label={label} hint={hint} error={error} id={controlId} required={required}>
-      <textarea {...props} id={controlId} required={required} aria-invalid={error ? "true" : undefined} />
+      <textarea {...props} id={controlId} required={required} aria-invalid={error ? "true" : undefined} aria-describedby={describedBy} />
     </FormField>
   );
 }
 
 export function SelectField({ label, hint, error, id, required, children, ...props }: BaseProps & SelectHTMLAttributes<HTMLSelectElement> & { children: ReactNode }) {
   const controlId = useFieldId(id, label);
+  const messageId = `${controlId}-message`;
+  const describedBy = [props["aria-describedby"], hint || error ? messageId : undefined].filter(Boolean).join(" ") || undefined;
   return (
     <FormField label={label} hint={hint} error={error} id={controlId} required={required}>
-      <select {...props} id={controlId} required={required} aria-invalid={error ? "true" : undefined}>{children}</select>
+      <select {...props} id={controlId} required={required} aria-invalid={error ? "true" : undefined} aria-describedby={describedBy}>{children}</select>
     </FormField>
   );
 }

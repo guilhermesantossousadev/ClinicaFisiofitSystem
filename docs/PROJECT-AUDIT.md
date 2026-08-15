@@ -11,7 +11,7 @@ frontend, site, Edge Function, migrations, testes, CI e publicação.
 |---|---|---|
 | Site público | Implementado | `apps/site`, build Vite |
 | Portal | Implementado com módulos parciais | `apps/portal/src` |
-| API | Implementada | `supabase/functions/api/index.ts` |
+| API | Implementada e modularizada | `supabase/functions/api/index.ts`, `api/routes` |
 | Banco | Versionado | `supabase/migrations` |
 | Rollback financeiro | Implementado | `reverse_payment` |
 | Rollback de importação | Implementado para itens registrados | `rollback_import_batch` |
@@ -27,12 +27,14 @@ frontend, site, Edge Function, migrations, testes, CI e publicação.
 - Testes de plataforma Node.
 - Build completo do pacote Hostinger.
 - Verificação HTTP dos endereços públicos.
+- Bundle sintático da Edge Function e ausência de source maps no portal.
+- Conversão das imagens públicas pesadas para AVIF e metadados SEO por rota.
 
 ## Pontos de atenção
 
-1. `OperationalModules.tsx` concentra muitos módulos e deve ser dividido por
-   domínio quando houver uma janela de refatoração segura.
-2. A API ainda usa `any` em integrações e no adaptador Hono; a migração gradual
+1. A modularização do portal foi concluída: `OperationalModules.tsx` é uma fachada
+   e as visões estão separadas por domínio.
+2. A API ainda usa `any` no adaptador de registro das rotas; a migração gradual
    para tipos de domínio reduzirá regressões.
 3. Listagens e fluxos clínicos precisam de E2E autenticado com perfis reais.
 4. A importação só pode ser revertida para itens que tenham sido registrados em

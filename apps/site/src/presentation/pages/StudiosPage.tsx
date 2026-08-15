@@ -1,8 +1,8 @@
 import { Clock3, ExternalLink, MapPin, Phone } from "lucide-react";
 import Layout from "@/components/Layout";
 import { CtaBand, PageHero } from "@/components/SitePrimitives";
-import lagoaImage from "@/assets/studio-lagoa.jpeg";
-import centroImage from "@/assets/studio-centro.jpeg";
+import lagoaImage from "@/assets/studio-lagoa.avif";
+import centroImage from "@/assets/studio-centro.avif";
 
 const units = [
   { name: "Unidade Lagoa", address: "R. Ver. José Maria Moreira, 461", city: "Praia dos Bandeirantes · Sabará · MG", phone: "(31) 98399-0321", href: "tel:+5531983990321", map: "https://maps.google.com/?q=R.+Ver.+Jos%C3%A9+Maria+Moreira,+461,+Praia+dos+Bandeirantes,+Sabar%C3%A1,+MG", image: lagoaImage },
@@ -17,7 +17,7 @@ const StudiosPage = () => (
         {units.map((unit) => (
           <article key={unit.name} className="overflow-hidden rounded-[2rem] border border-line bg-white shadow-sm">
             <div className="relative h-72 overflow-hidden">
-              <img src={unit.image} alt={`Ambiente da ${unit.name}`} className="h-full w-full object-cover transition duration-700 hover:scale-105" />
+              <img src={unit.image} alt={`Ambiente da ${unit.name}`} className="h-full w-full object-cover transition duration-700 hover:scale-105" loading="lazy" decoding="async" width="1600" height="1067" />
               <div className="absolute inset-0 bg-gradient-to-t from-navy/45 to-transparent" />
               <span className="absolute bottom-5 left-5 inline-flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-xs font-extrabold text-navy backdrop-blur"><MapPin size={15} className="text-blue" /> Sabará</span>
             </div>

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { api, list } from "../../infrastructure/http/api";
 import { supabase } from "../../infrastructure/supabase/client";
 import "../styles/portal-enhancements.css";
@@ -105,10 +105,6 @@ export default function FisiofitApp() {
   const [avatarUrl, setAvatarUrl] = useState(() => String(user?.user_metadata?.avatar_url ?? ""));
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [avatarNotice, setAvatarNotice] = useState("");
-  const [requestFeedback, setRequestFeedback] = useState<{ busy: boolean; modal: "success" | "error" | null; message: string }>({ busy: false, modal: null, message: "" });
-  const pendingRequests = useRef(new Set<string>());
-  const requestSources = useRef(new Map<string, HTMLElement>());
-  const lastRequestError = useRef("");
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     storeValue(`${storagePrefix}:view`, view);
@@ -122,44 +118,6 @@ export default function FisiofitApp() {
     storeValue(`${storagePrefix}:sidebar-collapsed`, String(sidebarCollapsed));
   }, [sidebarCollapsed, storagePrefix]);
   useEffect(() => setAvatarUrl(String(user?.user_metadata?.avatar_url ?? "")), [user]);
-  useEffect(() => {
-    const onRequestStart = (event: Event) => {
-      const detail = (event as CustomEvent<{ id?: string; method?: string; source?: HTMLElement }>).detail;
-      if (!detail?.id || !detail.method || detail.method.toUpperCase() === "GET") return;
-      pendingRequests.current.add(detail.id);
-      if (detail.source) {
-        detail.source.dataset.requestLoading = "true";
-        detail.source.setAttribute("aria-busy", "true");
-        requestSources.current.set(detail.id, detail.source);
-      }
-      setRequestFeedback({ busy: true, modal: null, message: "" });
-    };
-    const onApiError = (event: Event) => {
-      lastRequestError.current = String((event as CustomEvent<{ message?: string }>).detail?.message ?? "Não foi possível concluir a operação.");
-    };
-    const onRequestEnd = (event: Event) => {
-      const detail = (event as CustomEvent<{ id?: string; ok?: boolean }>).detail;
-      if (!detail?.id || !pendingRequests.current.has(detail.id)) return;
-      pendingRequests.current.delete(detail.id);
-      const source = requestSources.current.get(detail.id);
-      if (source) {
-        delete source.dataset.requestLoading;
-        source.removeAttribute("aria-busy");
-        requestSources.current.delete(detail.id);
-      }
-      if (pendingRequests.current.size > 0) return;
-      setRequestFeedback({ busy: false, modal: detail.ok ? "success" : "error", message: detail.ok ? "Operação concluída com sucesso." : lastRequestError.current || "Não foi possível concluir a operação." });
-      lastRequestError.current = "";
-    };
-    window.addEventListener("fisiofit:request-start", onRequestStart);
-    window.addEventListener("fisiofit:api-error", onApiError);
-    window.addEventListener("fisiofit:request-end", onRequestEnd);
-    return () => {
-      window.removeEventListener("fisiofit:request-start", onRequestStart);
-      window.removeEventListener("fisiofit:api-error", onApiError);
-      window.removeEventListener("fisiofit:request-end", onRequestEnd);
-    };
-  }, []);
   useEffect(() => {
     const restore = () => {
       const savedView = storedValue(`${storagePrefix}:view`);
@@ -468,20 +426,8 @@ export default function FisiofitApp() {
         {view === "Privacidade" && <OperationalPrivacy />}
       </section>
       </main>
-      {requestFeedback.modal && <RequestFeedbackModal kind={requestFeedback.modal} message={requestFeedback.message} onClose={() => setRequestFeedback((current) => ({ ...current, modal: null }))} />}
     </>
   );
-}
-
-function RequestFeedbackModal({ kind, message, onClose }: { kind: "success" | "error"; message: string; onClose: () => void }) {
-  const success = kind === "success";
-  return <div className="request-feedback-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-    <section className={`request-feedback-modal ${success ? "is-success" : "is-error"}`} role="dialog" aria-modal="true" aria-labelledby="request-feedback-title">
-      <div className="request-feedback-icon" aria-hidden="true">{success ? "✓" : "!"}</div>
-      <div><p className="eyebrow">{success ? "CONCLUÍDO" : "ATENÇÃO"}</p><h2 id="request-feedback-title">{success ? "Tudo certo" : "Não foi possível concluir"}</h2><p>{message}</p></div>
-      <button type="button" className="btn primary request-feedback-close" onClick={onClose}>{success ? "Continuar" : "Fechar"}</button>
-    </section>
-  </div>;
 }
 
 function ProfilePage({ profile, email, avatarUrl, avatarBusy, avatarNotice, onAvatarChange, onSignOut }: { profile: Profile; email: string; avatarUrl: string; avatarBusy: boolean; avatarNotice: string; onAvatarChange: (file: File | undefined) => Promise<void>; onSignOut: () => void }) {

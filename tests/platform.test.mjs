@@ -2,6 +2,15 @@ import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 
+async function readApiSource() {
+  const routeNames = ["usuarios", "privacidade", "pacientes", "agenda", "prontuarios", "financeiro", "importacoes"];
+  const files = [
+    new URL("../supabase/functions/api/index.ts", import.meta.url),
+    ...routeNames.map((name) => new URL(`../supabase/functions/api/routes/${name}.ts`, import.meta.url)),
+  ];
+  return (await Promise.all(files.map((file) => readFile(file, "utf8")))).join("\n");
+}
+
 test("gera site e portal no pacote único da Hostinger", async () => {
   await Promise.all([
     access(new URL("../dist/index.html", import.meta.url)),
@@ -22,7 +31,7 @@ test("mantém API, banco e integrações versionados", async () => {
     readFile(new URL("../supabase/migrations/202607290001_initial_schema.sql", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/202608020001_owner_and_privacy.sql", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/202608020002_patient_activity.sql", import.meta.url), "utf8"),
-    readFile(new URL("../supabase/functions/api/index.ts", import.meta.url), "utf8"),
+    readApiSource(),
     readFile(new URL("../supabase/functions/_shared/providers.ts", import.meta.url), "utf8"),
   ]);
   assert.match(migration, /create table public\.group_slots/);
@@ -74,7 +83,7 @@ test("protege recuperação administrativa e consentimento de cookies", async ()
   const [login, setPassword, api, siteHtml, cookieConsent] = await Promise.all([
     readFile(new URL("../apps/portal/src/presentation/auth/LoginPage.tsx", import.meta.url), "utf8"),
     readFile(new URL("../apps/portal/src/presentation/auth/SetPasswordPage.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../supabase/functions/api/index.ts", import.meta.url), "utf8"),
+    readApiSource(),
     readFile(new URL("../apps/site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../apps/site/src/presentation/components/CookieConsent.tsx", import.meta.url), "utf8"),
   ]);
@@ -90,10 +99,7 @@ test("protege recuperação administrativa e consentimento de cookies", async ()
 });
 
 test("isola consultas operacionais por clínica", async () => {
-  const api = await readFile(
-    new URL("../supabase/functions/api/index.ts", import.meta.url),
-    "utf8",
-  );
+  const api = await readApiSource();
   const patientsRoute = api.slice(
     api.indexOf('app.get("/patients"'),
     api.indexOf('app.post("/patients"'),
@@ -120,4 +126,21 @@ test("preserva a área atual do portal entre recarregamentos", async () => {
   assert.match(portal, /localStorage\.setItem\(key, value\)/);
   assert.match(portal, /fisiofit:portal:/);
   assert.match(portal, /visibleNav\.some\(\(item\) => item\.label === view\)/);
+});
+
+test("mantém modularização, acessibilidade, SEO e build seguro", async () => {
+  const [modules, fields, portalVite, seo, siteHtml] = await Promise.all([
+    readFile(new URL("../apps/portal/src/presentation/modules/OperationalModules.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../apps/portal/src/presentation/components/FormPrimitives.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../apps/portal/vite.config.ts", import.meta.url), "utf8"),
+    readFile(new URL("../apps/site/src/presentation/components/SeoMetadata.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../apps/site/index.html", import.meta.url), "utf8"),
+  ]);
+  assert.ok(modules.split("\n").length < 30, "OperationalModules deve permanecer apenas como fachada");
+  assert.match(fields, /aria-describedby=\{describedBy\}/);
+  assert.match(portalVite, /sourcemap:\s*false/);
+  assert.match(seo, /og:url/);
+  assert.match(seo, /link\[rel="canonical"\]/);
+  assert.match(siteHtml, /https:\/\/clinicafisiofitsabara\.com\/og\.jpg/);
+  assert.doesNotMatch(siteHtml, /og\.png/);
 });

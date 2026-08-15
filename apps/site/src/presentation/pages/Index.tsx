@@ -2,8 +2,8 @@ import { ArrowRight, Check, Move, PersonStanding, Plus } from "lucide-react";
 import { Link } from "wouter";
 import Layout from "@/components/Layout";
 import { CtaBand, Eyebrow } from "@/components/SitePrimitives";
-import heroImage from "@/assets/hero-fisiofit.jpeg";
-import storyImage from "@/assets/cuidado-humano-fisiofit.jpeg";
+import heroImage from "@/assets/hero-fisiofit.avif";
+import storyImage from "@/assets/cuidado-humano-fisiofit.avif";
 
 const services = [
   { icon: PersonStanding, title: "Pilates Clínico", text: "Força, mobilidade, equilíbrio e consciência corporal com exercícios adaptados para você.", hash: "pilates" },
@@ -38,7 +38,7 @@ const Index = () => (
           </div>
         </div>
         <div className="relative min-h-[440px] overflow-hidden rounded-[2.25rem] bg-sky shadow-soft md:min-h-[560px]">
-          <img src={heroImage} alt="Profissional da Clínica Fisiofit sentada em uma bola de Pilates no estúdio" className="absolute inset-0 h-full w-full object-cover" />
+          <img src={heroImage} alt="Profissional da Clínica Fisiofit sentada em uma bola de Pilates no estúdio" className="absolute inset-0 h-full w-full object-cover" width="1600" height="1067" fetchPriority="high" />
           <div className="absolute inset-0 bg-gradient-to-t from-navy/55 via-transparent to-blue/10" />
           <div className="absolute bottom-6 left-6 right-6 flex items-center gap-4 rounded-2xl border border-white/50 bg-white/90 p-4 shadow-lg backdrop-blur-md">
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-mint text-teal"><Check /></span>
@@ -86,7 +86,7 @@ const Index = () => (
     <section className="px-5 py-20 md:px-8 md:py-28">
       <div className="mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-2 lg:gap-20">
         <div className="relative">
-          <img src={storyImage} alt="Profissional da Fisiofit praticando Pilates no reformer" className="aspect-[4/5] w-full rounded-[2rem] object-cover shadow-soft" loading="lazy" />
+          <img src={storyImage} alt="Profissional da Fisiofit praticando Pilates no reformer" className="aspect-[4/5] w-full rounded-[2rem] object-cover shadow-soft" loading="lazy" decoding="async" width="1067" height="1600" />
           <div className="absolute -bottom-5 -right-3 rounded-2xl bg-navy p-6 text-white shadow-xl md:-right-6">
             <strong className="text-3xl font-black">Cuidado</strong>
             <span className="block text-sm text-white/65">humano e individualizado</span>

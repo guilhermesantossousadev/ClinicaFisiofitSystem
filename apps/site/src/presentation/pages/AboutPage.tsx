@@ -1,7 +1,7 @@
 import { Check } from "lucide-react";
 import Layout from "@/components/Layout";
 import { CtaBand, Eyebrow, PageHero } from "@/components/SitePrimitives";
-import storyImage from "@/assets/fachada-fisiofit.jpeg";
+import storyImage from "@/assets/fachada-fisiofit.avif";
 
 const values = [
   ["01", "Acolhimento", "Escutamos com atenção e respeitamos o momento, os limites e os objetivos de cada pessoa."],
@@ -21,7 +21,7 @@ const AboutPage = () => (
           <p className="mt-4 leading-relaxed text-muted-foreground">Nossa equipe olha além do sintoma: consideramos sua rotina, seus objetivos e o que realmente importa para você. Assim, cada plano de cuidado é único e evolui junto com o paciente.</p>
         </div>
         <div className="relative overflow-hidden rounded-[2rem]">
-          <img src={storyImage} alt="Fachada da Clínica Fisiofit" className="aspect-[4/5] w-full object-cover" />
+          <img src={storyImage} alt="Fachada da Clínica Fisiofit" className="aspect-[4/5] w-full object-cover" loading="lazy" decoding="async" width="1067" height="1600" />
           <div className="absolute inset-0 bg-gradient-to-t from-navy/80 via-navy/10 to-transparent" />
           <div className="absolute bottom-0 p-7 text-white md:p-9">
             <h3 className="text-2xl font-black">O que você encontra aqui</h3>

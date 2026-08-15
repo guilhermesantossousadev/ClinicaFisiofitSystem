@@ -114,31 +114,8 @@
     resize: vertical;
   }
 
-  button.is-loading {
-    @apply cursor-progress pointer-events-none;
-  }
-
-  button.is-loading::before {
-    content: "";
-    display: inline-block;
-    width: 14px;
-    height: 14px;
-    margin-right: 8px;
-    border: 2px solid currentColor;
-    border-right-color: transparent;
-    border-radius: 999px;
-    vertical-align: -2px;
-    animation: site-button-spin .7s linear infinite;
-  }
-
   .legal-content { @apply space-y-9 text-muted-foreground; }
   .legal-content section { @apply scroll-mt-28; }
   .legal-content h2 { @apply text-2xl font-black leading-tight text-navy; }
   .legal-content p { @apply mt-3 leading-relaxed; }
-}
-
-@keyframes site-button-spin { to { transform: rotate(360deg); } }
-
-@media (prefers-reduced-motion: reduce) {
-  button.is-loading::before { animation-duration: 1.4s; }
 }
