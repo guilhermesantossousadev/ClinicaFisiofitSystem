@@ -85,10 +85,11 @@ test("mantém context.md como fonte única da verdade e não restaura o legado",
 });
 
 test("protege recuperação administrativa e consentimento de cookies", async () => {
-  const [login, authClient, setPassword, api, siteHtml, cookieConsent] = await Promise.all([
+  const [login, authClient, setPassword, portalApp, api, siteHtml, cookieConsent] = await Promise.all([
     readFile(new URL("../apps/portal/src/presentation/auth/LoginPage.tsx", import.meta.url), "utf8"),
     readFile(new URL("../apps/portal/src/infrastructure/supabase/client.ts", import.meta.url), "utf8"),
     readFile(new URL("../apps/portal/src/presentation/auth/SetPasswordPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../apps/portal/src/presentation/app/FisiofitApp.tsx", import.meta.url), "utf8"),
     readApiSource(),
     readFile(new URL("../apps/site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../apps/site/src/presentation/components/CookieConsent.tsx", import.meta.url), "utf8"),
@@ -98,6 +99,8 @@ test("protege recuperação administrativa e consentimento de cookies", async ()
   assert.match(authClient, /flowType:\s*"pkce"/);
   assert.match(api, /redirectTo: `\$\{allowedOrigin\}\/sistema\/set-password`/);
   assert.match(setPassword, /password\.length < 10/);
+  assert.match(portalApp, /\.from\("profile-avatars"\)/);
+  assert.doesNotMatch(portalApp, /avatar_url: dataUrl/);
   assert.doesNotMatch(`${login}\n${setPassword}`, /password\s*[:=]\s*["'][^"']+["']/i);
   assert.doesNotMatch(siteHtml, /googletagmanager\.com\/gtag\/js/);
   assert.match(cookieConsent, /Aceitar/);
