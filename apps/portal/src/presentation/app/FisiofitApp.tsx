@@ -117,7 +117,7 @@ export default function FisiofitApp() {
     [profile.role, profile.profile_permissions],
   );
   useEffect(() => {
-    if (!loading && !visibleNav.some((item) => item.label === view)) {
+    if (!loading && view !== "Meu perfil" && !visibleNav.some((item) => item.label === view)) {
       setView(visibleNav[0]?.label ?? "Painel");
     }
   }, [loading, view, visibleNav]);
@@ -203,20 +203,15 @@ export default function FisiofitApp() {
             </section>;
           })}
         </nav>
-        <div className="privacy-card">
-          <span className="privacy-icon">✓</span>
-          <div>
-            <strong>Dados protegidos</strong>
-            <small>MFA e auditoria ativos</small>
-          </div>
-        </div>
         <div className="profile">
-          <span className="avatar admin">{initials}</span>
-          <div>
-          <strong>{loading ? "Carregando…" : profile.name}</strong>
-            <small>{roleLabel[profile.role]}</small>
-          </div>
-          <button onClick={() => void signOut()} aria-label="Sair">
+          <button type="button" className="profile-open" onClick={() => navigate("Meu perfil")} aria-label="Abrir meu perfil">
+            <span className="avatar admin">{initials}</span>
+            <span>
+              <strong>{loading ? "Carregando…" : profile.name}</strong>
+              <small>{roleLabel[profile.role]}</small>
+            </span>
+          </button>
+          <button className="profile-signout" onClick={() => void signOut()} aria-label="Sair">
             Sair
           </button>
         </div>
@@ -271,8 +266,10 @@ export default function FisiofitApp() {
               ))}
             </div>
             <div className="mobile-profile-actions">
-              <span className="avatar admin" aria-hidden="true">{initials}</span>
-              <div><strong>{profile.name}</strong><small>{roleLabel[profile.role]}</small></div>
+              <button type="button" className="mobile-profile-open" onClick={() => navigate("Meu perfil")}>
+                <span className="avatar admin" aria-hidden="true">{initials}</span>
+                <span><strong>{profile.name}</strong><small>{roleLabel[profile.role]}</small></span>
+              </button>
               <button onClick={() => void signOut()}>Sair</button>
             </div>
           </section>
@@ -349,6 +346,7 @@ export default function FisiofitApp() {
             <div className="system-message error-message" role="alert"><span className="message-icon" aria-hidden="true">!</span><div><strong>Alguns dados não foram carregados</strong><p>{error}</p></div></div>
           </div>
         )}
+        {view === "Meu perfil" && <ProfilePage profile={profile} email={user?.email ?? ""} onSignOut={() => void signOut()} />}
         {view === "Painel" && (
           <Dashboard data={dashboard} name={profile.name} setView={setView} loading={loading} />
         )}{" "}
@@ -365,6 +363,33 @@ export default function FisiofitApp() {
       </section>
       </main>
     </>
+  );
+}
+
+function ProfilePage({ profile, email, onSignOut }: { profile: Profile; email: string; onSignOut: () => void }) {
+  const initials = profile.name.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase();
+  return (
+    <div className="content profile-page">
+      <div className="page-title">
+        <div><p className="eyebrow">CONTA</p><h1>Meu perfil</h1><p>Consulte seus dados de acesso e as informações do seu perfil.</p></div>
+      </div>
+      <section className="card profile-hero" aria-labelledby="profile-name">
+        <span className="avatar admin profile-avatar">{initials}</span>
+        <div><h2 id="profile-name">{profile.name}</h2><p>{roleLabel[profile.role]}</p></div>
+      </section>
+      <section className="card profile-details" aria-labelledby="profile-details-title">
+        <div className="card-head"><div><h2 id="profile-details-title">Dados da conta</h2><p>Informações vinculadas ao seu acesso ao sistema.</p></div></div>
+        <dl className="profile-data-list">
+          <div><dt>Nome</dt><dd>{profile.name}</dd></div>
+          <div><dt>E-mail</dt><dd>{email || "Não informado"}</dd></div>
+          <div><dt>Perfil de acesso</dt><dd>{roleLabel[profile.role]}</dd></div>
+        </dl>
+      </section>
+      <section className="card profile-actions-card" aria-labelledby="profile-actions-title">
+        <div><h2 id="profile-actions-title">Sessão</h2><p>Encerre seu acesso neste dispositivo.</p></div>
+        <button type="button" className="btn secondary" onClick={onSignOut}>Sair do sistema</button>
+      </section>
+    </div>
   );
 }
 

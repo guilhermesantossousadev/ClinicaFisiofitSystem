@@ -9,7 +9,8 @@ export type View =
   | "Importações"
   | "Usuários"
   | "Configurações"
-  | "Privacidade";
+  | "Privacidade"
+  | "Meu perfil";
 
 export type Role = "admin" | "manager" | "reception" | "professional" | "finance";
 export type PermissionModule = "dashboard" | "agenda" | "patients" | "enrollments" | "records" | "finance" | "reports" | "imports" | "users" | "settings" | "privacy";

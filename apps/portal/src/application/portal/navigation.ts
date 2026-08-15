@@ -25,5 +25,5 @@ export const navModule: Partial<Record<View, PermissionModule>> = {
 };
 
 export function isView(value: string): value is View {
-  return nav.some((item) => item.label === value);
+  return value === "Meu perfil" || nav.some((item) => item.label === value);
 }
