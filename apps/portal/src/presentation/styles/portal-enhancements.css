@@ -2316,7 +2316,23 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .sidebar-collapsed .sidebar .sidebar-toggle {
     width: 100% !important;
     margin: 0 !important;
-    padding-inline: 0 !important;
+    padding: 9px 10px !important;
     justify-content: center;
+  }
+
+  .sidebar-collapsed .sidebar {
+    padding-inline: 15px;
+  }
+
+  .sidebar-collapsed .sidebar .brand {
+    margin-inline: -15px;
+  }
+
+  .sidebar-collapsed .sidebar nav {
+    padding-inline: 6px;
+  }
+
+  .sidebar-collapsed .sidebar .nav-item {
+    padding-inline: 12px;
   }
 }
