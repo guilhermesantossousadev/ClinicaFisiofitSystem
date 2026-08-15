@@ -612,8 +612,8 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
                   return <div className={`month-calendar-day${dateKey(day) === dateKey(new Date()) ? " is-today" : ""}`} key={dateKey(day)}>
                     <div className="month-calendar-date">{day.getDate()}</div>
                     <div className="month-calendar-items">
-                      {dayAppointments.map((appointment) => <button type="button" className="month-calendar-item appointment-item" key={appointment.id} disabled={!canEdit} onClick={() => setCalendarAppointment(appointment)} aria-label={`${appointment.patients?.name ?? "Bloqueio"}${canEdit ? ", editar agendamento" : ""}`}><strong>{String(new Date(appointment.starts_at).getHours()).padStart(2, "0")}:{String(new Date(appointment.starts_at).getMinutes()).padStart(2, "0")} · {appointment.patients?.name ?? "Bloqueio"}</strong><small>{appointment.services?.name ?? "Atendimento"}</small></button>)}
-                      {slots.map((slot) => { const members = membersForSlot(slot.id, day); return <button type="button" className="month-calendar-item group-item" key={slot.id} onClick={() => setSelectedGroupCell({ slot, day, unitName: unit.name })} aria-label={`${slot.name}, ${members.length} de ${slot.capacity ?? 7} vagas, abrir lista de pacientes`}><strong>{String(slot.starts_at).slice(0, 5)} · {slot.name}</strong><small>{members.length}/{slot.capacity ?? 7} vagas · {members.slice(0, 2).map((member) => member.patients?.name ?? "Paciente").join(", ") || "Horário livre"}</small></button>; })}
+                      {dayAppointments.map((appointment) => <button type="button" className="month-calendar-item appointment-item" key={appointment.id} disabled={!canEdit} onClick={() => setCalendarAppointment(appointment)} aria-label={`${appointment.patients?.name ?? "Bloqueio"}${canEdit ? ", editar agendamento" : ""}`}><strong>{String(new Date(appointment.starts_at).getHours()).padStart(2, "0")}:{String(new Date(appointment.starts_at).getMinutes()).padStart(2, "0")} · {appointment.patients?.name ?? "Bloqueio"}</strong><small>{appointment.services?.name ?? "Atendimento"} · {appointment.professionals?.name ?? "Sem profissional"}</small></button>)}
+                      {slots.map((slot) => { const members = membersForSlot(slot.id, day); const professional = (data["/professionals"] ?? []).find((row: Row) => row.id === slot.professional_id); return <button type="button" className="month-calendar-item group-item" key={slot.id} onClick={() => setSelectedGroupCell({ slot, day, unitName: unit.name })} aria-label={`${slot.name}, ${members.length} de ${slot.capacity ?? 7} vagas, abrir lista de pacientes`}><strong>{String(slot.starts_at).slice(0, 5)} · {slot.name}</strong><small>{professional?.name ?? "Sem profissional"} · {members.length}/{slot.capacity ?? 7} vagas</small></button>; })}
                     </div>
                   </div>;
                 })}
@@ -982,7 +982,7 @@ export function OperationalPatients() {
         title="Pacientes cadastrados"
         resource="patients"
         rows={patients}
-        fields={["name", "phone", "email", "active"]}
+        fields={["name", "phone", "email", "zip", "active"]}
         editFields={[
           { name: "name", label: "Nome completo", required: true },
           { name: "primary_unit_id", label: "Unidade principal", type: "select", required: true, options: data["/units"] ?? [] },
@@ -2854,6 +2854,7 @@ function fieldLabel(field: string) {
     discovered_at: "Identificado em", action: "Ação", entity_type: "Recurso",
     user_id: "Usuário", occurred_at: "Data", capacity: "Capacidade",
     duration_minutes: "Duração", council: "Conselho", specialty: "Especialidade",
+    weekdays: "Dias da semana",
   };
   return labels[field] ?? field.replaceAll("_", " ");
 }
@@ -2863,6 +2864,9 @@ function render(value: any, field: string) {
     return brl(Number(value));
   if (field === "kind") return ({ monthly: "Mensal", package: "Pacote", single: "Avulso" } as Record<string, string>)[String(value)] ?? String(value);
   if (field === "active") return value ? "Ativo" : "Inativo";
+  if (field === "weekdays" && Array.isArray(value)) {
+    return value.map((day: number) => (["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"] as const)[day] ?? day).join(" · ");
+  }
   if (["starts_at", "ends_at", "starts_on", "ends_on"].includes(field) && /^\d{4}-\d{2}-\d{2}$/.test(String(value))) {
     return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(new Date(`${value}T00:00:00`));
   }

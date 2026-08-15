@@ -1032,6 +1032,14 @@ body { overflow-x: clip; }
 .patient-picker > input[type="text"] { display: block; margin-top: 8px; }
 .patient-picker-options { margin-top: 0; }
 .agenda-context-summary { display: grid; gap: 5px; margin: 0 0 18px; padding: 14px 16px; border: 1px solid #b8d6e5; border-radius: 10px; background: #eef8fc; color: var(--ink); }
+.dashboard-agenda-top { margin-bottom: 14px; }
+.dashboard-due-alert { display: grid; gap: 10px; margin: 0 0 14px; padding: 14px 16px; border: 1px solid #f1dfc8; border-radius: 11px; background: #fff8ef; color: #785d42; }
+.dashboard-due-alert > div:first-child { display: grid; gap: 3px; }
+.dashboard-due-alert strong { color: #8f6337; font-size: 12px; }
+.dashboard-due-alert span { font-size: 11px; }
+.dashboard-due-list { display: flex; flex-wrap: wrap; gap: 7px; }
+.dashboard-due-list span { padding: 6px 9px; border-radius: 7px; background: #fff0dc; color: #785d42; font-size: 10px; }
+.compact-empty { padding-block: 18px; }
 .agenda-context-summary strong { font-size: 15px; }
 .agenda-context-summary span { color: var(--muted); font-size: 13px; }
 .agenda-context-summary button { justify-self: start; min-height: 36px; padding: 6px 0; border: 0; background: transparent; color: var(--blue); font-weight: 800; text-decoration: underline; }

@@ -189,10 +189,14 @@ app.get("/dashboard", async (context) => {
   const unitId = context.req.query("unitId");
   const db = context.get("db");
 
-  const [patients, appointments, overdueCharges, monthEntries, units] = await Promise.all([
+  const nextWeek = new Date(`${date}T00:00:00-03:00`);
+  nextWeek.setDate(nextWeek.getDate() + 7);
+  const nextWeekDate = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(nextWeek);
+  const [patients, appointments, overdueCharges, dueCharges, monthEntries, units] = await Promise.all([
     (() => { let query = db.from("patients").select("id", { count: "exact", head: true }).eq("clinic_id", clinicId).is("deleted_at", null); if (unitId) query = query.eq("primary_unit_id", unitId); return query; })(),
     (() => { let query = db.from("appointments").select("id,status,starts_at,ends_at,patients(id,name),professionals(id,name),services(id,name),units(id,name)").eq("clinic_id", clinicId).gte("starts_at", startsAt).lte("starts_at", endsAt).is("deleted_at", null); if (unitId) query = query.eq("unit_id", unitId); return query.order("starts_at"); })(),
     (() => { let query = db.from("charges").select("id,amount_cents,paid_cents", { count: "exact" }).eq("clinic_id", clinicId).eq("status", "overdue").is("deleted_at", null); if (unitId) query = query.eq("unit_id", unitId); return query; })(),
+    (() => { let query = db.from("charges").select("id,description,amount_cents,paid_cents,due_at,status,patients(name),units(name)").eq("clinic_id", clinicId).eq("status", "pending").gte("due_at", date).lte("due_at", nextWeekDate).is("deleted_at", null); if (unitId) query = query.eq("unit_id", unitId); return query.order("due_at").limit(8); })(),
     (() => { let query = db.from("financial_entries").select("kind,amount_cents,settled_at").eq("clinic_id", clinicId).gte("competence_date", monthStart).lte("competence_date", date).is("deleted_at", null); if (unitId) query = query.eq("unit_id", unitId); return query; })(),
     db.from("units").select("id,name,active").eq("clinic_id", clinicId)
       .is("deleted_at", null).order("name"),
@@ -202,6 +206,7 @@ app.get("/dashboard", async (context) => {
     patients.error ??
     appointments.error ??
     overdueCharges.error ??
+    dueCharges.error ??
     monthEntries.error ??
     units.error;
 
@@ -217,6 +222,7 @@ app.get("/dashboard", async (context) => {
       (sum, charge) => sum + Math.max(Number(charge.amount_cents) - Number(charge.paid_cents), 0),
       0,
     ),
+    dueCharges: dueCharges.data ?? [],
     receivedMonthCents: entries
       .filter((entry) => entry.kind === "income" && entry.settled_at)
       .reduce((sum, entry) => sum + Number(entry.amount_cents), 0),

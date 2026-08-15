@@ -23,6 +23,15 @@ export type DashboardData = {
   appointmentsToday: number;
   overdueCharges: number;
   overdueAmountCents: number;
+  dueCharges: Array<{
+    id: string;
+    description: string;
+    amount_cents: number;
+    paid_cents: number;
+    due_at: string;
+    patients?: { name: string } | null;
+    units?: { name: string } | null;
+  }>;
   receivedMonthCents: number;
   paidExpensesMonthCents: number;
   appointments: Array<{

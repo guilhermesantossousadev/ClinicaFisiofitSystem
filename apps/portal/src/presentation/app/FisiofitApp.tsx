@@ -378,6 +378,12 @@ function Dashboard({
         {Array.from({ length: 4 }, (_, index) => <div className="metric-card module-skeleton" key={index}><div className="skeleton-line skeleton-short" /><div className="skeleton-line skeleton-title" /></div>)}
       </section>}
       {!loading && <>
+      <section className="card table-card dashboard-agenda-top" aria-labelledby="dashboard-agenda-title">
+        <div className="table-toolbar"><div><p className="eyebrow">PRÓXIMOS HORÁRIOS</p><h2 id="dashboard-agenda-title">Agenda de hoje</h2></div><button className="text-button" onClick={() => setView("Agenda")}>Abrir agenda →</button></div>
+        {(data?.appointments ?? []).map((item) => <div className="operational-row" key={item.id}><div><strong>{new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" }).format(new Date(item.starts_at))} · {item.patients?.name ?? "Horário bloqueado"}</strong><small>{item.services?.name ?? "Atendimento"} · {item.professionals?.name ?? "Sem profissional"} · {item.units?.name ?? "Sem unidade"}</small></div><span className="status info">{item.status}</span></div>)}
+        {!data?.appointments?.length && <div className="empty-state compact-empty"><strong>Nenhum atendimento para hoje</strong><p>A agenda está livre.</p></div>}
+      </section>
+      {Boolean(data?.dueCharges?.length) && <section className="dashboard-due-alert" role="status" aria-labelledby="dashboard-due-title"><div><strong id="dashboard-due-title">Vencimentos próximos</strong><span>Há cobranças com vencimento nos próximos 7 dias.</span></div><div className="dashboard-due-list">{data?.dueCharges.map((charge) => <span key={charge.id}><b>{new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" }).format(new Date(`${charge.due_at}T12:00:00`))}</b> · {charge.patients?.name ?? "Paciente"} · {brl(Math.max(Number(charge.amount_cents) - Number(charge.paid_cents), 0))}</span>)}</div></section>}
       <div className="metrics">
         <Metric
           label="Atendimentos hoje"
@@ -390,42 +396,6 @@ function Dashboard({
           value={`${data?.overdueCharges ?? 0} · ${brl(data?.overdueAmountCents ?? 0)}`}
         />
       </div>
-      <section className="card table-card">
-        <div className="table-toolbar">
-          <h2>Agenda de hoje</h2>
-          <button className="text-button" onClick={() => setView("Agenda")}>
-            Abrir agenda →
-          </button>
-        </div>
-        {(data?.appointments ?? []).map((item) => (
-          <div className="operational-row" key={item.id}>
-            <div>
-              <strong>
-                {new Intl.DateTimeFormat("pt-BR", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  timeZone: "America/Sao_Paulo",
-                }).format(new Date(item.starts_at))}{" "}
-                · {item.patients?.name ?? "Horário bloqueado"}
-              </strong>
-              <small>
-                {item.services?.name ?? "Atendimento"} ·{" "}
-                {item.professionals?.name ?? "Sem profissional"} ·{" "}
-                {item.units?.name ?? "Sem unidade"}
-              </small>
-            </div>
-            <span className="status info">{item.status}</span>
-          </div>
-        ))}
-        {!data?.appointments?.length && (
-          <div className="empty-state">
-            <span className="empty-icon" aria-hidden="true">✓</span>
-            <strong>Nenhum atendimento para hoje</strong>
-            <p>A agenda está livre. Você pode criar um novo horário agora.</p>
-            <button className="btn secondary" type="button" onClick={() => setView("Agenda")}>Criar agendamento</button>
-          </div>
-        )}
-      </section>
       </>}
     </div>
   );
