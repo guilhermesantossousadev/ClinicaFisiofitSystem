@@ -145,9 +145,10 @@ Os testes Supabase exigem Docker ou Podman. O deploy web usa o workflow `hosting
 
 ## Estado de implantação verificado
 
-Em 15 de agosto de 2026, a Fase 6/7 foi validada localmente com typecheck, lint,
-testes, build do pacote Hostinger, verificação sintática/bundle da Edge Function e
-ausência de source maps no portal. O registro da publicação correspondente deve
-ser atualizado após a execução dos deploys. Essa confirmação não substitui a
-homologação comportamental da matriz papel × unidade × recurso nem os testes pgTAP
-em banco limpo.
+Em 15 de agosto de 2026, a Fase 6/7 foi validada com typecheck, lint, testes,
+build do pacote Hostinger, bundle da Edge Function e ausência de source maps. O
+commit `df69c42` foi publicado pelo workflow Hostinger `31892944841`; os novos
+hashes, canonical, Open Graph e MIME `image/avif` foram conferidos no domínio. As
+migrations remotas estão sincronizadas até `202608160003` e a Edge Function `api`
+está ativa na versão 41. Isso não substitui a homologação comportamental da matriz
+papel × unidade × recurso nem os testes pgTAP em banco limpo.

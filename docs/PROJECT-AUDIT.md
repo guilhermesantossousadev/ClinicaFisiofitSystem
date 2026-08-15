@@ -30,6 +30,7 @@ frontend, site, Edge Function, migrations, testes, CI e publicação.
 - Bundle sintático da Edge Function e ausência de source maps no portal.
 - Conversão das imagens públicas pesadas para AVIF e metadados SEO por rota.
 - Configuração explícita do MIME `image/avif` na Hostinger.
+- Publicação Hostinger `31892944841` e Edge Function Supabase versão 41 verificadas em produção.
 
 ## Pontos de atenção
 

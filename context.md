@@ -102,7 +102,9 @@ Não há aplicativo móvel, servidor Node próprio, cache, broker, worker ou fil
 | Testes | Vitest / Node test / pgTAP | 4.1.10 / runtime Node / versão não identificada | manifests e testes |
 | Hospedagem web | Hostinger via branch de artefatos | versão não aplicável | workflow manual |
 
-Em 15 de agosto de 2026, a migration `202608150001` foi confirmada no histórico remoto, a Edge Function `api` ficou ativa na versão 37 e os artefatos web publicados foram verificados no domínio de produção.
+Em 15 de agosto de 2026, todas as migrations até `202608160003` foram confirmadas
+no histórico remoto, a Edge Function `api` ficou ativa na versão 41 e os artefatos
+web da Fase 6/7 foram verificados no domínio de produção.
 
 ### 3.3 Organização do backend
 
@@ -130,8 +132,8 @@ sirva os ativos otimizados com o tipo MIME correto.
 
 ### 3.5 Serviços externos e integrações
 
-- Supabase Auth, Edge Functions, PostgreSQL e Storage: projeto remoto vinculado e acessível; migration `202608150001` aplicada e Edge Function `api` ativa na versão 37 em 15 de agosto de 2026. Fluxos Auth, e-mail e a matriz comportamental de RLS não foram homologados nesta sessão.
-- Hostinger: workflow da atualização `3e8e7be` concluído em 15 de agosto de 2026; os hashes de assets do site e portal em produção coincidiram com a branch `hostinger-deploy`.
+- Supabase Auth, Edge Functions, PostgreSQL e Storage: projeto remoto vinculado e acessível; histórico sincronizado até `202608160003` e Edge Function `api` ativa na versão 41 em 15 de agosto de 2026. Fluxos Auth, e-mail e a matriz comportamental de RLS não foram homologados nesta sessão.
+- Hostinger: workflow `31892944841` do commit `df69c42` concluído em 15 de agosto de 2026; os hashes do site/portal, canonical, Open Graph e MIME AVIF foram confirmados no domínio público.
 - Google Ads: carregamento condicional após consentimento local.
 - WhatsApp, Google Maps e Instagram: links públicos no site; não são integrações transacionais da API.
 - NFS-e e mensageria: apenas interfaces de provider e tabelas; sem adapter, fornecedor, worker ou envio.
@@ -213,14 +215,15 @@ typecheck, lint, build e testes. Não executa pgTAP.
 O workflow manual `.github/workflows/hostinger-build.yml` gera `dist/` e força a
 branch `hostinger-deploy` com apenas os artefatos. Migrations e Edge Functions são
 publicadas separadamente pela CLI Supabase; não há workflow versionado para o
-backend. A publicação da Fase 6/7 será registrada aqui após os deploys finais.
+backend. A Fase 6/7 foi publicada pelo workflow `31892944841`, que atualizou a
+branch `hostinger-deploy` a partir do commit `df69c42`.
 
 ### 4.8 Ambientes disponíveis
 
 - **Local:** configurado no repositório.
 - **Homologação:** não identificada em configuração executável.
-- **Produção web:** Hostinger confirmada em 15 de agosto de 2026 pela correspondência dos assets publicados.
-- **Produção Supabase:** project ref vinculado `eeltguuoxpfttjznugla`; estado da migration e Edge Function da Fase 1 não confirmado por ausência de autenticação da CLI.
+- **Produção web:** Hostinger confirmada em 15 de agosto de 2026 com os assets da Fase 6/7 e MIME `image/avif`.
+- **Produção Supabase:** project ref vinculado `eeltguuoxpfttjznugla`; migrations sincronizadas até `202608160003` e Edge Function `api` ativa na versão 41.
 
 ---
 
@@ -533,15 +536,12 @@ Prioridade: executar a matriz de autorização em banco real; idempotência; mat
 | P0 | Fase 1 de autorização ainda não foi exercitada contra um banco Supabase real nesta sessão | Defeito semântico de policy pode bloquear fluxo ou deixar acesso residual | Docker/Podman indisponível para reset e pgTAP | executar reset, pgTAP e matriz papel×unidade antes de liberar uso clínico |
 | P1 | Status genérico permite `completed` sem consumir sessão | saldo divergente | PATCH status versus RPC de conclusão | proibir transição ou delegar à RPC |
 | P1 | Algumas operações compostas não são atômicas | registros órfãos/parciais | múltiplos inserts nos handlers | RPC/transação compensável; rollback de importações e matrículas já possui RPC dedicada |
-| P1 | Convite redireciona a `/sistema/login` | usuário convidado pode não entrar no fluxo de definição de senha | `users/invite` versus `SetPasswordPage` | alinhar redirect a `/set-password` e testar |
 | P1 | Migration de bootstrap depende de UUID Auth preexistente | reset/novo ambiente pode falhar | `202607290002_bootstrap_admin.sql` | separar bootstrap de estado específico ou documentar pré-condição automatizada |
 | P1 | Testes de autorização ainda são majoritariamente estruturais | regressões de comportamento podem não ser detectadas | `authorization.test.sql` | criar fixtures com dois tenants, unidades e cinco papéis, mais testes REST/RPC |
 | P2 | Capacidade de turma ignora vigência dos membros | bloqueio indevido de vaga futura | consulta de membros ativos | considerar intervalo e normalizar status |
 | P2 | Comissão zero vira despesa de 1 centavo | distorção financeira | schema aceita zero e aprovação usa `Math.max` | proibir zero ou manter valor exatamente |
 | P2 | OpenAPI incompleta e schemas duplicados | deriva contratual | documento parcial e Zod duplicado | gerar/compartilhar contratos |
 | P2 | Listagens genéricas sem paginação e busca global limitada | escala/UX | limite 500 e primeira página de 100 | paginação consistente no servidor |
-| P3 | Arquivos monolíticos | manutenção difícil | API ~1.186 linhas; módulos ~2.056 | modularizar por domínio sem alterar contratos |
-| P3 | Arquivos monolíticos | manutenção difícil | API e módulos operacionais concentram muitos domínios | modularizar por domínio sem alterar contratos |
 
 ### 14.1 Riscos de segurança
 
@@ -549,7 +549,9 @@ A exposição arquitetural por `service_role` geral e a autorização profission
 
 ### 14.2 Riscos de arquitetura
 
-Duplicação de contratos, arquivos monolíticos e operações compostas sem transação aumentam divergência e falhas parciais.
+Duplicação parcial de schemas e operações compostas remanescentes sem transação
+ainda aumentam o risco de divergência e falhas parciais. Os monólitos de UI e
+handlers foram resolvidos na Fase 6/7.
 
 ### 14.3 Riscos operacionais
 
@@ -562,7 +564,7 @@ Deploy de banco/API não está automatizado; migration e versão da função for
 3. Corrigir transições/atomicidade financeiras, clínicas e de importação.
 4. Ampliar testes integrados de Auth, RLS e migrations.
 5. Convites, bootstrap e ambiente de homologação.
-6. Contratos/paginação/modularização.
+6. Contratos e paginação.
 7. Integrações e documentos somente após segurança operacional.
 
 ---
@@ -682,7 +684,7 @@ Não existem fontes executáveis para containers, Kubernetes, Terraform, cache, 
 - [x] Validar que caminhos citados existem.
 - [x] Não incluir valores de secrets nem ler `.env.local`.
 - [x] Validar Hostinger: workflow e assets públicos confirmados em 2026-08-15.
-- [x] Validar deploy Supabase remoto: migration `202608150001` presente e Edge Function `api` ativa na versão 37 em 2026-08-15.
+- [x] Validar deploy Supabase remoto: migrations até `202608160003` presentes e Edge Function `api` ativa na versão 41 em 2026-08-15.
 - [ ] Validar Auth real, matriz comportamental de RLS e entrega de e-mail.
 - [ ] Executar testes de banco: depende da stack Supabase local.
 
@@ -702,6 +704,7 @@ Não existem fontes executáveis para containers, Kubernetes, Terraform, cache, 
 | 2026-08-15 | Segurança | API de domínio usa JWT do usuário; RLS/RPCs aplicam papel, unidade e vínculo profissional; permissões ausentes negam acesso | `202608150001_harden_authorization.sql`, `supabase/functions/api/index.ts` |
 | 2026-08-15 | Verificação | Typecheck, lint, build, testes JavaScript, parser PostgreSQL e `deno check` passaram; pgTAP não executou sem runtime de containers | comandos locais e `supabase/tests/authorization.test.sql` |
 | 2026-08-15 | Deploy | Hostinger serviu os mesmos assets da branch `hostinger-deploy`; migration `202608150001` foi aplicada e a Edge Function `api` ficou ativa na versão 37 | GitHub Actions, domínio público e consultas da Supabase CLI |
+| 2026-08-15 | Fases 6/7 | Portal e API modularizados; acessibilidade, SEO, AVIF e source maps tratados; Hostinger publicou `df69c42` e API chegou à versão 41 | testes locais, workflow `31892944841`, HTTP de produção e Supabase CLI |
 
 ---
 
