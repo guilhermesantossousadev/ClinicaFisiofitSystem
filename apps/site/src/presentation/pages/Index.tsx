@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import Layout from "@/components/Layout";
 import { CtaBand, Eyebrow } from "@/components/SitePrimitives";
 import heroImage from "@/assets/hero-fisiofit.jpeg";
-import storyImage from "@/assets/studio-interior.jpeg";
+import storyImage from "@/assets/cuidado-humano-fisiofit.jpeg";
 
 const services = [
   { icon: PersonStanding, title: "Pilates Clínico", text: "Força, mobilidade, equilíbrio e consciência corporal com exercícios adaptados para você.", hash: "pilates" },
@@ -21,7 +21,7 @@ const Index = () => (
             Movimente-se melhor. <span className="text-blue">Viva sem limitações.</span>
           </h1>
           <p className="mt-7 max-w-2xl text-lg leading-relaxed text-muted-foreground">
-            Tratamentos personalizados de fisioterapia e Pilates para aliviar dores, recuperar sua autonomia e devolver confiança ao seu corpo.
+            Tratamentos personalizados de pilates e fisioterapia para aliviar dores, recuperar sua autonomia e devolver confiança ao seu corpo.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link href="/contato" className="site-button">
@@ -86,7 +86,7 @@ const Index = () => (
     <section className="px-5 py-20 md:px-8 md:py-28">
       <div className="mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-2 lg:gap-20">
         <div className="relative">
-          <img src={storyImage} alt="Ambiente preparado para atendimento individualizado" className="aspect-[4/5] w-full rounded-[2rem] object-cover shadow-soft" loading="lazy" />
+          <img src={storyImage} alt="Profissional da Fisiofit praticando Pilates no reformer" className="aspect-[4/5] w-full rounded-[2rem] object-cover shadow-soft" loading="lazy" />
           <div className="absolute -bottom-5 -right-3 rounded-2xl bg-navy p-6 text-white shadow-xl md:-right-6">
             <strong className="text-3xl font-black">Cuidado</strong>
             <span className="block text-sm text-white/65">humano e individualizado</span>
