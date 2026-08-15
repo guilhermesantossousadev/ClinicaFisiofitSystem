@@ -1,6 +1,7 @@
 import { FormEvent, type CSSProperties, type FormEventHandler, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { api } from "../../infrastructure/http/api";
+import { getPortalSessionGeneration, operationalResourceCache } from "../../infrastructure/session/portalSessionState";
 import { supabase } from "../../infrastructure/supabase/client";
 import { CheckboxField, FormField, FormSection, SelectField, TextareaField, TextField } from "../components/FormPrimitives";
 
@@ -66,16 +67,15 @@ function dateKey(date: Date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-const resourceCache = new Map<string, Record<string, any>>();
-
 function useResources(paths: string[]) {
   const key = paths.join("|");
   const selectedUnit = typeof window === "undefined" ? "" : window.localStorage.getItem("fisiofit:selected-unit") ?? "";
   const cacheKey = `${selectedUnit}:${key}`;
-  const [data, setData] = useState<Record<string, any>>(() => resourceCache.get(cacheKey) ?? {});
-  const [loading, setLoading] = useState(() => !resourceCache.has(cacheKey));
+  const [data, setData] = useState<Record<string, any>>(() => operationalResourceCache.get(cacheKey) ?? {});
+  const [loading, setLoading] = useState(() => !operationalResourceCache.has(cacheKey));
   const [error, setError] = useState("");
   const reload = useCallback(async () => {
+    const sessionGeneration = getPortalSessionGeneration();
     setLoading(true);
     setError("");
     try {
@@ -83,7 +83,8 @@ function useResources(paths: string[]) {
       const nextData = Object.fromEntries(
           paths.map((path, index) => [path, responses[index].data]),
         );
-      resourceCache.set(cacheKey, nextData);
+      if (sessionGeneration !== getPortalSessionGeneration()) return;
+      operationalResourceCache.set(cacheKey, nextData);
       setData(nextData);
     } catch (loadError) {
       setError(messageOf(loadError));

@@ -657,12 +657,9 @@ app.post("/enrollments", requireRoles(["admin", "manager", "finance"]), async (c
     surcharge_cents: z.number().int().nonnegative().default(0),
   }).parse(await context.req.json());
   const db = context.get("db");
-  if (!(await hasUnitAccess(context, input.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+  const scopeError = await validateRelatedResourceScope(context, input);
+  if (scopeError) return scopeError;
   const clinicId = context.get("profile").clinic_id;
-  const { data: unit } = await db.from("units").select("id").eq("id", input.unit_id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle();
-  if (!unit) return fail(context, 400, "INVALID_UNIT", "A unidade selecionada não pertence à clínica.");
-  const { data: patient } = await db.from("patients").select("id,primary_unit_id").eq("id", input.patient_id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle();
-  if (!patient) return fail(context, 404, "PATIENT_NOT_FOUND", "Paciente não encontrado nesta clínica.");
   const { data: plan, error: planError } = await db.from("plans").select("id,name,price_cents,active")
     .eq("id", input.plan_id).eq("clinic_id", clinicId).is("deleted_at", null).single();
   if (planError || !plan) return databaseResult(context, null, planError);
@@ -713,6 +710,8 @@ app.post("/charges", requireRoles(["admin", "manager", "finance"]), async (conte
     installment_number: z.number().int().positive().optional(),
     installment_count: z.number().int().positive().optional(),
   }).parse(await context.req.json());
+  const scopeError = await validateRelatedResourceScope(context, input);
+  if (scopeError) return scopeError;
   if (input.enrollment_id) {
     const { data: enrollment } = await context.get("db").from("enrollments").select("id,patient_id,unit_id").eq("id", input.enrollment_id).eq("clinic_id", context.get("profile").clinic_id).eq("patient_id", input.patient_id).eq("unit_id", input.unit_id).eq("status", "active").is("deleted_at", null).maybeSingle();
     if (!enrollment) return fail(context, 400, "INVALID_ENROLLMENT", "A matrícula não pertence ao paciente e à unidade informados.");
@@ -922,7 +921,8 @@ app.get("/appointments", requireRoles(["admin", "manager", "reception", "profess
 
 app.post("/appointments", requireRoles(["admin", "manager", "reception", "professional"]), async (context) => {
   const input = appointmentSchema.parse(await context.req.json());
-  if (!(await hasUnitAccess(context, input.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+  const scopeError = await validateRelatedResourceScope(context, input);
+  if (scopeError) return scopeError;
   if (context.get("profile").role === "professional" && !(await isOwnProfessional(context, input.professional_id))) {
     return fail(context, 403, "PROFESSIONAL_FORBIDDEN", "Você só pode criar agendamentos para si próprio.");
   }
@@ -958,7 +958,8 @@ app.patch("/appointments/:id", requireRoles(["admin", "manager", "reception", "p
   }).parse(await context.req.json());
   const currentAppointment = await getAuthorizedAppointment(context, id);
   if (currentAppointment instanceof Response) return currentAppointment;
-  if (!(await hasUnitAccess(context, input.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+  const scopeError = await validateRelatedResourceScope(context, input);
+  if (scopeError) return scopeError;
   if (context.get("profile").role === "professional" && !(await isOwnProfessional(context, input.professional_id))) {
     return fail(context, 403, "PROFESSIONAL_FORBIDDEN", "Você não pode transferir o atendimento para outro profissional.");
   }
@@ -1261,7 +1262,8 @@ app.delete("/attachments/:id", requireRoles(["admin", "manager", "professional",
 
 app.post("/clinical-records", requireRoles(["admin", "manager", "professional"]), async (context) => {
   const input = clinicalRecordSchema.parse(await context.req.json());
-  if (!(await hasUnitAccess(context, input.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+  const scopeError = await validateRelatedResourceScope(context, input);
+  if (scopeError) return scopeError;
   if (context.get("profile").role === "professional" && !(await isOwnProfessional(context, input.professional_id))) return fail(context, 403, "PROFESSIONAL_FORBIDDEN", "Você só pode registrar em seu próprio prontuário profissional.");
   const { data, error } = await context.get("db").from("clinical_records").insert({
     ...input,
@@ -1408,6 +1410,8 @@ app.post("/commissions", requireRoles(["admin", "manager", "finance"]), async (c
     amount_cents: z.number().int().nonnegative(),
     basis: z.enum(["appointment", "payment"]),
   }).parse(await context.req.json());
+  const scopeError = await validateRelatedResourceScope(context, input);
+  if (scopeError) return scopeError;
   return createClinicResource(context, "commissions", { ...input, status: "pending" }, "commission.created", input.unit_id);
 });
 
@@ -1873,6 +1877,96 @@ async function createClinicResource(
 async function hasUnitAccess(context: Parameters<typeof ok>[0], unitId: string) {
   const { data, error } = await context.get("db").rpc("has_unit_access", { target_unit: unitId });
   return !error && data === true;
+}
+
+type RelatedResourceIds = {
+  unit_id: string;
+  professional_id?: string;
+  patient_id?: string;
+  room_id?: string;
+  service_id?: string;
+  appointment_id?: string;
+  enrollment_id?: string;
+  group_slot_id?: string;
+};
+
+async function validateRelatedResourceScope(
+  context: Parameters<typeof ok>[0],
+  ids: RelatedResourceIds,
+) {
+  const db = context.get("db");
+  const clinicId = context.get("profile").clinic_id;
+
+  if (!(await hasUnitAccess(context, ids.unit_id))) {
+    return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+  }
+
+  const [unit, patient, professional, professionalUnit, room, service, appointment, enrollment, groupSlot] = await Promise.all([
+    db.from("units").select("id").eq("id", ids.unit_id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle(),
+    ids.patient_id
+      ? db.from("patients").select("id,primary_unit_id").eq("id", ids.patient_id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    ids.professional_id
+      ? db.from("professionals").select("id").eq("id", ids.professional_id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    ids.professional_id
+      ? db.from("professional_units").select("professional_id").eq("professional_id", ids.professional_id).eq("unit_id", ids.unit_id).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    ids.room_id
+      ? db.from("rooms").select("id").eq("id", ids.room_id).eq("clinic_id", clinicId).eq("unit_id", ids.unit_id).is("deleted_at", null).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    ids.service_id
+      ? db.from("services").select("id").eq("id", ids.service_id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    ids.appointment_id
+      ? db.from("appointments").select("id,unit_id,patient_id,professional_id").eq("id", ids.appointment_id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    ids.enrollment_id
+      ? db.from("enrollments").select("id,unit_id,patient_id").eq("id", ids.enrollment_id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    ids.group_slot_id
+      ? db.from("group_slots").select("id,unit_id,room_id,professional_id,service_id").eq("id", ids.group_slot_id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+  ]);
+
+  const lookupFailed = [unit, patient, professional, professionalUnit, room, service, appointment, enrollment, groupSlot]
+    .some((result) => result.error);
+  if (lookupFailed) {
+    return fail(context, 400, "RELATED_RESOURCE_VALIDATION_FAILED", "Não foi possível validar os dados relacionados.");
+  }
+  if (!unit.data) return fail(context, 400, "INVALID_UNIT", "A unidade selecionada não pertence à clínica.");
+  if (ids.patient_id && (!patient.data || patient.data.primary_unit_id !== ids.unit_id)) {
+    return fail(context, 400, "INVALID_PATIENT_SCOPE", "O paciente não pertence à clínica e unidade selecionadas.");
+  }
+  if (ids.professional_id && (!professional.data || !professionalUnit.data)) {
+    return fail(context, 400, "INVALID_PROFESSIONAL_SCOPE", "O profissional não pertence à clínica e unidade selecionadas.");
+  }
+  if (ids.room_id && !room.data) {
+    return fail(context, 400, "INVALID_ROOM_SCOPE", "A sala não pertence à clínica e unidade selecionadas.");
+  }
+  if (ids.service_id && !service.data) {
+    return fail(context, 400, "INVALID_SERVICE_SCOPE", "O serviço não pertence à clínica selecionada.");
+  }
+  if (ids.appointment_id && (!appointment.data
+    || appointment.data.unit_id !== ids.unit_id
+    || (ids.patient_id && appointment.data.patient_id !== ids.patient_id)
+    || (ids.professional_id && appointment.data.professional_id !== ids.professional_id))) {
+    return fail(context, 400, "INVALID_APPOINTMENT_SCOPE", "O atendimento não corresponde à clínica, unidade, paciente e profissional informados.");
+  }
+  if (ids.enrollment_id && (!enrollment.data
+    || enrollment.data.unit_id !== ids.unit_id
+    || (ids.patient_id && enrollment.data.patient_id !== ids.patient_id))) {
+    return fail(context, 400, "INVALID_ENROLLMENT_SCOPE", "A matrícula não corresponde à clínica, unidade e paciente informados.");
+  }
+  if (ids.group_slot_id && (!groupSlot.data
+    || groupSlot.data.unit_id !== ids.unit_id
+    || (ids.room_id && groupSlot.data.room_id !== ids.room_id)
+    || (ids.professional_id && groupSlot.data.professional_id !== ids.professional_id)
+    || (ids.service_id && groupSlot.data.service_id !== ids.service_id))) {
+    return fail(context, 400, "INVALID_GROUP_SLOT_SCOPE", "A turma não corresponde à clínica, unidade, sala, profissional e serviço informados.");
+  }
+
+  return null;
 }
 
 async function professionalForUser(context: Parameters<typeof ok>[0]) {

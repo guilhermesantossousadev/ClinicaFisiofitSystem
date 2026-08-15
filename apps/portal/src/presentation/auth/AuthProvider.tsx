@@ -1,5 +1,6 @@
 import type { Session, User } from "@supabase/supabase-js";
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, Fragment, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { bindPortalSessionToUser, clearPortalSessionState } from "../../infrastructure/session/portalSessionState";
 import { supabase } from "../../infrastructure/supabase/client";
 
 type AuthState = {
@@ -14,13 +15,22 @@ const AuthContext = createContext<AuthState | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const currentUserId = useRef<string | null>(null);
 
   useEffect(() => {
     let active = true;
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, next) => {
+    const applySession = (next: Session | null) => {
       if (!active) return;
+      const nextUserId = next?.user.id ?? null;
+      if (nextUserId) bindPortalSessionToUser(nextUserId);
+      else if (currentUserId.current) clearPortalSessionState();
+      currentUserId.current = nextUserId;
       setSession(next);
       setLoading(false);
+    };
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, next) => {
+      applySession(next);
     });
 
     async function restoreSession() {
@@ -52,8 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         window.history.replaceState({}, document.title, url.pathname);
       }
 
-      setSession(nextSession);
-      setLoading(false);
+      applySession(nextSession);
     }
 
     void restoreSession();
@@ -70,13 +79,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       session,
       user: session?.user ?? null,
       signOut: async () => {
-        await supabase.auth.signOut();
+        clearPortalSessionState();
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
       },
     }),
     [loading, session],
   );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      <Fragment key={session?.user.id ?? "anonymous"}>{children}</Fragment>
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {
