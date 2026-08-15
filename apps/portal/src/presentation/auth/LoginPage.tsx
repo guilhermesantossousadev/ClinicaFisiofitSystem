@@ -1,16 +1,33 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { Redirect } from "wouter";
+import { sessionExpiredNoticeKey } from "../../application/portal/authAccess";
 import { isSupabaseConfigured, supabase } from "../../infrastructure/supabase/client";
 import { useAuth } from "./AuthProvider";
 import { TextField } from "../components/FormPrimitives";
 
 export default function LoginPage() {
   const { session, loading } = useAuth();
+  const [initialNotice] = useState(() => {
+    try {
+      return window.sessionStorage.getItem(sessionExpiredNoticeKey) ?? "";
+    } catch {
+      return "";
+    }
+  });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(initialNotice);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!initialNotice) return;
+    try {
+      window.sessionStorage.removeItem(sessionExpiredNoticeKey);
+    } catch {
+      // A mensagem já está em memória para esta exibição.
+    }
+  }, [initialNotice]);
 
   if (!loading && session) return <Redirect to="/" replace />;
 

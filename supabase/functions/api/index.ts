@@ -93,10 +93,31 @@ app.use("*", async (context, next) => {
     .select("id, clinic_id, name, role, status, mfa_required, profile_permissions(module,can_view,can_edit)")
     .eq("id", authData.user.id)
     .is("deleted_at", null)
-    .single();
+    .maybeSingle();
 
-  if (profileError || !profile || profile.status !== "active") {
-    return fail(context, 403, "MEMBERSHIP_INACTIVE", "Seu acesso à clínica não está ativo.");
+  if (profileError) {
+    return fail(context, 500, "PROFILE_LOOKUP_FAILED", "Não foi possível validar seu acesso agora.");
+  }
+
+  if (!profile) {
+    const { count: clinicCount, error: clinicError } = await db
+      .from("clinics")
+      .select("id", { count: "exact", head: true })
+      .is("deleted_at", null);
+    if (clinicError) {
+      return fail(context, 500, "PROFILE_LOOKUP_FAILED", "Não foi possível validar seu acesso agora.");
+    }
+    return clinicCount === 0
+      ? fail(context, 403, "BOOTSTRAP_REQUIRED", "A configuração inicial da clínica ainda não foi concluída.")
+      : fail(context, 403, "MEMBERSHIP_NOT_FOUND", "Esta conta não possui acesso à clínica.");
+  }
+
+  if (profile.status !== "active") {
+    const code = profile.status === "blocked" ? "MEMBERSHIP_BLOCKED" : "MEMBERSHIP_INVITED";
+    const message = profile.status === "blocked"
+      ? "Esta conta está bloqueada."
+      : "Esta conta ainda precisa ser ativada.";
+    return fail(context, 403, code, message);
   }
 
   const requiresMfa = ["admin", "manager", "finance"].includes(profile.role);

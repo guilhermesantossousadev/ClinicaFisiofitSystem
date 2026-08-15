@@ -5,6 +5,7 @@ import {
   paymentInputSchema,
   dataSubjectRequestInputSchema,
 } from "@fisiofit/contracts";
+import { classifyAccessFailure } from "./authAccess";
 
 const ids = {
   unitId: "2a0afc6d-9c33-4e1a-b6ce-13fb448f8160",
@@ -63,5 +64,21 @@ describe("contratos de privacidade", () => {
       requesterName: "Maria da Silva",
       kind: "access",
     })).toThrow();
+  });
+});
+
+describe("fluxo de acesso", () => {
+  it("diferencia sessão expirada de primeiro acesso", () => {
+    expect(classifyAccessFailure({ apiError: { code: "UNAUTHENTICATED" }, status: 401 }))
+      .toBe("session-expired");
+    expect(classifyAccessFailure({ apiError: { code: "BOOTSTRAP_REQUIRED" }, status: 403 }))
+      .toBe("bootstrap");
+  });
+
+  it("não envia conta inativa nem falha de rede ao onboarding", () => {
+    expect(classifyAccessFailure({ apiError: { code: "MEMBERSHIP_BLOCKED" }, status: 403 }))
+      .toBe("membership");
+    expect(classifyAccessFailure({ apiError: { code: "NETWORK_ERROR" } }))
+      .toBe("unavailable");
   });
 });

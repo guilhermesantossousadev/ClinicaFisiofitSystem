@@ -68,7 +68,10 @@ export async function api<T>(
     window.dispatchEvent(new CustomEvent("fisiofit:request-end", {
       detail: { id: interactionId, ok: false },
     }));
-    throw Object.assign(new Error(error.message), { apiError: error as ApiError });
+    throw Object.assign(new Error(error.message), {
+      apiError: error as ApiError,
+      status: response.status,
+    });
   }
   window.dispatchEvent(new CustomEvent("fisiofit:request-end", {
     detail: { id: interactionId, ok: true },
