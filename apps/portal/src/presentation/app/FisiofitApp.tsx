@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, list } from "../../infrastructure/http/api";
+import { supabase } from "../../infrastructure/supabase/client";
 import "../styles/portal-enhancements.css";
 import { useAuth } from "../auth/AuthProvider";
 import {
@@ -43,6 +44,43 @@ function storeValue(key: string, value: string) {
   }
 }
 
+function Avatar({ initials, url, className = "" }: { initials: string; url?: string; className?: string }) {
+  return url
+    ? <img className={`avatar avatar-image ${className}`.trim()} src={url} alt="Foto do perfil" />
+    : <span className={`avatar admin ${className}`.trim()} aria-hidden="true">{initials}</span>;
+}
+
+function compressAvatar(file: File) {
+  if (!file.type.startsWith("image/")) return Promise.reject(new Error("Escolha uma imagem válida."));
+  if (file.size > 5 * 1024 * 1024) return Promise.reject(new Error("A imagem deve ter no máximo 5 MB."));
+  return new Promise<string>((resolve, reject) => {
+    const source = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      const size = 512;
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      const context = canvas.getContext("2d");
+      if (!context) { URL.revokeObjectURL(source); reject(new Error("Não foi possível preparar a imagem.")); return; }
+      const scale = Math.max(size / image.width, size / image.height);
+      const width = image.width * scale;
+      const height = image.height * scale;
+      context.drawImage(image, (size - width) / 2, (size - height) / 2, width, height);
+      canvas.toBlob((blob) => {
+        URL.revokeObjectURL(source);
+        if (!blob) { reject(new Error("Não foi possível preparar a imagem.")); return; }
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new Error("Não foi possível ler a imagem."));
+        reader.readAsDataURL(blob);
+      }, "image/webp", .82);
+    };
+    image.onerror = () => { URL.revokeObjectURL(source); reject(new Error("Não foi possível abrir a imagem.")); };
+    image.src = source;
+  });
+}
+
 export default function FisiofitApp() {
   const { signOut, user } = useAuth();
   const storagePrefix = `fisiofit:portal:${user?.id ?? "preview"}`;
@@ -64,6 +102,9 @@ export default function FisiofitApp() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => storedValue(`${storagePrefix}:sidebar-collapsed`) === "true");
   const [agendaContext, setAgendaContext] = useState<AgendaEnrollmentContext>();
+  const [avatarUrl, setAvatarUrl] = useState(() => String(user?.user_metadata?.avatar_url ?? ""));
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarNotice, setAvatarNotice] = useState("");
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     storeValue(`${storagePrefix}:view`, view);
@@ -76,6 +117,7 @@ export default function FisiofitApp() {
   useEffect(() => {
     storeValue(`${storagePrefix}:sidebar-collapsed`, String(sidebarCollapsed));
   }, [sidebarCollapsed, storagePrefix]);
+  useEffect(() => setAvatarUrl(String(user?.user_metadata?.avatar_url ?? "")), [user]);
   useEffect(() => {
     const restore = () => {
       const savedView = storedValue(`${storagePrefix}:view`);
@@ -160,6 +202,20 @@ export default function FisiofitApp() {
     .slice(0, 2)
     .join("")
     .toUpperCase();
+  async function changeAvatar(file: File | undefined) {
+    if (!file) return;
+    setAvatarBusy(true);
+    setAvatarNotice("");
+    try {
+      const dataUrl = await compressAvatar(file);
+      const { error: updateError } = await supabase.auth.updateUser({ data: { avatar_url: dataUrl } });
+      if (updateError) throw updateError;
+      setAvatarUrl(dataUrl);
+      setAvatarNotice("Foto de perfil atualizada.");
+    } catch (reason) {
+      setAvatarNotice(reason instanceof Error ? reason.message : "Não foi possível atualizar a foto.");
+    } finally { setAvatarBusy(false); }
+  }
   return (
     <>
       <a className="skip-link" href="#portal-content">Pular para o conteúdo principal</a>
@@ -205,7 +261,7 @@ export default function FisiofitApp() {
         </nav>
         <div className="profile">
           <button type="button" className="profile-open" onClick={() => navigate("Meu perfil")} aria-label="Abrir meu perfil">
-            <span className="avatar admin">{initials}</span>
+            <Avatar initials={initials} url={avatarUrl} />
             <span>
               <strong>{loading ? "Carregando…" : profile.name}</strong>
               <small>{roleLabel[profile.role]}</small>
@@ -267,7 +323,7 @@ export default function FisiofitApp() {
             </div>
             <div className="mobile-profile-actions">
               <button type="button" className="mobile-profile-open" onClick={() => navigate("Meu perfil")}>
-                <span className="avatar admin" aria-hidden="true">{initials}</span>
+                <Avatar initials={initials} url={avatarUrl} />
                 <span><strong>{profile.name}</strong><small>{roleLabel[profile.role]}</small></span>
               </button>
               <button onClick={() => void signOut()}>Sair</button>
@@ -303,8 +359,9 @@ export default function FisiofitApp() {
           </label>
           <div className="top-actions">
             <label className="unit-select">
-              <span>⌖</span>
-              <select
+              <span className="unit-select-icon" aria-hidden="true">⌖</span>
+              <span className="unit-select-copy"><small>Unidade ativa</small><select
+                aria-label="Selecionar unidade ativa"
                 value={unit}
                 onChange={(event) => setUnit(event.target.value)}
               >
@@ -314,7 +371,7 @@ export default function FisiofitApp() {
                     {row.name}
                   </option>
                 ))}
-              </select>
+              </select></span>
             </label>
             <span className="today">
               {new Intl.DateTimeFormat("pt-BR", {
@@ -346,7 +403,7 @@ export default function FisiofitApp() {
             <div className="system-message error-message" role="alert"><span className="message-icon" aria-hidden="true">!</span><div><strong>Alguns dados não foram carregados</strong><p>{error}</p></div></div>
           </div>
         )}
-        {view === "Meu perfil" && <ProfilePage profile={profile} email={user?.email ?? ""} onSignOut={() => void signOut()} />}
+        {view === "Meu perfil" && <ProfilePage profile={profile} email={user?.email ?? ""} avatarUrl={avatarUrl} avatarBusy={avatarBusy} avatarNotice={avatarNotice} onAvatarChange={changeAvatar} onSignOut={() => void signOut()} />}
         {view === "Painel" && (
           <Dashboard data={dashboard} name={profile.name} setView={setView} loading={loading} />
         )}{" "}
@@ -366,7 +423,7 @@ export default function FisiofitApp() {
   );
 }
 
-function ProfilePage({ profile, email, onSignOut }: { profile: Profile; email: string; onSignOut: () => void }) {
+function ProfilePage({ profile, email, avatarUrl, avatarBusy, avatarNotice, onAvatarChange, onSignOut }: { profile: Profile; email: string; avatarUrl: string; avatarBusy: boolean; avatarNotice: string; onAvatarChange: (file: File | undefined) => Promise<void>; onSignOut: () => void }) {
   const initials = profile.name.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase();
   return (
     <div className="content profile-page">
@@ -374,8 +431,8 @@ function ProfilePage({ profile, email, onSignOut }: { profile: Profile; email: s
         <div><p className="eyebrow">CONTA</p><h1>Meu perfil</h1><p>Consulte seus dados de acesso e as informações do seu perfil.</p></div>
       </div>
       <section className="card profile-hero" aria-labelledby="profile-name">
-        <span className="avatar admin profile-avatar">{initials}</span>
-        <div><h2 id="profile-name">{profile.name}</h2><p>{roleLabel[profile.role]}</p></div>
+        <Avatar initials={initials} url={avatarUrl} className="profile-avatar" />
+        <div className="profile-hero-copy"><h2 id="profile-name">{profile.name}</h2><p>{roleLabel[profile.role]}</p><label className="profile-photo-action">{avatarBusy ? "Atualizando foto…" : avatarUrl ? "Trocar foto" : "Adicionar foto"}<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => void onAvatarChange(event.target.files?.[0])} disabled={avatarBusy} /></label>{avatarNotice && <small className="profile-photo-notice" role="status">{avatarNotice}</small>}</div>
       </section>
       <section className="card profile-details" aria-labelledby="profile-details-title">
         <div className="card-head"><div><h2 id="profile-details-title">Dados da conta</h2><p>Informações vinculadas ao seu acesso ao sistema.</p></div></div>

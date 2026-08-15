@@ -883,6 +883,22 @@ body { overflow-x: clip; }
 .profile-actions-card h2 { margin: 0; font-size: 18px; }
 .mobile-profile-open { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1; padding: 0; border: 0 !important; background: transparent !important; color: inherit; text-align: left; }
 .mobile-profile-open > span:last-child { min-width: 0; }
+.avatar-image { object-fit: cover; }
+.profile-hero-copy { display: grid; gap: 4px; min-width: 0; }
+.profile-photo-action { width: max-content; margin-top: 6px; color: var(--blue); font-size: 14px; font-weight: 750; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.profile-photo-action input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.profile-photo-notice { color: var(--success); font-size: 13px; }
+
+@media (min-width: 1051px) {
+  .sidebar-toggle { position: absolute; top: 84px; right: -16px; z-index: 3; width: 34px !important; height: 34px; min-height: 34px; margin: 0 !important; padding: 0 !important; border-radius: 50%; background: #fff; box-shadow: 0 4px 14px rgb(16 38 58 / 16%); }
+  .sidebar-toggle-label { display: none !important; }
+  .sidebar-toggle > span:first-child { font-size: 24px; line-height: 1; }
+  .unit-select { min-width: 224px; padding: 7px 12px; gap: 9px; background: #fff; }
+  .unit-select-icon { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; background: #eaf5fc; color: var(--blue); font-size: 17px; }
+  .unit-select-copy { display: grid; min-width: 0; gap: 1px; }
+  .unit-select-copy small { color: var(--muted); font-size: 11px; line-height: 1.1; }
+  .unit-select-copy select { min-width: 0; max-width: 160px; font-size: 14px; }
+}
 
 .content { scroll-margin-top: 88px; }
 .card, .page-title, .operational-row { scroll-margin-top: 88px; }
@@ -2034,6 +2050,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .profile-data-list div { border-right: 0; border-bottom: 1px solid var(--line); padding: 15px 20px; }
   .profile-data-list div:last-child { border-bottom: 0; }
   .profile-actions-card { align-items: flex-start; flex-direction: column; }
+  .unit-select-icon { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; background: #eaf5fc; color: var(--blue); }
+  .unit-select-copy { display: grid; min-width: 0; flex: 1; gap: 1px; }
+  .unit-select-copy small { color: var(--muted); font-size: 11px; }
+  .unit-select-copy select { width: 100%; }
 }
 
 @media (prefers-contrast: more) {
