@@ -2,6 +2,7 @@ import type { ApiEnvelope, ApiError, Paginated } from "@fisiofit/contracts";
 import { supabase } from "../supabase/client";
 
 const apiBase = `${import.meta.env.VITE_SUPABASE_URL ?? ""}/functions/v1/api/v1`;
+const apiKey = import.meta.env.VITE_SUPABASE_ANON_KEY ?? "";
 
 function fallbackError(status: number): ApiError {
   return {
@@ -30,6 +31,7 @@ export async function api<T>(
       ...init,
       headers: {
         "content-type": "application/json",
+        ...(apiKey ? { apikey: apiKey } : {}),
         ...(data.session?.access_token
           ? { authorization: `Bearer ${data.session.access_token}` }
           : {}),

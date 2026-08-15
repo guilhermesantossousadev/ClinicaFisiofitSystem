@@ -61,6 +61,13 @@ function ProtectedApp() {
           return;
         }
         if (failure === "session-expired") {
+          const { data: userData, error: userError } = await supabase.auth.getUser();
+          if (!active) return;
+          if (!userError && userData.user) {
+            setIssue("unavailable");
+            setAccess("issue");
+            return;
+          }
           try {
             window.sessionStorage.setItem(sessionExpiredNoticeKey, sessionExpiredNotice);
           } catch {
@@ -75,6 +82,7 @@ function ProtectedApp() {
               } catch {
                 // A sessão foi renovada; não há redirecionamento nem aviso a exibir.
               }
+              if (active) setValidationAttempt((attempt) => attempt + 1);
               return;
             }
           }

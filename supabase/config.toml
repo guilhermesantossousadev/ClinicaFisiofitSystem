@@ -41,4 +41,6 @@ file_size_limit = "25MiB"
 enabled = false
 
 [functions.api]
-verify_jwt = true
+# A API valida o Bearer com auth.getUser() no próprio middleware. O gateway
+# legado não aceita de forma confiável os JWTs ES256 emitidos pelo projeto.
+verify_jwt = false

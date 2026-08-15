@@ -105,6 +105,18 @@ test("protege recuperação administrativa e consentimento de cookies", async ()
   assert.match(cookieConsent, /Configurar/);
 });
 
+test("mantém autenticação da API compatível com JWT assimétrico", async () => {
+  const [apiClient, functionConfig, apiSource] = await Promise.all([
+    readFile(new URL("../apps/portal/src/infrastructure/http/api.ts", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/config.toml", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/functions/api/index.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(apiClient, /apikey:\s*apiKey/);
+  assert.match(functionConfig, /\[functions\.api\][\s\S]*verify_jwt\s*=\s*false/);
+  assert.match(apiSource, /auth\.getUser\(\)/);
+  assert.match(apiSource, /if \(authError \|\| !authData\.user\)/);
+});
+
 test("isola consultas operacionais por clínica", async () => {
   const api = await readApiSource();
   const patientsRoute = api.slice(
