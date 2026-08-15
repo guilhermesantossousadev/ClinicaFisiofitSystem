@@ -27,6 +27,7 @@ test("gera site e portal no pacote único da Hostinger", async () => {
   assert.match(portal, /Área da clínica/);
   assert.match(portal, /\/sistema\/assets\//);
   assert.match(siteHeaders, /www\\\.clinicafisiofitsabara\\\.com/);
+  assert.match(portalHeaders, /www\\\.clinicafisiofitsabara\\\.com/);
   assert.match(portalHeaders, /connect-src[^\n]+eeltguuoxpfttjznugla\.supabase\.co/);
 });
 
