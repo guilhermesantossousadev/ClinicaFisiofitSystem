@@ -115,7 +115,7 @@ O portal usa estado local React e chamadas `fetch` encapsuladas em `apps/portal/
 ### 3.5 Serviços externos e integrações
 
 - Supabase Auth, Edge Functions, PostgreSQL e Storage: implementados/configurados no repositório; estado remoto não verificado.
-- Hostinger: empacotamento e workflow implementados; execuções anteriores do workflow foram confirmadas no GitHub, mas a versão desta atualização deve ser registrada após o novo deploy.
+- Hostinger: workflow da atualização `3e8e7be` concluído em 15 de agosto de 2026; os hashes de assets do site e portal em produção coincidiram com a branch `hostinger-deploy`.
 - Google Ads: carregamento condicional após consentimento local.
 - WhatsApp, Google Maps e Instagram: links públicos no site; não são integrações transacionais da API.
 - NFS-e e mensageria: apenas interfaces de provider e tabelas; sem adapter, fornecedor, worker ou envio.
@@ -193,13 +193,14 @@ O teste Node inspeciona `dist/`; portanto o build deve precedê-lo em validaçã
 
 ### 4.7 Deploy
 
-O workflow manual `.github/workflows/hostinger-build.yml` gera `dist/` e força a branch `hostinger-deploy` com apenas os artefatos. Migrations e Edge Functions são publicadas separadamente pela CLI Supabase; não há workflow versionado para o backend. Cada deploy deve registrar separadamente commit, execução Hostinger, migration remota e versão da função. O código da Fase 1 está validado local/estaticamente, mas sua aplicação remota ainda precisa ser confirmada.
+O workflow manual `.github/workflows/hostinger-build.yml` gera `dist/` e força a branch `hostinger-deploy` com apenas os artefatos. O workflow do commit `3e8e7be` passou e os assets do site e portal foram confirmados em `clinicafisiofitsabara.com`. Migrations e Edge Functions são publicadas separadamente pela CLI Supabase; não há workflow versionado para o backend. O deploy Supabase da Fase 1 permanece pendente porque este ambiente não possui sessão/token da CLI.
 
 ### 4.8 Ambientes disponíveis
 
 - **Local:** configurado no repositório.
 - **Homologação:** não identificada em configuração executável.
-- **Produção:** domínio e projeto Supabase são alegados no contexto anterior; o project ref `eeltguuoxpfttjznugla` é preservado apenas como referência histórica exigida por teste, não como prova de implantação atual.
+- **Produção web:** Hostinger confirmada em 15 de agosto de 2026 pela correspondência dos assets publicados.
+- **Produção Supabase:** project ref vinculado `eeltguuoxpfttjznugla`; estado da migration e Edge Function da Fase 1 não confirmado por ausência de autenticação da CLI.
 
 ---
 
@@ -452,7 +453,7 @@ A visibilidade de menu melhora UX, mas não substitui autorização do backend. 
 | CLIN-01 | Prontuário assinado imutável e retificado por novo registro | trigger e endpoints | Vigente |
 | AUDIT-01 | Auditoria append-only | trigger | Vigente |
 | AUTHZ-01 | Defesa em profundidade com JWT na API, guard de papel/módulo e RLS por unidade | migration `202608150001` e middleware da Edge Function | Implementado; integração remota pendente de confirmação |
-| DEPLOY-01 | Artefato Hostinger único em branch dedicada | script/workflow | Vigente, implantação não verificada |
+| DEPLOY-01 | Artefato Hostinger único em branch dedicada | script/workflow e assets remotos | Vigente; deploy web confirmado em 2026-08-15 |
 | INTEG-01 | Providers fiscal/mensagem desacoplados | interfaces compartilhadas | Planejado, sem adapter |
 
 ### 12.1 Decisões superadas
@@ -649,7 +650,8 @@ Não existem fontes executáveis para containers, Kubernetes, Terraform, cache, 
 - [x] Registrar problemas somente com evidência.
 - [x] Validar que caminhos citados existem.
 - [x] Não incluir valores de secrets nem ler `.env.local`.
-- [ ] Validar Supabase remoto, Hostinger, Auth real e entrega de e-mail: fora do escopo local/não verificado.
+- [x] Validar Hostinger: workflow e assets públicos confirmados em 2026-08-15.
+- [ ] Validar Supabase remoto, Auth real e entrega de e-mail: bloqueado sem autenticação da CLI/não verificado.
 - [ ] Executar testes de banco: depende da stack Supabase local.
 
 ---
@@ -666,6 +668,7 @@ Não existem fontes executáveis para containers, Kubernetes, Terraform, cache, 
 | 2026-08-02 | Privacidade | Consentimento de Ads está implementado; texto jurídico público ainda tem campos pendentes | `CookieConsent.tsx`, `PrivacyPage.tsx` |
 | 2026-08-15 | Segurança | API de domínio usa JWT do usuário; RLS/RPCs aplicam papel, unidade e vínculo profissional; permissões ausentes negam acesso | `202608150001_harden_authorization.sql`, `supabase/functions/api/index.ts` |
 | 2026-08-15 | Verificação | Typecheck, lint, build, testes JavaScript, parser PostgreSQL e `deno check` passaram; pgTAP não executou sem runtime de containers | comandos locais e `supabase/tests/authorization.test.sql` |
+| 2026-08-15 | Deploy | Workflow Hostinger concluiu com sucesso e produção serviu os mesmos assets da branch `hostinger-deploy`; deploy Supabase permaneceu bloqueado sem credencial | GitHub Actions e respostas do domínio público |
 
 ---
 
