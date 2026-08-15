@@ -883,6 +883,17 @@ body { overflow-x: clip; }
 .profile-actions-card h2 { margin: 0; font-size: 18px; }
 .mobile-profile-open { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1; padding: 0; border: 0 !important; background: transparent !important; color: inherit; text-align: left; }
 .mobile-profile-open > span:last-child { min-width: 0; }
+.request-feedback-backdrop { position: fixed; inset: 0; z-index: 120; display: grid; place-items: center; padding: 20px; background: rgb(16 38 58 / 48%); backdrop-filter: blur(3px); }
+.request-feedback-modal { display: grid; grid-template-columns: auto 1fr; gap: 14px; width: min(440px, 100%); padding: 26px; border: 1px solid var(--line); border-radius: 16px; background: #fff; box-shadow: 0 24px 80px rgb(16 38 58 / 24%); }
+.request-feedback-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; background: #e7f3fa; color: var(--blue); font-size: 22px; font-weight: 850; }
+.request-feedback-modal.is-error .request-feedback-icon { background: #fdecef; color: var(--danger); }
+.request-feedback-modal h2 { margin: 4px 0 5px; color: var(--ink); font-size: 20px; }
+.request-feedback-modal p:not(.eyebrow) { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.45; }
+.request-feedback-close { grid-column: 2; justify-self: end; min-width: 110px; }
+button[data-request-loading] { position: relative; color: transparent !important; pointer-events: none; }
+button[data-request-loading]::after { content: ""; position: absolute; top: 50%; left: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px; border: 3px solid currentColor; border-right-color: transparent; border-radius: 50%; color: #fff; animation: request-spinner .7s linear infinite; }
+button.btn.secondary[data-request-loading]::after, button.text-button[data-request-loading]::after { color: var(--blue); }
+@keyframes request-spinner { to { transform: rotate(360deg); } }
 .avatar-image { object-fit: cover; }
 .profile-hero-copy { display: grid; gap: 4px; min-width: 0; }
 .profile-photo-action { width: max-content; margin-top: 6px; color: var(--blue); font-size: 14px; font-weight: 750; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }

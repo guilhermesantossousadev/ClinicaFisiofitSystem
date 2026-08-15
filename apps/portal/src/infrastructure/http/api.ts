@@ -19,7 +19,7 @@ export async function api<T>(
 ): Promise<ApiEnvelope<T>> {
   const interactionId = crypto.randomUUID();
   window.dispatchEvent(new CustomEvent("fisiofit:request-start", {
-    detail: { id: interactionId, method: init.method ?? "GET" },
+    detail: { id: interactionId, method: init.method ?? "GET", source: document.activeElement instanceof HTMLElement ? document.activeElement : undefined },
   }));
   const { data } = await supabase.auth.getSession();
   const selectedUnit = init.method?.toUpperCase() === "POST" || init.method?.toUpperCase() === "PATCH" ? "" : (() => {
