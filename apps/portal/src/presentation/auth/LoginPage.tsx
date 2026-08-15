@@ -3,9 +3,14 @@ import { Redirect } from "wouter";
 import {
   loginErrorMessage,
   normalizeLoginEmail,
+  recoveryErrorMessage,
   sessionExpiredNoticeKey,
 } from "../../application/portal/authAccess";
-import { isSupabaseConfigured, supabase } from "../../infrastructure/supabase/client";
+import {
+  isSupabaseConfigured,
+  passwordRecoveryRedirectUrl,
+  supabase,
+} from "../../infrastructure/supabase/client";
 import { useAuth } from "./AuthProvider";
 import { TextField } from "../components/FormPrimitives";
 
@@ -40,12 +45,17 @@ export default function LoginPage() {
     setBusy(true);
     setError("");
     setMessage("");
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email: normalizeLoginEmail(email),
-      password,
-    });
-    setBusy(false);
-    if (authError) setError(loginErrorMessage(authError));
+    try {
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: normalizeLoginEmail(email),
+        password,
+      });
+      if (authError) setError(loginErrorMessage(authError));
+    } catch (authError) {
+      setError(loginErrorMessage(authError));
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function requestPassword() {
@@ -58,17 +68,20 @@ export default function LoginPage() {
     }
 
     setBusy(true);
-    const { error: recoveryError } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
-      redirectTo: `${window.location.origin}/sistema/set-password`,
-    });
-    setBusy(false);
-
-    if (recoveryError) {
-      setError("Não foi possível enviar o link agora. Tente novamente em instantes.");
-      return;
+    try {
+      const { error: recoveryError } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+        redirectTo: passwordRecoveryRedirectUrl(),
+      });
+      if (recoveryError) {
+        setError(recoveryErrorMessage(recoveryError));
+        return;
+      }
+      setMessage("Enviamos um link seguro para seu e-mail. Abra a mensagem neste computador.");
+    } catch (recoveryError) {
+      setError(recoveryErrorMessage(recoveryError));
+    } finally {
+      setBusy(false);
     }
-
-    setMessage("Enviamos um link seguro para seu e-mail. Abra a mensagem neste computador.");
   }
 
   return (

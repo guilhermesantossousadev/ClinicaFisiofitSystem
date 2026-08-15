@@ -17,13 +17,17 @@ test("gera site e portal no pacote único da Hostinger", async () => {
     access(new URL("../dist/sistema/index.html", import.meta.url)),
     access(new URL("../dist/sistema/.htaccess", import.meta.url)),
   ]);
-  const [site, portal] = await Promise.all([
+  const [site, portal, siteHeaders, portalHeaders] = await Promise.all([
     readFile(new URL("../dist/index.html", import.meta.url), "utf8"),
     readFile(new URL("../dist/sistema/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../dist/.htaccess", import.meta.url), "utf8"),
+    readFile(new URL("../dist/sistema/.htaccess", import.meta.url), "utf8"),
   ]);
   assert.match(site, /Clínica Fisiofit/);
   assert.match(portal, /Área da clínica/);
   assert.match(portal, /\/sistema\/assets\//);
+  assert.match(siteHeaders, /www\\\.clinicafisiofitsabara\\\.com/);
+  assert.match(portalHeaders, /connect-src[^\n]+eeltguuoxpfttjznugla\.supabase\.co/);
 });
 
 test("mantém API, banco e integrações versionados", async () => {
@@ -80,15 +84,17 @@ test("mantém context.md como fonte única da verdade e não restaura o legado",
 });
 
 test("protege recuperação administrativa e consentimento de cookies", async () => {
-  const [login, setPassword, api, siteHtml, cookieConsent] = await Promise.all([
+  const [login, authClient, setPassword, api, siteHtml, cookieConsent] = await Promise.all([
     readFile(new URL("../apps/portal/src/presentation/auth/LoginPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../apps/portal/src/infrastructure/supabase/client.ts", import.meta.url), "utf8"),
     readFile(new URL("../apps/portal/src/presentation/auth/SetPasswordPage.tsx", import.meta.url), "utf8"),
     readApiSource(),
     readFile(new URL("../apps/site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../apps/site/src/presentation/components/CookieConsent.tsx", import.meta.url), "utf8"),
   ]);
   assert.match(login, /resetPasswordForEmail/);
-  assert.match(login, /\/sistema\/set-password/);
+  assert.match(authClient, /sistema\/set-password/);
+  assert.match(authClient, /flowType:\s*"pkce"/);
   assert.match(api, /redirectTo: `\$\{allowedOrigin\}\/sistema\/set-password`/);
   assert.match(setPassword, /password\.length < 10/);
   assert.doesNotMatch(`${login}\n${setPassword}`, /password\s*[:=]\s*["'][^"']+["']/i);

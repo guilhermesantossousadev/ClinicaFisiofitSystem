@@ -128,11 +128,13 @@ SEO por rota e imagens AVIF. Não há store global, biblioteca de consulta/cache
 SSR ou spinner global de mutações.
 
 O `.htaccess` público declara `image/avif` explicitamente para que a Hostinger
-sirva os ativos otimizados com o tipo MIME correto.
+sirva os ativos otimizados com o tipo MIME correto e redireciona `www` para a
+origem canônica. O `.htaccess` do portal substitui a CSP herdada e libera
+conexões somente para o projeto Supabase usado pela aplicação.
 
 ### 3.5 Serviços externos e integrações
 
-- Supabase Auth, Edge Functions, PostgreSQL e Storage: projeto remoto vinculado e acessível; histórico sincronizado até `202608160003` e Edge Function `api` ativa na versão 41 em 15 de agosto de 2026. Fluxos Auth, e-mail e a matriz comportamental de RLS não foram homologados nesta sessão.
+- Supabase Auth, Edge Functions, PostgreSQL e Storage: projeto remoto vinculado e acessível; histórico sincronizado até `202608160003` e Edge Function `api` ativa na versão 41 em 15 de agosto de 2026. Auth e health da API responderam por HTTP em 15 de agosto de 2026; envio/abertura real do e-mail e a matriz comportamental de RLS ainda não foram homologados.
 - Hostinger: workflow `31892944841` do commit `df69c42` concluído em 15 de agosto de 2026; os hashes do site/portal, canonical, Open Graph e MIME AVIF foram confirmados no domínio público.
 - Google Ads: carregamento condicional após consentimento local.
 - WhatsApp, Google Maps e Instagram: links públicos no site; não são integrações transacionais da API.
@@ -232,7 +234,7 @@ branch `hostinger-deploy` a partir do commit `df69c42`.
 | Módulo | Estado | Evidência | Observação |
 |---|---|---|---|
 | Site institucional | Implementado | `apps/site/src` | Buildável; conteúdo jurídico ainda provisório |
-| Login/recuperação | Implementado | páginas Auth e Supabase config | Não testado contra Auth remoto nesta análise |
+| Login/recuperação | Implementado | páginas Auth, Supabase config e CSP do portal | Conectividade remota validada sem conta real; correção aguarda publicação web |
 | MFA TOTP | Implementado | `MfaPage.tsx`, middleware API | Obrigatório para admin, manager e finance |
 | Painel | Implementado | `/dashboard`, `FisiofitApp.tsx` | Dados reais da API |
 | Agenda/turmas | Implementado | API e `OperationalAgenda` | Agenda com períodos de 7/14/30 dias, turmas recorrentes, geração automática de horários e alocação/remoção de pacientes |
@@ -383,7 +385,7 @@ Turmas têm **capacidade padrão e máxima: 7 alunos** e mínimo configurável d
 
 ### 9.1 Autenticação
 
-Supabase Auth com e-mail/senha, convite, recuperação e sessão persistida. Signup público está desativado. Retornos PKCE e tokens no fragmento são processados e removidos da URL.
+Supabase Auth com e-mail/senha, convite, recuperação PKCE e sessão persistida. Signup público está desativado. O SDK processa retornos PKCE e tokens no fragmento; o provider aguarda essa inicialização, remove credenciais da URL e apresenta orientação para links inválidos ou expirados.
 
 ### 9.2 Sessões e tokens
 
@@ -533,6 +535,7 @@ Prioridade: executar a matriz de autorização em banco real; idempotência; mat
 
 | Prioridade | Problema | Impacto | Evidência | Correção recomendada |
 |---|---|---|---|---|
+| P0 | Artefato atualmente publicado ainda herda CSP sem o Supabase em `connect-src` | login, recuperação e API são bloqueados pelo navegador | header HTTP de produção em 2026-08-15 | publicar o build que contém a CSP específica de `apps/portal/public/.htaccess` |
 | P0 | Fase 1 de autorização ainda não foi exercitada contra um banco Supabase real nesta sessão | Defeito semântico de policy pode bloquear fluxo ou deixar acesso residual | Docker/Podman indisponível para reset e pgTAP | executar reset, pgTAP e matriz papel×unidade antes de liberar uso clínico |
 | P1 | Status genérico permite `completed` sem consumir sessão | saldo divergente | PATCH status versus RPC de conclusão | proibir transição ou delegar à RPC |
 | P1 | Algumas operações compostas não são atômicas | registros órfãos/parciais | múltiplos inserts nos handlers | RPC/transação compensável; rollback de importações e matrículas já possui RPC dedicada |
@@ -705,6 +708,7 @@ Não existem fontes executáveis para containers, Kubernetes, Terraform, cache, 
 | 2026-08-15 | Verificação | Typecheck, lint, build, testes JavaScript, parser PostgreSQL e `deno check` passaram; pgTAP não executou sem runtime de containers | comandos locais e `supabase/tests/authorization.test.sql` |
 | 2026-08-15 | Deploy | Hostinger serviu os mesmos assets da branch `hostinger-deploy`; migration `202608150001` foi aplicada e a Edge Function `api` ficou ativa na versão 37 | GitHub Actions, domínio público e consultas da Supabase CLI |
 | 2026-08-15 | Fases 6/7 | Portal e API modularizados; acessibilidade, SEO, AVIF e source maps tratados; Hostinger publicou `df69c42` e API chegou à versão 41 | testes locais, workflow `31892944841`, HTTP de produção e Supabase CLI |
+| 2026-08-15 | Login e recuperação | CSP específica do portal libera o Supabase, `www` converge para a origem canônica, recuperação usa PKCE e falhas assíncronas/links expirados recebem tratamento explícito; publicação ainda pendente | headers HTTP, Auth remoto, código, typecheck, lint, build e testes |
 
 ---
 

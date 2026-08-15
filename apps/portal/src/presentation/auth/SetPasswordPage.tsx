@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import { Redirect, useLocation } from "wouter";
+import { useLocation } from "wouter";
 import { useAuth } from "./AuthProvider";
 import { api } from "../../infrastructure/http/api";
 import { supabase } from "../../infrastructure/supabase/client";
@@ -11,7 +11,7 @@ import {
 } from "../../application/portal/authAccess";
 
 export default function SetPasswordPage() {
-  const { loading, session, signOut } = useAuth();
+  const { callbackError, loading, session, signOut } = useAuth();
   const [, navigate] = useLocation();
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
@@ -19,7 +19,23 @@ export default function SetPasswordPage() {
   const [busy, setBusy] = useState(false);
 
   if (loading) return <div className="auth-loading">Validando o link seguro…</div>;
-  if (!session) return <Redirect to="/login" replace />;
+  if (!session) {
+    return (
+      <main className="mfa-page">
+        <section className="login-card mfa-card" aria-labelledby="invalid-link-title">
+          <img src="/sistema/fisiofit-logo.jpg" alt="" />
+          <p className="eyebrow">LINK DE ACESSO</p>
+          <h2 id="invalid-link-title">Solicite um novo link</h2>
+          <div className="login-error" role="alert">
+            {callbackError ?? "Este link não possui uma sessão válida ou já expirou."}
+          </div>
+          <a className="btn primary login-submit" href="/sistema/login">
+            Voltar ao login
+          </a>
+        </section>
+      </main>
+    );
+  }
 
   async function submit(event: FormEvent) {
     event.preventDefault();

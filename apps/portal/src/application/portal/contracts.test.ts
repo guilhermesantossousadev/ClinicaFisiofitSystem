@@ -9,6 +9,7 @@ import {
   classifyAccessFailure,
   loginErrorMessage,
   normalizeLoginEmail,
+  recoveryErrorMessage,
 } from "./authAccess";
 
 const ids = {
@@ -90,6 +91,11 @@ describe("fluxo de acesso", () => {
       .toBe("session-expired");
     expect(classifyAccessFailure({ apiError: { code: "BOOTSTRAP_REQUIRED" }, status: 403 }))
       .toBe("bootstrap");
+  });
+
+  it("explica falhas de conexão e limite na recuperação de senha", () => {
+    expect(recoveryErrorMessage({ message: "Failed to fetch" })).toContain("conectar");
+    expect(recoveryErrorMessage({ status: 429 })).toContain("Muitos links");
   });
 
   it("não envia conta inativa nem falha de rede ao onboarding", () => {

@@ -62,6 +62,31 @@ export function loginErrorMessage(error: unknown) {
   return "E-mail ou senha inválidos. Confira os dados ou solicite um novo link de acesso.";
 }
 
+export function recoveryErrorMessage(error: unknown) {
+  const authError = error as AuthRequestError;
+  const code = authError?.code ?? "";
+  const message = authError?.message?.toLowerCase() ?? "";
+
+  if (
+    authError?.status === 429 ||
+    code.includes("rate_limit") ||
+    message.includes("rate limit") ||
+    message.includes("too many requests")
+  ) {
+    return "Muitos links foram solicitados em pouco tempo. Aguarde alguns minutos e tente novamente.";
+  }
+  if (
+    authError?.status === 0 ||
+    code === "request_timeout" ||
+    message.includes("fetch") ||
+    message.includes("network") ||
+    message.includes("timeout")
+  ) {
+    return "Não foi possível conectar ao serviço de acesso. Verifique sua internet e tente novamente.";
+  }
+  return "Não foi possível enviar o link agora. Confira o e-mail e tente novamente em instantes.";
+}
+
 export function classifyAccessFailure(error: unknown): AccessFailure {
   const requestError = error as ApiRequestError;
   const code = requestError?.apiError?.code;
