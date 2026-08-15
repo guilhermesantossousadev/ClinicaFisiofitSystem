@@ -137,7 +137,7 @@ conexões somente para o projeto Supabase usado pela aplicação.
 ### 3.5 Serviços externos e integrações
 
 - Supabase Auth, Edge Functions, PostgreSQL e Storage: projeto remoto vinculado e acessível; histórico sincronizado até `202608160003` e Edge Function `api` ativa na versão 42 em 15 de agosto de 2026. Auth, middleware autenticado e health da API responderam por HTTP; envio/abertura real do e-mail e a matriz comportamental de RLS ainda não foram homologados.
-- Hostinger: workflow `31898551474` do commit `71723e5` concluído em 15 de agosto de 2026; o asset com a correção do loop de sessão, a CSP e o redirect canônico do portal foram confirmados no domínio público.
+- Hostinger: workflow `31901579322` do commit `d7caf5a` concluído em 15 de agosto de 2026; o asset com as correções de sessão, recuperação e restauração do MFA, a CSP e o redirect canônico foram confirmados no domínio público.
 - Google Ads: carregamento condicional após consentimento local.
 - WhatsApp, Google Maps e Instagram: links públicos no site; não são integrações transacionais da API.
 - NFS-e e mensageria: apenas interfaces de provider e tabelas; sem adapter, fornecedor, worker ou envio.
@@ -226,7 +226,7 @@ branch `hostinger-deploy` a partir do commit `df69c42`.
 
 - **Local:** configurado no repositório.
 - **Homologação:** não identificada em configuração executável.
-- **Produção web:** Hostinger confirmada em 15 de agosto de 2026 com a correção de Auth do commit `71723e5`, CSP específica do portal, redirect canônico, assets da Fase 6/7 e MIME `image/avif`.
+- **Produção web:** Hostinger confirmada em 15 de agosto de 2026 com a correção de Auth/MFA do commit `d7caf5a`, CSP específica do portal, redirect canônico, assets da Fase 6/7 e MIME `image/avif`.
 - **Produção Supabase:** project ref vinculado `eeltguuoxpfttjznugla`; migrations sincronizadas até `202608160003` e Edge Function `api` ativa na versão 42 com `verify_jwt=false` e validação no middleware.
 
 ---
@@ -236,7 +236,7 @@ branch `hostinger-deploy` a partir do commit `df69c42`.
 | Módulo | Estado | Evidência | Observação |
 |---|---|---|---|
 | Site institucional | Implementado | `apps/site/src` | Buildável; conteúdo jurídico ainda provisório |
-| Login/recuperação | Implementado | páginas Auth, Supabase config e CSP do portal | Correção publicada; conectividade remota validada sem conta real |
+| Login/recuperação | Implementado | páginas Auth, Supabase config e CSP do portal | Conta administrativa confirmada/ativa; redirect e envio de recuperação validados no Auth remoto |
 | MFA TOTP | Implementado | `MfaPage.tsx`, middleware API | Obrigatório para admin, manager e finance |
 | Painel | Implementado | `/dashboard`, `FisiofitApp.tsx` | Dados reais da API |
 | Agenda/turmas | Implementado | API e `OperationalAgenda` | Agenda com períodos de 7/14/30 dias, turmas recorrentes, geração automática de horários e alocação/remoção de pacientes |
@@ -387,7 +387,7 @@ Turmas têm **capacidade padrão e máxima: 7 alunos** e mínimo configurável d
 
 ### 9.1 Autenticação
 
-Supabase Auth com e-mail/senha, convite, recuperação PKCE e sessão persistida. Signup público está desativado. O SDK processa retornos PKCE e tokens no fragmento; o provider aguarda essa inicialização, remove credenciais da URL e apresenta orientação para links inválidos ou expirados.
+Supabase Auth com e-mail/senha, convite, recuperação PKCE e sessão persistida. Signup público está desativado. A URL principal remota é `https://clinicafisiofitsabara.com/sistema`; localhost permanece apenas na lista de redirects de desenvolvimento. O SDK processa retornos PKCE e tokens no fragmento; o provider aguarda essa inicialização, remove credenciais da URL e apresenta orientação para links inválidos ou expirados.
 
 ### 9.2 Sessões e tokens
 
@@ -711,6 +711,7 @@ Não existem fontes executáveis para containers, Kubernetes, Terraform, cache, 
 | 2026-08-15 | Fases 6/7 | Portal e API modularizados; acessibilidade, SEO, AVIF e source maps tratados; Hostinger publicou `df69c42` e API chegou à versão 41 | testes locais, workflow `31892944841`, HTTP de produção e Supabase CLI |
 | 2026-08-15 | Login e recuperação | CSP específica do portal libera o Supabase, `www` converge para a origem canônica, recuperação usa PKCE e falhas assíncronas/links expirados recebem tratamento explícito; publicada pelo workflow `31898092300` | headers HTTP de produção, Auth remoto, código, typecheck, lint, build e testes |
 | 2026-08-15 | Sessão autenticada | Cliente envia `apikey` e Bearer; gateway legado deixa de rejeitar JWT ES256; middleware continua validando com `auth.getUser()`; `401` com sessão Auth válida não força logout | Edge Function v42, workflow `31898551474`, asset público e testes |
+| 2026-08-15 | Recuperação e MFA | URL principal remota deixou de apontar para localhost; redirect de reset foi confirmado em produção; novo e-mail foi enviado; tela MFA espera restauração da sessão e trata falhas de preparação/verificação | config remota do Auth, workflow `31901579322`, asset público e testes |
 
 ---
 
