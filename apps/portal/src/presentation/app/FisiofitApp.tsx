@@ -270,18 +270,21 @@ export default function FisiofitApp() {
             <small>Gestão clínica</small>
           </span>
         </button>
-        <button
-          type="button"
-          className="sidebar-toggle"
-          onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
-          aria-expanded={!sidebarCollapsed}
-          aria-label={sidebarCollapsed ? "Maximizar menu lateral" : "Minimizar menu lateral"}
-          title={sidebarCollapsed ? "Maximizar menu lateral" : "Minimizar menu lateral"}
-        >
-          <span aria-hidden="true">{sidebarCollapsed ? "›" : "‹"}</span>
-          <span className="sidebar-toggle-label">{sidebarCollapsed ? "Maximizar menu" : "Minimizar menu"}</span>
-        </button>
         <nav aria-label="Navegação principal">
+          <div className="sidebar-nav-toolbar">
+            <span className="sidebar-nav-toolbar-label">NAVEGAÇÃO</span>
+            <button
+              type="button"
+              className="sidebar-toggle"
+              onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
+              aria-expanded={!sidebarCollapsed}
+              aria-label={sidebarCollapsed ? "Maximizar menu lateral" : "Minimizar menu lateral"}
+              title={sidebarCollapsed ? "Maximizar menu lateral" : "Minimizar menu lateral"}
+            >
+              <span aria-hidden="true">{sidebarCollapsed ? "›" : "‹"}</span>
+              <span className="sidebar-toggle-label">{sidebarCollapsed ? "Maximizar menu" : "Minimizar menu"}</span>
+            </button>
+          </div>
           {sidebarGroups.map((group) => {
             const groupItems = visibleNav.filter((item) => group.items.includes(item.label));
             if (!groupItems.length) return null;
