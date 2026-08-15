@@ -1201,7 +1201,7 @@ body { background: var(--canvas); }
     padding: 0 22px;
     border-bottom: 1px solid var(--line);
   }
-  .sidebar nav { padding: 26px 2px 12px; }
+  .sidebar nav { padding: 0 2px 12px; }
   .sidebar .nav-item {
     position: relative;
     min-height: 48px;
@@ -2234,3 +2234,58 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .form-section > .form-row { margin-bottom: 20px; }
 .form-section > .form-row:last-child { margin-bottom: 0; }
 .creation-drawer-form > .form-field { margin-bottom: 20px; }
+
+/* Fechamento da navegação desktop: o toolbar controla o respiro do menu e o
+   controle de recolher precisa permanecer claramente acionável em todos os
+   estados da sidebar. */
+@media (min-width: 1051px) {
+  .sidebar nav {
+    padding-top: 0 !important;
+    scrollbar-gutter: stable both-edges;
+    overscroll-behavior: contain;
+  }
+
+  .sidebar .sidebar-nav-toolbar {
+    box-sizing: border-box;
+    width: calc(100% - 8px);
+    margin: 0 4px 14px !important;
+    padding: 8px 8px 10px !important;
+    border-bottom: 1px solid #d9e3ea !important;
+  }
+
+  .sidebar .sidebar-toggle {
+    box-sizing: border-box;
+    display: inline-flex !important;
+    width: auto !important;
+    min-width: 40px;
+    min-height: 38px;
+    margin: 2px 0 2px 4px !important;
+    padding: 7px 11px !important;
+    border: 2px solid #8fa8b8 !important;
+    border-radius: 10px !important;
+    background: #fff !important;
+    box-shadow: 0 2px 6px rgb(16 38 58 / 12%);
+  }
+
+  .sidebar .sidebar-toggle:hover {
+    border-color: var(--blue) !important;
+    background: #eaf5fc !important;
+  }
+
+  .sidebar .sidebar-toggle:focus-visible {
+    outline: 3px solid var(--focus) !important;
+    outline-offset: 3px;
+  }
+
+  .sidebar-collapsed .sidebar .sidebar-nav-toolbar {
+    width: 100%;
+    margin-inline: 0 !important;
+    padding-inline: 0 !important;
+  }
+
+  .sidebar-collapsed .sidebar .sidebar-toggle {
+    width: 44px !important;
+    margin: 2px auto !important;
+    padding-inline: 0 !important;
+  }
+}
