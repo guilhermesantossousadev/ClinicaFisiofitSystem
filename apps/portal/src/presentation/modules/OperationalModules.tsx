@@ -605,15 +605,16 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
           <div className="fixed-calendar-unit" key={unit.id}>
             <div className="fixed-calendar-scroll">
               <div className="month-calendar-grid">
-                {(["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"] as const).map((day) => <div className="month-calendar-weekday" key={day}>{day}</div>)}
+                {(["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"] as const).map((day, index) => <div className="month-calendar-weekday" key={day}><span>{day}</span><small>{calendarDays[index].getDate()}</small></div>)}
                 {calendarDays.map((day) => {
                   const dayAppointments = appointments.filter((row) => row.unit_id === unit.id && dateKey(new Date(row.starts_at)) === dateKey(day));
                   const slots = slotsForDay(unit.id, day);
-                  return <div className={`month-calendar-day${dateKey(day) === dateKey(new Date()) ? " is-today" : ""}`} key={dateKey(day)}>
+                  const dayLabel = new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "numeric", month: "long" }).format(day);
+                  return <div className={`month-calendar-day${dateKey(day) === dateKey(new Date()) ? " is-today" : ""}`} key={dateKey(day)} aria-label={dayLabel}>
                     <div className="month-calendar-date">{day.getDate()}</div>
                     <div className="month-calendar-items">
-                      {dayAppointments.map((appointment) => <button type="button" className="month-calendar-item appointment-item" key={appointment.id} disabled={!canEdit} onClick={() => setCalendarAppointment(appointment)} aria-label={`${appointment.patients?.name ?? "Bloqueio"}${canEdit ? ", editar agendamento" : ""}`}><strong>{String(new Date(appointment.starts_at).getHours()).padStart(2, "0")}:{String(new Date(appointment.starts_at).getMinutes()).padStart(2, "0")} · {appointment.patients?.name ?? "Bloqueio"}</strong><small>{appointment.services?.name ?? "Atendimento"} · {appointment.professionals?.name ?? "Sem profissional"}</small></button>)}
-                      {slots.map((slot) => { const members = membersForSlot(slot.id, day); const professional = (data["/professionals"] ?? []).find((row: Row) => row.id === slot.professional_id); return <button type="button" className="month-calendar-item group-item" key={slot.id} onClick={() => setSelectedGroupCell({ slot, day, unitName: unit.name })} aria-label={`${slot.name}, ${members.length} de ${slot.capacity ?? 7} vagas, abrir lista de pacientes`}><strong>{String(slot.starts_at).slice(0, 5)} · {slot.name}</strong><small>{professional?.name ?? "Sem profissional"} · {members.length}/{slot.capacity ?? 7} vagas</small></button>; })}
+                      {dayAppointments.map((appointment) => <button type="button" className="month-calendar-item appointment-item" key={appointment.id} disabled={!canEdit} onClick={() => setCalendarAppointment(appointment)} aria-label={`${appointment.patients?.name ?? "Bloqueio"}, ${appointment.professionals?.name ? `fisioterapeuta responsável ${appointment.professionals.name}` : "sem fisioterapeuta responsável"}${canEdit ? ", editar agendamento" : ""}`}><strong>{String(new Date(appointment.starts_at).getHours()).padStart(2, "0")}:{String(new Date(appointment.starts_at).getMinutes()).padStart(2, "0")} · {appointment.patients?.name ?? "Bloqueio"}</strong><small><span>Fisioterapeuta: {appointment.professionals?.name ?? "Não informado"}</span><span>{appointment.services?.name ?? "Atendimento"}</span></small></button>)}
+                      {slots.map((slot) => { const members = membersForSlot(slot.id, day); const professional = (data["/professionals"] ?? []).find((row: Row) => row.id === slot.professional_id); return <button type="button" className="month-calendar-item group-item" key={slot.id} onClick={() => setSelectedGroupCell({ slot, day, unitName: unit.name })} aria-label={`${slot.name}, fisioterapeuta responsável ${professional?.name ?? "não informado"}, ${members.length} de ${slot.capacity ?? 7} vagas, abrir lista de pacientes`}><strong>{String(slot.starts_at).slice(0, 5)} · {slot.name}</strong><small><span>Fisioterapeuta: {professional?.name ?? "Não informado"}</span><span>{members.length}/{slot.capacity ?? 7} vagas</span></small></button>; })}
                     </div>
                   </div>;
                 })}
@@ -630,11 +631,12 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
         const capacity = Number(selectedGroupCell.slot.capacity ?? 7);
         const available = (data["/enrollments"] ?? []).filter((enrollment: Row) => !selectedMembers.some((member) => member.enrollment_id === enrollment.id));
         const full = selectedMembers.length >= capacity;
-        const selectedDate = new Intl.DateTimeFormat("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }).format(selectedGroupCell.day).replace(".", "");
+        const selectedDate = new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" }).format(selectedGroupCell.day);
+        const selectedProfessional = (data["/professionals"] ?? []).find((row: Row) => row.id === selectedGroupCell.slot.professional_id);
         return <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedGroupCell(null); }}>
           <section className="modal group-members-drawer" role="dialog" aria-modal="true" aria-labelledby="group-members-title">
             <div className="modal-head">
-              <div><p className="eyebrow">HORÁRIO · {selectedGroupCell.unitName}</p><h2 id="group-members-title">{selectedGroupCell.slot.name}</h2><span className="group-members-drawer-meta">{selectedDate} · {String(selectedGroupCell.slot.starts_at).slice(0, 5)} · {selectedMembers.length}/{capacity} vagas</span></div>
+              <div><p className="eyebrow">HORÁRIO · {selectedGroupCell.unitName}</p><h2 id="group-members-title">{selectedGroupCell.slot.name}</h2><span className="group-members-drawer-meta">{selectedDate} · {String(selectedGroupCell.slot.starts_at).slice(0, 5)} · {selectedMembers.length}/{capacity} vagas</span><span className="group-members-drawer-professional">Fisioterapeuta responsável: <strong>{selectedProfessional?.name ?? "Não informado"}</strong></span></div>
               <button type="button" onClick={() => setSelectedGroupCell(null)} aria-label="Fechar lista de pacientes">×</button>
             </div>
             <div className="group-members-drawer-body">
