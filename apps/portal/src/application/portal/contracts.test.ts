@@ -5,7 +5,11 @@ import {
   paymentInputSchema,
   dataSubjectRequestInputSchema,
 } from "@fisiofit/contracts";
-import { classifyAccessFailure } from "./authAccess";
+import {
+  classifyAccessFailure,
+  loginErrorMessage,
+  normalizeLoginEmail,
+} from "./authAccess";
 
 const ids = {
   unitId: "2a0afc6d-9c33-4e1a-b6ce-13fb448f8160",
@@ -68,6 +72,19 @@ describe("contratos de privacidade", () => {
 });
 
 describe("fluxo de acesso", () => {
+  it("normaliza o e-mail sem alterar a senha", () => {
+    expect(normalizeLoginEmail("  Guilherme@Example.COM ")).toBe("guilherme@example.com");
+  });
+
+  it("diferencia indisponibilidade e limite de tentativas de senha inválida", () => {
+    expect(loginErrorMessage({ status: 429, code: "over_request_rate_limit" }))
+      .toContain("Muitas tentativas");
+    expect(loginErrorMessage({ message: "Failed to fetch" }))
+      .toContain("conectar");
+    expect(loginErrorMessage({ code: "invalid_credentials" }))
+      .toContain("E-mail ou senha inválidos");
+  });
+
   it("diferencia sessão expirada de primeiro acesso", () => {
     expect(classifyAccessFailure({ apiError: { code: "UNAUTHENTICATED" }, status: 401 }))
       .toBe("session-expired");

@@ -71,6 +71,13 @@ export default function SetPasswordPage() {
       }
     }
 
+    const { error: activationError } = await supabase.rpc("activate_own_profile");
+    if (activationError) {
+      setBusy(false);
+      setError("A senha foi salva, mas não foi possível ativar o acesso. Tente novamente ou fale com a administradora.");
+      return;
+    }
+
     try {
       await api("/me");
       navigate("/", { replace: true });

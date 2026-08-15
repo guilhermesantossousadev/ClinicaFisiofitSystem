@@ -1,6 +1,10 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Redirect } from "wouter";
-import { sessionExpiredNoticeKey } from "../../application/portal/authAccess";
+import {
+  loginErrorMessage,
+  normalizeLoginEmail,
+  sessionExpiredNoticeKey,
+} from "../../application/portal/authAccess";
 import { isSupabaseConfigured, supabase } from "../../infrastructure/supabase/client";
 import { useAuth } from "./AuthProvider";
 import { TextField } from "../components/FormPrimitives";
@@ -37,23 +41,24 @@ export default function LoginPage() {
     setError("");
     setMessage("");
     const { error: authError } = await supabase.auth.signInWithPassword({
-      email,
+      email: normalizeLoginEmail(email),
       password,
     });
     setBusy(false);
-    if (authError) setError("E-mail ou senha inválidos.");
+    if (authError) setError(loginErrorMessage(authError));
   }
 
   async function requestPassword() {
     setError("");
     setMessage("");
-    if (!email) {
+    const normalizedEmail = normalizeLoginEmail(email);
+    if (!normalizedEmail) {
       setError("Informe seu e-mail para receber o link de criação de senha.");
       return;
     }
 
     setBusy(true);
-    const { error: recoveryError } = await supabase.auth.resetPasswordForEmail(email, {
+    const { error: recoveryError } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
       redirectTo: `${window.location.origin}/sistema/set-password`,
     });
     setBusy(false);
