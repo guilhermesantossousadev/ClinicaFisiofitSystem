@@ -1,5 +1,4 @@
 import { FormEvent, type CSSProperties, type FormEventHandler, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
-import * as XLSX from "xlsx";
 import { api } from "../../infrastructure/http/api";
 import { getPortalSessionGeneration, operationalResourceCache } from "../../infrastructure/session/portalSessionState";
 import { supabase } from "../../infrastructure/supabase/client";
@@ -7,13 +6,6 @@ import { CheckboxField, FormField, FormSection, SelectField, TextareaField, Text
 
 type Row = Record<string, any>;
 type Unit = { id: string; name: string };
-type WorkbookSheet = { name: string; entity: string; rows: Row[] };
-const workbookEntityOptions = [
-  ["units", "Unidades"], ["rooms", "Salas"], ["professionals", "Profissionais"], ["services", "Serviços"],
-  ["plans", "Planos"], ["patients", "Pacientes"], ["enrollments", "Matrículas"], ["appointments", "Agendamentos"],
-  ["group_slots", "Turmas"], ["charges", "Cobranças"], ["payments", "Pagamentos"],
-  ["financial_entries", "Lançamentos financeiros"], ["commissions", "Comissões"], ["clinical_records", "Prontuários"], ["record_templates", "Modelos clínicos"],
-] as const;
 
 const PLAN_PERIODS = {
   monthly: { label: "Mensal", months: 1, durationDays: 30 },
@@ -1820,19 +1812,6 @@ export function OperationalReports() {
     a.click();
     URL.revokeObjectURL(url);
   }
-  function exportXlsx() {
-    if (!report) return;
-    const rows = (report.months ?? []).map((month: Row) => ({
-      Mês: month.month,
-      Receitas: month.realizedIncomeCents,
-      Despesas: month.realizedExpenseCents,
-      "Previsto receitas": month.expectedIncomeCents,
-      "Previsto despesas": month.expectedExpenseCents,
-    }));
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(rows), "Relatório anual");
-    XLSX.writeFile(workbook, `fisiofit-relatorio-${year}.xlsx`);
-  }
   return (
     <div className="content">
       <div className="page-title">
@@ -1850,9 +1829,6 @@ export function OperationalReports() {
           />
           <button className="btn secondary" onClick={exportCsv}>
             Exportar planilha
-          </button>
-          <button className="btn secondary" onClick={exportXlsx}>
-            Exportar XLSX
           </button>
           <button className="btn primary" onClick={() => window.print()}>
             Gerar PDF
@@ -1903,240 +1879,6 @@ export function OperationalReports() {
           ))}
         </div>
       </section>
-    </div>
-  );
-}
-
-export function OperationalImports() {
-  const { data, loading, error, reload } = useResources(["/units", "/imports"]);
-  const [rows, setRows] = useState<Row[]>([]);
-  const [filename, setFilename] = useState("");
-  const [preview, setPreview] = useState<Row | null>(null);
-  const [notice, setNotice] = useState("");
-  const [notionBusy, setNotionBusy] = useState(false);
-  const [notionValidated, setNotionValidated] = useState(false);
-  const [sheetNames, setSheetNames] = useState<string[]>([]);
-  const [selectedSheet, setSelectedSheet] = useState("");
-  const [workbookSheets, setWorkbookSheets] = useState<WorkbookSheet[]>([]);
-
-  function normalizeHeader(header: string) {
-    return header.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase().trim().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
-  }
-
-  async function readWorkbook(file: File, requestedSheet?: string) {
-    setFilename(file.name);
-    try {
-      const buffer = await file.arrayBuffer();
-      const workbook = XLSX.read(buffer, { type: "array", cellDates: true, dateNF: "yyyy-mm-dd" });
-      setSheetNames(workbook.SheetNames);
-      const sheetName = requestedSheet || workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-      const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "", raw: false });
-      const normalizedRows = json.map((row) => Object.fromEntries(Object.entries(row).map(([key, value]) => [normalizeHeader(key), String(value).trim() || undefined])));
-      setRows(normalizedRows);
-      setWorkbookSheets((current) => {
-        const existing = current.filter((candidate) => candidate.name !== sheetName);
-        const previous = current.find((candidate) => candidate.name === sheetName);
-        return [...existing, { name: sheetName, entity: previous?.entity || guessWorkbookEntity(sheetName), rows: normalizedRows }];
-      });
-      setSelectedSheet(sheetName);
-      setPreview(null);
-      setNotice(`${json.length} linhas carregadas da aba ${sheetName}.`);
-    } catch {
-      setRows([]);
-      setNotice("Não foi possível ler a planilha. Use um arquivo .xlsx ou .csv válido.");
-    }
-  }
-  function guessWorkbookEntity(name: string) {
-    const key = normalizeHeader(name);
-    const found = workbookEntityOptions.find(([entity]) => key.includes(entity.replace("_", " ")) || key.includes(entity));
-    return found?.[0] ?? "patients";
-  }
-  function choose(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (file) void readWorkbook(file);
-  }
-  async function run(event: FormEvent<HTMLFormElement>, dryRun: boolean) {
-    event.preventDefault();
-    try {
-      const response = await api<Row>("/imports/workbook", {
-        method: "POST",
-        idempotencyKey: crypto.randomUUID(),
-        body: JSON.stringify({
-          filename,
-          dryRun,
-          sheets: workbookSheets.map(({ name, entity, rows: sheetRows }) => ({ name, entity, rows: sheetRows })),
-        }),
-      });
-      setPreview(response.data);
-      setNotice(dryRun ? "Pré-validação concluída." : "Importação concluída.");
-      if (!dryRun) await reload();
-    } catch (e) {
-      setNotice(messageOf(e));
-    }
-  }
-  async function runNotion(event: FormEvent<HTMLFormElement>, dryRun: boolean) {
-    event.preventDefault();
-    const f = new FormData(event.currentTarget);
-    const unitId = value(f, "unit_id");
-    if (!unitId) {
-      setNotice("Selecione a unidade de destino antes de conectar o Notion.");
-      return;
-    }
-    setNotionBusy(true);
-    setNotice("");
-    try {
-      const response = await api<Row>("/imports/notion", {
-        method: "POST",
-        idempotencyKey: crypto.randomUUID(),
-        body: JSON.stringify({ unit_id: unitId, dryRun }),
-      });
-      setPreview(response.data);
-      setNotionValidated(dryRun);
-      setNotice(dryRun
-        ? "Pré-validação do Notion concluída. Nenhum dado foi importado."
-        : "Primeira etapa da importação do Notion concluída e registrada no histórico.");
-    } catch (e) {
-      setNotice(messageOf(e));
-    } finally {
-      setNotionBusy(false);
-    }
-  }
-  async function rollbackBatch(id: string) {
-    const reason = window.prompt("Informe o motivo do rollback (mínimo 10 caracteres):");
-    if (!reason) return;
-    try { await api(`/imports/${id}/rollback`, { method: "POST", body: JSON.stringify({ reason }) }); await reload(); setNotice("Lote revertido."); }
-    catch (e) { setNotice(messageOf(e)); }
-  }
-  return (
-    <div className="content">
-      <div className="page-title">
-        <div>
-          <p className="eyebrow">MIGRAÇÃO RASTREÁVEL</p>
-          <h1>Importações</h1>
-          <p>
-            Uma aba por tipo de informação, com prévia, validação, deduplicação e lote auditável.
-          </p>
-        </div>
-      </div>
-      {notice && (
-        <div className="toast">
-          <span>✓</span>
-          {notice}
-        </div>
-      )}
-      <ModuleState loading={loading} error={error} retry={reload} />
-      <form className="card modal-form" onSubmit={(e) => run(e, true)}>
-        <div className="form-row">
-          <SelectField name="source" label="Origem">
-              <option value="manual">Planilha manual</option>
-              <option value="oluma">Oluma</option>
-              <option value="notion">Notion</option>
-          </SelectField>
-          <Select
-            name="unit_id"
-            label="Unidade de destino"
-            rows={data["/units"] ?? []}
-          />
-        </div>
-        <section className="notion-import-panel" aria-labelledby="notion-import-title">
-          <h2 id="notion-import-title">Importação direta do Notion</h2>
-          <p>
-            Lê somente o espaço autorizado, confere relações e duplicidades e
-            associa a prévia à unidade selecionada. Nada é gravado nesta etapa.
-          </p>
-          <button
-            className="btn secondary"
-            type="button"
-            disabled={notionBusy}
-            onClick={(event) =>
-              void runNotion({
-                preventDefault: () => {},
-                currentTarget: event.currentTarget.closest("form") as HTMLFormElement,
-              } as FormEvent<HTMLFormElement>, true)
-            }
-          >
-            {notionBusy ? "Lendo o Notion…" : "Conectar e pré-validar Notion"}
-          </button>
-          {notionValidated && (
-            <button
-              className="btn primary"
-              type="button"
-              disabled={notionBusy}
-              onClick={(event) =>
-                void runNotion({
-                  preventDefault: () => {},
-                  currentTarget: event.currentTarget.closest("form") as HTMLFormElement,
-                } as FormEvent<HTMLFormElement>, false)
-              }
-            >
-              {notionBusy ? "Importando…" : "Importar válidos do Notion"}
-            </button>
-          )}
-        </section>
-        <TextField
-          label="Arquivo XLSX ou CSV"
-            type="file"
-            accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
-            onChange={choose}
-            required
-          />
-        {sheetNames.length > 1 && (
-          <SelectField label="Aba da planilha" value={selectedSheet} onChange={(event) => {
-              const input = event.currentTarget.form?.querySelector<HTMLInputElement>('input[type="file"]');
-              if (input?.files?.[0]) void readWorkbook(input.files[0], event.target.value);
-            }}>
-              {sheetNames.map((sheet) => <option key={sheet} value={sheet}>{sheet}</option>)}
-          </SelectField>
-        )}
-        <p>{rows.length} linhas carregadas{selectedSheet ? ` da aba “${selectedSheet}”` : ""}.</p>
-        {workbookSheets.length > 0 && <section className="notion-import-panel" aria-labelledby="workbook-mapping-title">
-          <h2 id="workbook-mapping-title">Mapeamento das abas</h2>
-          <p>Escolha o tipo de informação correspondente a cada aba. As colunas são identificadas automaticamente pelos nomes dos cabeçalhos.</p>
-          {workbookSheets.map((sheet) => <SelectField key={sheet.name} label={`${sheet.name} (${sheet.rows.length} linhas)`} value={sheet.entity} onChange={(event) => setWorkbookSheets((current) => current.map((item) => item.name === sheet.name ? { ...item, entity: event.target.value } : item))}>
-              {workbookEntityOptions.map(([entity, label]) => <option key={entity} value={entity}>{label}</option>)}
-          </SelectField>)}
-        </section>}
-        <div className="title-actions">
-          <button className="btn secondary" type="submit">
-            Pré-validar
-          </button>
-          <button
-            className="btn primary"
-            type="button"
-            disabled={!preview}
-            onClick={(e) =>
-              run(
-                {
-                  preventDefault: () => {},
-                  currentTarget: e.currentTarget.closest(
-                    "form",
-                  ) as HTMLFormElement,
-                } as any,
-                false,
-              )
-            }
-          >
-            Importar válidos
-          </button>
-        </div>
-        {preview && (
-          <div className="environment-warning">
-            {preview.counts ? (
-              <>Total encontrado: {preview.total ?? 0} · Pendências: {preview.issues?.length ?? 0}</>
-            ) : (
-              <>Aceitos: {preview.accepted ?? preview.imported ?? 0} · Rejeitados: {preview.rejected?.length ?? 0}</>
-            )}
-          </div>
-        )}
-      </form>
-      <OperationalTable
-        title="Histórico de lotes"
-        rows={data["/imports"] ?? []}
-        fields={["filename", "source", "status", "totals", "created_at"]}
-        actions={(row) => row.rollback_at ? null : <button type="button" onClick={() => void rollbackBatch(row.id)}>Rollback</button>}
-      />
     </div>
   );
 }

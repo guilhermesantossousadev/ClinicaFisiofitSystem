@@ -2,9 +2,8 @@ import { Hono } from "npm:hono@4.7.2";
 import { cors } from "npm:hono@4.7.2/cors";
 import { createClient, type User } from "npm:@supabase/supabase-js@2.49.1";
 import { z } from "npm:zod@3.24.2";
+import { defaultPermissionsForRole, moduleForPath, type PermissionModule, type Role } from "./authorization.ts";
 
-type Role = "admin" | "manager" | "reception" | "professional" | "finance";
-type PermissionModule = "dashboard" | "agenda" | "patients" | "enrollments" | "records" | "finance" | "reports" | "imports" | "users" | "settings" | "privacy";
 type DatabaseClient = ReturnType<typeof createClient<any>>;
 type Variables = {
   requestId: string;
@@ -1960,40 +1959,6 @@ async function getAuthorizedAppointment(context: Parameters<typeof ok>[0], appoi
     return fail(context, 403, "PROFESSIONAL_FORBIDDEN", "Você só pode operar seus próprios atendimentos.");
   }
   return data;
-}
-
-function defaultPermissionsForRole(role: Role): Array<{ module: PermissionModule; canView: boolean; canEdit: boolean }> {
-  const access: Partial<Record<Role, Partial<Record<PermissionModule, "view" | "edit">>>> = {
-    manager: {
-      dashboard: "edit", agenda: "edit", patients: "edit", enrollments: "edit", records: "edit",
-      finance: "edit", reports: "view", imports: "edit", users: "view", settings: "edit", privacy: "edit",
-    },
-    reception: { agenda: "edit", patients: "edit", enrollments: "view" },
-    professional: { agenda: "edit", patients: "view", records: "edit" },
-    finance: { enrollments: "view", finance: "edit", reports: "view" },
-  };
-  return Object.entries(access[role] ?? {}).map(([module, permission]) => ({
-    module: module as PermissionModule,
-    canView: true,
-    canEdit: permission === "edit",
-  }));
-}
-
-function moduleForPath(path: string, method = "GET"): PermissionModule | null {
-  const normalizedPath = path.replace(/^\/api\/v1(?=\/|$)/, "");
-  const match = normalizedPath.match(/^\/([^/]+)/)?.[1];
-  if (method === "GET" && match && ["units", "rooms", "professionals", "services"].includes(match)) {
-    // São dados de referência filtrados por papel e RLS, não acesso ao módulo de configurações.
-    return null;
-  }
-  const map: Record<string, PermissionModule> = {
-    dashboard: "dashboard", appointments: "agenda", "group-slots": "agenda", patients: "patients", responsibles: "patients", consents: "patients",
-    enrollments: "enrollments", charges: "enrollments", "record-templates": "records", "clinical-records": "records", attachments: "records",
-    plans: "enrollments", "group-slot-memberships": "agenda",
-    payments: "finance", "financial-entries": "finance", commissions: "finance", closings: "finance", reports: "reports", imports: "imports",
-    users: "users", units: "settings", rooms: "settings", professionals: "settings", services: "settings", privacy: "privacy", audit: "privacy",
-  };
-  return match ? map[match] ?? null : null;
 }
 
 function ok(context: any, data: unknown, status = 200) {

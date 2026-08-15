@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { api, list } from "../../infrastructure/http/api";
 import { supabase } from "../../infrastructure/supabase/client";
 import "../styles/portal-enhancements.css";
@@ -8,7 +8,6 @@ import {
   OperationalAgenda,
   OperationalEnrollments,
   OperationalFinance,
-  OperationalImports,
   OperationalPatients,
   OperationalPrivacy,
   OperationalRecords,
@@ -18,6 +17,7 @@ import {
 import type { AgendaEnrollmentContext } from "../modules/OperationalModules";
 import type { DashboardData, Patient, Profile, Unit, View } from "../../domain/portal";
 import { isView, nav, navModule, roleLabel } from "../../application/portal/navigation";
+const OperationalImports = lazy(() => import("../modules/OperationalImports"));
 const sidebarGroups: Array<{ label: string; items: View[] }> = [
   { label: "Operação", items: ["Painel", "Agenda", "Pacientes", "Matrículas", "Prontuários"] },
   { label: "Gestão", items: ["Financeiro", "Relatórios", "Importações"] },
@@ -458,7 +458,11 @@ export default function FisiofitApp() {
         {view === "Prontuários" && <OperationalRecords />}{" "}
         {view === "Financeiro" && <OperationalFinance />}{" "}
         {view === "Relatórios" && <OperationalReports />}{" "}
-        {view === "Importações" && <OperationalImports />}{" "}
+        {view === "Importações" && (
+          <Suspense fallback={<div className="content"><div className="card module-skeleton" role="status">Carregando importações…</div></div>}>
+            <OperationalImports />
+          </Suspense>
+        )}{" "}
         {view === "Usuários" && <OperationalUsers canManageUsers={profile.role === "admin"} />}
         {view === "Configurações" && <OperationalAdministration />}
         {view === "Privacidade" && <OperationalPrivacy />}
