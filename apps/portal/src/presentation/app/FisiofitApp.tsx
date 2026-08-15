@@ -272,7 +272,6 @@ export default function FisiofitApp() {
         </button>
         <nav aria-label="Navegação principal">
           <div className="sidebar-nav-toolbar">
-            <span className="sidebar-nav-toolbar-label">NAVEGAÇÃO</span>
             <button
               type="button"
               className="sidebar-toggle"
@@ -296,6 +295,7 @@ export default function FisiofitApp() {
                   className={view === item.label ? "nav-item active" : "nav-item"}
                   onClick={() => navigate(item.label)}
                   aria-current={view === item.label ? "page" : undefined}
+                  title={sidebarCollapsed ? item.label : undefined}
                 >
                   <span className="nav-icon" aria-hidden="true">{item.icon}</span>
                   <span className="nav-item-label">{item.label}</span>
