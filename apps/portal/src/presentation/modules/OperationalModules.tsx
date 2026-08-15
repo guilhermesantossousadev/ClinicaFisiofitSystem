@@ -414,6 +414,53 @@ function ModuleState({
 
 export type AgendaEnrollmentContext = { unitId: string; groupSlotId: string; startsAt: string; unitName?: string; groupName?: string };
 
+function GroupMemberForm({
+  slotName,
+  available,
+  selectedDate,
+  full,
+  onSubmit,
+}: {
+  slotName: string;
+  available: Row[];
+  selectedDate: string;
+  full: boolean;
+  onSubmit: FormEventHandler<HTMLFormElement>;
+}) {
+  const helperText = full
+    ? "A capacidade máxima foi atingida."
+    : available.length
+      ? "Apenas matrículas ainda não vinculadas aparecem aqui."
+      : "Não há matrículas disponíveis. Cadastre e matricule o paciente primeiro.";
+  return (
+    <form className="group-member-form" onSubmit={onSubmit} aria-label={`Adicionar paciente ao horário ${slotName}`}>
+      <FormSection legend="Adicionar paciente ao horário">
+        <div className="form-row">
+          <Select
+            name="enrollment_id"
+            label="Paciente matriculado"
+            rows={available.map((enrollment: Row) => ({ ...enrollment, name: enrollment.patients?.name ?? enrollment.patient_id }))}
+            required={!full}
+            id="group-member-enrollment"
+          />
+          <TextField
+            name="starts_at"
+            label="Início do vínculo"
+            type="date"
+            defaultValue={selectedDate}
+            required={!full}
+            hint="A partir de qual data o paciente participa deste horário."
+          />
+        </div>
+        <div className="group-member-form-actions">
+          <button className="btn primary group-members-add" disabled={full || !available.length}>{full ? "Horário lotado" : "Adicionar paciente"}</button>
+          <p className="form-instructions" role="status">{helperText}</p>
+        </div>
+      </FormSection>
+    </form>
+  );
+}
+
 export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnrollment, canEdit = true }: { onOpenPatients?: () => void; onOpenEnrollment?: (context: AgendaEnrollmentContext) => void; canEdit?: boolean }) {
   const [fromDate, setFromDate] = useState(() =>
     new Date().toISOString().slice(0, 10),
@@ -611,7 +658,6 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
                   const slots = slotsForDay(unit.id, day);
                   const dayLabel = new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "numeric", month: "long" }).format(day);
                   return <div className={`month-calendar-day${dateKey(day) === dateKey(new Date()) ? " is-today" : ""}`} key={dateKey(day)} aria-label={dayLabel}>
-                    <div className="month-calendar-date">{day.getDate()}</div>
                     <div className="month-calendar-items">
                       {dayAppointments.map((appointment) => <button type="button" className="month-calendar-item appointment-item" key={appointment.id} disabled={!canEdit} onClick={() => setCalendarAppointment(appointment)} aria-label={`${appointment.patients?.name ?? "Bloqueio"}, ${appointment.professionals?.name ? `fisioterapeuta responsável ${appointment.professionals.name}` : "sem fisioterapeuta responsável"}${canEdit ? ", editar agendamento" : ""}`}><strong>{String(new Date(appointment.starts_at).getHours()).padStart(2, "0")}:{String(new Date(appointment.starts_at).getMinutes()).padStart(2, "0")} · {appointment.patients?.name ?? "Bloqueio"}</strong><small><span>Fisioterapeuta: {appointment.professionals?.name ?? "Não informado"}</span><span>{appointment.services?.name ?? "Atendimento"}</span></small></button>)}
                       {slots.map((slot) => { const members = membersForSlot(slot.id, day); const professional = (data["/professionals"] ?? []).find((row: Row) => row.id === slot.professional_id); return <button type="button" className="month-calendar-item group-item" key={slot.id} onClick={() => setSelectedGroupCell({ slot, day, unitName: unit.name })} aria-label={`${slot.name}, fisioterapeuta responsável ${professional?.name ?? "não informado"}, ${members.length} de ${slot.capacity ?? 7} vagas, abrir lista de pacientes`}><strong>{String(slot.starts_at).slice(0, 5)} · {slot.name}</strong><small><span>Fisioterapeuta: {professional?.name ?? "Não informado"}</span><span>{members.length}/{slot.capacity ?? 7} vagas</span></small></button>; })}
@@ -643,13 +689,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
               {full && <div className="capacity-alert" role="status"><strong>Horário lotado</strong><span>Não há vagas disponíveis para adicionar mais pacientes.</span></div>}
               <h3>Pacientes inscritos</h3>
               {selectedMembers.length ? <ul className="group-members-drawer-list">{selectedMembers.map((member) => <li key={member.id}><div><span>{member.patients?.name ?? "Paciente"}</span><small>{member.patients?.phone ?? ""}</small></div>{canEdit && <div className="group-member-actions"><button type="button" className="action-delete" onClick={() => void removeGroupMember(member.id)}>Retirar da turma</button></div>}</li>)}</ul> : <p className="empty-state">Nenhum paciente está inscrito neste horário.</p>}
-              {canEdit && <form className="group-member-form" onSubmit={(event) => void addGroupMember(event, selectedGroupCell.slot.id)} aria-label={`Adicionar paciente ao horário ${selectedGroupCell.slot.name}`}>
-                <FormSection legend="Adicionar paciente">
-                  <div className="form-row"><Select name="enrollment_id" label="Matrícula" rows={available.map((enrollment: Row) => ({ ...enrollment, name: enrollment.patients?.name ?? enrollment.patient_id }))} required={!full} /><TextField name="starts_at" label="Início do vínculo" type="date" defaultValue={dateKey(selectedGroupCell.day)} required={!full} /></div>
-                  <button className="btn primary group-members-add" disabled={full || !available.length}>{full ? "Horário lotado" : "Adicionar paciente"}</button>
-                  <small>{full ? "A capacidade máxima foi atingida." : available.length ? "Apenas matrículas ainda não vinculadas aparecem aqui." : "Não há matrículas disponíveis. Cadastre e matricule o paciente primeiro."}</small>
-                </FormSection>
-              </form>}
+              {canEdit && <GroupMemberForm slotName={selectedGroupCell.slot.name} available={available} selectedDate={dateKey(selectedGroupCell.day)} full={full} onSubmit={(event) => void addGroupMember(event, selectedGroupCell.slot.id)} />}
             </div>
           </section>
         </div>;

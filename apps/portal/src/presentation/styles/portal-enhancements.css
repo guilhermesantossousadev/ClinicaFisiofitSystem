@@ -1466,7 +1466,7 @@ body { background: var(--canvas); }
 .month-calendar-weekday { min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 7px 10px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: #f2f7fa; color: #38576d; font-size: 12px; font-weight: 800; }
 .month-calendar-weekday span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .month-calendar-weekday small { display: grid; place-items: center; flex: 0 0 28px; width: 28px; height: 28px; border-radius: 50%; background: #dceaf2; color: #1f5f8d; font-size: 12px; }
-.month-calendar-day { min-height: 166px; padding: 9px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: #fff; }
+.month-calendar-day { min-height: 166px; padding: 12px 9px 9px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: #fff; }
 .month-calendar-day.is-outside { background: #f7f8f9; color: #aeb9c1; }
 .month-calendar-day.is-today { box-shadow: inset 0 3px 0 var(--blue); }
 .month-calendar-date { display: flex; align-items: center; justify-content: flex-end; min-height: 24px; color: var(--ink); font-size: 15px; font-weight: 800; }
@@ -2024,7 +2024,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .group-member-form legend { grid-column: 1 / -1; padding: 0 4px; color: var(--ink); font-size: 13px; font-weight: 800; }
 .group-member-form label { display: grid; gap: 5px; color: #29485c; font-size: 12px; font-weight: 700; }
 .group-member-form select, .group-member-form input { width: 100%; min-height: 44px; padding: 8px 10px; border: 1px solid #9fb4c2; border-radius: 8px; background: #fff; font-size: 14px; }
-.group-member-form small { grid-column: 1 / -1; }
+.group-member-form .form-section { margin: 0; }
+.group-member-form-actions { display: grid; gap: 8px; margin-top: 14px; }
+.group-member-form-actions .form-instructions { margin: 0; }
 @media (max-width: 720px) {
   .group-allocation-panel .table-toolbar { flex-direction: column; }
   .group-allocation-panel .table-toolbar > .btn { width: 100%; }
