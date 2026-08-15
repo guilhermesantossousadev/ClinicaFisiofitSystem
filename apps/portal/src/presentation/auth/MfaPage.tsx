@@ -5,7 +5,7 @@ import { supabase } from "../../infrastructure/supabase/client";
 import { TextField } from "../components/FormPrimitives";
 
 export default function MfaPage() {
-  const { session } = useAuth();
+  const { loading, session } = useAuth();
   const [, navigate] = useLocation();
   const [factorId, setFactorId] = useState("");
   const [qrCode, setQrCode] = useState("");
@@ -19,7 +19,11 @@ export default function MfaPage() {
 
   useEffect(() => {
     if (!session) return;
-    void prepare();
+    void prepare().catch(() => {
+      preparing.current = false;
+      setBusy(false);
+      setError("Não foi possível preparar o segundo fator. Atualize a página e tente novamente.");
+    });
   }, [session]);
 
   async function prepare() {
@@ -28,7 +32,14 @@ export default function MfaPage() {
     setBusy(true);
     setError("");
 
-    const { data: assurance } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    const { data: assurance, error: assuranceError } =
+      await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (assuranceError) {
+      setError("Não foi possível validar sua sessão para configurar o segundo fator. Entre novamente.");
+      setBusy(false);
+      preparing.current = false;
+      return;
+    }
     if (assurance?.currentLevel === "aal2") {
       setBusy(false);
       preparing.current = false;
@@ -92,27 +103,42 @@ export default function MfaPage() {
     setFactorId("");
     setCode("");
     preparing.current = false;
-    await prepare();
+    try {
+      await prepare();
+    } catch {
+      preparing.current = false;
+      setBusy(false);
+      setError("Não foi possível gerar o QR Code agora. Atualize a página e tente novamente.");
+    }
   }
 
   async function verify(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
     setError("");
-    const { error: verifyError } = await supabase.auth.mfa.challengeAndVerify({
-      factorId,
-      code,
-    });
-    if (verifyError) {
+    try {
+      const { error: verifyError } = await supabase.auth.mfa.challengeAndVerify({
+        factorId,
+        code,
+      });
+      if (verifyError) {
+        setError("Código inválido ou expirado. Confira o aplicativo autenticador.");
+        return;
+      }
+      const { error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError) {
+        setError("O código foi aceito, mas não foi possível atualizar a sessão. Entre novamente.");
+        return;
+      }
+      navigate(returnTo, { replace: true });
+    } catch {
+      setError("Não foi possível confirmar o código agora. Verifique sua conexão e tente novamente.");
+    } finally {
       setBusy(false);
-      setError("Código inválido. Confira o aplicativo autenticador.");
-      return;
     }
-    await supabase.auth.refreshSession();
-    setBusy(false);
-    navigate(returnTo, { replace: true });
   }
 
+  if (loading) return <div className="auth-loading">Restaurando sessão segura…</div>;
   if (!session) return <Redirect to="/login" replace />;
 
   return (
