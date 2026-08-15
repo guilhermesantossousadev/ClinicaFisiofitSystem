@@ -57,6 +57,7 @@ export default function FisiofitApp() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => storedValue(`${storagePrefix}:sidebar-collapsed`) === "true");
   const [agendaContext, setAgendaContext] = useState<AgendaEnrollmentContext>();
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
@@ -67,6 +68,9 @@ export default function FisiofitApp() {
     storeValue("fisiofit:selected-unit", unit);
     window.dispatchEvent(new CustomEvent("fisiofit:unit-changed", { detail: unit }));
   }, [storagePrefix, unit]);
+  useEffect(() => {
+    storeValue(`${storagePrefix}:sidebar-collapsed`, String(sidebarCollapsed));
+  }, [sidebarCollapsed, storagePrefix]);
   useEffect(() => {
     const restore = () => {
       const savedView = storedValue(`${storagePrefix}:view`);
@@ -154,7 +158,7 @@ export default function FisiofitApp() {
   return (
     <>
       <a className="skip-link" href="#portal-content">Pular para o conteúdo principal</a>
-      <main className="app-shell" aria-busy={loading}>
+      <main className={`app-shell${sidebarCollapsed ? " sidebar-collapsed" : ""}`} aria-busy={loading}>
       <aside className="sidebar">
         <button className="brand" onClick={() => navigate("Painel")}>
           <img className="brand-logo" src="/sistema/fisiofit-logo.jpg" alt="" />
@@ -162,6 +166,17 @@ export default function FisiofitApp() {
             <strong>FISIOFIT</strong>
             <small>Gestão clínica</small>
           </span>
+        </button>
+        <button
+          type="button"
+          className="sidebar-toggle"
+          onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
+          aria-expanded={!sidebarCollapsed}
+          aria-label={sidebarCollapsed ? "Maximizar menu lateral" : "Minimizar menu lateral"}
+          title={sidebarCollapsed ? "Maximizar menu lateral" : "Minimizar menu lateral"}
+        >
+          <span aria-hidden="true">{sidebarCollapsed ? "›" : "‹"}</span>
+          <span className="sidebar-toggle-label">{sidebarCollapsed ? "Maximizar menu" : "Minimizar menu"}</span>
         </button>
         <nav aria-label="Navegação principal">
           {visibleNav.map((item) => (
