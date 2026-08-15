@@ -123,3 +123,7 @@ npm run supabase:test
 ```
 
 Os testes Supabase exigem Docker ou Podman. O deploy web usa o workflow `hostinger-build.yml`; migrations e Edge Functions são publicadas separadamente pela CLI Supabase e devem apontar para o mesmo projeto antes da liberação.
+
+## Estado de implantação verificado
+
+Em 15 de agosto de 2026, o site e o portal foram publicados pela branch `hostinger-deploy` e seus hashes de assets foram conferidos no domínio de produção. No mesmo dia, a migration `202608150001_harden_authorization.sql` foi aplicada ao projeto Supabase vinculado e a Edge Function `api` foi confirmada ativa na versão 37. Essa confirmação de implantação não substitui a homologação comportamental da matriz papel × unidade × recurso nem os testes pgTAP em banco limpo.

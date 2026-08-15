@@ -1,6 +1,6 @@
 # CONTEXT.md — Plataforma Fisiofit
 
-**Versão:** 2.1.0
+**Versão:** 2.1.1
 
 **Data de referência:** 15 de agosto de 2026
 
@@ -102,7 +102,7 @@ Não há aplicativo móvel, servidor Node próprio, cache, broker, worker ou fil
 | Testes | Vitest / Node test / pgTAP | 4.1.10 / runtime Node / versão não identificada | manifests e testes |
 | Hospedagem web | Hostinger via branch de artefatos | versão não aplicável | workflow manual |
 
-Versões remotas efetivamente implantadas não foram verificadas.
+Em 15 de agosto de 2026, a migration `202608150001` foi confirmada no histórico remoto, a Edge Function `api` ficou ativa na versão 37 e os artefatos web publicados foram verificados no domínio de produção.
 
 ### 3.3 Organização do backend
 
@@ -114,7 +114,7 @@ O portal usa estado local React e chamadas `fetch` encapsuladas em `apps/portal/
 
 ### 3.5 Serviços externos e integrações
 
-- Supabase Auth, Edge Functions, PostgreSQL e Storage: implementados/configurados no repositório; estado remoto não verificado.
+- Supabase Auth, Edge Functions, PostgreSQL e Storage: projeto remoto vinculado e acessível; migration `202608150001` aplicada e Edge Function `api` ativa na versão 37 em 15 de agosto de 2026. Fluxos Auth, e-mail e a matriz comportamental de RLS não foram homologados nesta sessão.
 - Hostinger: workflow da atualização `3e8e7be` concluído em 15 de agosto de 2026; os hashes de assets do site e portal em produção coincidiram com a branch `hostinger-deploy`.
 - Google Ads: carregamento condicional após consentimento local.
 - WhatsApp, Google Maps e Instagram: links públicos no site; não são integrações transacionais da API.
@@ -452,7 +452,7 @@ A visibilidade de menu melhora UX, mas não substitui autorização do backend. 
 | DB-02 | Dinheiro em centavos; tempo absoluto em `timestamptz` | schema e API | Vigente |
 | CLIN-01 | Prontuário assinado imutável e retificado por novo registro | trigger e endpoints | Vigente |
 | AUDIT-01 | Auditoria append-only | trigger | Vigente |
-| AUTHZ-01 | Defesa em profundidade com JWT na API, guard de papel/módulo e RLS por unidade | migration `202608150001` e middleware da Edge Function | Implementado; integração remota pendente de confirmação |
+| AUTHZ-01 | Defesa em profundidade com JWT na API, guard de papel/módulo e RLS por unidade | migration `202608150001` e middleware da Edge Function | Implantado no Supabase remoto em 2026-08-15; matriz comportamental ainda pendente |
 | DEPLOY-01 | Artefato Hostinger único em branch dedicada | script/workflow e assets remotos | Vigente; deploy web confirmado em 2026-08-15 |
 | INTEG-01 | Providers fiscal/mensagem desacoplados | interfaces compartilhadas | Planejado, sem adapter |
 
@@ -514,7 +514,7 @@ Prioridade: executar a matriz de autorização em banco real; idempotência; mat
 
 ### 14.1 Riscos de segurança
 
-A exposição arquitetural por `service_role` geral e a autorização profissional insuficiente foram corrigidas no código da Fase 1. A liberação clínica continua bloqueada até a migration e a Edge Function serem confirmadas no ambiente remoto e a matriz papel×unidade×recurso passar em banco real. Também falta rate limiting. A service role deve permanecer restrita ao Supabase Auth no backend.
+A exposição arquitetural por `service_role` geral e a autorização profissional insuficiente foram corrigidas e implantadas no Supabase remoto. A liberação clínica continua bloqueada até a matriz papel×unidade×recurso passar em banco real. Também falta rate limiting. A service role deve permanecer restrita ao Supabase Auth no backend.
 
 ### 14.2 Riscos de arquitetura
 
@@ -522,11 +522,11 @@ Duplicação de contratos, arquivos monolíticos e operações compostas sem tra
 
 ### 14.3 Riscos operacionais
 
-Deploy de banco/API não está automatizado; homologação, restauração e estado remoto não foram comprovados; workflows podem publicar artefatos por force push após acionamento manual.
+Deploy de banco/API não está automatizado; migration e versão da função foram comprovadas remotamente, mas homologação, restauração, Auth/e-mail e comportamento ponta a ponta não foram validados; workflows podem publicar artefatos por force push após acionamento manual.
 
 ### 14.4 Ordem recomendada de correção
 
-1. Aplicar e validar a Fase 1 no Supabase remoto e em banco limpo.
+1. Validar a Fase 1 com a matriz de autorização no Supabase e em banco limpo.
 2. Eliminar cache entre usuários e validar IDs relacionados.
 3. Corrigir transições/atomicidade financeiras, clínicas e de importação.
 4. Ampliar testes integrados de Auth, RLS e migrations.
@@ -651,7 +651,8 @@ Não existem fontes executáveis para containers, Kubernetes, Terraform, cache, 
 - [x] Validar que caminhos citados existem.
 - [x] Não incluir valores de secrets nem ler `.env.local`.
 - [x] Validar Hostinger: workflow e assets públicos confirmados em 2026-08-15.
-- [ ] Validar Supabase remoto, Auth real e entrega de e-mail: bloqueado sem autenticação da CLI/não verificado.
+- [x] Validar deploy Supabase remoto: migration `202608150001` presente e Edge Function `api` ativa na versão 37 em 2026-08-15.
+- [ ] Validar Auth real, matriz comportamental de RLS e entrega de e-mail.
 - [ ] Executar testes de banco: depende da stack Supabase local.
 
 ---
@@ -668,7 +669,7 @@ Não existem fontes executáveis para containers, Kubernetes, Terraform, cache, 
 | 2026-08-02 | Privacidade | Consentimento de Ads está implementado; texto jurídico público ainda tem campos pendentes | `CookieConsent.tsx`, `PrivacyPage.tsx` |
 | 2026-08-15 | Segurança | API de domínio usa JWT do usuário; RLS/RPCs aplicam papel, unidade e vínculo profissional; permissões ausentes negam acesso | `202608150001_harden_authorization.sql`, `supabase/functions/api/index.ts` |
 | 2026-08-15 | Verificação | Typecheck, lint, build, testes JavaScript, parser PostgreSQL e `deno check` passaram; pgTAP não executou sem runtime de containers | comandos locais e `supabase/tests/authorization.test.sql` |
-| 2026-08-15 | Deploy | Workflow Hostinger concluiu com sucesso e produção serviu os mesmos assets da branch `hostinger-deploy`; deploy Supabase permaneceu bloqueado sem credencial | GitHub Actions e respostas do domínio público |
+| 2026-08-15 | Deploy | Hostinger serviu os mesmos assets da branch `hostinger-deploy`; migration `202608150001` foi aplicada e a Edge Function `api` ficou ativa na versão 37 | GitHub Actions, domínio público e consultas da Supabase CLI |
 
 ---
 
