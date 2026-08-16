@@ -62,7 +62,7 @@ Não existe portal do paciente. Cadastro público no Supabase Auth está desativ
 
 ### 2.4 Separação de responsabilidades
 
-O site é público e não acessa a API clínica. O portal autentica pelo SDK Supabase e usa exclusivamente a API para o domínio. A API valida sessão, perfil, MFA e papéis e persiste com Supabase. Migrations definem schema, funções transacionais, triggers e RLS. Contratos compartilhados em `packages/contracts` cobrem somente parte das entradas; a API ainda mantém schemas Zod próprios.
+O site é público e não acessa a API clínica. O portal autentica por e-mail e senha pelo SDK Supabase e usa exclusivamente a API para o domínio. A API valida sessão, perfil e papéis e persiste com Supabase. Migrations definem schema, funções transacionais, triggers e RLS. Contratos compartilhados em `packages/contracts` cobrem somente parte das entradas; a API ainda mantém schemas Zod próprios.
 
 ---
 
@@ -137,7 +137,7 @@ conexões somente para o projeto Supabase usado pela aplicação.
 ### 3.5 Serviços externos e integrações
 
 - Supabase Auth, Edge Functions, PostgreSQL e Storage: projeto remoto vinculado e acessível; histórico sincronizado até `202608160003` e Edge Function `api` ativa na versão 42 em 15 de agosto de 2026. Auth, middleware autenticado e health da API responderam por HTTP; envio/abertura real do e-mail e a matriz comportamental de RLS ainda não foram homologados.
-- Hostinger: workflow `31901579322` do commit `d7caf5a` concluído em 15 de agosto de 2026; o asset com as correções de sessão, recuperação e restauração do MFA, a CSP e o redirect canônico foram confirmados no domínio público.
+- Hostinger: workflow `31901579322` do commit `d7caf5a` concluído em 15 de agosto de 2026; o asset com as correções de sessão e recuperação, a CSP e o redirect canônico foram confirmados no domínio público.
 - Google Ads: carregamento condicional após consentimento local.
 - WhatsApp, Google Maps e Instagram: links públicos no site; não são integrações transacionais da API.
 - NFS-e e mensageria: apenas interfaces de provider e tabelas; sem adapter, fornecedor, worker ou envio.
@@ -226,7 +226,7 @@ branch `hostinger-deploy` a partir do commit `df69c42`.
 
 - **Local:** configurado no repositório.
 - **Homologação:** não identificada em configuração executável.
-- **Produção web:** Hostinger confirmada em 15 de agosto de 2026 com a correção de Auth/MFA do commit `d7caf5a`, CSP específica do portal, redirect canônico, assets da Fase 6/7 e MIME `image/avif`.
+- **Produção web:** Hostinger confirmada em 15 de agosto de 2026 com a correção de Auth do commit `d7caf5a`, CSP específica do portal, redirect canônico, assets da Fase 6/7 e MIME `image/avif`.
 - **Produção Supabase:** project ref vinculado `eeltguuoxpfttjznugla`; migrations sincronizadas até `202608160003` e Edge Function `api` ativa na versão 42 com `verify_jwt=false` e validação no middleware.
 
 ---
@@ -237,7 +237,7 @@ branch `hostinger-deploy` a partir do commit `df69c42`.
 |---|---|---|---|
 | Site institucional | Implementado | `apps/site/src` | Buildável; conteúdo jurídico ainda provisório |
 | Login/recuperação | Implementado | páginas Auth, Supabase config e CSP do portal | Conta administrativa confirmada/ativa; redirect e envio de recuperação validados no Auth remoto |
-| MFA TOTP | Implementado | `MfaPage.tsx`, middleware API | Obrigatório para admin, manager e finance |
+| Autenticação | Implementado | páginas Auth e middleware API | E-mail e senha, sem segundo fator |
 | Painel | Implementado | `/dashboard`, `FisiofitApp.tsx` | Dados reais da API |
 | Agenda/turmas | Implementado | API e `OperationalAgenda` | Agenda com períodos de 7/14/30 dias, turmas recorrentes, geração automática de horários e alocação/remoção de pacientes |
 | Pacientes | Parcial | endpoints e `OperationalPatients` | Cria/edita paciente; detalhes associados sem edição/remoção completa |
@@ -344,7 +344,7 @@ Sucesso: `{ data, error: null, requestId }`. Falha: `{ data: null, error: { code
 
 ### 7.6 Padrão de erros
 
-Validação retorna 422; autenticação 401; MFA/papel 403; duplicidade 409; outros erros de banco são reduzidos a 400 `DATABASE_ERROR`; erro inesperado retorna 500. O mapeamento de erro de banco perde distinções como “não encontrado” e “acesso negado”. Não há rate limit.
+Validação retorna 422; autenticação 401; papel/permissão 403; duplicidade 409; outros erros de banco são reduzidos a 400 `DATABASE_ERROR`; erro inesperado retorna 500. O mapeamento de erro de banco perde distinções como “não encontrado” e “acesso negado”. Não há rate limit.
 
 ---
 
@@ -391,15 +391,15 @@ Supabase Auth com e-mail/senha, convite, recuperação PKCE e sessão persistida
 
 ### 9.2 Sessões e tokens
 
-O portal envia a chave pública em `apikey` e o JWT da sessão em `Authorization`. A API confirma o usuário com `auth.getUser()`. MFA é decidido pela claim `aal` do token já autenticado. Expiração configurada localmente: 3600 segundos. Um `401` da API só encerra a sessão depois que o próprio Auth também rejeita o usuário; isso evita loops causados por indisponibilidade ou divergência do gateway.
+O portal envia a chave pública em `apikey` e o JWT da sessão em `Authorization`. A API confirma o usuário com `auth.getUser()`. Expiração configurada localmente: 3600 segundos. Um `401` da API só encerra a sessão depois que o próprio Auth também rejeita o usuário; isso evita loops causados por indisponibilidade ou divergência do gateway.
 
 ### 9.3 Perfis de acesso
 
-MFA TOTP é exigido pela API para `admin`, `manager` e `finance`. `reception` e `professional` usam AAL1. Perfil deve estar `active` e não excluído.
+Todos os perfis entram somente com e-mail e senha. O perfil deve estar `active` e não excluído.
 
 ### 9.4 Permissões
 
-Papéis protegem endpoints, RLS e navegação. `profile_permissions` somente restringe o papel e usa default deny: linha ausente, erro de consulta ou flag falsa bloqueiam a operação. Convites recebem permissões iniciais explícitas. Somente admin da mesma clínica pode escrever permissões; a política antiga com `WITH CHECK (true)` é removida pela migration corretiva. A conta proprietária não pode ser rebaixada, bloqueada, removida da clínica, ter MFA desativado nem perder unidades, por validação de API e triggers.
+Papéis protegem endpoints, RLS e navegação. `profile_permissions` somente restringe o papel e usa default deny: linha ausente, erro de consulta ou flag falsa bloqueiam a operação. Convites recebem permissões iniciais explícitas. Somente admin da mesma clínica pode escrever permissões; a política antiga com `WITH CHECK (true)` é removida pela migration corretiva. A conta proprietária não pode ser rebaixada, bloqueada, removida da clínica nem perder unidades, por validação de API e triggers.
 
 ### 9.5 Proteções de endpoints
 
@@ -439,7 +439,7 @@ O frontend recarrega recursos após mutações. Pagamento/conclusão usam transa
 
 ### 11.1 Estrutura das páginas
 
-Site: início, sobre, serviços, unidades, contato, links, privacidade, cookies e 404. Portal: login, definição de senha, MFA, onboarding e shell com 11 visões conforme o papel.
+Site: início, sobre, serviços, unidades, contato, links, privacidade, cookies e 404. Portal: login, definição de senha, onboarding e shell com 11 visões conforme o papel.
 
 ### 11.2 Gerenciamento de estado
 
@@ -480,7 +480,7 @@ A visibilidade de menu melhora UX, mas não substitui autorização do backend. 
 | ARCH-01 | Monorepositório npm workspaces | build e contratos comuns | Vigente |
 | FRONT-01 | Site na raiz e portal em `/sistema/` | Vite base e `.htaccess` separados | Vigente |
 | API-01 | Portal acessa domínio pela Edge Function | `api.ts`; nenhum acesso direto a tabelas | Vigente |
-| AUTH-01 | Convite + MFA por papel | Auth config, UI e middleware | Vigente |
+| AUTH-01 | Convite e acesso por e-mail/senha | Auth config, UI e middleware | Vigente |
 | DB-01 | PostgreSQL versionado por migrations | `supabase/migrations` | Vigente |
 | DB-02 | Dinheiro em centavos; tempo absoluto em `timestamptz` | schema e API | Vigente |
 | CLIN-01 | Prontuário assinado imutável e retificado por novo registro | trigger e endpoints | Vigente |
@@ -516,7 +516,7 @@ Sete testes Vitest validam contratos e regras puras do portal. Não há teste de
 
 ### 13.3 Testes de integração
 
-Ausentes para API↔PostgreSQL, Auth/MFA, papéis, unidades, Storage e providers.
+Ausentes para API↔PostgreSQL, Auth, papéis, unidades, Storage e providers.
 
 ### 13.4 Testes de banco e migrations
 
@@ -529,7 +529,7 @@ remota. ESLint também foi executado localmente na Fase 6/7.
 
 ### 13.6 Lacunas de cobertura
 
-Prioridade: executar a matriz de autorização em banco real; idempotência; matrícula+cobrança; conflito/capacidade; fechamento; importação parcial; conta proprietária; recuperação/MFA; consentimento de Ads.
+Prioridade: executar a matriz de autorização em banco real; idempotência; matrícula+cobrança; conflito/capacidade; fechamento; importação parcial; conta proprietária; recuperação de senha; consentimento de Ads.
 
 ---
 
@@ -702,7 +702,7 @@ Não existem fontes executáveis para containers, Kubernetes, Terraform, cache, 
 | 2026-08-02 | Segurança | RLS não é segunda barreira efetiva nas chamadas feitas com service role; escopo por unidade não é uniforme | criação do cliente API e handlers |
 | 2026-08-02 | Funcionalidade | Código existente é amplo, mas CRUDs, transições, anexos e integrações permanecem parciais | famílias de endpoints e UI |
 | 2026-08-02 | Infraestrutura | Há CI e empacotamento Hostinger, mas não há deploy versionado de migration/Edge Function nem homologação configurada | workflows e ausência de manifests |
-| 2026-08-02 | Verificação | Alegações antigas sobre conta, MFA, função e front remoto não foram tratadas como prova atual | ausência de evidência executável/local |
+| 2026-08-02 | Verificação | Alegações antigas sobre conta, função e front remoto não foram tratadas como prova atual | ausência de evidência executável/local |
 | 2026-08-02 | Privacidade | Consentimento de Ads está implementado; texto jurídico público ainda tem campos pendentes | `CookieConsent.tsx`, `PrivacyPage.tsx` |
 | 2026-08-15 | Privacidade | Política pública final está centralizada nos contratos; Google Ads e Google Fonts dependem de aceite, com fallback para bloqueio de armazenamento | `packages/contracts`, `CookieConsent.tsx`, `PrivacyPage.tsx` |
 | 2026-08-15 | Segurança | API de domínio usa JWT do usuário; RLS/RPCs aplicam papel, unidade e vínculo profissional; permissões ausentes negam acesso | `202608150001_harden_authorization.sql`, `supabase/functions/api/index.ts` |
@@ -711,7 +711,8 @@ Não existem fontes executáveis para containers, Kubernetes, Terraform, cache, 
 | 2026-08-15 | Fases 6/7 | Portal e API modularizados; acessibilidade, SEO, AVIF e source maps tratados; Hostinger publicou `df69c42` e API chegou à versão 41 | testes locais, workflow `31892944841`, HTTP de produção e Supabase CLI |
 | 2026-08-15 | Login e recuperação | CSP específica do portal libera o Supabase, `www` converge para a origem canônica, recuperação usa PKCE e falhas assíncronas/links expirados recebem tratamento explícito; publicada pelo workflow `31898092300` | headers HTTP de produção, Auth remoto, código, typecheck, lint, build e testes |
 | 2026-08-15 | Sessão autenticada | Cliente envia `apikey` e Bearer; gateway legado deixa de rejeitar JWT ES256; middleware continua validando com `auth.getUser()`; `401` com sessão Auth válida não força logout | Edge Function v42, workflow `31898551474`, asset público e testes |
-| 2026-08-15 | Recuperação e MFA | URL principal remota deixou de apontar para localhost; redirect de reset foi confirmado em produção; novo e-mail foi enviado; tela MFA espera restauração da sessão e trata falhas de preparação/verificação | config remota do Auth, workflow `31901579322`, asset público e testes |
+| 2026-08-15 | Recuperação de acesso | URL principal remota deixou de apontar para localhost; redirect de reset foi confirmado em produção e um novo e-mail foi enviado | config remota do Auth, workflow `31901579322`, asset público e testes |
+| 2026-08-16 | Autenticação simplificada | Segundo fator removido do portal, API, Auth e schema; todos os perfis usam somente e-mail e senha | migration `202608160006`, configuração Auth, API e testes |
 
 ---
 

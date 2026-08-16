@@ -1,6 +1,5 @@
 export type AccessFailure =
   | "session-expired"
-  | "mfa"
   | "bootstrap"
   | "membership"
   | "unavailable";
@@ -91,7 +90,6 @@ export function classifyAccessFailure(error: unknown): AccessFailure {
   const requestError = error as ApiRequestError;
   const code = requestError?.apiError?.code;
 
-  if (code === "MFA_REQUIRED") return "mfa";
   if (code === "BOOTSTRAP_REQUIRED") return "bootstrap";
   if (code === "UNAUTHENTICATED" || requestError?.status === 401) {
     return "session-expired";

@@ -21,8 +21,8 @@ export default function SetPasswordPage() {
   if (loading) return <div className="auth-loading">Validando o link seguro…</div>;
   if (!session) {
     return (
-      <main className="mfa-page">
-        <section className="login-card mfa-card" aria-labelledby="invalid-link-title">
+      <main className="auth-page">
+        <section className="login-card auth-card" aria-labelledby="invalid-link-title">
           <img src="/sistema/fisiofit-logo.jpg" alt="" />
           <p className="eyebrow">LINK DE ACESSO</p>
           <h2 id="invalid-link-title">Solicite um novo link</h2>
@@ -49,33 +49,14 @@ export default function SetPasswordPage() {
       return;
     }
     setBusy(true);
-    const { data: assurance, error: assuranceError } =
-      await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    if (assuranceError) {
-      setBusy(false);
-      setError("Não foi possível verificar a proteção da conta. Solicite um novo link e tente novamente.");
-      return;
-    }
-    if (assurance?.nextLevel === "aal2" && assurance.currentLevel !== "aal2") {
-      navigate("/mfa?returnTo=/set-password", { replace: true });
-      return;
-    }
     const { error: updateError } = await supabase.auth.updateUser({ password });
     if (updateError) {
       const message = updateError.message.toLowerCase();
-      const insufficientAal =
-        updateError.code === "insufficient_aal" ||
-        message.includes("aal2") ||
-        message.includes("assurance level");
       const passwordAlreadyDefined =
         message.includes("same password") ||
         message.includes("different from the old password") ||
         message.includes("different from old password");
 
-      if (insufficientAal) {
-        navigate("/mfa?returnTo=/set-password", { replace: true });
-        return;
-      }
       if (!passwordAlreadyDefined) {
         setBusy(false);
         setError(
@@ -107,8 +88,6 @@ export default function SetPasswordPage() {
         }
         await signOut();
         navigate("/login", { replace: true });
-      } else if (failure === "mfa") {
-        navigate("/mfa", { replace: true });
       } else if (failure === "bootstrap") {
         navigate("/onboarding", { replace: true });
       } else {
@@ -120,8 +99,8 @@ export default function SetPasswordPage() {
   }
 
   return (
-    <main className="mfa-page">
-      <form className="login-card mfa-card" onSubmit={submit}>
+    <main className="auth-page">
+      <form className="login-card auth-card" onSubmit={submit}>
         <img src="/sistema/fisiofit-logo.jpg" alt="" />
         <p className="eyebrow">PRIMEIRO ACESSO</p>
         <h2>Crie sua senha</h2>

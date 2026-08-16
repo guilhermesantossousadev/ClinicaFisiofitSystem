@@ -26,12 +26,9 @@ additional_redirect_urls = [
 jwt_expiry = 3600
 enable_signup = false
 
-[auth.mfa]
-max_enrolled_factors = 3
-
 [auth.mfa.totp]
-enroll_enabled = true
-verify_enabled = true
+enroll_enabled = false
+verify_enabled = false
 
 [storage]
 enabled = true

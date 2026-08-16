@@ -108,20 +108,22 @@ test("protege recuperação administrativa e consentimento de cookies", async ()
   assert.match(cookieConsent, /Configurar/);
 });
 
-test("mantém autenticação da API compatível com JWT assimétrico", async () => {
-  const [apiClient, functionConfig, apiSource, mfaPage] = await Promise.all([
+test("mantém autenticação por e-mail e senha sem segundo fator", async () => {
+  const [apiClient, functionConfig, apiSource, portalMain] = await Promise.all([
     readFile(new URL("../apps/portal/src/infrastructure/http/api.ts", import.meta.url), "utf8"),
     readFile(new URL("../supabase/config.toml", import.meta.url), "utf8"),
     readFile(new URL("../supabase/functions/api/index.ts", import.meta.url), "utf8"),
-    readFile(new URL("../apps/portal/src/presentation/auth/MfaPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../apps/portal/src/main.tsx", import.meta.url), "utf8"),
   ]);
   assert.match(apiClient, /apikey:\s*apiKey/);
   assert.match(functionConfig, /\[functions\.api\][\s\S]*verify_jwt\s*=\s*false/);
   assert.match(apiSource, /auth\.getUser\(\)/);
   assert.match(apiSource, /if \(authError \|\| !authData\.user\)/);
   assert.match(functionConfig, /site_url\s*=\s*"https:\/\/clinicafisiofitsabara\.com\/sistema"/);
-  assert.match(functionConfig, /\[auth\.mfa\.totp\][\s\S]*enroll_enabled\s*=\s*true[\s\S]*verify_enabled\s*=\s*true/);
-  assert.match(mfaPage, /if \(loading\) return/);
+  assert.match(functionConfig, /\[auth\.mfa\.totp\][\s\S]*enroll_enabled\s*=\s*false[\s\S]*verify_enabled\s*=\s*false/);
+  assert.doesNotMatch(apiSource, /MFA_REQUIRED|aal2|jwtClaim/);
+  assert.doesNotMatch(portalMain, /MfaPage|path="\/mfa"/);
+  await assert.rejects(access(new URL("../apps/portal/src/presentation/auth/MfaPage.tsx", import.meta.url)));
 });
 
 test("isola consultas operacionais por clínica", async () => {

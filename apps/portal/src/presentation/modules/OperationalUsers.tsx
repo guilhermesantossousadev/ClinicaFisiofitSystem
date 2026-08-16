@@ -105,7 +105,7 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
         <div>
           <p className="eyebrow">ACESSOS E PERMISSÕES</p>
           <h1>Usuários</h1>
-          <p>Convites, perfis, unidades, bloqueio e MFA por função.</p>
+          <p>Convites, perfis, unidades, permissões e bloqueio de acesso.</p>
         </div>
       </div>
       {notice && (
@@ -152,8 +152,7 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
                 {row.is_owner ? " · Proprietário" : ""}
               </strong>
               <small>
-                {row.email ? `${row.email} · ` : ""}{row.role} · {row.status} · MFA{" "}
-                {row.mfa_required ? "obrigatório" : "opcional"}
+                {row.email ? `${row.email} · ` : ""}{row.role} · {row.status}
               </small>
             </div>
             {row.is_owner ? (
@@ -213,4 +212,3 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
     </div>
   );
 }
-

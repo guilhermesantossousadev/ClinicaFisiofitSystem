@@ -25,7 +25,7 @@ apps/portal/src/
 │   └── supabase/client.ts        # criação/configuração do cliente Supabase
 ├── presentation/
 │   ├── app/FisiofitApp.tsx       # composição da área autenticada
-│   ├── auth/                     # login, MFA, onboarding e provider de sessão
+│   ├── auth/                     # login, recuperação, onboarding e provider de sessão
 │   ├── components/               # primitives de formulário e acessibilidade
 │   ├── modules/Operational*.tsx  # uma visão por domínio + helpers compartilhados
 │   └── styles/                   # CSS global e melhorias do portal

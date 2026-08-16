@@ -17,14 +17,12 @@ export function registerUsuariosRoutes(app: any, dependencies: any) {
       data: { name: input.name },
     });
     if (inviteError || !invited.user) return databaseResult(context, null, inviteError);
-    const mfaRequired = ["admin", "manager", "finance"].includes(input.role);
     const { error: profileError } = await context.get("db").from("profiles").insert({
       id: invited.user.id,
       clinic_id: context.get("profile").clinic_id,
       name: input.name,
       role: input.role,
       status: "invited",
-      mfa_required: mfaRequired,
     });
     if (profileError) return databaseResult(context, null, profileError);
     if (input.unitIds.length) {
@@ -85,7 +83,7 @@ export function registerUsuariosRoutes(app: any, dependencies: any) {
     });
     const [{ data, error }, { data: clinic, error: clinicError }, { data: authUsers, error: authError }] = await Promise.all([
       db.from("profiles")
-      .select("id,name,role,status,mfa_required,created_at,profile_units(unit_id,units(id,name)),profile_permissions(module,can_view,can_edit)")
+      .select("id,name,role,status,created_at,profile_units(unit_id,units(id,name)),profile_permissions(module,can_view,can_edit)")
       .eq("clinic_id", clinicId).is("deleted_at", null).order("name"),
       db.from("clinics").select("owner_profile_id").eq("id", clinicId).single(),
       admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
@@ -126,7 +124,6 @@ export function registerUsuariosRoutes(app: any, dependencies: any) {
     }
     const { data, error } = await db.from("profiles").update({
       ...profileChanges,
-      ...(input.role ? { mfa_required: ["admin", "manager", "finance"].includes(input.role) } : {}),
       updated_at: new Date().toISOString(),
     }).eq("id", id).eq("clinic_id", clinicId).select().single();
     if (error) return databaseResult(context, null, error);

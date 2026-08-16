@@ -20,8 +20,8 @@ cross join (values
   ('b0000000-0000-4000-8000-000000000002'::uuid, 'Unidade RLS B')
 ) fixture(id, name);
 
-insert into public.profiles (id, clinic_id, name, role, status, mfa_required)
-select fixture.id, clinic.id, fixture.name, fixture.role::public.user_role, 'active', fixture.role in ('admin', 'manager', 'finance')
+insert into public.profiles (id, clinic_id, name, role, status)
+select fixture.id, clinic.id, fixture.name, fixture.role::public.user_role, 'active'
 from (select id from public.clinics order by created_at limit 1) clinic
 cross join (values
   ('a0000000-0000-4000-8000-000000000001'::uuid, 'Admin RLS', 'admin'),

@@ -21,7 +21,6 @@ type Variables = {
     name: string;
     role: Role;
     status: string;
-    mfa_required: boolean;
   };
   db: DatabaseClient;
 };
@@ -93,7 +92,7 @@ app.use("*", async (context, next) => {
 
   const { data: profile, error: profileError } = await db
     .from("profiles")
-    .select("id, clinic_id, name, role, status, mfa_required, profile_permissions(module,can_view,can_edit)")
+    .select("id, clinic_id, name, role, status, profile_permissions(module,can_view,can_edit)")
     .eq("id", authData.user.id)
     .is("deleted_at", null)
     .maybeSingle();
@@ -120,29 +119,11 @@ app.use("*", async (context, next) => {
     return fail(context, 403, code, message);
   }
 
-  const requiresMfa = ["admin", "manager", "finance"].includes(profile.role);
-  const accessToken = auth.slice("Bearer ".length);
-  if (requiresMfa && jwtClaim(accessToken, "aal") !== "aal2") {
-    return fail(context, 403, "MFA_REQUIRED", "Confirme o segundo fator para continuar.");
-  }
-
   context.set("user", authData.user);
   context.set("profile", profile as Variables["profile"]);
   context.set("db", db);
   await next();
 });
-
-function jwtClaim(token: string, claim: string): unknown {
-  try {
-    const payload = token.split(".")[1];
-    if (!payload) return undefined;
-    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
-    return JSON.parse(atob(padded))[claim];
-  } catch {
-    return undefined;
-  }
-}
 
 const patientSchema = z.object({
   primary_unit_id: z.string().uuid(),
