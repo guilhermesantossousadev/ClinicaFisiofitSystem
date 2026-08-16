@@ -103,6 +103,9 @@ test("protege recuperação administrativa e consentimento de cookies", async ()
   assert.match(authClient, /flowType:\s*"pkce"/);
   assert.match(api, /redirectTo: `\$\{allowedOrigin\}\/sistema\/set-password`/);
   assert.match(setPassword, /password\.length < 10/);
+  assert.match(setPassword, /passwordUpdatedNotice/);
+  assert.match(setPassword, /navigate\("\/login"/);
+  assert.doesNotMatch(setPassword, /api\("\/me"\)/);
   assert.match(portalApp, /\.from\("profile-avatars"\)/);
   assert.doesNotMatch(portalApp, /avatar_url: dataUrl/);
   assert.doesNotMatch(`${login}\n${setPassword}`, /password\s*[:=]\s*["'][^"']+["']/i);

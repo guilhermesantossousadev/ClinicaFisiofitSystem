@@ -25,6 +25,8 @@ const membershipCodes = new Set([
 export const sessionExpiredNoticeKey = "fisiofit:session-expired-notice";
 export const sessionExpiredNotice =
   "Sua sessão expirou por segurança. Entre novamente com seu e-mail e senha.";
+export const passwordUpdatedNotice =
+  "Senha atualizada. Entre com seu e-mail e a nova senha.";
 
 export function normalizeLoginEmail(email: string) {
   return email.trim().toLowerCase();

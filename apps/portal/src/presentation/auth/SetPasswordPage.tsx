@@ -1,12 +1,10 @@
 import { FormEvent, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "./AuthProvider";
-import { api } from "../../infrastructure/http/api";
 import { supabase } from "../../infrastructure/supabase/client";
 import { TextField } from "../components/FormPrimitives";
 import {
-  classifyAccessFailure,
-  sessionExpiredNotice,
+  passwordUpdatedNotice,
   sessionExpiredNoticeKey,
 } from "../../application/portal/authAccess";
 
@@ -76,26 +74,22 @@ export default function SetPasswordPage() {
     }
 
     try {
-      await api("/me");
-      navigate("/", { replace: true });
-    } catch (accessError) {
-      const failure = classifyAccessFailure(accessError);
-      if (failure === "session-expired") {
-        try {
-          window.sessionStorage.setItem(sessionExpiredNoticeKey, sessionExpiredNotice);
-        } catch {
-          // O login continua disponível sem o aviso persistido.
-        }
-        await signOut();
-        navigate("/login", { replace: true });
-      } else if (failure === "bootstrap") {
-        navigate("/onboarding", { replace: true });
-      } else {
-        navigate("/", { replace: true });
-      }
-    } finally {
-      setBusy(false);
+      window.sessionStorage.setItem(sessionExpiredNoticeKey, passwordUpdatedNotice);
+    } catch {
+      // O redirecionamento continua funcionando sem o aviso persistido.
     }
+    try {
+      await signOut();
+    } catch {
+      const { error: localSignOutError } = await supabase.auth.signOut({ scope: "local" });
+      if (localSignOutError) {
+        setBusy(false);
+        setError("A senha foi salva. Atualize a página e entre com a nova senha.");
+        return;
+      }
+    }
+    setBusy(false);
+    navigate("/login", { replace: true });
   }
 
   return (
