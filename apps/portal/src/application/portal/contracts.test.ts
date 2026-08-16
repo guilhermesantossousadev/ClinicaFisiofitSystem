@@ -95,7 +95,9 @@ describe("fluxo de acesso", () => {
 
   it("explica falhas de conexão e limite na recuperação de senha", () => {
     expect(recoveryErrorMessage({ message: "Failed to fetch" })).toContain("conectar");
-    expect(recoveryErrorMessage({ status: 429 })).toContain("Muitos links");
+    expect(recoveryErrorMessage({ status: 429 })).toContain("até uma hora");
+    expect(recoveryErrorMessage({ code: "email_address_not_authorized" })).toContain("não está autorizado");
+    expect(recoveryErrorMessage({ status: 503 })).toContain("temporariamente indisponível");
   });
 
   it("não envia conta inativa nem falha de rede ao onboarding", () => {

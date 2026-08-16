@@ -95,6 +95,10 @@ test("protege recuperação administrativa e consentimento de cookies", async ()
     readFile(new URL("../apps/site/src/presentation/components/CookieConsent.tsx", import.meta.url), "utf8"),
   ]);
   assert.match(login, /resetPasswordForEmail/);
+  assert.match(login, /recoveryCooldownSeconds = 60/);
+  assert.match(login, /Pedido de redefinição registrado/);
+  assert.match(login, /Reenviar em \$\{recoveryWait\}s/);
+  assert.match(login, /Spam, Lixeira/);
   assert.match(authClient, /sistema\/set-password/);
   assert.match(authClient, /flowType:\s*"pkce"/);
   assert.match(api, /redirectTo: `\$\{allowedOrigin\}\/sistema\/set-password`/);

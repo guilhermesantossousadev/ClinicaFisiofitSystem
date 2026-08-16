@@ -448,6 +448,37 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .login-card input { min-height: 48px; border-color: #9fb4c2; font-size: 16px; }
 .login-recovery, .login-card > a { font-size: 13px; }
 .login-card > a { padding-block: 12px; }
+.login-actions { display: grid; justify-items: center; gap: 4px; }
+.login-support-link { line-height: 1.45; }
+.recovery-status {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: 12px;
+  margin-block: 16px 8px;
+  padding: 16px;
+  border: 1px solid #99c9b8;
+  border-radius: 14px;
+  background: #edf8f3;
+  color: #173f36;
+}
+.recovery-status-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 50%;
+  background: #17705a;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 800;
+}
+.recovery-status strong { display: block; color: #11533f; font-size: 15px; line-height: 1.35; }
+.recovery-status p { margin: 6px 0 0; color: #294f45; font-size: 13px; line-height: 1.5; }
+.recovery-status ol { margin: 12px 0; padding-inline-start: 20px; color: #365f54; font-size: 12px; line-height: 1.55; }
+.recovery-status li + li { margin-top: 4px; }
+.recovery-status-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.recovery-status-actions .btn { min-height: 44px; margin: 0; }
+.recovery-status-actions .login-recovery { min-height: 44px; margin: 0; padding-inline: 8px; }
 .login-brand-panel p { font-size: 12px; }
 .login-brand-panel span { font-size: 16px; }
 
@@ -463,6 +494,9 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   .administration-form { position: static; }
 }
 @media (max-width: 520px) {
+  .recovery-status { grid-template-columns: 1fr; }
+  .recovery-status-actions { align-items: stretch; flex-direction: column; }
+  .recovery-status-actions .login-recovery { width: 100%; }
   .metrics, .metrics.small { grid-template-columns: 1fr; }
   .title-actions { flex-direction: column; }
   .page-title .title-actions .btn { width: 100%; }

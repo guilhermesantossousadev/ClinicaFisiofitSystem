@@ -227,7 +227,7 @@ branch `hostinger-deploy` a partir do commit `df69c42`.
 - **Local:** configurado no repositório.
 - **Homologação:** não identificada em configuração executável.
 - **Produção web:** Hostinger confirmada em 15 de agosto de 2026 com a correção de Auth do commit `d7caf5a`, CSP específica do portal, redirect canônico, assets da Fase 6/7 e MIME `image/avif`.
-- **Produção Supabase:** project ref vinculado `eeltguuoxpfttjznugla`; migrations sincronizadas até `202608160003` e Edge Function `api` ativa na versão 42 com `verify_jwt=false` e validação no middleware.
+- **Produção Supabase:** project ref vinculado `eeltguuoxpfttjznugla`; migrations sincronizadas até `202608160006` e Edge Function `api` ativa na versão 43 com `verify_jwt=false` e validação no middleware.
 
 ---
 
@@ -537,6 +537,7 @@ Prioridade: executar a matriz de autorização em banco real; idempotência; mat
 
 | Prioridade | Problema | Impacto | Evidência | Correção recomendada |
 |---|---|---|---|---|
+| P0 | Auth ainda usa o remetente padrão do Supabase | recuperação pode atrasar ou não chegar; limite global de 2 e-mails/hora | configuração remota sem SMTP próprio e documentação oficial do Supabase | configurar SMTP transacional próprio com domínio da clínica |
 | P0 | Fase 1 de autorização ainda não foi exercitada contra um banco Supabase real nesta sessão | Defeito semântico de policy pode bloquear fluxo ou deixar acesso residual | Docker/Podman indisponível para reset e pgTAP | executar reset, pgTAP e matriz papel×unidade antes de liberar uso clínico |
 | P1 | Status genérico permite `completed` sem consumir sessão | saldo divergente | PATCH status versus RPC de conclusão | proibir transição ou delegar à RPC |
 | P1 | Algumas operações compostas não são atômicas | registros órfãos/parciais | múltiplos inserts nos handlers | RPC/transação compensável; rollback de importações e matrículas já possui RPC dedicada |
@@ -713,6 +714,7 @@ Não existem fontes executáveis para containers, Kubernetes, Terraform, cache, 
 | 2026-08-15 | Sessão autenticada | Cliente envia `apikey` e Bearer; gateway legado deixa de rejeitar JWT ES256; middleware continua validando com `auth.getUser()`; `401` com sessão Auth válida não força logout | Edge Function v42, workflow `31898551474`, asset público e testes |
 | 2026-08-15 | Recuperação de acesso | URL principal remota deixou de apontar para localhost; redirect de reset foi confirmado em produção e um novo e-mail foi enviado | config remota do Auth, workflow `31901579322`, asset público e testes |
 | 2026-08-16 | Autenticação simplificada | Segundo fator removido do portal, API, Auth e schema; todos os perfis usam somente e-mail e senha | migration `202608160006`, configuração Auth, API e testes |
+| 2026-08-16 | Recuperação de senha | Novo envio administrativo aceito pelo Auth; tela passa a mostrar endereço solicitado, instruções, contagem de 60 segundos, reenvio e erros específicos do provedor | HTTP 200 remoto, `LoginPage.tsx`, testes e build |
 
 ---
 

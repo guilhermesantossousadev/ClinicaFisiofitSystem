@@ -67,12 +67,19 @@ export function recoveryErrorMessage(error: unknown) {
   const message = authError?.message?.toLowerCase() ?? "";
 
   if (
+    code === "email_address_not_authorized" ||
+    message.includes("email address not authorized")
+  ) {
+    return "Este endereço não está autorizado pelo serviço de e-mail atual. Fale com a administradora da clínica.";
+  }
+
+  if (
     authError?.status === 429 ||
     code.includes("rate_limit") ||
     message.includes("rate limit") ||
     message.includes("too many requests")
   ) {
-    return "Muitos links foram solicitados em pouco tempo. Aguarde alguns minutos e tente novamente.";
+    return "O limite de e-mails do provedor foi atingido. Aguarde até uma hora antes de solicitar outro link.";
   }
   if (
     authError?.status === 0 ||
@@ -82,6 +89,9 @@ export function recoveryErrorMessage(error: unknown) {
     message.includes("timeout")
   ) {
     return "Não foi possível conectar ao serviço de acesso. Verifique sua internet e tente novamente.";
+  }
+  if ((authError?.status ?? 0) >= 500) {
+    return "O serviço de e-mail está temporariamente indisponível. Tente novamente mais tarde ou fale com a administradora.";
   }
   return "Não foi possível enviar o link agora. Confira o e-mail e tente novamente em instantes.";
 }
