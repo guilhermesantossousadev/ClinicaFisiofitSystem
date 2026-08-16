@@ -55,31 +55,36 @@ function ProtectedApp() {
           setAccess("bootstrap");
           return;
         }
-        if (failure === "session-expired") {
+        if (failure !== "membership" && !refreshAttempted.current) {
+          refreshAttempted.current = true;
+          const { data, error: refreshError } = await supabase.auth.refreshSession();
+          if (!active) return;
+          if (!refreshError && data.session) {
+            try {
+              window.sessionStorage.removeItem(sessionExpiredNoticeKey);
+            } catch {
+              // A sessão foi renovada; não há aviso pendente a remover.
+            }
+            setValidationAttempt((attempt) => attempt + 1);
+            return;
+          }
+
+          // Uma falha transitória também pode impedir a renovação. Fazemos uma
+          // segunda validação com a sessão atual antes de mostrar qualquer erro.
           const { data: userData, error: userError } = await supabase.auth.getUser();
           if (!active) return;
           if (!userError && userData.user) {
-            setIssue("unavailable");
-            setAccess("issue");
+            window.setTimeout(() => {
+              if (active) setValidationAttempt((attempt) => attempt + 1);
+            }, 600);
             return;
           }
+        }
+        if (failure === "session-expired") {
           try {
             window.sessionStorage.setItem(sessionExpiredNoticeKey, sessionExpiredNotice);
           } catch {
             // O redirecionamento ainda funciona quando o armazenamento está indisponível.
-          }
-          if (!refreshAttempted.current) {
-            refreshAttempted.current = true;
-            const { data, error: refreshError } = await supabase.auth.refreshSession();
-            if (!refreshError && data.session) {
-              try {
-                window.sessionStorage.removeItem(sessionExpiredNoticeKey);
-              } catch {
-                // A sessão foi renovada; não há redirecionamento nem aviso a exibir.
-              }
-              if (active) setValidationAttempt((attempt) => attempt + 1);
-              return;
-            }
           }
           await signOut();
           if (active) setAccess("expired");
@@ -113,7 +118,10 @@ function ProtectedApp() {
           <button
             type="button"
             className="btn primary login-submit"
-            onClick={() => setValidationAttempt((attempt) => attempt + 1)}
+            onClick={() => {
+              refreshAttempted.current = false;
+              setValidationAttempt((attempt) => attempt + 1);
+            }}
           >
             Tentar novamente
           </button>
