@@ -33,7 +33,10 @@ app.use("*", cors({
     origin === allowedOrigin || origin.startsWith("http://localhost:")
       ? origin
       : allowedOrigin,
-  allowHeaders: ["authorization", "content-type", "idempotency-key", "x-request-id"],
+  // O cliente do portal envia a chave publicável no cabeçalho `apikey`.
+  // Sem autorizá-lo no preflight, o navegador bloqueia a resposta antes que
+  // ela chegue à aplicação e um login válido parece uma falha de conexão.
+  allowHeaders: ["authorization", "apikey", "content-type", "idempotency-key", "x-request-id"],
   allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
   credentials: true,
   maxAge: 86400,
@@ -240,7 +243,7 @@ app.get("/dashboard", requireRoles(["admin", "manager"]), async (context) => {
   }, error);
 });
 
-registerUsuariosRoutes(app, { allowedOrigin, requireRoles, ok, fail, databaseResult, audit });
+registerUsuariosRoutes(app, { allowedOrigin, requireRoles, ok, fail, databaseResult, audit, requiredEnv });
 
 app.get("/units", requireRoles(["admin", "manager", "reception", "professional", "finance"]), async (context) => {
   const { data, error } = await context.get("db").from("units").select("*").is("deleted_at", null).order("name");
@@ -1043,6 +1046,7 @@ const openApiDocument = {
       delete: { summary: "Arquiva usuário, bloqueia o acesso e preserva o histórico" },
     },
     "/users/{id}/resend-access": { post: { summary: "Reenvia um link seguro de definição de senha" } },
+    "/users/{id}/password": { post: { summary: "Define a senha diretamente no Supabase Auth" } },
   },
 };
 

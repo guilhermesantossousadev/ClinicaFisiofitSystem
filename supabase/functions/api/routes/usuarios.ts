@@ -1,7 +1,9 @@
+import { createClient } from "npm:@supabase/supabase-js@2.49.1";
 import { z } from "npm:zod@3.24.2";
+import { defaultPermissionsForRole } from "../authorization.ts";
 
 export function registerUsuariosRoutes(app: any, dependencies: any) {
-  const { allowedOrigin, requireRoles, ok, fail, databaseResult, audit } = dependencies;
+  const { allowedOrigin, requireRoles, ok, fail, databaseResult, audit, requiredEnv } = dependencies;
   app.post("/users/invite", requireRoles(["admin"]), async (context: any) => {
     const input = z.object({
       email: z.string().email(),
@@ -73,6 +75,67 @@ export function registerUsuariosRoutes(app: any, dependencies: any) {
     if (resendError) return databaseResult(context, null, resendError);
     await audit(context, "user.access_resent", "profile", id);
     return ok(context, { id, email: authUser.user.email });
+  });
+
+  app.post("/users/:id/password", requireRoles(["admin"]), async (context: any) => {
+    const id = z.string().uuid().parse(context.req.param("id"));
+    const input = z.object({
+      password: z.string().min(10).max(72),
+    }).parse(await context.req.json());
+    const db = context.get("db");
+    const clinicId = context.get("profile").clinic_id;
+    const { data: target, error: targetError } = await db.from("profiles")
+      .select("id,status")
+      .eq("id", id)
+      .eq("clinic_id", clinicId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (targetError) return databaseResult(context, null, targetError);
+    if (!target) {
+      return fail(context, 404, "USER_NOT_FOUND", "Usuária não encontrada nesta clínica.");
+    }
+    if (target.status === "blocked") {
+      return fail(context, 409, "MEMBERSHIP_BLOCKED", "Ative a conta antes de definir uma nova senha.");
+    }
+
+    const admin = createClient(requiredEnv("SUPABASE_URL"), requiredEnv("SUPABASE_SERVICE_ROLE_KEY"), {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data: updated, error: passwordError } = await admin.auth.admin.updateUserById(id, {
+      password: input.password,
+    });
+    if (passwordError || !updated.user) {
+      console.error(JSON.stringify({
+        requestId: context.get("requestId"),
+        code: passwordError?.code,
+        message: passwordError?.message,
+      }));
+      const weakPassword = passwordError?.code === "weak_password";
+      return fail(
+        context,
+        400,
+        weakPassword ? "WEAK_PASSWORD" : "PASSWORD_UPDATE_FAILED",
+        weakPassword
+          ? "A senha foi recusada pela política de segurança do Supabase. Use uma senha mais forte."
+          : "Não foi possível definir a senha no Supabase.",
+      );
+    }
+
+    if (target.status === "invited") {
+      const { error: activationError } = await db.from("profiles")
+        .update({ status: "active", updated_at: new Date().toISOString() })
+        .eq("id", id)
+        .eq("clinic_id", clinicId);
+      if (activationError) return databaseResult(context, null, activationError);
+    }
+    await audit(context, "user.password_changed", "profile", id, null, {
+      targetIsCurrentUser: id === context.get("user").id,
+    });
+    return ok(context, {
+      id,
+      email: updated.user.email ?? "",
+      status: target.status === "invited" ? "active" : target.status,
+    });
   });
   
   app.get("/users", requireRoles(["admin", "manager"]), async (context: any) => {

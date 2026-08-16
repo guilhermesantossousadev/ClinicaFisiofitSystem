@@ -55,12 +55,23 @@ export function loginErrorMessage(error: unknown) {
     authError?.status === 0 ||
     code === "request_timeout" ||
     message.includes("fetch") ||
+    message.includes("load failed") ||
     message.includes("network") ||
     message.includes("timeout")
   ) {
     return "Não foi possível conectar ao serviço de acesso. Verifique sua internet e tente novamente.";
   }
-  return "E-mail ou senha inválidos. Confira os dados ou solicite um novo link de acesso.";
+  if ((authError?.status ?? 0) >= 500) {
+    return "O serviço de acesso está temporariamente indisponível. Tente novamente em alguns minutos.";
+  }
+  if (
+    code === "invalid_credentials" ||
+    message.includes("invalid login credentials") ||
+    message.includes("invalid credentials")
+  ) {
+    return "E-mail ou senha inválidos. Confira os dados ou solicite um novo link de acesso.";
+  }
+  return "Não foi possível validar o acesso agora. Tente novamente; se o problema continuar, solicite um novo link de acesso.";
 }
 
 export function recoveryErrorMessage(error: unknown) {

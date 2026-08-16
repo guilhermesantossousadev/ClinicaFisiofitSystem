@@ -53,6 +53,10 @@ test("mantém API, banco e integrações versionados", async () => {
   assert.match(api, /\/reports\/annual/);
   assert.match(api, /\/users\/:id/);
   assert.match(api, /\/users\/:id\/resend-access/);
+  assert.match(api, /\/users\/:id\/password/);
+  assert.match(api, /auth\.admin\.updateUserById\(id,\s*\{\s*password: input\.password/);
+  assert.match(api, /user\.password_changed/);
+  assert.doesNotMatch(api, /audit\([^\n]+password:\s*input\.password/);
   assert.match(api, /app\.delete\("\/users\/:id"/);
   assert.match(api, /\/enrollments/);
   assert.match(api, /\/clinical-records\/:id\/rectify/);
@@ -123,6 +127,7 @@ test("mantém autenticação por e-mail e senha sem segundo fator", async () => 
     readFile(new URL("../apps/portal/src/main.tsx", import.meta.url), "utf8"),
   ]);
   assert.match(apiClient, /apikey:\s*apiKey/);
+  assert.match(apiSource, /allowHeaders:\s*\[[^\]]*"apikey"/);
   assert.match(functionConfig, /\[functions\.api\][\s\S]*verify_jwt\s*=\s*false/);
   assert.match(apiSource, /auth\.getUser\(\)/);
   assert.match(apiSource, /if \(authError \|\| !authData\.user\)/);

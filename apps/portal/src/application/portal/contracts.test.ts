@@ -82,8 +82,14 @@ describe("fluxo de acesso", () => {
       .toContain("Muitas tentativas");
     expect(loginErrorMessage({ message: "Failed to fetch" }))
       .toContain("conectar");
+    expect(loginErrorMessage({ message: "Load failed" }))
+      .toContain("conectar");
+    expect(loginErrorMessage({ status: 503, message: "upstream unavailable" }))
+      .toContain("temporariamente indisponível");
     expect(loginErrorMessage({ code: "invalid_credentials" }))
       .toContain("E-mail ou senha inválidos");
+    expect(loginErrorMessage({ code: "unexpected_auth_error" }))
+      .not.toContain("senha inválidos");
   });
 
   it("diferencia sessão expirada de primeiro acesso", () => {
