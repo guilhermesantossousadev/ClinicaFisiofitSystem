@@ -116,6 +116,52 @@
   }
 }
 
+/* Visão consolidada de pagamento e renovação dos planos. */
+.plan-control-table { margin: 16px 0; overflow: hidden; }
+.plan-control-toolbar { gap: 24px; }
+.plan-control-toolbar > div:first-child { min-width: 250px; }
+.plan-control-toolbar h2 { margin: 4px 0; }
+.plan-control-toolbar p:not(.eyebrow) { margin: 0; color: var(--muted); font-size: 12px; }
+.plan-control-filters { display: flex; align-items: center; justify-content: flex-end; gap: 10px; min-width: min(100%, 520px); }
+.plan-control-filters label { margin: 0; }
+.plan-control-search { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 220px; height: 44px; padding: 0 12px; border: 1px solid var(--line); border-radius: 9px; background: #fff; color: var(--muted); }
+.plan-control-search input { width: 100%; min-width: 0; height: 100%; padding: 0; border: 0; outline: 0; background: transparent; font-size: 13px; }
+.plan-control-search:focus-within { border-color: var(--green); box-shadow: 0 0 0 3px rgb(39 136 201 / 12%); }
+.plan-control-filters select { min-height: 44px; max-width: 210px; padding: 0 34px 0 12px; border: 1px solid var(--line); border-radius: 9px; background: #fff; font-size: 12px; }
+.plan-control-result { padding: 8px 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; }
+.plan-control-head,
+.plan-control-row { display: grid; grid-template-columns: 1.15fr 1.25fr 1.15fr 1fr 1.2fr; align-items: center; gap: 18px; min-width: 980px; }
+.plan-control-head { padding: 12px 18px; border-block: 1px solid var(--line); background: #f3f6f9; color: #536a82; }
+.plan-control-head span { font-size: 11px; font-weight: 800; letter-spacing: .055em; text-transform: uppercase; }
+.plan-control-row { min-height: 82px; padding: 14px 18px; border-bottom: 1px solid #e5ebf0; }
+.plan-control-row:last-of-type { border-bottom: 0; }
+.plan-control-cell { display: grid; align-content: center; gap: 6px; min-width: 0; }
+.plan-control-cell strong { overflow: hidden; color: var(--ink); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.plan-control-cell small { color: var(--muted); font-size: 11px; line-height: 1.35; }
+.plan-status { display: inline-flex; align-items: center; width: max-content; max-width: 100%; min-height: 26px; padding: 4px 9px; border-radius: 999px; font-size: 11px; font-weight: 750; line-height: 1.2; }
+.plan-status-paid, .plan-renewal-current { background: #e6f7f3; color: #176b5c; }
+.plan-status-pending, .plan-status-uncharged { background: #eef2f5; color: #536a82; }
+.plan-status-partial, .plan-renewal-due-soon { background: #fff2df; color: #8b6238; }
+.plan-status-overdue, .plan-renewal-expired { background: #f7e8e9; color: #9d3f45; }
+.plan-renewal-unknown { background: #eef2f5; color: #536a82; }
+
+@media (max-width: 1050px) {
+  .plan-control-toolbar { align-items: stretch; flex-direction: column; }
+  .plan-control-filters { width: 100%; max-width: none; justify-content: stretch; }
+}
+
+@media (max-width: 720px) {
+  .plan-control-table { overflow: visible; }
+  .plan-control-filters { align-items: stretch; flex-direction: column; }
+  .plan-control-search { width: 100%; min-width: 0; }
+  .plan-control-filters select { width: 100%; max-width: none; }
+  .plan-control-head { display: none; }
+  .plan-control-row { display: grid; grid-template-columns: 1fr; gap: 13px; min-width: 0; margin: 10px 12px; padding: 16px; border: 1px solid var(--line); border-radius: 10px; }
+  .plan-control-cell { grid-template-columns: minmax(105px, .75fr) 1fr; gap: 5px 12px; }
+  .plan-control-cell::before { content: attr(data-label); grid-row: 1 / span 2; align-self: start; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+  .plan-status { width: fit-content; }
+}
+
 /* Campos acessíveis e previsíveis: um grupo semântico por controle. */
 .input-group {
   display: flex;
