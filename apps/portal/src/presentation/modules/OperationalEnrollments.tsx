@@ -1,10 +1,10 @@
 import { FormEvent, useMemo, useState } from "react";
 import { api } from "../../infrastructure/http/api";
-import { buildPlanControlRows, renewalCopy, type PaymentState, type PlanControlRow } from "../../application/portal/planControl";
+import { buildPlanControlRows, renewalCopy, type PlanControlRow } from "../../application/portal/planControl";
 import { SelectField, TextField } from "../components/FormPrimitives";
 import { type AgendaEnrollmentContext, Row, PLAN_PERIODS, PlanPeriod, WeeklyFrequency, messageOf, value, cents, brl, planTotalCents, useResources, Select, PlanSelect, PatientPicker, DrawerForm, ModuleState, MetricLite, EditableOperationalTable, OperationalTable } from "./OperationalShared";
 
-export function OperationalEnrollments({ agendaContext, onClearAgendaContext, openEnrollment = false }: { agendaContext?: AgendaEnrollmentContext; onClearAgendaContext?: () => void; openEnrollment?: boolean }) {
+export function OperationalEnrollments({ agendaContext, onClearAgendaContext, openEnrollment = false, units = [], selectedUnitId = "", onUnitChange = () => undefined }: { agendaContext?: AgendaEnrollmentContext; onClearAgendaContext?: () => void; openEnrollment?: boolean; units?: Array<{ id: string; name: string }>; selectedUnitId?: string; onUnitChange?: (unitId: string) => void }) {
   const paths = [
     "/plans",
     "/enrollments",
@@ -25,6 +25,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
   const [controlFilter, setControlFilter] = useState("all");
   const [editingControlRow, setEditingControlRow] = useState<PlanControlRow | null>(null);
   const [savingControlRow, setSavingControlRow] = useState(false);
+  const [savingPaymentId, setSavingPaymentId] = useState("");
   const selectedPeriod = PLAN_PERIODS[planPeriod];
   const planSessions = selectedPeriod.months * weeklyFrequency * 4;
   const planName = `${selectedPeriod.label} · ${weeklyFrequency}x por semana`;
@@ -130,6 +131,22 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
       setSavingControlRow(false);
     }
   }
+  async function updatePaymentStatus(row: PlanControlRow, status: string) {
+    if (!row.chargeId || savingPaymentId) return;
+    setSavingPaymentId(row.chargeId);
+    try {
+      await api(`/charges/${row.chargeId}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      });
+      await reload();
+      setNotice("Situação do pagamento atualizada.");
+    } catch (error) {
+      setNotice(messageOf(error));
+    } finally {
+      setSavingPaymentId("");
+    }
+  }
   const enrollmentRows = (data["/enrollments"] ?? []).map((row: Row) => {
     const plan = (data["/plans"] ?? []).find((item: Row) => item.id === row.plan_id);
     const planPrice = plan ? planTotalCents(plan) : 0;
@@ -159,7 +176,9 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
         || (controlFilter === "due-soon" && row.renewalState === "due-soon")
         || (controlFilter === "expired" && row.renewalState === "expired")
         || (controlFilter === "paid" && row.paymentState === "paid")
-        || (controlFilter === "pending" && ["pending", "partial", "overdue"].includes(row.paymentState));
+        || (controlFilter === "cancelled" && row.paymentState === "cancelled")
+        || (controlFilter === "overdue" && row.paymentState === "overdue")
+        || (controlFilter === "pending" && ["pending", "partial", "uncharged"].includes(row.paymentState));
       return matchesSearch && matchesFilter;
     });
   }, [controlFilter, controlRows, controlSearch]);
@@ -196,6 +215,11 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
         filter={controlFilter}
         onSearch={setControlSearch}
         onFilter={setControlFilter}
+        units={units}
+        selectedUnitId={selectedUnitId}
+        onUnitChange={onUnitChange}
+        savingPaymentId={savingPaymentId}
+        onPaymentStatusChange={updatePaymentStatus}
         onEdit={setEditingControlRow}
       />
       {editingControlRow && (
@@ -318,14 +342,6 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
   );
 }
 
-const paymentLabels: Record<PaymentState, string> = {
-  paid: "Pago",
-  partial: "Pago parcialmente",
-  overdue: "Pagamento atrasado",
-  pending: "Aguardando pagamento",
-  uncharged: "Sem cobrança",
-};
-
 function dateLabel(value: string, withTime = false) {
   if (!value) return "—";
   const date = /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T00:00:00`) : new Date(value);
@@ -341,6 +357,11 @@ function PlanControlTable({
   filter,
   onSearch,
   onFilter,
+  units,
+  selectedUnitId,
+  onUnitChange,
+  savingPaymentId,
+  onPaymentStatusChange,
   onEdit,
 }: {
   rows: PlanControlRow[];
@@ -349,6 +370,11 @@ function PlanControlTable({
   filter: string;
   onSearch: (value: string) => void;
   onFilter: (value: string) => void;
+  units: Array<{ id: string; name: string }>;
+  selectedUnitId: string;
+  onUnitChange: (unitId: string) => void;
+  savingPaymentId: string;
+  onPaymentStatusChange: (row: PlanControlRow, status: string) => void | Promise<void>;
   onEdit: (row: PlanControlRow) => void;
 }) {
   return (
@@ -360,26 +386,20 @@ function PlanControlTable({
           <p>Veja rapidamente quem contratou, quem pagou e quanto falta para renovar.</p>
         </div>
         <div className="plan-control-filters">
-          <label className="plan-control-search">
-            <span className="sr-only">Buscar paciente ou plano</span>
-            <span aria-hidden="true">⌕</span>
-            <input
-              type="search"
-              placeholder="Buscar paciente ou plano"
-              value={search}
-              onChange={(event) => onSearch(event.target.value)}
-            />
-          </label>
-          <label>
-            <span className="sr-only">Filtrar controle de planos</span>
-            <select value={filter} onChange={(event) => onFilter(event.target.value)} aria-label="Filtrar controle de planos">
-              <option value="all">Todos</option>
-              <option value="due-soon">Renovam em até 7 dias</option>
-              <option value="expired">Planos vencidos</option>
-              <option value="paid">Pagamentos em dia</option>
-              <option value="pending">Pagamento pendente</option>
-            </select>
-          </label>
+          <TextField fieldClassName="plan-control-filter-field plan-control-search-field" label="Buscar" type="search" placeholder="Paciente ou plano" value={search} onChange={(event) => onSearch(event.target.value)} />
+          <SelectField fieldClassName="plan-control-filter-field" label="Situação" value={filter} onChange={(event) => onFilter(event.target.value)}>
+            <option value="all">Todos</option>
+            <option value="due-soon">Renovam em até 7 dias</option>
+            <option value="expired">Planos vencidos</option>
+            <option value="paid">Pagamentos em dia</option>
+            <option value="cancelled">Pagamentos cancelados</option>
+            <option value="overdue">Pagamentos atrasados</option>
+            <option value="pending">Aguardando pagamento</option>
+          </SelectField>
+          <SelectField fieldClassName="plan-control-filter-field" label="Clínica" value={selectedUnitId} onChange={(event) => onUnitChange(event.target.value)}>
+            <option value="">Todas as clínicas</option>
+            {units.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}
+          </SelectField>
         </div>
       </div>
       <div className="plan-control-result" role="status" aria-live="polite">
@@ -399,8 +419,24 @@ function PlanControlTable({
             <small>{row.sessionsIncluded == null ? `${row.sessionsUsed} sessões usadas` : `${row.sessionsUsed} de ${row.sessionsIncluded} sessões usadas`} · {enrollmentStatusLabel(row.enrollmentStatus)}</small>
           </div>
           <div className="plan-control-cell" data-label="Pagamento">
-            <span className={`plan-status plan-status-${row.paymentState}`}>{paymentLabels[row.paymentState]}</span>
-            <small>{row.amountCents ? `${brl(row.paidCents)} de ${brl(row.amountCents)}` : "Nenhum valor lançado"}</small>
+            <SelectField
+              fieldClassName={`payment-status-field payment-status-${row.paymentState}`}
+              label={`Pagamento de ${row.patientName}`}
+              labelHidden
+              value={row.paymentState}
+              disabled={!row.chargeId || savingPaymentId === row.chargeId}
+              onChange={(event) => void onPaymentStatusChange(row, event.target.value)}
+            >
+              {row.paymentState === "uncharged" && <option value="uncharged" disabled>Sem cobrança</option>}
+              {row.paymentState === "partial" && <option value="partial" disabled>Pago parcialmente</option>}
+              <option value="paid">Pago</option>
+              <option value="cancelled">Cancelado</option>
+              <option value="overdue">Atrasado</option>
+              <option value="pending">Aguardando pagamento</option>
+            </SelectField>
+            <small>{row.paymentState === "paid" && row.paidCents < row.amountCents
+              ? "Marcado como pago; recebimento financeiro ainda não lançado"
+              : row.amountCents ? `${brl(row.paidCents)} de ${brl(row.amountCents)}` : "Nenhum valor lançado"}</small>
           </div>
           <div className="plan-control-cell" data-label="Último pagamento">
             <strong>{dateLabel(row.lastPaidAt, true)}</strong>

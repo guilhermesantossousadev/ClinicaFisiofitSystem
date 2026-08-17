@@ -1,6 +1,6 @@
 export type PlanControlSourceRow = Record<string, unknown>;
 
-export type PaymentState = "paid" | "partial" | "overdue" | "pending" | "uncharged";
+export type PaymentState = "paid" | "partial" | "overdue" | "pending" | "cancelled" | "uncharged";
 export type RenewalState = "expired" | "due-soon" | "current" | "unknown";
 
 export type PlanControlRow = {
@@ -16,6 +16,7 @@ export type PlanControlRow = {
   daysToRenewal: number | null;
   renewalState: RenewalState;
   paymentState: PaymentState;
+  chargeId: string;
   amountCents: number;
   paidCents: number;
   lastPaidAt: string;
@@ -75,24 +76,26 @@ export function buildPlanControlRows({
       const enrollmentCharges = charges.filter((charge) =>
         !charge.deleted_at && String(charge.enrollment_id) === String(enrollment.id),
       );
+      const primaryCharge = [...enrollmentCharges].sort((a, b) =>
+        String(a.created_at ?? "").localeCompare(String(b.created_at ?? "")),
+      ).at(-1);
       const amountCents = enrollmentCharges.reduce((sum, charge) => sum + Number(charge.amount_cents ?? 0), 0);
       const paidCents = enrollmentCharges.reduce((sum, charge) => sum + Number(charge.paid_cents ?? 0), 0);
       const paymentDates = enrollmentCharges.flatMap((charge) =>
         (paymentsByCharge.get(String(charge.id)) ?? []).map((payment) => String(payment.paid_at ?? "")),
       ).filter(Boolean).sort();
-      const overdue = enrollmentCharges.some((charge) =>
-        charge.status === "overdue" || (Number(charge.paid_cents ?? 0) < Number(charge.amount_cents ?? 0)
-          && String(charge.due_at ?? "") < dateKey(today)),
-      );
+      const primaryStatus = String(primaryCharge?.status ?? "");
       const paymentState: PaymentState = amountCents === 0
         ? "uncharged"
-        : paidCents >= amountCents
-          ? "paid"
-          : overdue
-            ? "overdue"
-            : paidCents > 0
-              ? "partial"
-              : "pending";
+        : primaryStatus === "cancelled"
+          ? "cancelled"
+          : primaryStatus === "paid" || paidCents >= amountCents
+            ? "paid"
+            : primaryStatus === "overdue"
+              ? "overdue"
+              : primaryStatus === "partial" || paidCents > 0
+                ? "partial"
+                : "pending";
       const startsAt = String(enrollment.starts_at ?? "");
       const renewsAt = String(enrollment.ends_at ?? "")
         || inferredRenewalDate(startsAt, Number(plan.duration_days ?? 0));
@@ -118,6 +121,7 @@ export function buildPlanControlRows({
         daysToRenewal,
         renewalState,
         paymentState,
+        chargeId: String(primaryCharge?.id ?? ""),
         amountCents,
         paidCents,
         lastPaidAt: paymentDates.at(-1) ?? "",

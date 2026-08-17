@@ -9,14 +9,19 @@ type BaseProps = {
   required?: boolean;
 };
 
+type FieldLayoutProps = {
+  fieldClassName?: string;
+  labelHidden?: boolean;
+};
+
 function useFieldId(id: string | undefined, label: string) {
   const generated = useId();
   return id ?? `${label.toLocaleLowerCase("pt-BR").replace(/[^a-z0-9]+/g, "-")}-${generated.replaceAll(":", "")}`;
 }
 
-function FieldLabel({ id, label, required }: { id: string; label: string; required?: boolean }) {
+function FieldLabel({ id, label, required, hidden = false }: { id: string; label: string; required?: boolean; hidden?: boolean }) {
   return (
-    <label className="form-field-label" htmlFor={id}>
+    <label className={`form-field-label${hidden ? " sr-only" : ""}`} htmlFor={id}>
       <span>{label}{required && <span className="required-mark" aria-hidden="true">*</span>}</span>
     </label>
   );
@@ -27,46 +32,46 @@ function FieldMessage({ id, hint, error }: Pick<BaseProps, "hint" | "error"> & {
   return <small id={id} className={error ? "form-field-error" : "form-field-hint"}>{error ?? hint}</small>;
 }
 
-export function FormField({ label, hint, error, id, required, className = "", children }: BaseProps & { className?: string; children: ReactNode }) {
+export function FormField({ label, hint, error, id, required, labelHidden, className = "", children }: BaseProps & { className?: string; labelHidden?: boolean; children: ReactNode }) {
   const controlId = useFieldId(id, label);
   const messageId = `${controlId}-message`;
   return (
     <div className={`form-field ${className}`.trim()}>
-      <FieldLabel id={controlId} label={label} required={required} />
+      <FieldLabel id={controlId} label={label} required={required} hidden={labelHidden} />
       {children}
       <FieldMessage id={messageId} hint={hint} error={error} />
     </div>
   );
 }
 
-export function TextField({ label, hint, error, id, required, ...props }: BaseProps & InputHTMLAttributes<HTMLInputElement>) {
+export function TextField({ label, hint, error, id, required, fieldClassName, labelHidden, ...props }: BaseProps & FieldLayoutProps & InputHTMLAttributes<HTMLInputElement>) {
   const controlId = useFieldId(id, label);
   const messageId = `${controlId}-message`;
   const describedBy = [props["aria-describedby"], hint || error ? messageId : undefined].filter(Boolean).join(" ") || undefined;
   return (
-    <FormField label={label} hint={hint} error={error} id={controlId} required={required}>
+    <FormField className={fieldClassName} label={label} hint={hint} error={error} id={controlId} required={required} labelHidden={labelHidden}>
       <input {...props} id={controlId} required={required} aria-invalid={error ? "true" : undefined} aria-describedby={describedBy} />
     </FormField>
   );
 }
 
-export function TextareaField({ label, hint, error, id, required, ...props }: BaseProps & TextareaHTMLAttributes<HTMLTextAreaElement>) {
+export function TextareaField({ label, hint, error, id, required, fieldClassName, labelHidden, ...props }: BaseProps & FieldLayoutProps & TextareaHTMLAttributes<HTMLTextAreaElement>) {
   const controlId = useFieldId(id, label);
   const messageId = `${controlId}-message`;
   const describedBy = [props["aria-describedby"], hint || error ? messageId : undefined].filter(Boolean).join(" ") || undefined;
   return (
-    <FormField label={label} hint={hint} error={error} id={controlId} required={required}>
+    <FormField className={fieldClassName} label={label} hint={hint} error={error} id={controlId} required={required} labelHidden={labelHidden}>
       <textarea {...props} id={controlId} required={required} aria-invalid={error ? "true" : undefined} aria-describedby={describedBy} />
     </FormField>
   );
 }
 
-export function SelectField({ label, hint, error, id, required, children, ...props }: BaseProps & SelectHTMLAttributes<HTMLSelectElement> & { children: ReactNode }) {
+export function SelectField({ label, hint, error, id, required, fieldClassName, labelHidden, children, ...props }: BaseProps & FieldLayoutProps & SelectHTMLAttributes<HTMLSelectElement> & { children: ReactNode }) {
   const controlId = useFieldId(id, label);
   const messageId = `${controlId}-message`;
   const describedBy = [props["aria-describedby"], hint || error ? messageId : undefined].filter(Boolean).join(" ") || undefined;
   return (
-    <FormField label={label} hint={hint} error={error} id={controlId} required={required}>
+    <FormField className={fieldClassName} label={label} hint={hint} error={error} id={controlId} required={required} labelHidden={labelHidden}>
       <select {...props} id={controlId} required={required} aria-invalid={error ? "true" : undefined} aria-describedby={describedBy}>{children}</select>
     </FormField>
   );

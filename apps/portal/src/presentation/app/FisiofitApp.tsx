@@ -417,7 +417,7 @@ export default function FisiofitApp() {
         )}{" "}
         {view === "Agenda" && <OperationalAgenda canEdit={profile.role === "admin" || !profile.profile_permissions || profile.profile_permissions.some((permission) => permission.module === "agenda" && permission.can_edit)} onOpenPatients={() => navigate("Pacientes")} onOpenEnrollment={(context) => { setAgendaContext(context); navigate("Matrículas"); }} />}{" "}
         {view === "Pacientes" && <OperationalPatients />}{" "}
-        {view === "Matrículas" && <OperationalEnrollments agendaContext={agendaContext} onClearAgendaContext={() => setAgendaContext(undefined)} />}{" "}
+        {view === "Matrículas" && <OperationalEnrollments agendaContext={agendaContext} onClearAgendaContext={() => setAgendaContext(undefined)} units={units} selectedUnitId={unit} onUnitChange={setUnit} />}{" "}
         {view === "Prontuários" && <OperationalRecords />}{" "}
         {view === "Financeiro" && <OperationalFinance />}{" "}
         {view === "Relatórios" && <OperationalReports />}{" "}

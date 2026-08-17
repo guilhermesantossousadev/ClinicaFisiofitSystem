@@ -513,6 +513,33 @@ app.post("/charges", requireRoles(["admin", "manager", "finance"]), async (conte
   return createClinicResource(context, "charges", { ...input, status: "pending" }, "charge.created", input.unit_id);
 });
 
+app.patch("/charges/:id/status", requireRoles(["admin", "manager", "finance"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const input = z.object({
+    status: z.enum(["paid", "cancelled", "overdue", "pending"]),
+  }).parse(await context.req.json());
+  const db = context.get("db");
+  const clinicId = context.get("profile").clinic_id;
+  const { data: current, error: currentError } = await db.from("charges")
+    .select("id,unit_id,status")
+    .eq("id", id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle();
+  if (currentError) return databaseResult(context, null, currentError);
+  if (!current) return fail(context, 404, "CHARGE_NOT_FOUND", "Cobrança não encontrada.");
+  if (!(await hasUnitAccess(context, current.unit_id))) {
+    return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+  }
+  const { data, error } = await db.from("charges")
+    .update({ status: input.status, updated_at: new Date().toISOString() })
+    .eq("id", id).eq("clinic_id", clinicId).is("deleted_at", null).select().single();
+  if (!error && data) {
+    await audit(context, "charge.status_updated", "charge", id, current.unit_id, {
+      previous_status: current.status,
+      status: input.status,
+    });
+  }
+  return databaseResult(context, data, error);
+});
+
 app.get("/record-templates", requireRoles(["admin", "manager", "professional"]), listResource("record_templates", "name"));
 
 app.post("/record-templates", requireRoles(["admin", "manager"]), async (context) => {

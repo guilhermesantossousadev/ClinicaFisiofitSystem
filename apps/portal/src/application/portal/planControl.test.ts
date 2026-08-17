@@ -20,16 +20,27 @@ describe("controle de planos", () => {
     expect(rows[0].lastPaidAt).toBe("2026-08-04T12:00:00Z");
   });
 
-  it("prioriza a data final informada e identifica cobrança vencida", () => {
+  it("prioriza a data final informada e identifica cobrança marcada como vencida", () => {
     const rows = buildPlanControlRows({
       ...base,
       enrollments: [{ ...base.enrollments[0], ends_at: "2026-08-10" }],
-      charges: [{ id: "charge-1", enrollment_id: "enrollment-1", amount_cents: 20000, paid_cents: 5000, due_at: "2026-08-05", status: "pending" }],
+      charges: [{ id: "charge-1", enrollment_id: "enrollment-1", amount_cents: 20000, paid_cents: 5000, due_at: "2026-08-05", status: "overdue" }],
       payments: [],
       today: new Date(2026, 7, 16),
     });
 
     expect(rows[0]).toMatchObject({ daysToRenewal: -6, renewalState: "expired", paymentState: "overdue" });
     expect(renewalCopy(rows[0].daysToRenewal)).toBe("Vencido há 6 dias");
+  });
+
+  it("preserva o status cancelado e expõe a cobrança editável", () => {
+    const rows = buildPlanControlRows({
+      ...base,
+      charges: [{ id: "charge-1", enrollment_id: "enrollment-1", amount_cents: 20000, paid_cents: 0, due_at: "2026-08-05", status: "cancelled" }],
+      payments: [],
+      today: new Date(2026, 7, 16),
+    });
+
+    expect(rows[0]).toMatchObject({ chargeId: "charge-1", paymentState: "cancelled" });
   });
 });
