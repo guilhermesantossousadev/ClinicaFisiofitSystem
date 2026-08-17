@@ -450,6 +450,42 @@ app.post("/enrollments", requireRoles(["admin", "manager", "finance"]), async (c
   return ok(context, data, 201);
 });
 
+app.patch("/enrollments/:id", requireRoles(["admin", "manager", "finance"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const input = z.object({
+    starts_at: z.string().date().optional(),
+    ends_at: z.string().date().nullable().optional(),
+    sessions_used: z.number().int().nonnegative().optional(),
+    status: z.enum(["active", "paused", "expired"]).optional(),
+  }).refine((value) => Object.keys(value).length > 0, {
+    message: "Informe ao menos um dado para atualizar.",
+  }).parse(await context.req.json());
+  const db = context.get("db");
+  const clinicId = context.get("profile").clinic_id;
+  const { data: current, error: currentError } = await db.from("enrollments")
+    .select("id,unit_id,starts_at,ends_at")
+    .eq("id", id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle();
+  if (currentError) return databaseResult(context, null, currentError);
+  if (!current) return fail(context, 404, "ENROLLMENT_NOT_FOUND", "Matrícula não encontrada.");
+  if (!(await hasUnitAccess(context, current.unit_id))) {
+    return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+  }
+  const startsAt = input.starts_at ?? current.starts_at;
+  const endsAt = input.ends_at === undefined ? current.ends_at : input.ends_at;
+  if (endsAt && endsAt < startsAt) {
+    return fail(context, 400, "INVALID_PERIOD", "A data de renovação não pode ser anterior à data inicial.");
+  }
+  const { data, error } = await db.from("enrollments")
+    .update({ ...input, updated_at: new Date().toISOString() })
+    .eq("id", id).eq("clinic_id", clinicId).is("deleted_at", null).select().single();
+  if (!error && data) {
+    await audit(context, "enrollment.updated", "enrollment", id, current.unit_id, {
+      changed_fields: Object.keys(input),
+    });
+  }
+  return databaseResult(context, data, error);
+});
+
 app.post("/enrollments/:id/rollback", requireRoles(["admin", "manager", "finance"]), async (context) => {
   const id = z.string().uuid().parse(context.req.param("id"));
   const input = z.object({ reason: z.string().trim().min(10).max(1000) }).parse(await context.req.json());

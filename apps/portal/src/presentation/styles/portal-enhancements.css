@@ -130,7 +130,7 @@
 .plan-control-filters select { min-height: 44px; max-width: 210px; padding: 0 34px 0 12px; border: 1px solid var(--line); border-radius: 9px; background: #fff; font-size: 12px; }
 .plan-control-result { padding: 8px 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; }
 .plan-control-head,
-.plan-control-row { display: grid; grid-template-columns: 1.15fr 1.25fr 1.15fr 1fr 1.2fr; align-items: center; gap: 18px; min-width: 980px; }
+.plan-control-row { display: grid; grid-template-columns: 1.15fr 1.25fr 1.15fr 1fr 1.2fr 76px; align-items: center; gap: 18px; min-width: 1080px; }
 .plan-control-head { padding: 12px 18px; border-block: 1px solid var(--line); background: #f3f6f9; color: #536a82; }
 .plan-control-head span { font-size: 11px; font-weight: 800; letter-spacing: .055em; text-transform: uppercase; }
 .plan-control-row { min-height: 82px; padding: 14px 18px; border-bottom: 1px solid #e5ebf0; }
@@ -144,6 +144,10 @@
 .plan-status-partial, .plan-renewal-due-soon { background: #fff2df; color: #8b6238; }
 .plan-status-overdue, .plan-renewal-expired { background: #f7e8e9; color: #9d3f45; }
 .plan-renewal-unknown { background: #eef2f5; color: #536a82; }
+.plan-control-actions .btn { width: 100%; min-height: 40px; padding-inline: 10px; }
+.controlled-plan-dialog { width: min(680px, calc(100vw - 32px)); }
+.controlled-plan-dialog .edit-dialog-header p:not(.eyebrow) { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+.controlled-plan-form .form-instructions { padding: 12px 14px; border: 1px solid #dce6eb; border-radius: 8px; background: #f7fafb; color: #536a82; font-size: 12px; line-height: 1.5; }
 
 @media (max-width: 1050px) {
   .plan-control-toolbar { align-items: stretch; flex-direction: column; }

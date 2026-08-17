@@ -23,6 +23,8 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
   const [weeklyFrequency, setWeeklyFrequency] = useState<WeeklyFrequency>(2);
   const [controlSearch, setControlSearch] = useState("");
   const [controlFilter, setControlFilter] = useState("all");
+  const [editingControlRow, setEditingControlRow] = useState<PlanControlRow | null>(null);
+  const [savingControlRow, setSavingControlRow] = useState(false);
   const selectedPeriod = PLAN_PERIODS[planPeriod];
   const planSessions = selectedPeriod.months * weeklyFrequency * 4;
   const planName = `${selectedPeriod.label} · ${weeklyFrequency}x por semana`;
@@ -104,6 +106,30 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
       setNotice(messageOf(e));
     }
   }
+  async function updateControlledPlan(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editingControlRow || savingControlRow) return;
+    const form = new FormData(event.currentTarget);
+    setSavingControlRow(true);
+    try {
+      await api(`/enrollments/${editingControlRow.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          starts_at: value(form, "starts_at"),
+          ends_at: value(form, "ends_at"),
+          sessions_used: Number(value(form, "sessions_used")),
+          status: value(form, "status"),
+        }),
+      });
+      await reload();
+      setEditingControlRow(null);
+      setNotice("Dados do plano atualizados.");
+    } catch (error) {
+      setNotice(messageOf(error));
+    } finally {
+      setSavingControlRow(false);
+    }
+  }
   const enrollmentRows = (data["/enrollments"] ?? []).map((row: Row) => {
     const plan = (data["/plans"] ?? []).find((item: Row) => item.id === row.plan_id);
     const planPrice = plan ? planTotalCents(plan) : 0;
@@ -170,7 +196,16 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
         filter={controlFilter}
         onSearch={setControlSearch}
         onFilter={setControlFilter}
+        onEdit={setEditingControlRow}
       />
+      {editingControlRow && (
+        <EditControlledPlanDialog
+          row={editingControlRow}
+          saving={savingControlRow}
+          onClose={() => setEditingControlRow(null)}
+          onSubmit={updateControlledPlan}
+        />
+      )}
       <div className="dashboard-grid">
         <DrawerForm title="Novo plano" onSubmit={createPlan}>
           <h2>Novo plano</h2>
@@ -306,6 +341,7 @@ function PlanControlTable({
   filter,
   onSearch,
   onFilter,
+  onEdit,
 }: {
   rows: PlanControlRow[];
   total: number;
@@ -313,6 +349,7 @@ function PlanControlTable({
   filter: string;
   onSearch: (value: string) => void;
   onFilter: (value: string) => void;
+  onEdit: (row: PlanControlRow) => void;
 }) {
   return (
     <section className="card table-card plan-control-table" aria-labelledby="plan-control-title">
@@ -349,7 +386,7 @@ function PlanControlTable({
         Exibindo {rows.length} de {total} {total === 1 ? "plano" : "planos"}
       </div>
       <div className="plan-control-head" aria-hidden="true">
-        <span>Paciente</span><span>Plano</span><span>Pagamento</span><span>Último pagamento</span><span>Renovação</span>
+        <span>Paciente</span><span>Plano</span><span>Pagamento</span><span>Último pagamento</span><span>Renovação</span><span>Ações</span>
       </div>
       {rows.map((row) => (
         <div className="plan-control-row" key={row.id}>
@@ -359,7 +396,7 @@ function PlanControlTable({
           </div>
           <div className="plan-control-cell" data-label="Plano">
             <strong>{row.planName}</strong>
-            <small>{row.sessionsIncluded == null ? `${row.sessionsUsed} sessões usadas` : `${row.sessionsUsed} de ${row.sessionsIncluded} sessões usadas`}</small>
+            <small>{row.sessionsIncluded == null ? `${row.sessionsUsed} sessões usadas` : `${row.sessionsUsed} de ${row.sessionsIncluded} sessões usadas`} · {enrollmentStatusLabel(row.enrollmentStatus)}</small>
           </div>
           <div className="plan-control-cell" data-label="Pagamento">
             <span className={`plan-status plan-status-${row.paymentState}`}>{paymentLabels[row.paymentState]}</span>
@@ -373,9 +410,67 @@ function PlanControlTable({
             <span className={`plan-status plan-renewal-${row.renewalState}`}>{renewalCopy(row.daysToRenewal)}</span>
             <small>{row.renewsAt ? `Renovação em ${dateLabel(row.renewsAt)}` : "Defina o fim do período no cadastro"}</small>
           </div>
+          <div className="plan-control-cell plan-control-actions" data-label="Ações">
+            <button type="button" className="btn secondary" onClick={() => onEdit(row)} aria-label={`Editar plano de ${row.patientName}`}>Editar</button>
+          </div>
         </div>
       ))}
       {!rows.length && <div className="empty-state">Nenhum plano corresponde à busca ou ao filtro selecionado.</div>}
     </section>
+  );
+}
+
+function enrollmentStatusLabel(status: string) {
+  return ({ active: "Ativo", paused: "Pausado", expired: "Vencido", cancelled: "Cancelado" } as Record<string, string>)[status] ?? status;
+}
+
+function EditControlledPlanDialog({
+  row,
+  saving,
+  onClose,
+  onSubmit,
+}: {
+  row: PlanControlRow;
+  saving: boolean;
+  onClose: () => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void | Promise<void>;
+}) {
+  const titleId = `edit-controlled-plan-${row.id}`;
+  return (
+    <div className="edit-dialog-backdrop" role="presentation" onMouseDown={(event) => {
+      if (event.target === event.currentTarget && !saving) onClose();
+    }}>
+      <section className="edit-dialog controlled-plan-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} onKeyDown={(event) => {
+        if (event.key === "Escape" && !saving) onClose();
+      }}>
+        <div className="edit-dialog-header">
+          <div>
+            <p className="eyebrow">ATUALIZAÇÃO DO PLANO</p>
+            <h2 id={titleId}>Editar plano de {row.patientName}</h2>
+            <p>{row.planName}</p>
+          </div>
+          <button type="button" className="dialog-close" aria-label="Fechar edição do plano" onClick={onClose} disabled={saving} autoFocus>×</button>
+        </div>
+        <form className="modal-form controlled-plan-form" onSubmit={(event) => void onSubmit(event)} aria-busy={saving}>
+          <div className="form-row">
+            <TextField name="starts_at" label="Início do plano" type="date" defaultValue={row.startsAt} required />
+            <TextField name="ends_at" label="Data de renovação" type="date" min={row.startsAt} defaultValue={row.renewsAt} required />
+          </div>
+          <div className="form-row">
+            <TextField name="sessions_used" label="Sessões utilizadas" type="number" min="0" max={row.sessionsIncluded ?? undefined} defaultValue={row.sessionsUsed} required hint={row.sessionsIncluded == null ? "Quantidade já utilizada pelo paciente." : `O plano inclui ${row.sessionsIncluded} sessões.`} />
+            <SelectField name="status" label="Situação do plano" defaultValue={row.enrollmentStatus} required>
+              <option value="active">Ativo</option>
+              <option value="paused">Pausado</option>
+              <option value="expired">Vencido</option>
+            </SelectField>
+          </div>
+          <p className="form-instructions">Alterações de pagamentos devem ser feitas pelo fluxo financeiro para preservar o histórico.</p>
+          <div className="edit-dialog-actions">
+            <button type="button" className="btn secondary" onClick={onClose} disabled={saving}>Cancelar</button>
+            <button className="btn primary" disabled={saving}>{saving ? "Salvando…" : "Salvar alterações"}</button>
+          </div>
+        </form>
+      </section>
+    </div>
   );
 }
