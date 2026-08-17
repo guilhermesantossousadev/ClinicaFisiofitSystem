@@ -1,6 +1,6 @@
 import { FormEvent, type FormEventHandler, useEffect, useMemo, useState } from "react";
 import { api } from "../../infrastructure/http/api";
-import { FormSection, SelectField, TextareaField, TextField } from "../components/FormPrimitives";
+import { FormSection, SelectField, TextareaField, TextField, WeekdayCheckboxGroup } from "../components/FormPrimitives";
 import { type AgendaEnrollmentContext, Row, Unit, messageOf, value, isoLocal, localDateTime, dateKey, useResources, Select, PatientPicker, DrawerForm, ModuleState, EditableOperationalTable } from "./OperationalShared";
 
 function GroupMemberForm({
@@ -46,22 +46,7 @@ function GroupMemberForm({
             hint="A partir de qual data o paciente participa deste horário."
           />
         </div>
-        <SelectField
-          id="group-member-weekdays"
-          name="weekdays"
-          label="Dias em que o paciente vem"
-          defaultValue={[String(selectedWeekday)]}
-          multiple
-          size={5}
-          required={!full}
-          hint="Selecione um ou mais dias. No computador, use Ctrl ou Cmd para marcar vários."
-        >
-          <option value="1">Segunda-feira</option>
-          <option value="2">Terça-feira</option>
-          <option value="3">Quarta-feira</option>
-          <option value="4">Quinta-feira</option>
-          <option value="5">Sexta-feira</option>
-        </SelectField>
+        <WeekdayCheckboxGroup defaultValue={[String(selectedWeekday)]} required={!full} disabled={full} />
         <div className="group-member-form-actions">
           <button className="btn primary group-members-add" disabled={full || !allowedPatientIds.length}>{full ? "Horário lotado" : "Adicionar paciente"}</button>
           <p className="form-instructions" role="status">{helperText}</p>
@@ -318,7 +303,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
             <div className="group-members-drawer-body">
               {full && <div className="capacity-alert" role="status"><strong>Horário lotado</strong><span>Não há vagas disponíveis para adicionar mais pacientes.</span></div>}
               <h3>Pacientes inscritos</h3>
-              {selectedMembers.length ? <ul className="group-members-drawer-list">{selectedMembers.map((member) => <li key={member.id}><div><span>{member.patients?.name ?? "Paciente"}</span><small>{member.patients?.phone ?? ""}</small></div>{canEdit && <div className="group-member-actions"><form className="group-member-days-form" onSubmit={(event) => void updateGroupMember(event, member)}><SelectField name="weekdays" label={`Dias de ${member.patients?.name ?? "paciente"}`} defaultValue={(member.weekdays ?? []).map(String)} multiple size={5} required><option value="1">Segunda</option><option value="2">Terça</option><option value="3">Quarta</option><option value="4">Quinta</option><option value="5">Sexta</option></SelectField><button type="submit" className="btn secondary">Salvar dias</button></form><button type="button" className="action-delete" onClick={() => void removeGroupMember(member.id)}>Retirar da turma</button></div>}</li>)}</ul> : <p className="empty-state">Nenhum paciente está inscrito neste horário neste dia.</p>}
+              {selectedMembers.length ? <ul className="group-members-drawer-list">{selectedMembers.map((member) => <li key={member.id}><div><span>{member.patients?.name ?? "Paciente"}</span><small>{member.patients?.phone ?? ""}</small></div>{canEdit && <div className="group-member-actions"><form className="group-member-days-form" onSubmit={(event) => void updateGroupMember(event, member)}><WeekdayCheckboxGroup label={`Dias de ${member.patients?.name ?? "paciente"}`} defaultValue={(member.weekdays ?? []).map(String)} required /><button type="submit" className="btn secondary">Salvar dias</button></form><button type="button" className="action-delete" onClick={() => void removeGroupMember(member.id)}>Retirar da turma</button></div>}</li>)}</ul> : <p className="empty-state">Nenhum paciente está inscrito neste horário neste dia.</p>}
               {canEdit && <GroupMemberForm slotName={`Horário ${String(selectedGroupCell.slot.starts_at).slice(0, 5)}`} availablePatients={availablePatients} allowedPatientIds={availablePatientIds} selectedDate={dateKey(selectedGroupCell.day)} selectedWeekday={selectedGroupCell.day.getDay()} full={full} onSubmit={(event) => void addGroupMember(event, selectedGroupCell.slot.id)} />}
             </div>
           </section>

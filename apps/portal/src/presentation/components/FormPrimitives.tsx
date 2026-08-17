@@ -1,5 +1,5 @@
 import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
-import { useId } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 type BaseProps = {
   label: string;
@@ -88,6 +88,76 @@ export function CheckboxField({ label, hint, error, id, required, ...props }: Ba
       </label>
       <FieldMessage id={messageId} hint={hint} error={error} />
     </div>
+  );
+}
+
+const DEFAULT_WEEKDAYS = [
+  { value: "1", label: "Segunda-feira" },
+  { value: "2", label: "Terça-feira" },
+  { value: "3", label: "Quarta-feira" },
+  { value: "4", label: "Quinta-feira" },
+  { value: "5", label: "Sexta-feira" },
+];
+
+export function WeekdayCheckboxGroup({
+  name = "weekdays",
+  label = "Dias em que o paciente vem",
+  defaultValue = [],
+  maxSelections = 3,
+  required = false,
+  disabled = false,
+}: {
+  name?: string;
+  label?: string;
+  defaultValue?: string[];
+  maxSelections?: number;
+  required?: boolean;
+  disabled?: boolean;
+}) {
+  const generatedId = useId().replaceAll(":", "");
+  const groupRef = useRef<HTMLFieldSetElement>(null);
+  const [selected, setSelected] = useState(() => [...defaultValue]);
+  const defaultsKey = defaultValue.join(",");
+  const hintId = `${name}-${generatedId}-hint`;
+  const limitReached = selected.length >= maxSelections;
+
+  useEffect(() => setSelected([...defaultValue]), [defaultsKey]);
+  useEffect(() => {
+    const form = groupRef.current?.closest("form");
+    if (!form) return;
+    const reset = () => setSelected([...defaultValue]);
+    form.addEventListener("reset", reset);
+    return () => form.removeEventListener("reset", reset);
+  }, [defaultsKey]);
+
+  return (
+    <fieldset ref={groupRef} className="weekday-checkbox-group" aria-describedby={hintId} aria-required={required} data-max-selections={maxSelections}>
+      <legend>{label}{required && <span className="required-mark" aria-hidden="true">*</span>}</legend>
+      <div className="weekday-picker">
+        {DEFAULT_WEEKDAYS.map((day, index) => {
+          const checked = selected.includes(day.value);
+          return (
+            <label className="weekday-option" key={day.value}>
+              <input
+                id={`${name}-${generatedId}-${index}`}
+                type="checkbox"
+                name={name}
+                value={day.value}
+                checked={checked}
+                disabled={disabled || (!checked && limitReached)}
+                onChange={(event) => setSelected((current) => event.target.checked
+                  ? [...current, day.value].slice(0, maxSelections)
+                  : current.filter((value) => value !== day.value))}
+              />
+              <span>{day.label}</span>
+            </label>
+          );
+        })}
+      </div>
+      <small id={hintId} className="form-field-hint" aria-live="polite">
+        {limitReached ? `Limite de ${maxSelections} dias atingido.` : `Escolha de 1 a ${maxSelections} dias.`}
+      </small>
+    </fieldset>
   );
 }
 

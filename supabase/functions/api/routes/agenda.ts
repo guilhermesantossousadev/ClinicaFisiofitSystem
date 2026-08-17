@@ -260,7 +260,7 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     const input = z.object({
       enrollment_id: z.string().uuid(),
       patient_id: z.string().uuid(),
-      weekdays: z.array(z.number().int().min(1).max(5)).min(1).max(5).transform((days) => [...new Set(days)].sort()),
+      weekdays: z.array(z.number().int().min(1).max(5)).min(1).max(3).transform((days) => [...new Set(days)].sort()),
       starts_at: z.string().date(),
       ends_at: z.string().date().optional(),
     }).parse(await context.req.json());
@@ -305,7 +305,7 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
   app.patch("/group-slot-memberships/:id", requireRoles(["admin", "manager", "reception"]), async (context: any) => {
     const id = z.string().uuid().parse(context.req.param("id"));
     const input = z.object({
-      weekdays: z.array(z.number().int().min(1).max(5)).min(1).max(5).transform((days) => [...new Set(days)].sort()),
+      weekdays: z.array(z.number().int().min(1).max(5)).min(1).max(3).transform((days) => [...new Set(days)].sort()),
       starts_at: z.string().date(),
       ends_at: z.string().date().optional(),
     }).refine((value) => !value.ends_at || value.ends_at >= value.starts_at, {

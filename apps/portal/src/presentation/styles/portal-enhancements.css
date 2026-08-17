@@ -1596,7 +1596,9 @@ body { background: var(--canvas); }
 .group-member-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
 .group-member-actions button { border: 0; background: transparent; color: var(--blue); cursor: pointer; font-size: 12px; font-weight: 800; }
 .group-member-actions .action-delete { color: #8f2630; }
-.group-member-days-form { display: flex; align-items: end; gap: 8px; }
+.group-member-days-form { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; }
+.group-member-days-form .weekday-checkbox-group { flex: 1 1 100%; margin-bottom: 4px; }
+.group-member-days-form .weekday-picker { grid-template-columns: repeat(5, minmax(110px, 1fr)); }
 .group-member-days-form .form-field { min-width: 170px; }
 .group-member-days-form select[multiple] { width: 100%; min-height: 112px; padding: 6px; border: 1px solid #9fb4c2; border-radius: 8px; background: #fff; color: var(--ink); }
 .group-member-days-form .btn { min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
@@ -1669,6 +1671,19 @@ body { background: var(--canvas); }
   gap: 10px;
   margin-bottom: 20px;
 }
+.weekday-checkbox-group {
+  min-width: 0;
+  margin: 0 0 20px;
+  padding: 0;
+  border: 0;
+}
+.weekday-checkbox-group > legend {
+  margin-bottom: 8px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+.weekday-checkbox-group .weekday-picker { margin-bottom: 8px; }
 .weekday-option {
   display: flex;
   align-items: center;
@@ -1684,6 +1699,7 @@ body { background: var(--canvas); }
   cursor: pointer;
 }
 .weekday-option:has(input:checked) { border-color: var(--green); background: #eaf4f1; color: #276d61; }
+.weekday-option:has(input:disabled:not(:checked)) { cursor: not-allowed; opacity: .55; }
 .weekday-option input { width: 18px; height: 18px; margin: 0; accent-color: var(--green); }
 .field-hint { display: block; min-height: 52px; padding: 16px 14px; border: 1px solid #dce6eb; border-radius: 8px; background: #f7fafb; color: #536a82; font-size: 14px; }
 .agenda-appointment-drawer .creation-drawer-form > label,
@@ -1790,6 +1806,7 @@ body { background: var(--canvas); }
 }
 @media (max-width: 600px) {
   .weekday-picker { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .group-member-days-form .weekday-picker { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .weekday-option { min-height: 44px; padding: 8px 10px; font-size: 12px; }
   .page-title > label { width: 100%; }
   .group-member-form { grid-template-columns: 1fr; }

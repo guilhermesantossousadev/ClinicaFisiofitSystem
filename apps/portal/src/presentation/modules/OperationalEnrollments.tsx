@@ -1,7 +1,7 @@
 import { FormEvent, useMemo, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { buildPlanControlRows, renewalCopy, type PlanControlRow } from "../../application/portal/planControl";
-import { SelectField, TextField } from "../components/FormPrimitives";
+import { SelectField, TextField, WeekdayCheckboxGroup } from "../components/FormPrimitives";
 import { type AgendaEnrollmentContext, Row, PLAN_PERIODS, PlanPeriod, WeeklyFrequency, messageOf, value, cents, brl, planTotalCents, useResources, Select, PlanSelect, PatientPicker, DrawerForm, ModuleState, MetricLite, EditableOperationalTable, OperationalTable } from "./OperationalShared";
 
 export function OperationalEnrollments({ agendaContext, onClearAgendaContext, openEnrollment = false, units = [], selectedUnitId = "", onUnitChange = () => undefined }: { agendaContext?: AgendaEnrollmentContext; onClearAgendaContext?: () => void; openEnrollment?: boolean; units?: Array<{ id: string; name: string }>; selectedUnitId?: string; onUnitChange?: (unitId: string) => void }) {
@@ -272,7 +272,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
           </div>
           {selectedPatient && <div className="agenda-context-summary" role="status"><strong>Paciente selecionado</strong><span>{selectedPatient.name}{selectedPatient.phone ? ` · ${selectedPatient.phone}` : ""}{selectedPatient.cpf ? ` · CPF ${selectedPatient.cpf}` : ""}</span></div>}
           {agendaContext ? <div className="agenda-context-summary" role="status"><input type="hidden" name="unit_id" value={agendaContext.unitId} /><input type="hidden" name="group_slot_id" value={agendaContext.groupSlotId} /><strong>{agendaContext.groupName ?? "Horário selecionado"}</strong><span>{agendaContext.unitName ?? "Unidade selecionada"} · horário escolhido na Agenda · {agendaContext.startsAt}</span><button type="button" onClick={onClearAgendaContext}>Trocar horário</button></div> : <div className="form-row"><Select name="unit_id" label="Unidade" rows={data["/units"] ?? []} /><SelectField name="group_slot_id" label="Horário fixo (opcional)" value={selectedEnrollmentGroup} onChange={(event) => setSelectedEnrollmentGroup(event.target.value)}><option value="">Nenhum</option>{(data["/group-slots"] ?? []).map((slot: Row) => <option key={slot.id} value={slot.id}>{String(slot.starts_at).slice(0, 5)}</option>)}</SelectField></div>}
-          {(agendaContext || selectedEnrollmentGroup) && <SelectField name="weekdays" label="Dias em que o paciente vem" defaultValue={agendaContext ? [String(new Date(`${agendaContext.startsAt}T12:00:00`).getDay())] : undefined} multiple size={5} required hint="Selecione um ou mais dias. No computador, use Ctrl ou Cmd para marcar vários."><option value="1">Segunda-feira</option><option value="2">Terça-feira</option><option value="3">Quarta-feira</option><option value="4">Quinta-feira</option><option value="5">Sexta-feira</option></SelectField>}
+          {(agendaContext || selectedEnrollmentGroup) && <WeekdayCheckboxGroup defaultValue={agendaContext ? [String(new Date(`${agendaContext.startsAt}T12:00:00`).getDay())] : []} required />}
             <div className="form-row">
               <TextField id="enrollment-starts-at" name="starts_at" label="Início" type="date" defaultValue={agendaContext?.startsAt} readOnly={Boolean(agendaContext)} required />
               <TextField id="enrollment-ends-at" name="ends_at" label="Fim do período" type="date" />
