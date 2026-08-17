@@ -18,6 +18,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
   const patients = data["/patients?page=1&pageSize=100"]?.items ?? [];
   const [notice, setNotice] = useState("");
   const [selectedPatient, setSelectedPatient] = useState<Row>();
+  const [selectedEnrollmentGroup, setSelectedEnrollmentGroup] = useState(agendaContext?.groupSlotId ?? "");
   const [patientPickerVersion, setPatientPickerVersion] = useState(0);
   const [planPeriod, setPlanPeriod] = useState<PlanPeriod>("monthly");
   const [weeklyFrequency, setWeeklyFrequency] = useState<WeeklyFrequency>(2);
@@ -69,10 +70,11 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
       if (group && response.data)
           await api(`/group-slots/${group}/members`, {
             method: "POST",
-            body: JSON.stringify({ enrollment_id: response.data.id, patient_id: patientId, starts_at: value(form, "starts_at"), ends_at: value(form, "ends_at") || undefined }),
+            body: JSON.stringify({ enrollment_id: response.data.id, patient_id: patientId, weekdays: form.getAll("weekdays").map(Number), starts_at: value(form, "starts_at"), ends_at: value(form, "ends_at") || undefined }),
           });
       (event.target as HTMLFormElement).reset();
       setSelectedPatient(undefined);
+      setSelectedEnrollmentGroup("");
       setPatientPickerVersion((version) => version + 1);
       await reload();
       setNotice(existing ? "Paciente já matriculado; vínculo recorrente atualizado." : "Matrícula criada e paciente vinculado à turma recorrente.");
@@ -269,7 +271,8 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
             <PlanSelect rows={data["/plans"] ?? []} />
           </div>
           {selectedPatient && <div className="agenda-context-summary" role="status"><strong>Paciente selecionado</strong><span>{selectedPatient.name}{selectedPatient.phone ? ` · ${selectedPatient.phone}` : ""}{selectedPatient.cpf ? ` · CPF ${selectedPatient.cpf}` : ""}</span></div>}
-          {agendaContext ? <div className="agenda-context-summary" role="status"><input type="hidden" name="unit_id" value={agendaContext.unitId} /><input type="hidden" name="group_slot_id" value={agendaContext.groupSlotId} /><strong>{agendaContext.groupName ?? "Turma selecionada"}</strong><span>{agendaContext.unitName ?? "Unidade selecionada"} · horário escolhido na Agenda · {agendaContext.startsAt}</span><button type="button" onClick={onClearAgendaContext}>Trocar horário</button></div> : <div className="form-row"><Select name="unit_id" label="Unidade" rows={data["/units"] ?? []} /><Select name="group_slot_id" label="Turma (opcional)" rows={data["/group-slots"] ?? []} required={false} /></div>}
+          {agendaContext ? <div className="agenda-context-summary" role="status"><input type="hidden" name="unit_id" value={agendaContext.unitId} /><input type="hidden" name="group_slot_id" value={agendaContext.groupSlotId} /><strong>{agendaContext.groupName ?? "Horário selecionado"}</strong><span>{agendaContext.unitName ?? "Unidade selecionada"} · horário escolhido na Agenda · {agendaContext.startsAt}</span><button type="button" onClick={onClearAgendaContext}>Trocar horário</button></div> : <div className="form-row"><Select name="unit_id" label="Unidade" rows={data["/units"] ?? []} /><SelectField name="group_slot_id" label="Horário fixo (opcional)" value={selectedEnrollmentGroup} onChange={(event) => setSelectedEnrollmentGroup(event.target.value)}><option value="">Nenhum</option>{(data["/group-slots"] ?? []).map((slot: Row) => <option key={slot.id} value={slot.id}>{String(slot.starts_at).slice(0, 5)}</option>)}</SelectField></div>}
+          {(agendaContext || selectedEnrollmentGroup) && <SelectField name="weekdays" label="Dias em que o paciente vem" defaultValue={agendaContext ? [String(new Date(`${agendaContext.startsAt}T12:00:00`).getDay())] : undefined} multiple size={5} required hint="Selecione um ou mais dias. No computador, use Ctrl ou Cmd para marcar vários."><option value="1">Segunda-feira</option><option value="2">Terça-feira</option><option value="3">Quarta-feira</option><option value="4">Quinta-feira</option><option value="5">Sexta-feira</option></SelectField>}
             <div className="form-row">
               <TextField id="enrollment-starts-at" name="starts_at" label="Início" type="date" defaultValue={agendaContext?.startsAt} readOnly={Boolean(agendaContext)} required />
               <TextField id="enrollment-ends-at" name="ends_at" label="Fim do período" type="date" />

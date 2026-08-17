@@ -161,6 +161,7 @@ export function PatientPicker({
   defaultLabel = "",
   onSelect,
   id,
+  allowedIds,
 }: {
   name?: string;
   rows: Row[];
@@ -170,6 +171,7 @@ export function PatientPicker({
   defaultLabel?: string;
   onSelect?: (patient: Row) => void;
   id?: string;
+  allowedIds?: string[];
 }) {
   const generatedId = useId();
   const fieldId = id ?? `${name}-${generatedId.replaceAll(":", "")}`;
@@ -186,11 +188,16 @@ export function PatientPicker({
     if (search.length < 2) return;
     const timer = window.setTimeout(() => {
       void api<{ items: Row[] }>(`/patients?page=1&pageSize=100&search=${encodeURIComponent(search)}`)
-        .then((response) => setOptions(response.data?.items ?? []))
+        .then((response) => {
+          const results = response.data?.items ?? [];
+          if (!allowedIds) return setOptions(results);
+          const allowedIdSet = new Set(allowedIds);
+          setOptions(results.filter((row) => allowedIdSet.has(row.id)));
+        })
         .catch(() => setOptions(rows.filter((row) => String(row.name ?? "").toLocaleLowerCase("pt-BR").includes(search.toLocaleLowerCase("pt-BR")))));
     }, 220);
     return () => window.clearTimeout(timer);
-  }, [query, rows]);
+  }, [allowedIds, query, rows]);
   const choose = (patient: Row) => {
     setSelectedId(patient.id);
     setQuery(patient.name ?? "Paciente");

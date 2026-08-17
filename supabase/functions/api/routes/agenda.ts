@@ -260,12 +260,13 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     const input = z.object({
       enrollment_id: z.string().uuid(),
       patient_id: z.string().uuid(),
+      weekdays: z.array(z.number().int().min(1).max(5)).min(1).max(5).transform((days) => [...new Set(days)].sort()),
       starts_at: z.string().date(),
       ends_at: z.string().date().optional(),
     }).parse(await context.req.json());
     const db = context.get("db");
     const clinicId = context.get("profile").clinic_id;
-    const { data: slot, error: slotError } = await db.from("group_slots").select("id,unit_id,capacity")
+    const { data: slot, error: slotError } = await db.from("group_slots").select("id,unit_id,capacity,weekdays")
       .eq("id", groupSlotId).eq("clinic_id", clinicId).is("deleted_at", null).single();
     if (slotError || !slot) return databaseResult(context, null, slotError);
     if (!(await hasUnitAccess(context, slot.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
@@ -273,12 +274,15 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
       .eq("id", input.enrollment_id).eq("clinic_id", clinicId).eq("patient_id", input.patient_id).eq("unit_id", slot.unit_id).eq("status", "active").is("deleted_at", null).maybeSingle();
     if (!enrollment) return fail(context, 400, "INVALID_ENROLLMENT", "A matrícula não corresponde ao paciente e à unidade desta turma.");
     if (input.ends_at && input.ends_at < input.starts_at) return fail(context, 400, "INVALID_PERIOD", "A data final não pode ser anterior à inicial.");
+    if (input.weekdays.some((day) => !(slot.weekdays ?? []).includes(day))) return fail(context, 400, "INVALID_WEEKDAYS", "Selecione apenas dias disponíveis neste horário fixo.");
     const { data: existingMembership } = await db.from("group_slot_memberships").select("id").eq("clinic_id", clinicId).eq("group_slot_id", groupSlotId).eq("patient_id", input.patient_id).eq("status", "active").is("deleted_at", null).maybeSingle();
     if (existingMembership) return ok(context, existingMembership);
-    const { count, error: countError } = await db.from("group_slot_memberships").select("id", { count: "exact", head: true })
+    const { data: activeMemberships, error: countError } = await db.from("group_slot_memberships").select("weekdays")
       .eq("clinic_id", clinicId).eq("group_slot_id", groupSlotId).eq("status", "active").is("deleted_at", null);
     if (countError) return databaseResult(context, null, countError);
-    if ((count ?? 0) >= slot.capacity) return fail(context, 409, "GROUP_CAPACITY_REACHED", "A turma já atingiu a capacidade configurada.");
+    if (input.weekdays.some((day) => (activeMemberships ?? []).filter((membership: any) => membership.weekdays?.includes(day)).length >= slot.capacity)) {
+      return fail(context, 409, "GROUP_CAPACITY_REACHED", "Um dos dias selecionados já atingiu a capacidade deste horário.");
+    }
     const { data, error } = await db.from("group_slot_memberships").insert({
       ...input,
       group_slot_id: groupSlotId,
@@ -300,12 +304,32 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
   
   app.patch("/group-slot-memberships/:id", requireRoles(["admin", "manager", "reception"]), async (context: any) => {
     const id = z.string().uuid().parse(context.req.param("id"));
-    const input = z.object({ starts_at: z.string().date(), ends_at: z.string().date().optional() }).refine((value) => !value.ends_at || value.ends_at >= value.starts_at, {
+    const input = z.object({
+      weekdays: z.array(z.number().int().min(1).max(5)).min(1).max(5).transform((days) => [...new Set(days)].sort()),
+      starts_at: z.string().date(),
+      ends_at: z.string().date().optional(),
+    }).refine((value) => !value.ends_at || value.ends_at >= value.starts_at, {
       message: "A data final não pode ser anterior à inicial.",
     }).parse(await context.req.json());
-    const { data, error } = await context.get("db").from("group_slot_memberships")
+    const db = context.get("db");
+    const clinicId = context.get("profile").clinic_id;
+    const { data: current, error: currentError } = await db.from("group_slot_memberships")
+      .select("id,group_slot_id")
+      .eq("id", id).eq("clinic_id", clinicId).eq("status", "active").is("deleted_at", null).single();
+    if (currentError || !current) return databaseResult(context, null, currentError);
+    const { data: slot, error: slotError } = await db.from("group_slots").select("weekdays,capacity")
+      .eq("id", current.group_slot_id).eq("clinic_id", clinicId).is("deleted_at", null).single();
+    if (slotError || !slot) return databaseResult(context, null, slotError);
+    if (input.weekdays.some((day) => !(slot.weekdays ?? []).includes(day))) return fail(context, 400, "INVALID_WEEKDAYS", "Selecione apenas dias disponíveis neste horário fixo.");
+    const { data: otherMemberships, error: countError } = await db.from("group_slot_memberships").select("weekdays")
+      .eq("clinic_id", clinicId).eq("group_slot_id", current.group_slot_id).eq("status", "active").is("deleted_at", null).neq("id", id);
+    if (countError) return databaseResult(context, null, countError);
+    if (input.weekdays.some((day) => (otherMemberships ?? []).filter((membership: any) => membership.weekdays?.includes(day)).length >= slot.capacity)) {
+      return fail(context, 409, "GROUP_CAPACITY_REACHED", "Um dos dias selecionados já atingiu a capacidade deste horário.");
+    }
+    const { data, error } = await db.from("group_slot_memberships")
       .update({ ...input, updated_at: new Date().toISOString() })
-      .eq("id", id).eq("clinic_id", context.get("profile").clinic_id).eq("status", "active").is("deleted_at", null).select("id,group_slot_id,starts_at,ends_at").single();
+      .eq("id", id).eq("clinic_id", clinicId).eq("status", "active").is("deleted_at", null).select("id,group_slot_id,weekdays,starts_at,ends_at").single();
     if (!error && data) await audit(context, "group_slot.member_updated", "group_slot_membership", id);
     return databaseResult(context, data, error);
   });

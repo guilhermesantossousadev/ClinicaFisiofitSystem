@@ -1,9 +1,10 @@
 begin;
-select plan(14);
+select plan(15);
 
 select has_table('public', 'patients', 'pacientes existe');
 select has_table('public', 'group_slots', 'turmas semanais existem');
 select has_table('public', 'group_slot_memberships', 'vínculos de alunos às turmas existem');
+select has_column('public', 'group_slot_memberships', 'weekdays', 'vínculo da turma guarda os dias do paciente');
 select has_table('public', 'clinical_records', 'prontuário existe');
 select has_function('public', 'register_payment', 'pagamento transacional existe');
 select has_function('public', 'complete_appointment', 'conclusão idempotente de atendimento existe');

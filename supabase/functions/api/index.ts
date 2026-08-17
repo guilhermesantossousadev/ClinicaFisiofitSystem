@@ -283,7 +283,7 @@ app.get("/group-slots", requireRoles(["admin", "manager", "reception", "professi
 app.get("/group-slot-memberships", requireRoles(["admin", "manager", "reception", "professional"]), async (context) => {
   const clinicId = context.get("profile").clinic_id;
   let query = context.get("db").from("group_slot_memberships")
-    .select("id,group_slot_id,enrollment_id,patient_id,starts_at,ends_at,status,patients(name,phone)")
+    .select("id,group_slot_id,enrollment_id,patient_id,weekdays,starts_at,ends_at,status,patients(name,phone)")
     .eq("clinic_id", clinicId).is("deleted_at", null).eq("status", "active");
   const groupSlotId = context.req.query("groupSlotId");
   if (groupSlotId) query = query.eq("group_slot_id", z.string().uuid().parse(groupSlotId));

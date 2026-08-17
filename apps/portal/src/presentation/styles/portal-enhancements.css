@@ -1596,6 +1596,10 @@ body { background: var(--canvas); }
 .group-member-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
 .group-member-actions button { border: 0; background: transparent; color: var(--blue); cursor: pointer; font-size: 12px; font-weight: 800; }
 .group-member-actions .action-delete { color: #8f2630; }
+.group-member-days-form { display: flex; align-items: end; gap: 8px; }
+.group-member-days-form .form-field { min-width: 170px; }
+.group-member-days-form select[multiple] { width: 100%; min-height: 112px; padding: 6px; border: 1px solid #9fb4c2; border-radius: 8px; background: #fff; color: var(--ink); }
+.group-member-days-form .btn { min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
 .group-member-inline-edit { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr auto; align-items: end; gap: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
 .group-member-inline-edit[hidden] { display: none; }
 .group-member-inline-edit label { display: grid; gap: 4px; color: var(--muted); font-size: 11px; font-weight: 700; }
@@ -2196,6 +2200,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .group-member-form .form-section { display: block; margin: 0; }
 .group-member-form .form-row { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(170px, 1fr); align-items: start; gap: 16px; margin: 14px 0 0; }
 .group-member-form .form-field { min-width: 0; }
+.group-member-form select[multiple] { min-height: 148px; }
 .group-member-form-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(190px, 1fr); align-items: center; gap: 16px; margin-top: 16px; }
 .group-member-form-actions .group-members-add { width: 100%; }
 .group-member-form-actions .form-instructions { margin: 0; }
