@@ -64,6 +64,11 @@ test("mantém API, banco e integrações versionados", async () => {
   assert.match(api, /\/imports\/patients/);
   assert.match(api, /PROTECTED_OWNER_ACCOUNT/);
   assert.match(api, /\/privacy\/requests/);
+  assert.match(
+    api,
+    /"data_subject_requests",\s*"privacy_incidents",\s*\]\.includes\(table\)/,
+    "recursos de privacidade sem deleted_at não devem receber o filtro de exclusão lógica",
+  );
   for (const resource of ["units", "rooms", "professionals", "services", "plans", "group-slots", "record-templates"]) {
     assert.match(api, new RegExp(`app\\.patch\\("/${resource}/:id"`));
   }

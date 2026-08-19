@@ -6,6 +6,7 @@ import { useAuth } from "../auth/AuthProvider";
 import {
   OperationalAdministration,
   OperationalAgenda,
+  OperationalDailyAttendance,
   OperationalEnrollments,
   OperationalFinance,
   OperationalPatients,
@@ -19,7 +20,7 @@ import type { DashboardData, Patient, Profile, Unit, View } from "../../domain/p
 import { isView, nav, navModule, roleLabel } from "../../application/portal/navigation";
 const OperationalImports = lazy(() => import("../modules/OperationalImports"));
 const sidebarGroups: Array<{ label: string; items: View[] }> = [
-  { label: "Operação", items: ["Painel", "Agenda", "Pacientes", "Matrículas", "Prontuários"] },
+  { label: "Operação", items: ["Painel", "Agenda", "Chamada diária", "Pacientes", "Matrículas", "Prontuários"] },
   { label: "Gestão", items: ["Financeiro", "Relatórios", "Importações"] },
   { label: "Administração", items: ["Usuários", "Configurações", "Privacidade"] },
 ];
@@ -416,6 +417,7 @@ export default function FisiofitApp() {
           <Dashboard data={dashboard} name={profile.name} setView={setView} loading={loading} />
         )}{" "}
         {view === "Agenda" && <OperationalAgenda canEdit={profile.role === "admin" || !profile.profile_permissions || profile.profile_permissions.some((permission) => permission.module === "agenda" && permission.can_edit)} onOpenPatients={() => navigate("Pacientes")} onOpenEnrollment={(context) => { setAgendaContext(context); navigate("Matrículas"); }} />}{" "}
+        {view === "Chamada diária" && <OperationalDailyAttendance canEdit={profile.role === "admin" || !profile.profile_permissions || profile.profile_permissions.some((permission) => permission.module === "agenda" && permission.can_edit)} />}{" "}
         {view === "Pacientes" && <OperationalPatients />}{" "}
         {view === "Matrículas" && <OperationalEnrollments agendaContext={agendaContext} onClearAgendaContext={() => setAgendaContext(undefined)} units={units} selectedUnitId={unit} onUnitChange={setUnit} />}{" "}
         {view === "Prontuários" && <OperationalRecords />}{" "}

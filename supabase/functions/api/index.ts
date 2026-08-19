@@ -608,6 +608,8 @@ function listResource(table: string, order: string, ascending = true) {
       "record_templates",
       "monthly_closings",
       "import_batches",
+      "data_subject_requests",
+      "privacy_incidents",
     ].includes(table)) {
       query = query.is("deleted_at", null);
     }
