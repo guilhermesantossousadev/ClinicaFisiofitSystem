@@ -14,7 +14,15 @@
 
 /* Chamada diária: fluxo compacto, legível e operável por toque. */
 .daily-attendance-title { gap: 20px; }
+.attendance-filters { display: grid; gap: 18px; margin-bottom: 18px; padding: 20px 22px; }
+.attendance-filters h2 { margin: 3px 0 5px; font-size: 18px; }
+.attendance-filters p:not(.eyebrow) { margin: 0; color: var(--muted); font-size: 12px; }
+.attendance-filter-grid { display: grid; grid-template-columns: minmax(180px, .8fr) minmax(390px, 1.5fr) minmax(230px, 1fr); align-items: end; gap: 16px; }
+.attendance-filter-grid > label { display: grid; gap: 8px; min-width: 0; color: var(--ink); font-size: 12px; font-weight: 750; }
+.attendance-filter-grid select { width: 100%; min-height: 44px; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); font: inherit; }
+.attendance-filter-grid select:disabled { background: #f3f5f4; color: var(--muted); cursor: not-allowed; }
 .daily-date-controls { display: flex; align-items: center; gap: 8px; }
+.daily-date-controls .btn { min-width: 44px; padding-inline: 12px; }
 .daily-date-controls input { min-height: 44px; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); font: inherit; }
 .attendance-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
 .attendance-summary > div { display: flex; flex-direction: column; gap: 5px; padding: 17px 20px; border: 1px solid var(--line); border-radius: 12px; background: #fff; box-shadow: var(--shadow); }
@@ -32,7 +40,7 @@
 .attendance-action { min-width: 86px; min-height: 44px; border: 1px solid #cbd8d4; border-radius: 8px; background: #fff; color: var(--ink); font-size: 11px; font-weight: 750; }
 .attendance-action.present:hover, .attendance-action.present.selected { border-color: #34766b; background: #e5f2ee; color: #246258; }
 .attendance-action.missed:hover, .attendance-action.missed.selected { border-color: #b95a5d; background: #f6e5e6; color: #963f43; }
-.attendance-action:focus-visible, .daily-date-controls button:focus-visible, .daily-date-controls input:focus-visible { outline: 3px solid var(--focus, #e8a83e); outline-offset: 2px; }
+.attendance-action:focus-visible, .daily-date-controls button:focus-visible, .daily-date-controls input:focus-visible, .attendance-filter-grid select:focus-visible { outline: 3px solid var(--focus, #e8a83e); outline-offset: 2px; }
 .attendance-action:disabled { cursor: wait; opacity: .55; }
 .attendance-empty { padding: 48px 22px; text-align: center; }
 .attendance-empty strong { font-size: 15px; }
@@ -55,9 +63,9 @@
 
 @media (max-width: 760px) {
   .daily-attendance-title { align-items: stretch; flex-direction: column; }
+  .attendance-filter-grid { grid-template-columns: 1fr; }
   .daily-date-controls { flex-wrap: wrap; }
-  .daily-date-controls label { flex: 1; }
-  .daily-date-controls input { width: 100%; }
+  .daily-date-controls input { flex: 1; width: min(100%, 180px); }
   .attendance-summary { grid-template-columns: repeat(2, 1fr); }
   .daily-attendance .attendance-row { grid-template-columns: 1fr auto; gap: 10px; padding: 14px 16px; }
   .attendance-row > .status { justify-self: start; }
