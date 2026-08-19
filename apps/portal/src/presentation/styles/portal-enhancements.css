@@ -18,7 +18,9 @@
 .attendance-filters h2 { margin: 3px 0 5px; font-size: 18px; }
 .attendance-filters p:not(.eyebrow) { margin: 0; color: var(--muted); font-size: 12px; }
 .attendance-filter-grid { display: grid; grid-template-columns: minmax(180px, .8fr) minmax(390px, 1.5fr) minmax(230px, 1fr); align-items: end; gap: 16px; }
-.attendance-filter-grid > label { display: grid; gap: 8px; min-width: 0; color: var(--ink); font-size: 12px; font-weight: 750; }
+.attendance-filter-grid > .form-field, .attendance-date-field { min-width: 0; }
+.attendance-date-field { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 8px; }
+.attendance-date-field .form-field { min-width: 0; }
 .attendance-filter-grid select { width: 100%; min-height: 44px; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); font: inherit; }
 .attendance-filter-grid select:disabled { background: #f3f5f4; color: var(--muted); cursor: not-allowed; }
 .daily-date-controls { display: flex; align-items: center; gap: 8px; }
@@ -64,6 +66,7 @@
 @media (max-width: 760px) {
   .daily-attendance-title { align-items: stretch; flex-direction: column; }
   .attendance-filter-grid { grid-template-columns: 1fr; }
+  .attendance-date-field { grid-template-columns: minmax(0, 1fr) auto; }
   .daily-date-controls { flex-wrap: wrap; }
   .daily-date-controls input { flex: 1; width: min(100%, 180px); }
   .attendance-summary { grid-template-columns: repeat(2, 1fr); }

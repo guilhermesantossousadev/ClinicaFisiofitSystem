@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { api } from "../../infrastructure/http/api";
+import { SelectField, TextField } from "../components/FormPrimitives";
 import { dateKey, messageOf, ModuleState, type Row, useResources } from "./OperationalShared";
 
 type AttendanceResponse = { slots: Row[]; makeups: Row[] };
@@ -66,9 +67,22 @@ export function OperationalDailyAttendance({ canEdit = true }: { canEdit?: boole
     <section className="card attendance-filters" aria-labelledby="attendance-filters-title">
       <div><p className="eyebrow">SELECIONE A TURMA</p><h2 id="attendance-filters-title">Unidade, dia e horário</h2><p>Ao escolher o horário, os pacientes e o fisioterapeuta aparecem automaticamente.</p></div>
       <div className="attendance-filter-grid">
-        <label><span>1. Unidade</span><select value={selectedUnitId} onChange={(event) => { setSelectedUnitId(event.target.value); setSelectedSlotId(""); setNotice(""); }}><option value="">Selecione a unidade</option>{(data["/units"] ?? []).map((unit: Row) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}</select></label>
-        <label><span>2. Dia</span><div className="daily-date-controls"><button type="button" className="btn secondary" onClick={() => moveDay(-1)} aria-label="Dia anterior">‹</button><input type="date" value={selectedDate} onChange={(event) => { setSelectedDate(event.target.value); setSelectedSlotId(""); setNotice(""); }} /><button type="button" className="btn secondary" onClick={() => moveDay(1)} aria-label="Próximo dia">›</button><button type="button" className="btn secondary" onClick={() => { setSelectedDate(dateKey(new Date())); setSelectedSlotId(""); }}>Hoje</button></div></label>
-        <label><span>3. Horário</span><select value={selectedSlotId} disabled={!selectedUnitId || loading || !response.slots.length} onChange={(event) => { setSelectedSlotId(event.target.value); setNotice(""); }}><option value="">{!selectedUnitId ? "Escolha a unidade primeiro" : loading ? "Carregando horários…" : response.slots.length ? "Selecione o horário" : "Nenhum horário neste dia"}</option>{response.slots.map((slot) => <option key={slot.id} value={slot.id}>{String(slot.starts_at).slice(0, 5)} · {slot.professionals?.name ?? "Sem fisioterapeuta"}</option>)}</select></label>
+        <SelectField label="1. Unidade" value={selectedUnitId} onChange={(event) => { setSelectedUnitId(event.target.value); setSelectedSlotId(""); setNotice(""); }} required>
+          <option value="">Selecione a unidade</option>
+          {(data["/units"] ?? []).map((unit: Row) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}
+        </SelectField>
+        <div className="attendance-date-field">
+          <TextField label="2. Dia" type="date" value={selectedDate} onChange={(event) => { setSelectedDate(event.target.value); setSelectedSlotId(""); setNotice(""); }} />
+          <div className="daily-date-controls" aria-label="Navegar pelos dias da chamada">
+            <button type="button" className="btn secondary" onClick={() => moveDay(-1)} aria-label="Dia anterior">‹</button>
+            <button type="button" className="btn secondary" onClick={() => moveDay(1)} aria-label="Próximo dia">›</button>
+            <button type="button" className="btn secondary" onClick={() => { setSelectedDate(dateKey(new Date())); setSelectedSlotId(""); }}>Hoje</button>
+          </div>
+        </div>
+        <SelectField label="3. Horário" value={selectedSlotId} disabled={!selectedUnitId || loading || !response.slots.length} onChange={(event) => { setSelectedSlotId(event.target.value); setNotice(""); }} required>
+          <option value="">{!selectedUnitId ? "Escolha a unidade primeiro" : loading ? "Carregando horários…" : response.slots.length ? "Selecione o horário" : "Nenhum horário neste dia"}</option>
+          {response.slots.map((slot) => <option key={slot.id} value={slot.id}>{String(slot.starts_at).slice(0, 5)} · {slot.professionals?.name ?? "Sem fisioterapeuta"}</option>)}
+        </SelectField>
       </div>
     </section>
     {notice && <div className="toast" role="status"><span>✓</span>{notice}</div>}
