@@ -11,6 +11,7 @@ import {
   normalizeLoginEmail,
   recoveryErrorMessage,
 } from "./authAccess";
+import { privacyResourcePaths } from "../../presentation/modules/OperationalPrivacy";
 
 const ids = {
   unitId: "2a0afc6d-9c33-4e1a-b6ce-13fb448f8160",
@@ -69,6 +70,11 @@ describe("contratos de privacidade", () => {
       requesterName: "Maria da Silva",
       kind: "access",
     })).toThrow();
+  });
+
+  it("não consulta incidentes para perfis sem acesso administrativo", () => {
+    expect(privacyResourcePaths(false)).toEqual(["/privacy/requests", "/audit"]);
+    expect(privacyResourcePaths(true)).toContain("/privacy/incidents");
   });
 });
 

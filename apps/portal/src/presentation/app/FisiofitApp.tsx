@@ -428,7 +428,12 @@ export default function FisiofitApp() {
         )}{" "}
         {view === "Usuários" && <OperationalUsers canManageUsers={profile.role === "admin"} />}
         {view === "Configurações" && <OperationalAdministration />}
-        {view === "Privacidade" && <OperationalPrivacy />}
+        {view === "Privacidade" && (
+          <OperationalPrivacy
+            canEditPrivacy={profile.role === "admin" || Boolean(profile.profile_permissions?.some((permission) => permission.module === "privacy" && permission.can_edit))}
+            canManageIncidents={profile.role === "admin"}
+          />
+        )}
       </section>
       </main>
     </>
