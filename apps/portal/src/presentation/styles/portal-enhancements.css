@@ -37,6 +37,21 @@
 .attendance-empty { padding: 48px 22px; text-align: center; }
 .attendance-empty strong { font-size: 15px; }
 .attendance-empty p { margin: 8px 0 0; color: var(--muted); font-size: 11px; }
+.attendance-day-heading { margin: 24px 0 12px; }
+.attendance-day-heading h2 { margin: 0; font-size: 18px; text-transform: capitalize; }
+.attendance-day-heading p { margin: 5px 0 0; color: var(--muted); font-size: 11px; }
+.attendance-slot-list { display: grid; gap: 14px; }
+.attendance-slot-head > strong { color: var(--green); font-size: 13px; }
+.daily-attendance .attendance-row { grid-template-columns: minmax(220px, 1fr) 90px auto; }
+.attendance-future-note { margin-bottom: 14px; }
+.makeup-card { margin-top: 18px; padding: 0; overflow: hidden; }
+.makeup-card > .card-head { margin: 0; padding: 19px 22px; border-bottom: 1px solid var(--line); }
+.makeup-list { display: grid; }
+.makeup-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; min-height: 74px; padding: 12px 22px; border-bottom: 1px solid #edf1ef; }
+.makeup-row:last-child { border-bottom: 0; }
+.makeup-row strong, .makeup-row span { display: block; }
+.makeup-row strong { font-size: 13px; }
+.makeup-row span { margin-top: 5px; color: var(--muted); font-size: 10px; }
 
 @media (max-width: 760px) {
   .daily-attendance-title { align-items: stretch; flex-direction: column; }
@@ -44,11 +59,13 @@
   .daily-date-controls label { flex: 1; }
   .daily-date-controls input { width: 100%; }
   .attendance-summary { grid-template-columns: repeat(2, 1fr); }
-  .attendance-row { grid-template-columns: 56px 1fr; gap: 10px; padding: 14px 16px; }
+  .daily-attendance .attendance-row { grid-template-columns: 1fr auto; gap: 10px; padding: 14px 16px; }
   .attendance-row > .status { justify-self: start; }
   .attendance-actions { grid-column: 1 / -1; width: 100%; }
   .attendance-action { flex: 1; }
   .attendance-readonly { grid-column: 1 / -1; }
+  .makeup-row { align-items: stretch; flex-direction: column; }
+  .makeup-row .attendance-actions { grid-column: auto; }
 }
 .record-header-note { border: 1px solid var(--line); background: #f5f8f7; border-radius: 9px; padding: 10px 13px; min-width: 190px; }
 .record-header-note span, .record-header-note strong { display: block; }

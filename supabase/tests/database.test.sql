@@ -14,6 +14,7 @@ select has_function('public', 'check_appointment_conflict', 'verificação de co
 select has_column('public', 'clinics', 'owner_profile_id', 'clínica possui conta proprietária');
 select has_table('public', 'data_subject_requests', 'solicitações LGPD existem');
 select has_table('public', 'privacy_incidents', 'incidentes de privacidade existem');
+select has_table('public', 'class_attendances', 'chamadas diárias existem');
 select has_trigger('public', 'profiles', 'profiles_protect_clinic_owner', 'conta proprietária é protegida no banco');
 
 select col_default_is(

@@ -64,6 +64,7 @@ test("mantém API, banco e integrações versionados", async () => {
   assert.match(api, /\/imports\/patients/);
   assert.match(api, /PROTECTED_OWNER_ACCOUNT/);
   assert.match(api, /\/privacy\/requests/);
+  assert.match(api, /\/attendance\/daily/);
   assert.match(
     api,
     /"data_subject_requests",\s*"privacy_incidents",\s*\]\.includes\(table\)/,
@@ -153,9 +154,10 @@ test("isola consultas operacionais por clínica", async () => {
     api.indexOf('app.get("/appointments"'),
     api.indexOf('app.post("/appointments"'),
   );
+  const timelineStart = api.indexOf('app.get("/patients/:id/timeline"');
   const timelineRoute = api.slice(
-    api.indexOf('app.get("/patients/:id/timeline"'),
-    api.indexOf('app.get("/appointments"'),
+    timelineStart,
+    api.indexOf("\n  });\n}", timelineStart),
   );
   assert.match(patientsRoute, /\.eq\("clinic_id", clinicId\)/);
   assert.match(appointmentsRoute, /\.eq\("clinic_id", context\.get\("profile"\)\.clinic_id\)/);

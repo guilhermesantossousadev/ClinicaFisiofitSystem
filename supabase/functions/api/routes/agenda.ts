@@ -11,7 +11,7 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     let slotsQuery = db.from("group_slots")
       .select("id,unit_id,professional_id,service_id,room_id,name,starts_at,duration_minutes,capacity,units(name),professionals(name),services(name),rooms(name)")
       .eq("clinic_id", clinicId).eq("active", true).contains("weekdays", [weekday]).is("deleted_at", null)
-      .lte("starts_on", classDate).or(`ends_on.is.null,ends_on.gte.${classDate}`);
+      .or(`starts_on.is.null,starts_on.lte.${classDate}`).or(`ends_on.is.null,ends_on.gte.${classDate}`);
     if (unitId) {
       const parsedUnitId = z.string().uuid().parse(unitId);
       if (!(await hasUnitAccess(context, parsedUnitId))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
@@ -25,7 +25,20 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     const { data: slots, error: slotsError } = await slotsQuery.order("starts_at");
     if (slotsError) return databaseResult(context, null, slotsError);
     const slotIds = (slots ?? []).map((slot: any) => slot.id);
-    if (!slotIds.length) return ok(context, { slots: [], makeups: [] });
+    if (!slotIds.length) {
+      let pendingQuery = db.from("class_attendances")
+        .select("id,class_date,patient_id,group_slot_id,makeup_status,patients(name),group_slots(name,starts_at)")
+        .eq("clinic_id", clinicId).eq("status", "absent").eq("makeup_status", "pending")
+        .order("class_date", { ascending: true }).limit(500);
+      if (unitId) pendingQuery = pendingQuery.eq("unit_id", unitId);
+      const { data: makeups, error: makeupsError } = await pendingQuery;
+      return makeupsError ? databaseResult(context, null, makeupsError) : ok(context, { slots: [], makeups: makeups ?? [] });
+    }
+    let makeupsQuery = db.from("class_attendances")
+      .select("id,class_date,patient_id,group_slot_id,makeup_status,patients(name),group_slots(name,starts_at)")
+      .eq("clinic_id", clinicId).eq("status", "absent").eq("makeup_status", "pending")
+      .order("class_date", { ascending: true }).limit(500);
+    if (unitId) makeupsQuery = makeupsQuery.eq("unit_id", unitId);
     const [{ data: memberships, error: membershipsError }, { data: attendances, error: attendanceError }, { data: makeups, error: makeupsError }] = await Promise.all([
       db.from("group_slot_memberships")
         .select("id,group_slot_id,enrollment_id,patient_id,patients(name,phone)")
@@ -33,10 +46,7 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
         .lte("starts_at", classDate).or(`ends_at.is.null,ends_at.gte.${classDate}`).is("deleted_at", null).order("created_at"),
       db.from("class_attendances").select("id,membership_id,status,makeup_status,updated_at")
         .eq("clinic_id", clinicId).eq("class_date", classDate).in("group_slot_id", slotIds),
-      db.from("class_attendances")
-        .select("id,class_date,patient_id,group_slot_id,makeup_status,patients(name),group_slots(name,starts_at)")
-        .eq("clinic_id", clinicId).eq("status", "absent").eq("makeup_status", "pending").in("group_slot_id", slotIds)
-        .order("class_date", { ascending: true }).limit(500),
+      makeupsQuery,
     ]);
     const error = membershipsError ?? attendanceError ?? makeupsError;
     if (error) return databaseResult(context, null, error);
@@ -53,13 +63,15 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     });
   });
 
-  app.put("/attendance", requireRoles(["admin", "manager", "reception", "professional"]), async (context: any) => {
+  app.post("/attendance", requireRoles(["admin", "manager", "reception", "professional"]), async (context: any) => {
     const input = z.object({
       membership_id: z.string().uuid(),
       class_date: z.string().date(),
       status: z.enum(["present", "absent"]),
     }).parse(await context.req.json());
     const weekday = new Date(`${input.class_date}T12:00:00Z`).getUTCDay();
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+    if (input.class_date > today) return fail(context, 422, "FUTURE_ATTENDANCE", "A chamada só pode ser registrada no dia da aula ou depois dela.");
     const db = context.get("db");
     const clinicId = context.get("profile").clinic_id;
     const { data: membership, error: membershipError } = await db.from("group_slot_memberships")
@@ -69,7 +81,7 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     const slot = Array.isArray(membership.group_slots) ? membership.group_slots[0] : membership.group_slots;
     const validDate = membership.weekdays?.includes(weekday) && slot?.weekdays?.includes(weekday)
       && input.class_date >= membership.starts_at && (!membership.ends_at || input.class_date <= membership.ends_at)
-      && input.class_date >= slot.starts_on && (!slot.ends_on || input.class_date <= slot.ends_on);
+      && (!slot.starts_on || input.class_date >= slot.starts_on) && (!slot.ends_on || input.class_date <= slot.ends_on);
     if (!validDate) return fail(context, 422, "INVALID_CLASS_DATE", "O paciente não pertence a este horário na data selecionada.");
     if (!(await hasUnitAccess(context, slot.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
     if (context.get("profile").role === "professional" && !(await isOwnProfessional(context, slot.professional_id))) {
@@ -90,7 +102,7 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
       updated_at: new Date().toISOString(),
     };
     const { data, error } = await db.from("class_attendances").upsert(payload, { onConflict: "membership_id,class_date" }).select().single();
-    if (!error && data) await audit(context, `attendance.${input.status}`, "class_attendance", data.id, slot.unit_id, null, { classDate: input.class_date, patientId: membership.patient_id });
+    if (!error && data) await audit(context, `attendance.${input.status}`, "class_attendance", data.id, slot.unit_id, { classDate: input.class_date, patientId: membership.patient_id });
     return databaseResult(context, data, error);
   });
 

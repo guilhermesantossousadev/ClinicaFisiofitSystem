@@ -23,7 +23,7 @@ export function moduleForPath(path: string, method = "GET"): PermissionModule | 
   const match = normalizedPath.match(/^\/([^/]+)/)?.[1];
   if (method === "GET" && match && ["units", "rooms", "professionals", "services"].includes(match)) return null;
   const map: Record<string, PermissionModule> = {
-    dashboard: "dashboard", appointments: "agenda", "group-slots": "agenda", patients: "patients", responsibles: "patients", consents: "patients",
+    dashboard: "dashboard", appointments: "agenda", attendance: "agenda", "group-slots": "agenda", patients: "patients", responsibles: "patients", consents: "patients",
     enrollments: "enrollments", charges: "enrollments", "record-templates": "records", "clinical-records": "records", attachments: "records",
     plans: "enrollments", "group-slot-memberships": "agenda", payments: "finance", "financial-entries": "finance", commissions: "finance",
     closings: "finance", reports: "reports", imports: "imports", users: "users", units: "settings", rooms: "settings",

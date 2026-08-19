@@ -1109,6 +1109,8 @@ const openApiDocument = {
   paths: {
     "/patients": { get: { summary: "Lista pacientes" }, post: { summary: "Cadastra paciente" } },
     "/appointments": { get: { summary: "Lista agenda" }, post: { summary: "Cria agendamento com conflito validado" } },
+    "/attendance/daily": { get: { summary: "Lista pacientes das turmas para a chamada diária" } },
+    "/attendance": { post: { summary: "Registra presença ou falta e controla reposição" } },
     "/clinical-records": { get: { summary: "Lista prontuário" }, post: { summary: "Cria avaliação ou evolução" } },
     "/payments": { post: { summary: "Registra pagamento transacional e idempotente" } },
     "/financial-entries": { get: { summary: "Lista movimentos" }, post: { summary: "Cria movimento" } },
