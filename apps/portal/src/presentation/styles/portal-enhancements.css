@@ -1646,6 +1646,11 @@ body { background: var(--canvas); }
 .month-calendar-item:disabled { cursor: default; opacity: .92; }
 .group-members-drawer-professional { display: block; margin-top: 8px; color: #38576d; font-size: 13px; }
 .group-members-drawer-professional strong { color: var(--green); }
+.group-professional-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 12px; margin: 0 0 22px; padding: 14px; border: 1px solid #cfe2dc; border-radius: 10px; background: #f3f9f7; }
+.group-professional-form .form-field { min-width: 0; }
+.group-professional-form label { color: #29485c; font-size: 12px; font-weight: 800; }
+.group-professional-form select { width: 100%; min-height: 44px; margin-top: 6px; padding: 8px 34px 8px 10px; border: 1px solid #87a99f; border-radius: 8px; background: #fff; color: var(--ink); font-size: 14px; }
+.group-professional-form .btn { min-height: 44px; }
 .month-calendar-item.group-item { border-left-color: var(--green); background: #e9f6f1; }
 .month-calendar-item.group-item strong { color: #276d61; }
 .month-calendar-item.appointment-item { border-left-color: #df9f2d; background: #fff6df; }
@@ -2225,6 +2230,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 @media (max-width: 600px) {
   .group-member-form .form-row,
   .group-member-form-actions { grid-template-columns: 1fr; }
+  .group-professional-form { grid-template-columns: 1fr; }
+  .group-professional-form .btn { width: 100%; }
 }
 @media (max-width: 720px) {
   .group-allocation-panel .table-toolbar { flex-direction: column; }

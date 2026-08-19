@@ -84,6 +84,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
   const [groupMembers, setGroupMembers] = useState<Row[]>([]);
   const [notice, setNotice] = useState("");
   const [calendarAppointment, setCalendarAppointment] = useState<Row | null | undefined>(undefined);
+  const [savingGroupProfessional, setSavingGroupProfessional] = useState(false);
   const [selectedUnitId, setSelectedUnitId] = useState(() => window.localStorage.getItem("fisiofit:selected-unit") ?? "");
   const [selectedGroupCell, setSelectedGroupCell] = useState<{ slot: Row; day: Date; unitName: string } | null>(null);
   useEffect(() => {
@@ -228,6 +229,29 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
     catch (actionError) { setNotice(messageOf(actionError)); }
   }
 
+  async function updateGroupProfessional(event: FormEvent<HTMLFormElement>, slot: Row) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const professionalId = value(form, "professional_id");
+    setSavingGroupProfessional(true);
+    try {
+      const response = await api<Row>(`/group-slots/${slot.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ professional_id: professionalId }),
+      });
+      const updatedSlot = response.data ?? { ...slot, professional_id: professionalId };
+      setSelectedGroupCell((current) => current
+        ? { ...current, slot: { ...current.slot, ...updatedSlot } }
+        : current);
+      setNotice("Fisioterapeuta responsável atualizado.");
+      await reload();
+    } catch (actionError) {
+      setNotice(messageOf(actionError));
+    } finally {
+      setSavingGroupProfessional(false);
+    }
+  }
+
   return (
     <div className="content">
       <div className="page-title">
@@ -293,14 +317,23 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
         const availablePatients = patients.filter((patient) => availablePatientIdSet.has(patient.id));
         const full = selectedMembers.length >= capacity;
         const selectedDate = new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" }).format(selectedGroupCell.day);
-        const selectedProfessional = (data["/professionals"] ?? []).find((row: Row) => row.id === selectedGroupCell.slot.professional_id);
+        const professionals: Row[] = data["/professionals"] ?? [];
+        const selectedProfessional = professionals.find((row: Row) => row.id === selectedGroupCell.slot.professional_id);
+        const availableProfessionals = professionals.filter((professional) => professional.active !== false || professional.id === selectedGroupCell.slot.professional_id);
         return <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedGroupCell(null); }}>
           <section className="modal group-members-drawer" role="dialog" aria-modal="true" aria-labelledby="group-members-title">
             <div className="modal-head">
-              <div><p className="eyebrow">HORÁRIO · {selectedGroupCell.unitName}</p><h2 id="group-members-title">Horário {String(selectedGroupCell.slot.starts_at).slice(0, 5)}</h2><span className="group-members-drawer-meta">{selectedDate} · {selectedMembers.length}/{capacity} vagas</span><span className="group-members-drawer-professional">Fisioterapeuta responsável: <strong>{selectedProfessional?.name ?? "Não informado"}</strong></span></div>
+              <div><p className="eyebrow">HORÁRIO · {selectedGroupCell.unitName}</p><h2 id="group-members-title">Horário {String(selectedGroupCell.slot.starts_at).slice(0, 5)}</h2><span className="group-members-drawer-meta">{selectedDate} · {selectedMembers.length}/{capacity} vagas</span>{!canEdit && <span className="group-members-drawer-professional">Fisioterapeuta responsável: <strong>{selectedProfessional?.name ?? "Não informado"}</strong></span>}</div>
               <button type="button" onClick={() => setSelectedGroupCell(null)} aria-label="Fechar lista de pacientes">×</button>
             </div>
             <div className="group-members-drawer-body">
+              {canEdit && <form className="group-professional-form" onSubmit={(event) => void updateGroupProfessional(event, selectedGroupCell.slot)}>
+                <SelectField name="professional_id" label="Fisioterapeuta responsável" defaultValue={selectedGroupCell.slot.professional_id} required disabled={savingGroupProfessional}>
+                  <option value="">Selecione</option>
+                  {availableProfessionals.map((professional) => <option key={professional.id} value={professional.id}>{professional.name}</option>)}
+                </SelectField>
+                <button type="submit" className="btn secondary" disabled={savingGroupProfessional}>{savingGroupProfessional ? "Salvando…" : "Salvar responsável"}</button>
+              </form>}
               {full && <div className="capacity-alert" role="status"><strong>Horário lotado</strong><span>Não há vagas disponíveis para adicionar mais pacientes.</span></div>}
               <h3>Pacientes inscritos</h3>
               {selectedMembers.length ? <ul className="group-members-drawer-list">{selectedMembers.map((member) => <li key={member.id}><div><span>{member.patients?.name ?? "Paciente"}</span><small>{member.patients?.phone ?? ""}</small></div>{canEdit && <div className="group-member-actions"><form className="group-member-days-form" onSubmit={(event) => void updateGroupMember(event, member)}><WeekdayCheckboxGroup label={`Dias de ${member.patients?.name ?? "paciente"}`} defaultValue={(member.weekdays ?? []).map(String)} required /><button type="submit" className="btn secondary">Salvar dias</button></form><button type="button" className="action-delete" onClick={() => void removeGroupMember(member.id)}>Retirar da turma</button></div>}</li>)}</ul> : <p className="empty-state">Nenhum paciente está inscrito neste horário neste dia.</p>}

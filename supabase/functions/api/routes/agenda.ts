@@ -204,41 +204,29 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
   });
   
   app.patch("/group-slots/:id", requireRoles(["admin", "manager", "reception"]), async (context: any) => {
-    return fail(context, 405, "FIXED_SCHEDULE", "Os horários e turmas são fixos. Altere apenas os alunos.");
-  /*
     const id = z.string().uuid().parse(context.req.param("id"));
-    const input = z.object({
-      unit_id: z.string().uuid().optional(),
-      room_id: z.string().uuid().optional(),
-      professional_id: z.string().uuid().optional(),
-      service_id: z.string().uuid().optional(),
-      name: z.string().trim().min(3).max(120).optional(),
-      weekdays: z.array(z.number().int().min(0).max(6)).min(1).max(7).optional(),
-      starts_at: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/).optional(),
-      starts_on: z.string().date().nullable().optional(),
-      ends_on: z.string().date().nullable().optional(),
-      duration_minutes: z.number().int().min(15).max(240).optional(),
-      capacity: z.number().int().min(1).max(7).optional(),
-      active: z.boolean().optional(),
-    }).parse(await context.req.json());
-    if (input.unit_id && !(await hasUnitAccess(context, input.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
-    if (input.unit_id || input.starts_at || input.weekdays || input.starts_on !== undefined || input.ends_on !== undefined) {
-      const current = await context.get("db").from("group_slots").select("unit_id,starts_at,starts_on,ends_on,weekdays").eq("id", id).eq("clinic_id", context.get("profile").clinic_id).is("deleted_at", null).single();
-      if (current.data) {
-        const startsOn = input.starts_on === undefined ? current.data.starts_on : input.starts_on;
-        const endsOn = input.ends_on === undefined ? current.data.ends_on : input.ends_on;
-        if (endsOn && (!startsOn || endsOn < startsOn)) return fail(context, 400, "INVALID_PERIOD", "A data final da turma não pode ser anterior à data inicial.");
-        const unitId = input.unit_id ?? current.data.unit_id;
-        const startsAt = input.starts_at ?? current.data.starts_at;
-        const weekdays = input.weekdays ? [...new Set(input.weekdays)] : current.data.weekdays;
-        const { data: conflicts } = await context.get("db").from("group_slots").select("id,weekdays").eq("clinic_id", context.get("profile").clinic_id).eq("unit_id", unitId).eq("starts_at", startsAt).eq("active", true).is("deleted_at", null).neq("id", id);
-        if ((conflicts ?? []).some((slot: any) => (slot.weekdays ?? []).some((day: number) => weekdays.includes(day)))) return fail(context, 409, "GROUP_SLOT_CONFLICT", "Já existe uma turma nesta unidade para o mesmo dia e horário. Escolha outro horário ou dia.");
-      }
-    }
-    return updateClinicResource(context, "group_slots", id, { ...input, ...(input.weekdays ? { weekdays: [...new Set(input.weekdays)].sort() } : {}) }, "group_slot.updated", input.unit_id);
-  });
-  */
-  
+    const input = z.object({ professional_id: z.string().uuid() }).strict().parse(await context.req.json());
+    const db = context.get("db");
+    const clinicId = context.get("profile").clinic_id;
+    const { data: slot, error: slotError } = await db.from("group_slots").select("id,unit_id")
+      .eq("id", id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle();
+    if (slotError) return databaseResult(context, null, slotError);
+    if (!slot) return fail(context, 404, "GROUP_SLOT_NOT_FOUND", "Horário não encontrado.");
+    if (!(await hasUnitAccess(context, slot.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+
+    const [{ data: professional, error: professionalError }, { data: professionalUnit, error: professionalUnitError }] = await Promise.all([
+      db.from("professionals").select("id").eq("id", input.professional_id).eq("clinic_id", clinicId).eq("active", true).is("deleted_at", null).maybeSingle(),
+      db.from("professional_units").select("professional_id").eq("professional_id", input.professional_id).eq("unit_id", slot.unit_id).maybeSingle(),
+    ]);
+    if (professionalError || professionalUnitError) return fail(context, 400, "PROFESSIONAL_VALIDATION_FAILED", "Não foi possível validar o fisioterapeuta selecionado.");
+    if (!professional || !professionalUnit) return fail(context, 400, "INVALID_PROFESSIONAL_SCOPE", "O fisioterapeuta não está ativo nesta unidade.");
+
+    const { data, error } = await db.from("group_slots").update({
+      professional_id: input.professional_id,
+      updated_at: new Date().toISOString(),
+    }).eq("id", id).eq("clinic_id", clinicId).is("deleted_at", null).select().single();
+    if (!error && data) await audit(context, "group_slot.professional_updated", "group_slot", id, slot.unit_id, { professionalId: input.professional_id });
+    return databaseResult(context, data, error);
   });
   
   app.delete("/group-slots/:id", requireRoles(["admin", "manager", "reception"]), async (context: any) => {
