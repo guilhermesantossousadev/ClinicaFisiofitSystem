@@ -8,6 +8,8 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
   const [notice, setNotice] = useState("");
   const [updatingUserId, setUpdatingUserId] = useState("");
   const [editingUserId, setEditingUserId] = useState("");
+  const [passwordUser, setPasswordUser] = useState<Row | null>(null);
+  const [passwordError, setPasswordError] = useState("");
   const permissionModules = [
     ["dashboard", "Painel"], ["agenda", "Agenda"], ["patients", "Pacientes"], ["enrollments", "Matrículas"], ["records", "Prontuários"],
     ["finance", "Financeiro"], ["reports", "Relatórios"], ["imports", "Importações"], ["users", "Usuários"], ["settings", "Configurações"], ["privacy", "Privacidade"],
@@ -85,6 +87,38 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
       setUpdatingUserId("");
     }
   }
+  async function setDirectPassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!passwordUser) return;
+    const form = new FormData(event.currentTarget);
+    const password = value(form, "password");
+    const confirmation = value(form, "confirmation");
+    if (password !== confirmation) {
+      setPasswordError("As senhas precisam ser iguais.");
+      return;
+    }
+    setUpdatingUserId(passwordUser.id);
+    setNotice("");
+    setPasswordError("");
+    try {
+      await api(`/users/${passwordUser.id}/password`, {
+        method: "POST",
+        body: JSON.stringify({ password }),
+      });
+      await reload();
+      setPasswordUser(null);
+      setNotice(`Senha de ${passwordUser.name} definida diretamente no Supabase.`);
+    } catch (e) {
+      setPasswordError(messageOf(e).replace(/^Erro:\s*/, ""));
+    } finally {
+      setUpdatingUserId("");
+    }
+  }
+  function openPasswordDialog(row: Row) {
+    setNotice("");
+    setPasswordError("");
+    setPasswordUser(row);
+  }
   async function removeUser(row: Row) {
     if (!window.confirm(`Excluir o acesso de ${row.name}? O histórico será preservado, mas a conta não poderá mais entrar.`)) return;
     setUpdatingUserId(row.id);
@@ -105,7 +139,7 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
         <div>
           <p className="eyebrow">ACESSOS E PERMISSÕES</p>
           <h1>Usuários</h1>
-          <p>Convites, perfis, unidades, bloqueio e MFA por função.</p>
+          <p>Convites, perfis, unidades, permissões e bloqueio de acesso.</p>
         </div>
       </div>
       {notice && (
@@ -152,14 +186,18 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
                 {row.is_owner ? " · Proprietário" : ""}
               </strong>
               <small>
-                {row.email ? `${row.email} · ` : ""}{row.role} · {row.status} · MFA{" "}
-                {row.mfa_required ? "obrigatório" : "opcional"}
+                {row.email ? `${row.email} · ` : ""}{row.role} · {row.status}
               </small>
             </div>
-            {row.is_owner ? (
-              <span className="status info">Conta protegida</span>
-            ) : !canManageUsers ? (
+            {!canManageUsers ? (
               <span className="status info">Somente leitura</span>
+            ) : row.is_owner ? (
+              <div className="row-actions">
+                <span className="status info">Conta protegida</span>
+                <button type="button" disabled={updatingUserId === row.id} onClick={() => openPasswordDialog(row)}>
+                  Definir senha
+                </button>
+              </div>
             ) : (
               <div className="row-actions">
                 <button type="button" disabled={updatingUserId === row.id} onClick={() => setEditingUserId(editingUserId === row.id ? "" : row.id)}>
@@ -178,6 +216,11 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
                 {row.status !== "blocked" && (
                   <button type="button" disabled={updatingUserId === row.id} onClick={() => resendAccess(row.id)}>
                     Reenviar acesso
+                  </button>
+                )}
+                {row.status !== "blocked" && (
+                  <button type="button" disabled={updatingUserId === row.id} onClick={() => openPasswordDialog(row)}>
+                    Definir senha
                   </button>
                 )}
                 <button className="action-delete" type="button" disabled={updatingUserId === row.id} onClick={() => removeUser(row)}>
@@ -210,7 +253,62 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
           </div>
         ))}
       </section>
+      {passwordUser && (
+        <div className="modal-backdrop" role="presentation" onMouseDown={(event) => {
+          if (event.target === event.currentTarget && !updatingUserId) setPasswordUser(null);
+        }}>
+          <section
+            className="modal password-admin-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="password-admin-title"
+            aria-describedby="password-admin-description"
+            onKeyDown={(event) => {
+              if (event.key === "Escape" && !updatingUserId) setPasswordUser(null);
+            }}
+          >
+            <div className="modal-head">
+              <div>
+                <p className="eyebrow">SEGURANÇA DA CONTA</p>
+                <h2 id="password-admin-title">Definir nova senha</h2>
+              </div>
+              <button type="button" aria-label="Fechar" disabled={Boolean(updatingUserId)} onClick={() => setPasswordUser(null)}>×</button>
+            </div>
+            <form className="modal-form" onSubmit={setDirectPassword}>
+              <p className="form-instructions" id="password-admin-description">
+                A senha de <strong>{passwordUser.name}</strong>{passwordUser.email ? ` (${passwordUser.email})` : ""} será alterada imediatamente no Supabase, sem envio de e-mail.
+              </p>
+              <TextField
+                name="password"
+                label="Nova senha"
+                type="password"
+                autoComplete="new-password"
+                autoFocus
+                minLength={10}
+                maxLength={72}
+                hint="Use pelo menos 10 caracteres, combinando letras, números e símbolo."
+                required
+              />
+              <TextField
+                name="confirmation"
+                label="Confirmar nova senha"
+                type="password"
+                autoComplete="new-password"
+                minLength={10}
+                maxLength={72}
+                required
+              />
+              {passwordError && <div className="login-error" role="alert">{passwordError}</div>}
+              <div className="modal-actions">
+                <button className="btn secondary" type="button" disabled={Boolean(updatingUserId)} onClick={() => setPasswordUser(null)}>Cancelar</button>
+                <button className="btn primary" type="submit" disabled={Boolean(updatingUserId)}>
+                  {updatingUserId ? "Salvando no Supabase…" : "Definir senha"}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
     </div>
   );
 }
-

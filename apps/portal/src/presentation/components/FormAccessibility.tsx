@@ -104,8 +104,14 @@ function validateForm(form: HTMLFormElement) {
   }
   for (const groupName of ["weekdays", "unitIds"]) {
     const group = [...form.querySelectorAll<HTMLInputElement>(`input[name="${groupName}"]`)];
-    if (group.length && !group.some((item) => item.checked)) {
+    const checkedCount = group.filter((item) => item.checked).length;
+    const maxSelections = Number(group[0]?.closest<HTMLElement>("[data-max-selections]")?.dataset.maxSelections ?? 0);
+    if (group.length && !checkedCount) {
       const message = groupName === "weekdays" ? "Selecione pelo menos um dia da semana." : "Selecione pelo menos uma unidade.";
+      setInlineError(group[0], message);
+      errors.push({ id: group[0].id, message });
+    } else if (maxSelections && checkedCount > maxSelections) {
+      const message = `Selecione no máximo ${maxSelections} dias da semana.`;
       setInlineError(group[0], message);
       errors.push({ id: group[0].id, message });
     }

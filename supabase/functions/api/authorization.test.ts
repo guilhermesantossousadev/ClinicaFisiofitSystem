@@ -34,6 +34,7 @@ Deno.test("todos os cinco papéis possuem configuração explícita e segura", (
 Deno.test("rotas clínicas e financeiras são associadas ao módulo correto", () => {
   assert(moduleForPath("/api/v1/clinical-records") === "records", "prontuário deve exigir records");
   assert(moduleForPath("/api/v1/financial-entries") === "finance", "lançamento deve exigir finance");
+  assert(moduleForPath("/api/v1/attendance/daily") === "agenda", "chamada diária deve exigir agenda");
   assert(moduleForPath("/api/v1/units", "POST") === "settings", "escrita de unidade deve exigir settings");
   assert(moduleForPath("/api/v1/units", "GET") === null, "referência de unidade deve continuar sob RLS");
 });

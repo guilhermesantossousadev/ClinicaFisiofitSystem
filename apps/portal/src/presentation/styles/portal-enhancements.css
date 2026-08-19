@@ -11,6 +11,73 @@
   background: #fff;
   box-shadow: 0 16px 36px rgb(16 38 58 / 16%);
 }
+
+/* Chamada diária: fluxo compacto, legível e operável por toque. */
+.daily-attendance-title { gap: 20px; }
+.attendance-filters { display: grid; gap: 18px; margin-bottom: 18px; padding: 20px 22px; }
+.attendance-filters h2 { margin: 3px 0 5px; font-size: 18px; }
+.attendance-filters p:not(.eyebrow) { margin: 0; color: var(--muted); font-size: 12px; }
+.attendance-filter-grid { display: grid; grid-template-columns: minmax(180px, .8fr) minmax(390px, 1.5fr) minmax(230px, 1fr); align-items: end; gap: 16px; }
+.attendance-filter-grid > .form-field, .attendance-date-field { min-width: 0; }
+.attendance-date-field { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 8px; }
+.attendance-date-field .form-field { min-width: 0; }
+.attendance-filter-grid select { width: 100%; min-height: 44px; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); font: inherit; }
+.attendance-filter-grid select:disabled { background: #f3f5f4; color: var(--muted); cursor: not-allowed; }
+.daily-date-controls { display: flex; align-items: center; gap: 8px; }
+.daily-date-controls .btn { min-width: 44px; padding-inline: 12px; }
+.daily-date-controls input { min-height: 44px; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); font: inherit; }
+.attendance-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+.attendance-summary > div { display: flex; flex-direction: column; gap: 5px; padding: 17px 20px; border: 1px solid var(--line); border-radius: 12px; background: #fff; box-shadow: var(--shadow); }
+.attendance-summary span { color: var(--muted); font-size: 11px; }
+.attendance-summary strong { font-size: 22px; }
+.attendance-card { padding: 0; overflow: hidden; }
+.attendance-card > .card-head { margin: 0; padding: 19px 22px; border-bottom: 1px solid var(--line); }
+.attendance-list { display: grid; }
+.attendance-row { display: grid; grid-template-columns: 70px minmax(200px, 1fr) 90px auto; align-items: center; gap: 16px; min-height: 72px; padding: 10px 22px; border-bottom: 1px solid #edf1ef; }
+.attendance-row:last-child { border-bottom: 0; }
+.attendance-row > time { font-size: 14px; font-weight: 800; }
+.attendance-person strong { display: block; font-size: 13px; }
+.attendance-person span, .attendance-readonly { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; }
+.attendance-actions { display: flex; gap: 8px; }
+.attendance-action { min-width: 86px; min-height: 44px; border: 1px solid #cbd8d4; border-radius: 8px; background: #fff; color: var(--ink); font-size: 11px; font-weight: 750; }
+.attendance-action.present:hover, .attendance-action.present.selected { border-color: #34766b; background: #e5f2ee; color: #246258; }
+.attendance-action.missed:hover, .attendance-action.missed.selected { border-color: #b95a5d; background: #f6e5e6; color: #963f43; }
+.attendance-action:focus-visible, .daily-date-controls button:focus-visible, .daily-date-controls input:focus-visible, .attendance-filter-grid select:focus-visible { outline: 3px solid var(--focus, #e8a83e); outline-offset: 2px; }
+.attendance-action:disabled { cursor: wait; opacity: .55; }
+.attendance-empty { padding: 48px 22px; text-align: center; }
+.attendance-empty strong { font-size: 15px; }
+.attendance-empty p { margin: 8px 0 0; color: var(--muted); font-size: 11px; }
+.attendance-day-heading { margin: 24px 0 12px; }
+.attendance-day-heading h2 { margin: 0; font-size: 18px; text-transform: capitalize; }
+.attendance-day-heading p { margin: 5px 0 0; color: var(--muted); font-size: 11px; }
+.attendance-slot-list { display: grid; gap: 14px; }
+.attendance-slot-head > strong { color: var(--green); font-size: 13px; }
+.daily-attendance .attendance-row { grid-template-columns: minmax(220px, 1fr) 90px auto; }
+.attendance-future-note { margin-bottom: 14px; }
+.makeup-card { margin-top: 18px; padding: 0; overflow: hidden; }
+.makeup-card > .card-head { margin: 0; padding: 19px 22px; border-bottom: 1px solid var(--line); }
+.makeup-list { display: grid; }
+.makeup-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; min-height: 74px; padding: 12px 22px; border-bottom: 1px solid #edf1ef; }
+.makeup-row:last-child { border-bottom: 0; }
+.makeup-row strong, .makeup-row span { display: block; }
+.makeup-row strong { font-size: 13px; }
+.makeup-row span { margin-top: 5px; color: var(--muted); font-size: 10px; }
+
+@media (max-width: 760px) {
+  .daily-attendance-title { align-items: stretch; flex-direction: column; }
+  .attendance-filter-grid { grid-template-columns: 1fr; }
+  .attendance-date-field { grid-template-columns: minmax(0, 1fr) auto; }
+  .daily-date-controls { flex-wrap: wrap; }
+  .daily-date-controls input { flex: 1; width: min(100%, 180px); }
+  .attendance-summary { grid-template-columns: repeat(2, 1fr); }
+  .daily-attendance .attendance-row { grid-template-columns: 1fr auto; gap: 10px; padding: 14px 16px; }
+  .attendance-row > .status { justify-self: start; }
+  .attendance-actions { grid-column: 1 / -1; width: 100%; }
+  .attendance-action { flex: 1; }
+  .attendance-readonly { grid-column: 1 / -1; }
+  .makeup-row { align-items: stretch; flex-direction: column; }
+  .makeup-row .attendance-actions { grid-column: auto; }
+}
 .record-header-note { border: 1px solid var(--line); background: #f5f8f7; border-radius: 9px; padding: 10px 13px; min-width: 190px; }
 .record-header-note span, .record-header-note strong { display: block; }
 .record-header-note span { font-size: 8px; color: var(--muted); text-transform: uppercase; letter-spacing: .7px; }
@@ -26,7 +93,7 @@
 .exercise-grid input { accent-color: var(--green); }
 
 /* Contrato final de alinhamento: todos os formulários usam a mesma régua visual. */
-:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form, .login-card, .mfa-card, .group-member-form) {
+:where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form, .login-card, .auth-card, .group-member-form) {
   box-sizing: border-box;
   min-width: 0;
 }
@@ -73,7 +140,7 @@
 :where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) input:not([type="checkbox"]):not([type="radio"]),
 :where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) select,
 :where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) textarea,
-:where(.login-card, .mfa-card) input:not([type="checkbox"]):not([type="radio"]) {
+:where(.login-card, .auth-card) input:not([type="checkbox"]):not([type="radio"]) {
   box-sizing: border-box;
   display: block;
   width: 100%;
@@ -105,15 +172,68 @@
   margin-top: 0;
 }
 
-.login-card, .mfa-card { gap: 22px; }
-.login-card label, .mfa-card .form-field-label { gap: 8px; margin: 0; }
-.login-card input, .mfa-card input { height: 52px; margin: 0; }
+.login-card, .auth-card { gap: 22px; }
+.login-card label, .auth-card .form-field-label { gap: 8px; margin: 0; }
+.login-card input, .auth-card input { height: 52px; margin: 0; }
 
 @media (max-width: 640px) {
   :where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) .form-row {
     grid-template-columns: minmax(0, 1fr);
     gap: 20px;
   }
+}
+
+/* Visão consolidada de pagamento e renovação dos planos. */
+.plan-control-table { margin: 16px 0; overflow: hidden; }
+.plan-control-toolbar { gap: 24px; }
+.plan-control-toolbar > div:first-child { min-width: 250px; }
+.plan-control-toolbar h2 { margin: 4px 0; }
+.plan-control-toolbar p:not(.eyebrow) { margin: 0; color: var(--muted); font-size: 12px; }
+.plan-control-filters { display: grid; grid-template-columns: minmax(190px, 1.2fr) minmax(170px, 1fr) minmax(170px, 1fr); align-items: end; gap: 12px; width: min(100%, 720px); }
+.plan-control-filter-field { gap: 5px; }
+.plan-control-filter-field .form-field-label { min-height: 0; color: var(--muted); font-size: 11px; }
+.plan-control-filter-field > input,
+.plan-control-filter-field > select { min-height: 44px; height: 44px; padding-block: 9px; font-size: 12px; }
+.plan-control-result { padding: 8px 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; }
+.plan-control-head,
+.plan-control-row { display: grid; grid-template-columns: 1.15fr 1.25fr 1.15fr 1fr 1.2fr 76px; align-items: center; gap: 18px; min-width: 1080px; }
+.plan-control-head { padding: 12px 18px; border-block: 1px solid var(--line); background: #f3f6f9; color: #536a82; }
+.plan-control-head span { font-size: 11px; font-weight: 800; letter-spacing: .055em; text-transform: uppercase; }
+.plan-control-row { min-height: 82px; padding: 14px 18px; border-bottom: 1px solid #e5ebf0; }
+.plan-control-row:last-of-type { border-bottom: 0; }
+.plan-control-cell { display: grid; align-content: center; gap: 6px; min-width: 0; }
+.plan-control-cell strong { overflow: hidden; color: var(--ink); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.plan-control-cell small { color: var(--muted); font-size: 11px; line-height: 1.35; }
+.plan-status { display: inline-flex; align-items: center; width: max-content; max-width: 100%; min-height: 26px; padding: 4px 9px; border-radius: 999px; font-size: 11px; font-weight: 750; line-height: 1.2; }
+.plan-status-paid, .plan-renewal-current { background: #e6f7f3; color: #176b5c; }
+.plan-status-pending, .plan-status-uncharged { background: #eef2f5; color: #536a82; }
+.plan-status-partial, .plan-renewal-due-soon { background: #fff2df; color: #8b6238; }
+.plan-status-overdue, .plan-renewal-expired { background: #f7e8e9; color: #9d3f45; }
+.plan-renewal-unknown { background: #eef2f5; color: #536a82; }
+.payment-status-field { gap: 0; }
+.payment-status-field > select { min-height: 40px; height: 40px; padding: 8px 32px 8px 10px; border-radius: 9px; font-size: 11px; font-weight: 750; }
+.payment-status-paid > select { border-color: #acd9ce; background: #e6f7f3; color: #176b5c; }
+.payment-status-pending > select, .payment-status-uncharged > select { border-color: #d5dfe6; background: #eef2f5; color: #536a82; }
+.payment-status-partial > select { border-color: #eed09f; background: #fff2df; color: #8b6238; }
+.payment-status-overdue > select, .payment-status-cancelled > select { border-color: #e5babe; background: #f7e8e9; color: #9d3f45; }
+.plan-control-actions .btn { width: 100%; min-height: 40px; padding-inline: 10px; }
+.controlled-plan-dialog { width: min(680px, calc(100vw - 32px)); }
+.controlled-plan-dialog .edit-dialog-header p:not(.eyebrow) { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+.controlled-plan-form .form-instructions { padding: 12px 14px; border: 1px solid #dce6eb; border-radius: 8px; background: #f7fafb; color: #536a82; font-size: 12px; line-height: 1.5; }
+
+@media (max-width: 1050px) {
+  .plan-control-toolbar { align-items: stretch; flex-direction: column; }
+  .plan-control-filters { width: 100%; max-width: none; justify-content: stretch; }
+}
+
+@media (max-width: 720px) {
+  .plan-control-table { overflow: visible; }
+  .plan-control-filters { grid-template-columns: 1fr; width: 100%; }
+  .plan-control-head { display: none; }
+  .plan-control-row { display: grid; grid-template-columns: 1fr; gap: 13px; min-width: 0; margin: 10px 12px; padding: 16px; border: 1px solid var(--line); border-radius: 10px; }
+  .plan-control-cell { grid-template-columns: minmax(105px, .75fr) 1fr; gap: 5px 12px; }
+  .plan-control-cell::before { content: attr(data-label); grid-row: 1 / span 2; align-self: start; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+  .plan-status { width: fit-content; }
 }
 
 /* Campos acessíveis e previsíveis: um grupo semântico por controle. */
@@ -384,6 +504,9 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .user-edit-form fieldset { border: 0; padding: 0; margin: 0; }
 .user-edit-form legend { margin-bottom: 8px; font-size: 13px; font-weight: 700; }
 .user-edit-form .btn { justify-self: start; }
+.password-admin-modal { width: min(560px, 100%); }
+.password-admin-modal .modal-head > div { display: grid; gap: 6px; }
+.password-admin-modal .form-instructions { margin: 0; padding: 14px 16px; border: 1px solid #c8dbe8; border-radius: 12px; background: #f4f9fc; line-height: 1.55; }
 .patient-search { display: grid; gap: 8px; margin-bottom: 18px; padding: 18px; }
 .patient-search > label { color: #29485c; font-size: 14px; font-weight: 700; }
 .patient-search > div { display: flex; gap: 10px; }
@@ -448,6 +571,37 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .login-card input { min-height: 48px; border-color: #9fb4c2; font-size: 16px; }
 .login-recovery, .login-card > a { font-size: 13px; }
 .login-card > a { padding-block: 12px; }
+.login-actions { display: grid; justify-items: center; gap: 4px; }
+.login-support-link { line-height: 1.45; }
+.recovery-status {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: 12px;
+  margin-block: 16px 8px;
+  padding: 16px;
+  border: 1px solid #99c9b8;
+  border-radius: 14px;
+  background: #edf8f3;
+  color: #173f36;
+}
+.recovery-status-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 50%;
+  background: #17705a;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 800;
+}
+.recovery-status strong { display: block; color: #11533f; font-size: 15px; line-height: 1.35; }
+.recovery-status p { margin: 6px 0 0; color: #294f45; font-size: 13px; line-height: 1.5; }
+.recovery-status ol { margin: 12px 0; padding-inline-start: 20px; color: #365f54; font-size: 12px; line-height: 1.55; }
+.recovery-status li + li { margin-top: 4px; }
+.recovery-status-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.recovery-status-actions .btn { min-height: 44px; margin: 0; }
+.recovery-status-actions .login-recovery { min-height: 44px; margin: 0; padding-inline: 8px; }
 .login-brand-panel p { font-size: 12px; }
 .login-brand-panel span { font-size: 16px; }
 
@@ -463,6 +617,9 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   .administration-form { position: static; }
 }
 @media (max-width: 520px) {
+  .recovery-status { grid-template-columns: 1fr; }
+  .recovery-status-actions { align-items: stretch; flex-direction: column; }
+  .recovery-status-actions .login-recovery { width: 100%; }
   .metrics, .metrics.small { grid-template-columns: 1fr; }
   .title-actions { flex-direction: column; }
   .page-title .title-actions .btn { width: 100%; }
@@ -515,7 +672,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   to { opacity: 1; }
 }
 
-.modal, .edit-dialog, .mfa-card {
+.modal, .edit-dialog, .auth-card {
   width: min(640px, 100%);
   max-height: 92vh;
   overflow-y: auto;
@@ -1506,6 +1663,12 @@ body { background: var(--canvas); }
 .group-member-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
 .group-member-actions button { border: 0; background: transparent; color: var(--blue); cursor: pointer; font-size: 12px; font-weight: 800; }
 .group-member-actions .action-delete { color: #8f2630; }
+.group-member-days-form { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; }
+.group-member-days-form .weekday-checkbox-group { flex: 1 1 100%; margin-bottom: 4px; }
+.group-member-days-form .weekday-picker { grid-template-columns: repeat(5, minmax(110px, 1fr)); }
+.group-member-days-form .form-field { min-width: 170px; }
+.group-member-days-form select[multiple] { width: 100%; min-height: 112px; padding: 6px; border: 1px solid #9fb4c2; border-radius: 8px; background: #fff; color: var(--ink); }
+.group-member-days-form .btn { min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
 .group-member-inline-edit { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr auto; align-items: end; gap: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
 .group-member-inline-edit[hidden] { display: none; }
 .group-member-inline-edit label { display: grid; gap: 4px; color: var(--muted); font-size: 11px; font-weight: 700; }
@@ -1550,6 +1713,11 @@ body { background: var(--canvas); }
 .month-calendar-item:disabled { cursor: default; opacity: .92; }
 .group-members-drawer-professional { display: block; margin-top: 8px; color: #38576d; font-size: 13px; }
 .group-members-drawer-professional strong { color: var(--green); }
+.group-professional-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 12px; margin: 0 0 22px; padding: 14px; border: 1px solid #cfe2dc; border-radius: 10px; background: #f3f9f7; }
+.group-professional-form .form-field { min-width: 0; }
+.group-professional-form label { color: #29485c; font-size: 12px; font-weight: 800; }
+.group-professional-form select { width: 100%; min-height: 44px; margin-top: 6px; padding: 8px 34px 8px 10px; border: 1px solid #87a99f; border-radius: 8px; background: #fff; color: var(--ink); font-size: 14px; }
+.group-professional-form .btn { min-height: 44px; }
 .month-calendar-item.group-item { border-left-color: var(--green); background: #e9f6f1; }
 .month-calendar-item.group-item strong { color: #276d61; }
 .month-calendar-item.appointment-item { border-left-color: #df9f2d; background: #fff6df; }
@@ -1575,6 +1743,19 @@ body { background: var(--canvas); }
   gap: 10px;
   margin-bottom: 20px;
 }
+.weekday-checkbox-group {
+  min-width: 0;
+  margin: 0 0 20px;
+  padding: 0;
+  border: 0;
+}
+.weekday-checkbox-group > legend {
+  margin-bottom: 8px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+.weekday-checkbox-group .weekday-picker { margin-bottom: 8px; }
 .weekday-option {
   display: flex;
   align-items: center;
@@ -1590,6 +1771,7 @@ body { background: var(--canvas); }
   cursor: pointer;
 }
 .weekday-option:has(input:checked) { border-color: var(--green); background: #eaf4f1; color: #276d61; }
+.weekday-option:has(input:disabled:not(:checked)) { cursor: not-allowed; opacity: .55; }
 .weekday-option input { width: 18px; height: 18px; margin: 0; accent-color: var(--green); }
 .field-hint { display: block; min-height: 52px; padding: 16px 14px; border: 1px solid #dce6eb; border-radius: 8px; background: #f7fafb; color: #536a82; font-size: 14px; }
 .agenda-appointment-drawer .creation-drawer-form > label,
@@ -1696,6 +1878,7 @@ body { background: var(--canvas); }
 }
 @media (max-width: 600px) {
   .weekday-picker { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .group-member-days-form .weekday-picker { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .weekday-option { min-height: 44px; padding: 8px 10px; font-size: 12px; }
   .page-title > label { width: 100%; }
   .group-member-form { grid-template-columns: 1fr; }
@@ -2106,6 +2289,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .group-member-form .form-section { display: block; margin: 0; }
 .group-member-form .form-row { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(170px, 1fr); align-items: start; gap: 16px; margin: 14px 0 0; }
 .group-member-form .form-field { min-width: 0; }
+.group-member-form select[multiple] { min-height: 148px; }
 .group-member-form-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(190px, 1fr); align-items: center; gap: 16px; margin-top: 16px; }
 .group-member-form-actions .group-members-add { width: 100%; }
 .group-member-form-actions .form-instructions { margin: 0; }
@@ -2113,6 +2297,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 @media (max-width: 600px) {
   .group-member-form .form-row,
   .group-member-form-actions { grid-template-columns: 1fr; }
+  .group-professional-form { grid-template-columns: 1fr; }
+  .group-professional-form .btn { width: 100%; }
 }
 @media (max-width: 720px) {
   .group-allocation-panel .table-toolbar { flex-direction: column; }
@@ -2160,7 +2346,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 :where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) input:not([type="checkbox"]):not([type="radio"]),
 :where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) select,
 :where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) textarea,
-:where(.login-card, .mfa-card) input:not([type="checkbox"]):not([type="radio"]) {
+:where(.login-card, .auth-card) input:not([type="checkbox"]):not([type="radio"]) {
   box-sizing: border-box;
   display: block;
   width: 100%;
@@ -2179,9 +2365,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   resize: vertical;
 }
 
-.login-card, .mfa-card { gap: 22px; }
-.login-card label, .mfa-card .form-field-label { gap: 8px; margin: 0; }
-.login-card input, .mfa-card input { height: 52px; margin: 0; }
+.login-card, .auth-card { gap: 22px; }
+.login-card label, .auth-card .form-field-label { gap: 8px; margin: 0; }
+.login-card input, .auth-card input { height: 52px; margin: 0; }
 
 @media (max-width: 640px) {
   :where(.modal-form, .creation-drawer-form, .administration-form, .user-edit-form) .form-row {

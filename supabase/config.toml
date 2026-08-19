@@ -18,7 +18,7 @@ port = 54323
 
 [auth]
 enabled = true
-site_url = "http://localhost:3000/sistema"
+site_url = "https://clinicafisiofitsabara.com/sistema"
 additional_redirect_urls = [
   "http://localhost:3000/sistema/**",
   "https://clinicafisiofitsabara.com/sistema/**"
@@ -26,12 +26,9 @@ additional_redirect_urls = [
 jwt_expiry = 3600
 enable_signup = false
 
-[auth.mfa]
-max_enrolled_factors = 3
-
 [auth.mfa.totp]
-enroll_enabled = true
-verify_enabled = true
+enroll_enabled = false
+verify_enabled = false
 
 [storage]
 enabled = true
@@ -41,4 +38,6 @@ file_size_limit = "25MiB"
 enabled = false
 
 [functions.api]
-verify_jwt = true
+# A API valida o Bearer com auth.getUser() no próprio middleware. O gateway
+# legado não aceita de forma confiável os JWTs ES256 emitidos pelo projeto.
+verify_jwt = false

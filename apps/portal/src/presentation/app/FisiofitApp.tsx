@@ -6,6 +6,7 @@ import { useAuth } from "../auth/AuthProvider";
 import {
   OperationalAdministration,
   OperationalAgenda,
+  OperationalDailyAttendance,
   OperationalEnrollments,
   OperationalFinance,
   OperationalPatients,
@@ -19,7 +20,7 @@ import type { DashboardData, Patient, Profile, Unit, View } from "../../domain/p
 import { isView, nav, navModule, roleLabel } from "../../application/portal/navigation";
 const OperationalImports = lazy(() => import("../modules/OperationalImports"));
 const sidebarGroups: Array<{ label: string; items: View[] }> = [
-  { label: "Operação", items: ["Painel", "Agenda", "Pacientes", "Matrículas", "Prontuários"] },
+  { label: "Operação", items: ["Painel", "Agenda", "Chamada diária", "Pacientes", "Matrículas", "Prontuários"] },
   { label: "Gestão", items: ["Financeiro", "Relatórios", "Importações"] },
   { label: "Administração", items: ["Usuários", "Configurações", "Privacidade"] },
 ];
@@ -53,7 +54,7 @@ function Avatar({ initials, url, className = "" }: { initials: string; url?: str
 function compressAvatar(file: File) {
   if (!file.type.startsWith("image/")) return Promise.reject(new Error("Escolha uma imagem válida."));
   if (file.size > 5 * 1024 * 1024) return Promise.reject(new Error("A imagem deve ter no máximo 5 MB."));
-  return new Promise<string>((resolve, reject) => {
+  return new Promise<Blob>((resolve, reject) => {
     const source = URL.createObjectURL(file);
     const image = new Image();
     image.onload = () => {
@@ -70,10 +71,7 @@ function compressAvatar(file: File) {
       canvas.toBlob((blob) => {
         URL.revokeObjectURL(source);
         if (!blob) { reject(new Error("Não foi possível preparar a imagem.")); return; }
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result));
-        reader.onerror = () => reject(new Error("Não foi possível ler a imagem."));
-        reader.readAsDataURL(blob);
+        resolve(blob);
       }, "image/webp", .82);
     };
     image.onerror = () => { URL.revokeObjectURL(source); reject(new Error("Não foi possível abrir a imagem.")); };
@@ -203,14 +201,22 @@ export default function FisiofitApp() {
     .join("")
     .toUpperCase();
   async function changeAvatar(file: File | undefined) {
-    if (!file) return;
+    if (!file || !user) return;
     setAvatarBusy(true);
     setAvatarNotice("");
     try {
-      const dataUrl = await compressAvatar(file);
-      const { error: updateError } = await supabase.auth.updateUser({ data: { avatar_url: dataUrl } });
+      const avatar = await compressAvatar(file);
+      const path = `${user.id}/avatar.webp`;
+      const { error: uploadError } = await supabase.storage
+        .from("profile-avatars")
+        .upload(path, avatar, { contentType: "image/webp", upsert: true });
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from("profile-avatars").getPublicUrl(path);
+      const publicUrl = `${data.publicUrl}?v=${Date.now()}`;
+      const { error: updateError } = await supabase.auth.updateUser({ data: { avatar_url: publicUrl } });
       if (updateError) throw updateError;
-      setAvatarUrl(dataUrl);
+      setAvatarUrl(publicUrl);
       setAvatarNotice("Foto de perfil atualizada.");
     } catch (reason) {
       setAvatarNotice(reason instanceof Error ? reason.message : "Não foi possível atualizar a foto.");
@@ -411,8 +417,9 @@ export default function FisiofitApp() {
           <Dashboard data={dashboard} name={profile.name} setView={setView} loading={loading} />
         )}{" "}
         {view === "Agenda" && <OperationalAgenda canEdit={profile.role === "admin" || !profile.profile_permissions || profile.profile_permissions.some((permission) => permission.module === "agenda" && permission.can_edit)} onOpenPatients={() => navigate("Pacientes")} onOpenEnrollment={(context) => { setAgendaContext(context); navigate("Matrículas"); }} />}{" "}
+        {view === "Chamada diária" && <OperationalDailyAttendance canEdit={profile.role === "admin" || !profile.profile_permissions || profile.profile_permissions.some((permission) => permission.module === "agenda" && permission.can_edit)} />}{" "}
         {view === "Pacientes" && <OperationalPatients />}{" "}
-        {view === "Matrículas" && <OperationalEnrollments agendaContext={agendaContext} onClearAgendaContext={() => setAgendaContext(undefined)} />}{" "}
+        {view === "Matrículas" && <OperationalEnrollments agendaContext={agendaContext} onClearAgendaContext={() => setAgendaContext(undefined)} units={units} selectedUnitId={unit} onUnitChange={setUnit} />}{" "}
         {view === "Prontuários" && <OperationalRecords />}{" "}
         {view === "Financeiro" && <OperationalFinance />}{" "}
         {view === "Relatórios" && <OperationalReports />}{" "}
@@ -423,7 +430,12 @@ export default function FisiofitApp() {
         )}{" "}
         {view === "Usuários" && <OperationalUsers canManageUsers={profile.role === "admin"} />}
         {view === "Configurações" && <OperationalAdministration />}
-        {view === "Privacidade" && <OperationalPrivacy />}
+        {view === "Privacidade" && (
+          <OperationalPrivacy
+            canEditPrivacy={profile.role === "admin" || Boolean(profile.profile_permissions?.some((permission) => permission.module === "privacy" && permission.can_edit))}
+            canManageIncidents={profile.role === "admin"}
+          />
+        )}
       </section>
       </main>
     </>

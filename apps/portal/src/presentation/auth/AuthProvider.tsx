@@ -7,6 +7,7 @@ type AuthState = {
   loading: boolean;
   session: Session | null;
   user: User | null;
+  callbackError: string | null;
   signOut: () => Promise<void>;
 };
 
@@ -15,10 +16,12 @@ const AuthContext = createContext<AuthState | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [callbackError, setCallbackError] = useState<string | null>(null);
   const currentUserId = useRef<string | null>(null);
 
   useEffect(() => {
     let active = true;
+    let initialized = false;
     const applySession = (next: Session | null) => {
       if (!active) return;
       const nextUserId = next?.user.id ?? null;
@@ -30,42 +33,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, next) => {
-      applySession(next);
+      if (initialized) applySession(next);
     });
 
     async function restoreSession() {
       const url = new URL(window.location.href);
-      const code = url.searchParams.get("code");
       const hash = new URLSearchParams(url.hash.slice(1));
-      const accessToken = hash.get("access_token");
-      const refreshToken = hash.get("refresh_token");
-
-      let nextSession: Session | null = null;
-
-      if (code) {
-        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-        if (!error) nextSession = data.session;
-      } else if (accessToken && refreshToken) {
-        const { data, error } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken,
-        });
-        if (!error) nextSession = data.session;
-      } else {
-        const { data } = await supabase.auth.getSession();
-        nextSession = data.session;
-      }
+      const callbackFailure =
+        url.searchParams.get("error_description") ?? hash.get("error_description");
+      const hasAuthCallback =
+        url.searchParams.has("code") ||
+        url.searchParams.has("error") ||
+        hash.has("access_token") ||
+        hash.has("error");
+      const { data, error } = await supabase.auth.getSession();
 
       if (!active) return;
 
-      if (code || accessToken) {
+      initialized = true;
+      if (hasAuthCallback) {
         window.history.replaceState({}, document.title, url.pathname);
       }
-
-      applySession(nextSession);
+      if (callbackFailure || error) {
+        setCallbackError("Este link de acesso é inválido ou expirou. Solicite um novo link no login.");
+      }
+      applySession(data.session);
     }
 
-    void restoreSession();
+    void restoreSession().catch(() => {
+      if (!active) return;
+      initialized = true;
+      setCallbackError("Não foi possível validar o link de acesso. Verifique sua conexão e tente novamente.");
+      applySession(null);
+    });
 
     return () => {
       active = false;
@@ -78,13 +78,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       session,
       user: session?.user ?? null,
+      callbackError,
       signOut: async () => {
         clearPortalSessionState();
         const { error } = await supabase.auth.signOut();
         if (error) throw error;
       },
     }),
-    [loading, session],
+    [callbackError, loading, session],
   );
 
   return (

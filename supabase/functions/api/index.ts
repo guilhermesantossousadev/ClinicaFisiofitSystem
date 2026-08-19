@@ -21,7 +21,6 @@ type Variables = {
     name: string;
     role: Role;
     status: string;
-    mfa_required: boolean;
   };
   db: DatabaseClient;
 };
@@ -34,7 +33,10 @@ app.use("*", cors({
     origin === allowedOrigin || origin.startsWith("http://localhost:")
       ? origin
       : allowedOrigin,
-  allowHeaders: ["authorization", "content-type", "idempotency-key", "x-request-id"],
+  // O cliente do portal envia a chave publicável no cabeçalho `apikey`.
+  // Sem autorizá-lo no preflight, o navegador bloqueia a resposta antes que
+  // ela chegue à aplicação e um login válido parece uma falha de conexão.
+  allowHeaders: ["authorization", "apikey", "content-type", "idempotency-key", "x-request-id"],
   allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
   credentials: true,
   maxAge: 86400,
@@ -93,7 +95,7 @@ app.use("*", async (context, next) => {
 
   const { data: profile, error: profileError } = await db
     .from("profiles")
-    .select("id, clinic_id, name, role, status, mfa_required, profile_permissions(module,can_view,can_edit)")
+    .select("id, clinic_id, name, role, status, profile_permissions(module,can_view,can_edit)")
     .eq("id", authData.user.id)
     .is("deleted_at", null)
     .maybeSingle();
@@ -120,29 +122,11 @@ app.use("*", async (context, next) => {
     return fail(context, 403, code, message);
   }
 
-  const requiresMfa = ["admin", "manager", "finance"].includes(profile.role);
-  const accessToken = auth.slice("Bearer ".length);
-  if (requiresMfa && jwtClaim(accessToken, "aal") !== "aal2") {
-    return fail(context, 403, "MFA_REQUIRED", "Confirme o segundo fator para continuar.");
-  }
-
   context.set("user", authData.user);
   context.set("profile", profile as Variables["profile"]);
   context.set("db", db);
   await next();
 });
-
-function jwtClaim(token: string, claim: string): unknown {
-  try {
-    const payload = token.split(".")[1];
-    if (!payload) return undefined;
-    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
-    return JSON.parse(atob(padded))[claim];
-  } catch {
-    return undefined;
-  }
-}
 
 const patientSchema = z.object({
   primary_unit_id: z.string().uuid(),
@@ -259,7 +243,7 @@ app.get("/dashboard", requireRoles(["admin", "manager"]), async (context) => {
   }, error);
 });
 
-registerUsuariosRoutes(app, { allowedOrigin, requireRoles, ok, fail, databaseResult, audit });
+registerUsuariosRoutes(app, { allowedOrigin, requireRoles, ok, fail, databaseResult, audit, requiredEnv });
 
 app.get("/units", requireRoles(["admin", "manager", "reception", "professional", "finance"]), async (context) => {
   const { data, error } = await context.get("db").from("units").select("*").is("deleted_at", null).order("name");
@@ -299,7 +283,7 @@ app.get("/group-slots", requireRoles(["admin", "manager", "reception", "professi
 app.get("/group-slot-memberships", requireRoles(["admin", "manager", "reception", "professional"]), async (context) => {
   const clinicId = context.get("profile").clinic_id;
   let query = context.get("db").from("group_slot_memberships")
-    .select("id,group_slot_id,enrollment_id,patient_id,starts_at,ends_at,status,patients(name,phone)")
+    .select("id,group_slot_id,enrollment_id,patient_id,weekdays,starts_at,ends_at,status,patients(name,phone)")
     .eq("clinic_id", clinicId).is("deleted_at", null).eq("status", "active");
   const groupSlotId = context.req.query("groupSlotId");
   if (groupSlotId) query = query.eq("group_slot_id", z.string().uuid().parse(groupSlotId));
@@ -466,6 +450,51 @@ app.post("/enrollments", requireRoles(["admin", "manager", "finance"]), async (c
   return ok(context, data, 201);
 });
 
+app.patch("/enrollments/:id", requireRoles(["admin", "manager", "reception", "finance"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const input = z.object({
+    plan_id: z.string().uuid().optional(),
+    starts_at: z.string().date().optional(),
+    ends_at: z.string().date().nullable().optional(),
+    sessions_used: z.number().int().nonnegative().optional(),
+    status: z.enum(["active", "paused", "expired"]).optional(),
+  }).refine((value) => Object.keys(value).length > 0, {
+    message: "Informe ao menos um dado para atualizar.",
+  }).parse(await context.req.json());
+  const db = context.get("db");
+  const clinicId = context.get("profile").clinic_id;
+  const { data: current, error: currentError } = await db.from("enrollments")
+    .select("id,unit_id,starts_at,ends_at")
+    .eq("id", id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle();
+  if (currentError) return databaseResult(context, null, currentError);
+  if (!current) return fail(context, 404, "ENROLLMENT_NOT_FOUND", "Matrícula não encontrada.");
+  if (!(await hasUnitAccess(context, current.unit_id))) {
+    return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+  }
+  if (input.plan_id) {
+    const { data: plan, error: planError } = await db.from("plans")
+      .select("id,name,price_cents,active")
+      .eq("id", input.plan_id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle();
+    if (planError) return databaseResult(context, null, planError);
+    if (!plan) return fail(context, 404, "PLAN_NOT_FOUND", "Plano não encontrado.");
+    if (!plan.active) return fail(context, 400, "PLAN_INACTIVE", "O plano selecionado está inativo.");
+  }
+  const startsAt = input.starts_at ?? current.starts_at;
+  const endsAt = input.ends_at === undefined ? current.ends_at : input.ends_at;
+  if (endsAt && endsAt < startsAt) {
+    return fail(context, 400, "INVALID_PERIOD", "A data de renovação não pode ser anterior à data inicial.");
+  }
+  const { data, error } = await db.from("enrollments")
+    .update({ ...input, updated_at: new Date().toISOString() })
+    .eq("id", id).eq("clinic_id", clinicId).is("deleted_at", null).select().single();
+  if (!error && data) {
+    await audit(context, "enrollment.updated", "enrollment", id, current.unit_id, {
+      changed_fields: Object.keys(input),
+    });
+  }
+  return databaseResult(context, data, error);
+});
+
 app.post("/enrollments/:id/rollback", requireRoles(["admin", "manager", "finance"]), async (context) => {
   const id = z.string().uuid().parse(context.req.param("id"));
   const input = z.object({ reason: z.string().trim().min(10).max(1000) }).parse(await context.req.json());
@@ -491,6 +520,33 @@ app.post("/charges", requireRoles(["admin", "manager", "finance"]), async (conte
     if (!enrollment) return fail(context, 400, "INVALID_ENROLLMENT", "A matrícula não pertence ao paciente e à unidade informados.");
   }
   return createClinicResource(context, "charges", { ...input, status: "pending" }, "charge.created", input.unit_id);
+});
+
+app.patch("/charges/:id/status", requireRoles(["admin", "manager", "finance"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const input = z.object({
+    status: z.enum(["paid", "cancelled", "overdue", "pending"]),
+  }).parse(await context.req.json());
+  const db = context.get("db");
+  const clinicId = context.get("profile").clinic_id;
+  const { data: current, error: currentError } = await db.from("charges")
+    .select("id,unit_id,status")
+    .eq("id", id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle();
+  if (currentError) return databaseResult(context, null, currentError);
+  if (!current) return fail(context, 404, "CHARGE_NOT_FOUND", "Cobrança não encontrada.");
+  if (!(await hasUnitAccess(context, current.unit_id))) {
+    return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+  }
+  const { data, error } = await db.from("charges")
+    .update({ status: input.status, updated_at: new Date().toISOString() })
+    .eq("id", id).eq("clinic_id", clinicId).is("deleted_at", null).select().single();
+  if (!error && data) {
+    await audit(context, "charge.status_updated", "charge", id, current.unit_id, {
+      previous_status: current.status,
+      status: input.status,
+    });
+  }
+  return databaseResult(context, data, error);
 });
 
 app.get("/record-templates", requireRoles(["admin", "manager", "professional"]), listResource("record_templates", "name"));
@@ -561,6 +617,8 @@ function listResource(table: string, order: string, ascending = true) {
       "record_templates",
       "monthly_closings",
       "import_batches",
+      "data_subject_requests",
+      "privacy_incidents",
     ].includes(table)) {
       query = query.is("deleted_at", null);
     }
@@ -1051,6 +1109,8 @@ const openApiDocument = {
   paths: {
     "/patients": { get: { summary: "Lista pacientes" }, post: { summary: "Cadastra paciente" } },
     "/appointments": { get: { summary: "Lista agenda" }, post: { summary: "Cria agendamento com conflito validado" } },
+    "/attendance/daily": { get: { summary: "Lista pacientes das turmas para a chamada diária" } },
+    "/attendance": { post: { summary: "Registra presença ou falta e controla reposição" } },
     "/clinical-records": { get: { summary: "Lista prontuário" }, post: { summary: "Cria avaliação ou evolução" } },
     "/payments": { post: { summary: "Registra pagamento transacional e idempotente" } },
     "/financial-entries": { get: { summary: "Lista movimentos" }, post: { summary: "Cria movimento" } },
@@ -1062,6 +1122,7 @@ const openApiDocument = {
       delete: { summary: "Arquiva usuário, bloqueia o acesso e preserva o histórico" },
     },
     "/users/{id}/resend-access": { post: { summary: "Reenvia um link seguro de definição de senha" } },
+    "/users/{id}/password": { post: { summary: "Define a senha diretamente no Supabase Auth" } },
   },
 };
 

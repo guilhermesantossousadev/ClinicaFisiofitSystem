@@ -3,8 +3,7 @@
 ## Acesso comum
 
 Entre no portal com o e-mail corporativo e senha. No primeiro acesso, use o
-link enviado por e-mail para criar a senha. Administradores, gestores e
-financeiro devem concluir o segundo fator. Ao terminar, clique em **Sair**.
+link enviado por e-mail para criar a senha. Ao terminar, clique em **Sair**.
 
 ## Navegação
 
@@ -61,7 +60,7 @@ acesso com o usuário. Bloqueie acessos imediatamente quando houver desligamento
 ## Problemas comuns
 
 - **Sem módulo no menu:** peça ao administrador para revisar sua permissão.
-- **Acesso negado:** confirme status da conta, perfil, unidade e MFA.
+- **Acesso negado:** confirme o status da conta, o perfil e a unidade.
 - **Conflito de agenda:** revise profissional, sala e horário; não crie duplicata.
 - **E-mail não chegou:** confira spam e solicite reenvio ao administrador.
 - **Número incorreto no painel:** confira filtros, cadastros e período; preserve o histórico.
@@ -71,5 +70,5 @@ acesso com o usuário. Bloqueie acessos imediatamente quando houver desligamento
 
 **Unidade:** local de atendimento. **Matrícula:** vínculo do paciente a um
 plano. **Cobrança:** valor previsto. **Prontuário:** registro clínico.
-**Retificação:** correção vinculada ao registro original. **MFA:** segundo fator
-de autenticação. **Permissão:** acesso individual a um módulo.
+**Retificação:** correção vinculada ao registro original. **Permissão:** acesso
+individual a um módulo.

@@ -1,6 +1,5 @@
 export type AccessFailure =
   | "session-expired"
-  | "mfa"
   | "bootstrap"
   | "membership"
   | "unavailable";
@@ -26,6 +25,8 @@ const membershipCodes = new Set([
 export const sessionExpiredNoticeKey = "fisiofit:session-expired-notice";
 export const sessionExpiredNotice =
   "Sua sessão expirou por segurança. Entre novamente com seu e-mail e senha.";
+export const passwordUpdatedNotice =
+  "Senha atualizada. Entre com seu e-mail e a nova senha.";
 
 export function normalizeLoginEmail(email: string) {
   return email.trim().toLowerCase();
@@ -54,19 +55,64 @@ export function loginErrorMessage(error: unknown) {
     authError?.status === 0 ||
     code === "request_timeout" ||
     message.includes("fetch") ||
+    message.includes("load failed") ||
     message.includes("network") ||
     message.includes("timeout")
   ) {
     return "Não foi possível conectar ao serviço de acesso. Verifique sua internet e tente novamente.";
   }
-  return "E-mail ou senha inválidos. Confira os dados ou solicite um novo link de acesso.";
+  if ((authError?.status ?? 0) >= 500) {
+    return "O serviço de acesso está temporariamente indisponível. Tente novamente em alguns minutos.";
+  }
+  if (
+    code === "invalid_credentials" ||
+    message.includes("invalid login credentials") ||
+    message.includes("invalid credentials")
+  ) {
+    return "E-mail ou senha inválidos. Confira os dados ou solicite um novo link de acesso.";
+  }
+  return "Não foi possível validar o acesso agora. Tente novamente; se o problema continuar, solicite um novo link de acesso.";
+}
+
+export function recoveryErrorMessage(error: unknown) {
+  const authError = error as AuthRequestError;
+  const code = authError?.code ?? "";
+  const message = authError?.message?.toLowerCase() ?? "";
+
+  if (
+    code === "email_address_not_authorized" ||
+    message.includes("email address not authorized")
+  ) {
+    return "Este endereço não está autorizado pelo serviço de e-mail atual. Fale com a administradora da clínica.";
+  }
+
+  if (
+    authError?.status === 429 ||
+    code.includes("rate_limit") ||
+    message.includes("rate limit") ||
+    message.includes("too many requests")
+  ) {
+    return "O limite de e-mails do provedor foi atingido. Aguarde até uma hora antes de solicitar outro link.";
+  }
+  if (
+    authError?.status === 0 ||
+    code === "request_timeout" ||
+    message.includes("fetch") ||
+    message.includes("network") ||
+    message.includes("timeout")
+  ) {
+    return "Não foi possível conectar ao serviço de acesso. Verifique sua internet e tente novamente.";
+  }
+  if ((authError?.status ?? 0) >= 500) {
+    return "O serviço de e-mail está temporariamente indisponível. Tente novamente mais tarde ou fale com a administradora.";
+  }
+  return "Não foi possível enviar o link agora. Confira o e-mail e tente novamente em instantes.";
 }
 
 export function classifyAccessFailure(error: unknown): AccessFailure {
   const requestError = error as ApiRequestError;
   const code = requestError?.apiError?.code;
 
-  if (code === "MFA_REQUIRED") return "mfa";
   if (code === "BOOTSTRAP_REQUIRED") return "bootstrap";
   if (code === "UNAUTHENTICATED" || requestError?.status === 401) {
     return "session-expired";

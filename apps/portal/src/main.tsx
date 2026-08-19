@@ -4,7 +4,6 @@ import { Redirect, Route, Router, Switch } from "wouter";
 import { appBasePath, brandCssVariables } from "@fisiofit/design-system";
 import { AuthProvider, useAuth } from "./presentation/auth/AuthProvider";
 import LoginPage from "./presentation/auth/LoginPage";
-import MfaPage from "./presentation/auth/MfaPage";
 import OnboardingPage from "./presentation/auth/OnboardingPage";
 import SetPasswordPage from "./presentation/auth/SetPasswordPage";
 import FormAccessibility from "./presentation/components/FormAccessibility";
@@ -30,7 +29,7 @@ function ProtectedApp() {
     (window.location.hostname === "localhost" ||
       window.location.hostname === "127.0.0.1") &&
     new URLSearchParams(window.location.search).get("preview") === "1";
-  const [access, setAccess] = React.useState<"checking" | "allowed" | "mfa" | "bootstrap" | "expired" | "issue">("checking");
+  const [access, setAccess] = React.useState<"checking" | "allowed" | "bootstrap" | "expired" | "issue">("checking");
   const [issue, setIssue] = React.useState<"membership" | "unavailable">("unavailable");
   const [validationAttempt, setValidationAttempt] = React.useState(0);
   const refreshAttempted = React.useRef(false);
@@ -52,31 +51,40 @@ function ProtectedApp() {
       .catch(async (error: unknown) => {
         if (!active) return;
         const failure = classifyAccessFailure(error);
-        if (failure === "mfa") {
-          setAccess("mfa");
-          return;
-        }
         if (failure === "bootstrap") {
           setAccess("bootstrap");
           return;
+        }
+        if (failure !== "membership" && !refreshAttempted.current) {
+          refreshAttempted.current = true;
+          const { data, error: refreshError } = await supabase.auth.refreshSession();
+          if (!active) return;
+          if (!refreshError && data.session) {
+            try {
+              window.sessionStorage.removeItem(sessionExpiredNoticeKey);
+            } catch {
+              // A sessão foi renovada; não há aviso pendente a remover.
+            }
+            setValidationAttempt((attempt) => attempt + 1);
+            return;
+          }
+
+          // Uma falha transitória também pode impedir a renovação. Fazemos uma
+          // segunda validação com a sessão atual antes de mostrar qualquer erro.
+          const { data: userData, error: userError } = await supabase.auth.getUser();
+          if (!active) return;
+          if (!userError && userData.user) {
+            window.setTimeout(() => {
+              if (active) setValidationAttempt((attempt) => attempt + 1);
+            }, 600);
+            return;
+          }
         }
         if (failure === "session-expired") {
           try {
             window.sessionStorage.setItem(sessionExpiredNoticeKey, sessionExpiredNotice);
           } catch {
             // O redirecionamento ainda funciona quando o armazenamento está indisponível.
-          }
-          if (!refreshAttempted.current) {
-            refreshAttempted.current = true;
-            const { data, error: refreshError } = await supabase.auth.refreshSession();
-            if (!refreshError && data.session) {
-              try {
-                window.sessionStorage.removeItem(sessionExpiredNoticeKey);
-              } catch {
-                // A sessão foi renovada; não há redirecionamento nem aviso a exibir.
-              }
-              return;
-            }
           }
           await signOut();
           if (active) setAccess("expired");
@@ -91,13 +99,12 @@ function ProtectedApp() {
   if (loading) return <div className="auth-loading">Carregando ambiente seguro…</div>;
   if (!localPreview && !session && isSupabaseConfigured) return <Redirect to="/login" replace />;
   if (access === "checking") return <div className="auth-loading">Validando permissões…</div>;
-  if (access === "mfa") return <Redirect to="/mfa" replace />;
   if (access === "bootstrap") return <Redirect to="/onboarding" replace />;
   if (access === "expired") return <Redirect to="/login" replace />;
   if (access === "issue") {
     return (
-      <main className="mfa-page">
-        <section className="login-card mfa-card" aria-labelledby="access-issue-title">
+      <main className="auth-page">
+        <section className="login-card auth-card" aria-labelledby="access-issue-title">
           <img src="/sistema/fisiofit-logo.jpg" alt="" />
           <p className="eyebrow">ACESSO AO PORTAL</p>
           <h2 id="access-issue-title">
@@ -111,7 +118,10 @@ function ProtectedApp() {
           <button
             type="button"
             className="btn primary login-submit"
-            onClick={() => setValidationAttempt((attempt) => attempt + 1)}
+            onClick={() => {
+              refreshAttempted.current = false;
+              setValidationAttempt((attempt) => attempt + 1);
+            }}
           >
             Tentar novamente
           </button>
@@ -142,7 +152,6 @@ root.render(
         <Switch>
           <Route path="/login" component={LoginPage} />
           <Route path="/set-password" component={SetPasswordPage} />
-          <Route path="/mfa" component={MfaPage} />
           <Route path="/onboarding" component={OnboardingPage} />
           <Route component={ProtectedApp} />
         </Switch>

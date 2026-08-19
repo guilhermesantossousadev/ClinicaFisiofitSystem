@@ -17,13 +17,18 @@ test("gera site e portal no pacote único da Hostinger", async () => {
     access(new URL("../dist/sistema/index.html", import.meta.url)),
     access(new URL("../dist/sistema/.htaccess", import.meta.url)),
   ]);
-  const [site, portal] = await Promise.all([
+  const [site, portal, siteHeaders, portalHeaders] = await Promise.all([
     readFile(new URL("../dist/index.html", import.meta.url), "utf8"),
     readFile(new URL("../dist/sistema/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../dist/.htaccess", import.meta.url), "utf8"),
+    readFile(new URL("../dist/sistema/.htaccess", import.meta.url), "utf8"),
   ]);
   assert.match(site, /Clínica Fisiofit/);
   assert.match(portal, /Área da clínica/);
   assert.match(portal, /\/sistema\/assets\//);
+  assert.match(siteHeaders, /www\\\.clinicafisiofitsabara\\\.com/);
+  assert.match(portalHeaders, /www\\\.clinicafisiofitsabara\\\.com/);
+  assert.match(portalHeaders, /connect-src[^\n]+eeltguuoxpfttjznugla\.supabase\.co/);
 });
 
 test("mantém API, banco e integrações versionados", async () => {
@@ -48,6 +53,10 @@ test("mantém API, banco e integrações versionados", async () => {
   assert.match(api, /\/reports\/annual/);
   assert.match(api, /\/users\/:id/);
   assert.match(api, /\/users\/:id\/resend-access/);
+  assert.match(api, /\/users\/:id\/password/);
+  assert.match(api, /auth\.admin\.updateUserById\(id,\s*\{\s*password: input\.password/);
+  assert.match(api, /user\.password_changed/);
+  assert.doesNotMatch(api, /audit\([^\n]+password:\s*input\.password/);
   assert.match(api, /app\.delete\("\/users\/:id"/);
   assert.match(api, /\/enrollments/);
   assert.match(api, /\/clinical-records\/:id\/rectify/);
@@ -55,6 +64,12 @@ test("mantém API, banco e integrações versionados", async () => {
   assert.match(api, /\/imports\/patients/);
   assert.match(api, /PROTECTED_OWNER_ACCOUNT/);
   assert.match(api, /\/privacy\/requests/);
+  assert.match(api, /\/attendance\/daily/);
+  assert.match(
+    api,
+    /"data_subject_requests",\s*"privacy_incidents",\s*\]\.includes\(table\)/,
+    "recursos de privacidade sem deleted_at não devem receber o filtro de exclusão lógica",
+  );
   for (const resource of ["units", "rooms", "professionals", "services", "plans", "group-slots", "record-templates"]) {
     assert.match(api, new RegExp(`app\\.patch\\("/${resource}/:id"`));
   }
@@ -80,22 +95,53 @@ test("mantém context.md como fonte única da verdade e não restaura o legado",
 });
 
 test("protege recuperação administrativa e consentimento de cookies", async () => {
-  const [login, setPassword, api, siteHtml, cookieConsent] = await Promise.all([
+  const [login, authClient, setPassword, portalApp, api, siteHtml, cookieConsent] = await Promise.all([
     readFile(new URL("../apps/portal/src/presentation/auth/LoginPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../apps/portal/src/infrastructure/supabase/client.ts", import.meta.url), "utf8"),
     readFile(new URL("../apps/portal/src/presentation/auth/SetPasswordPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../apps/portal/src/presentation/app/FisiofitApp.tsx", import.meta.url), "utf8"),
     readApiSource(),
     readFile(new URL("../apps/site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../apps/site/src/presentation/components/CookieConsent.tsx", import.meta.url), "utf8"),
   ]);
   assert.match(login, /resetPasswordForEmail/);
-  assert.match(login, /\/sistema\/set-password/);
+  assert.match(login, /recoveryCooldownSeconds = 60/);
+  assert.match(login, /Pedido de redefinição registrado/);
+  assert.match(login, /Reenviar em \$\{recoveryWait\}s/);
+  assert.match(login, /Spam, Lixeira/);
+  assert.match(authClient, /sistema\/set-password/);
+  assert.match(authClient, /flowType:\s*"pkce"/);
   assert.match(api, /redirectTo: `\$\{allowedOrigin\}\/sistema\/set-password`/);
   assert.match(setPassword, /password\.length < 10/);
+  assert.match(setPassword, /passwordUpdatedNotice/);
+  assert.match(setPassword, /navigate\("\/login"/);
+  assert.doesNotMatch(setPassword, /api\("\/me"\)/);
+  assert.match(portalApp, /\.from\("profile-avatars"\)/);
+  assert.doesNotMatch(portalApp, /avatar_url: dataUrl/);
   assert.doesNotMatch(`${login}\n${setPassword}`, /password\s*[:=]\s*["'][^"']+["']/i);
   assert.doesNotMatch(siteHtml, /googletagmanager\.com\/gtag\/js/);
   assert.match(cookieConsent, /Aceitar/);
   assert.match(cookieConsent, /Recusar/);
   assert.match(cookieConsent, /Configurar/);
+});
+
+test("mantém autenticação por e-mail e senha sem segundo fator", async () => {
+  const [apiClient, functionConfig, apiSource, portalMain] = await Promise.all([
+    readFile(new URL("../apps/portal/src/infrastructure/http/api.ts", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/config.toml", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/functions/api/index.ts", import.meta.url), "utf8"),
+    readFile(new URL("../apps/portal/src/main.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(apiClient, /apikey:\s*apiKey/);
+  assert.match(apiSource, /allowHeaders:\s*\[[^\]]*"apikey"/);
+  assert.match(functionConfig, /\[functions\.api\][\s\S]*verify_jwt\s*=\s*false/);
+  assert.match(apiSource, /auth\.getUser\(\)/);
+  assert.match(apiSource, /if \(authError \|\| !authData\.user\)/);
+  assert.match(functionConfig, /site_url\s*=\s*"https:\/\/clinicafisiofitsabara\.com\/sistema"/);
+  assert.match(functionConfig, /\[auth\.mfa\.totp\][\s\S]*enroll_enabled\s*=\s*false[\s\S]*verify_enabled\s*=\s*false/);
+  assert.doesNotMatch(apiSource, /MFA_REQUIRED|aal2|jwtClaim/);
+  assert.doesNotMatch(portalMain, /MfaPage|path="\/mfa"/);
+  await assert.rejects(access(new URL("../apps/portal/src/presentation/auth/MfaPage.tsx", import.meta.url)));
 });
 
 test("isola consultas operacionais por clínica", async () => {
@@ -108,9 +154,10 @@ test("isola consultas operacionais por clínica", async () => {
     api.indexOf('app.get("/appointments"'),
     api.indexOf('app.post("/appointments"'),
   );
+  const timelineStart = api.indexOf('app.get("/patients/:id/timeline"');
   const timelineRoute = api.slice(
-    api.indexOf('app.get("/patients/:id/timeline"'),
-    api.indexOf('app.get("/appointments"'),
+    timelineStart,
+    api.indexOf("\n  });\n}", timelineStart),
   );
   assert.match(patientsRoute, /\.eq\("clinic_id", clinicId\)/);
   assert.match(appointmentsRoute, /\.eq\("clinic_id", context\.get\("profile"\)\.clinic_id\)/);

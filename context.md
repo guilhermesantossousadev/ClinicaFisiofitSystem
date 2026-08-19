@@ -62,7 +62,7 @@ Não existe portal do paciente. Cadastro público no Supabase Auth está desativ
 
 ### 2.4 Separação de responsabilidades
 
-O site é público e não acessa a API clínica. O portal autentica pelo SDK Supabase e usa exclusivamente a API para o domínio. A API valida sessão, perfil, MFA e papéis e persiste com Supabase. Migrations definem schema, funções transacionais, triggers e RLS. Contratos compartilhados em `packages/contracts` cobrem somente parte das entradas; a API ainda mantém schemas Zod próprios.
+O site é público e não acessa a API clínica. O portal autentica por e-mail e senha pelo SDK Supabase e usa exclusivamente a API para o domínio. A API valida sessão, perfil e papéis e persiste com Supabase. Migrations definem schema, funções transacionais, triggers e RLS. Contratos compartilhados em `packages/contracts` cobrem somente parte das entradas; a API ainda mantém schemas Zod próprios.
 
 ---
 
@@ -103,7 +103,7 @@ Não há aplicativo móvel, servidor Node próprio, cache, broker, worker ou fil
 | Hospedagem web | Hostinger via branch de artefatos | versão não aplicável | workflow manual |
 
 Em 15 de agosto de 2026, todas as migrations até `202608160003` foram confirmadas
-no histórico remoto, a Edge Function `api` ficou ativa na versão 41 e os artefatos
+no histórico remoto, a Edge Function `api` ficou ativa na versão 42 e os artefatos
 web da Fase 6/7 foram verificados no domínio de produção.
 
 ### 3.3 Organização do backend
@@ -115,7 +115,9 @@ Handlers Hono ficam separados em `routes/agenda.ts`, `pacientes.ts`,
 operações de domínio usam `SUPABASE_ANON_KEY` com o Bearer JWT original, fazendo
 PostgreSQL e Storage aplicarem RLS com `auth.uid()`. `SUPABASE_SERVICE_ROLE_KEY`
 permanece restrita a chamadas administrativas do Supabase Auth. Funções SQL
-concentram conclusão de atendimento, pagamento e rollback.
+concentram conclusão de atendimento, pagamento e rollback. O projeto Auth emite
+JWTs ES256; por isso `verify_jwt` do gateway legado fica desativado e o middleware
+da função valida o Bearer com `auth.getUser()` antes de qualquer rota protegida.
 
 ### 3.4 Organização do frontend
 
@@ -128,12 +130,14 @@ SEO por rota e imagens AVIF. Não há store global, biblioteca de consulta/cache
 SSR ou spinner global de mutações.
 
 O `.htaccess` público declara `image/avif` explicitamente para que a Hostinger
-sirva os ativos otimizados com o tipo MIME correto.
+sirva os ativos otimizados com o tipo MIME correto e redireciona `www` para a
+origem canônica. O `.htaccess` do portal substitui a CSP herdada e libera
+conexões somente para o projeto Supabase usado pela aplicação.
 
 ### 3.5 Serviços externos e integrações
 
-- Supabase Auth, Edge Functions, PostgreSQL e Storage: projeto remoto vinculado e acessível; histórico sincronizado até `202608160003` e Edge Function `api` ativa na versão 41 em 15 de agosto de 2026. Fluxos Auth, e-mail e a matriz comportamental de RLS não foram homologados nesta sessão.
-- Hostinger: workflow `31892944841` do commit `df69c42` concluído em 15 de agosto de 2026; os hashes do site/portal, canonical, Open Graph e MIME AVIF foram confirmados no domínio público.
+- Supabase Auth, Edge Functions, PostgreSQL e Storage: projeto remoto vinculado e acessível; histórico sincronizado até `202608160003` e Edge Function `api` ativa na versão 42 em 15 de agosto de 2026. Auth, middleware autenticado e health da API responderam por HTTP; envio/abertura real do e-mail e a matriz comportamental de RLS ainda não foram homologados.
+- Hostinger: workflow `31901579322` do commit `d7caf5a` concluído em 15 de agosto de 2026; o asset com as correções de sessão e recuperação, a CSP e o redirect canônico foram confirmados no domínio público.
 - Google Ads: carregamento condicional após consentimento local.
 - WhatsApp, Google Maps e Instagram: links públicos no site; não são integrações transacionais da API.
 - NFS-e e mensageria: apenas interfaces de provider e tabelas; sem adapter, fornecedor, worker ou envio.
@@ -222,8 +226,8 @@ branch `hostinger-deploy` a partir do commit `df69c42`.
 
 - **Local:** configurado no repositório.
 - **Homologação:** não identificada em configuração executável.
-- **Produção web:** Hostinger confirmada em 15 de agosto de 2026 com os assets da Fase 6/7 e MIME `image/avif`.
-- **Produção Supabase:** project ref vinculado `eeltguuoxpfttjznugla`; migrations sincronizadas até `202608160003` e Edge Function `api` ativa na versão 41.
+- **Produção web:** Hostinger confirmada em 15 de agosto de 2026 com a correção de Auth do commit `d7caf5a`, CSP específica do portal, redirect canônico, assets da Fase 6/7 e MIME `image/avif`.
+- **Produção Supabase:** project ref vinculado `eeltguuoxpfttjznugla`; migrations sincronizadas até `202608160006` e Edge Function `api` ativa na versão 43 com `verify_jwt=false` e validação no middleware.
 
 ---
 
@@ -232,8 +236,8 @@ branch `hostinger-deploy` a partir do commit `df69c42`.
 | Módulo | Estado | Evidência | Observação |
 |---|---|---|---|
 | Site institucional | Implementado | `apps/site/src` | Buildável; conteúdo jurídico ainda provisório |
-| Login/recuperação | Implementado | páginas Auth e Supabase config | Não testado contra Auth remoto nesta análise |
-| MFA TOTP | Implementado | `MfaPage.tsx`, middleware API | Obrigatório para admin, manager e finance |
+| Login/recuperação | Implementado | páginas Auth, Supabase config e CSP do portal | Conta administrativa confirmada/ativa; redirect e envio de recuperação validados no Auth remoto |
+| Autenticação | Implementado | páginas Auth e middleware API | E-mail e senha, sem segundo fator |
 | Painel | Implementado | `/dashboard`, `FisiofitApp.tsx` | Dados reais da API |
 | Agenda/turmas | Implementado | API e `OperationalAgenda` | Agenda com períodos de 7/14/30 dias, turmas recorrentes, geração automática de horários e alocação/remoção de pacientes |
 | Pacientes | Parcial | endpoints e `OperationalPatients` | Cria/edita paciente; detalhes associados sem edição/remoção completa |
@@ -340,7 +344,7 @@ Sucesso: `{ data, error: null, requestId }`. Falha: `{ data: null, error: { code
 
 ### 7.6 Padrão de erros
 
-Validação retorna 422; autenticação 401; MFA/papel 403; duplicidade 409; outros erros de banco são reduzidos a 400 `DATABASE_ERROR`; erro inesperado retorna 500. O mapeamento de erro de banco perde distinções como “não encontrado” e “acesso negado”. Não há rate limit.
+Validação retorna 422; autenticação 401; papel/permissão 403; duplicidade 409; outros erros de banco são reduzidos a 400 `DATABASE_ERROR`; erro inesperado retorna 500. O mapeamento de erro de banco perde distinções como “não encontrado” e “acesso negado”. Não há rate limit.
 
 ---
 
@@ -383,19 +387,19 @@ Turmas têm **capacidade padrão e máxima: 7 alunos** e mínimo configurável d
 
 ### 9.1 Autenticação
 
-Supabase Auth com e-mail/senha, convite, recuperação e sessão persistida. Signup público está desativado. Retornos PKCE e tokens no fragmento são processados e removidos da URL.
+Supabase Auth com e-mail/senha, convite, recuperação PKCE e sessão persistida. Signup público está desativado. A URL principal remota é `https://clinicafisiofitsabara.com/sistema`; localhost permanece apenas na lista de redirects de desenvolvimento. O SDK processa retornos PKCE e tokens no fragmento; o provider aguarda essa inicialização, remove credenciais da URL e apresenta orientação para links inválidos ou expirados.
 
 ### 9.2 Sessões e tokens
 
-O portal envia Bearer JWT. A API confirma o usuário com `auth.getUser()`. MFA é decidido pela claim `aal` do token já autenticado. Expiração configurada localmente: 3600 segundos.
+O portal envia a chave pública em `apikey` e o JWT da sessão em `Authorization`. A API confirma o usuário com `auth.getUser()`. Expiração configurada localmente: 3600 segundos. Um `401` da API só encerra a sessão depois que o próprio Auth também rejeita o usuário; isso evita loops causados por indisponibilidade ou divergência do gateway.
 
 ### 9.3 Perfis de acesso
 
-MFA TOTP é exigido pela API para `admin`, `manager` e `finance`. `reception` e `professional` usam AAL1. Perfil deve estar `active` e não excluído.
+Todos os perfis entram somente com e-mail e senha. O perfil deve estar `active` e não excluído.
 
 ### 9.4 Permissões
 
-Papéis protegem endpoints, RLS e navegação. `profile_permissions` somente restringe o papel e usa default deny: linha ausente, erro de consulta ou flag falsa bloqueiam a operação. Convites recebem permissões iniciais explícitas. Somente admin da mesma clínica pode escrever permissões; a política antiga com `WITH CHECK (true)` é removida pela migration corretiva. A conta proprietária não pode ser rebaixada, bloqueada, removida da clínica, ter MFA desativado nem perder unidades, por validação de API e triggers.
+Papéis protegem endpoints, RLS e navegação. `profile_permissions` somente restringe o papel e usa default deny: linha ausente, erro de consulta ou flag falsa bloqueiam a operação. Convites recebem permissões iniciais explícitas. Somente admin da mesma clínica pode escrever permissões; a política antiga com `WITH CHECK (true)` é removida pela migration corretiva. A conta proprietária não pode ser rebaixada, bloqueada, removida da clínica nem perder unidades, por validação de API e triggers.
 
 ### 9.5 Proteções de endpoints
 
@@ -435,7 +439,7 @@ O frontend recarrega recursos após mutações. Pagamento/conclusão usam transa
 
 ### 11.1 Estrutura das páginas
 
-Site: início, sobre, serviços, unidades, contato, links, privacidade, cookies e 404. Portal: login, definição de senha, MFA, onboarding e shell com 11 visões conforme o papel.
+Site: início, sobre, serviços, unidades, contato, links, privacidade, cookies e 404. Portal: login, definição de senha, onboarding e shell com 11 visões conforme o papel.
 
 ### 11.2 Gerenciamento de estado
 
@@ -476,7 +480,7 @@ A visibilidade de menu melhora UX, mas não substitui autorização do backend. 
 | ARCH-01 | Monorepositório npm workspaces | build e contratos comuns | Vigente |
 | FRONT-01 | Site na raiz e portal em `/sistema/` | Vite base e `.htaccess` separados | Vigente |
 | API-01 | Portal acessa domínio pela Edge Function | `api.ts`; nenhum acesso direto a tabelas | Vigente |
-| AUTH-01 | Convite + MFA por papel | Auth config, UI e middleware | Vigente |
+| AUTH-01 | Convite e acesso por e-mail/senha | Auth config, UI e middleware | Vigente |
 | DB-01 | PostgreSQL versionado por migrations | `supabase/migrations` | Vigente |
 | DB-02 | Dinheiro em centavos; tempo absoluto em `timestamptz` | schema e API | Vigente |
 | CLIN-01 | Prontuário assinado imutável e retificado por novo registro | trigger e endpoints | Vigente |
@@ -512,7 +516,7 @@ Sete testes Vitest validam contratos e regras puras do portal. Não há teste de
 
 ### 13.3 Testes de integração
 
-Ausentes para API↔PostgreSQL, Auth/MFA, papéis, unidades, Storage e providers.
+Ausentes para API↔PostgreSQL, Auth, papéis, unidades, Storage e providers.
 
 ### 13.4 Testes de banco e migrations
 
@@ -525,7 +529,7 @@ remota. ESLint também foi executado localmente na Fase 6/7.
 
 ### 13.6 Lacunas de cobertura
 
-Prioridade: executar a matriz de autorização em banco real; idempotência; matrícula+cobrança; conflito/capacidade; fechamento; importação parcial; conta proprietária; recuperação/MFA; consentimento de Ads.
+Prioridade: executar a matriz de autorização em banco real; idempotência; matrícula+cobrança; conflito/capacidade; fechamento; importação parcial; conta proprietária; recuperação de senha; consentimento de Ads.
 
 ---
 
@@ -533,6 +537,7 @@ Prioridade: executar a matriz de autorização em banco real; idempotência; mat
 
 | Prioridade | Problema | Impacto | Evidência | Correção recomendada |
 |---|---|---|---|---|
+| P0 | Auth ainda usa o remetente padrão do Supabase | recuperação pode atrasar ou não chegar; limite global de 2 e-mails/hora | configuração remota sem SMTP próprio e documentação oficial do Supabase | configurar SMTP transacional próprio com domínio da clínica |
 | P0 | Fase 1 de autorização ainda não foi exercitada contra um banco Supabase real nesta sessão | Defeito semântico de policy pode bloquear fluxo ou deixar acesso residual | Docker/Podman indisponível para reset e pgTAP | executar reset, pgTAP e matriz papel×unidade antes de liberar uso clínico |
 | P1 | Status genérico permite `completed` sem consumir sessão | saldo divergente | PATCH status versus RPC de conclusão | proibir transição ou delegar à RPC |
 | P1 | Algumas operações compostas não são atômicas | registros órfãos/parciais | múltiplos inserts nos handlers | RPC/transação compensável; rollback de importações e matrículas já possui RPC dedicada |
@@ -684,7 +689,7 @@ Não existem fontes executáveis para containers, Kubernetes, Terraform, cache, 
 - [x] Validar que caminhos citados existem.
 - [x] Não incluir valores de secrets nem ler `.env.local`.
 - [x] Validar Hostinger: workflow e assets públicos confirmados em 2026-08-15.
-- [x] Validar deploy Supabase remoto: migrations até `202608160003` presentes e Edge Function `api` ativa na versão 41 em 2026-08-15.
+- [x] Validar deploy Supabase remoto: migrations até `202608160003` presentes e Edge Function `api` ativa na versão 42 em 2026-08-15.
 - [ ] Validar Auth real, matriz comportamental de RLS e entrega de e-mail.
 - [ ] Executar testes de banco: depende da stack Supabase local.
 
@@ -698,13 +703,18 @@ Não existem fontes executáveis para containers, Kubernetes, Terraform, cache, 
 | 2026-08-02 | Segurança | RLS não é segunda barreira efetiva nas chamadas feitas com service role; escopo por unidade não é uniforme | criação do cliente API e handlers |
 | 2026-08-02 | Funcionalidade | Código existente é amplo, mas CRUDs, transições, anexos e integrações permanecem parciais | famílias de endpoints e UI |
 | 2026-08-02 | Infraestrutura | Há CI e empacotamento Hostinger, mas não há deploy versionado de migration/Edge Function nem homologação configurada | workflows e ausência de manifests |
-| 2026-08-02 | Verificação | Alegações antigas sobre conta, MFA, função e front remoto não foram tratadas como prova atual | ausência de evidência executável/local |
+| 2026-08-02 | Verificação | Alegações antigas sobre conta, função e front remoto não foram tratadas como prova atual | ausência de evidência executável/local |
 | 2026-08-02 | Privacidade | Consentimento de Ads está implementado; texto jurídico público ainda tem campos pendentes | `CookieConsent.tsx`, `PrivacyPage.tsx` |
 | 2026-08-15 | Privacidade | Política pública final está centralizada nos contratos; Google Ads e Google Fonts dependem de aceite, com fallback para bloqueio de armazenamento | `packages/contracts`, `CookieConsent.tsx`, `PrivacyPage.tsx` |
 | 2026-08-15 | Segurança | API de domínio usa JWT do usuário; RLS/RPCs aplicam papel, unidade e vínculo profissional; permissões ausentes negam acesso | `202608150001_harden_authorization.sql`, `supabase/functions/api/index.ts` |
 | 2026-08-15 | Verificação | Typecheck, lint, build, testes JavaScript, parser PostgreSQL e `deno check` passaram; pgTAP não executou sem runtime de containers | comandos locais e `supabase/tests/authorization.test.sql` |
 | 2026-08-15 | Deploy | Hostinger serviu os mesmos assets da branch `hostinger-deploy`; migration `202608150001` foi aplicada e a Edge Function `api` ficou ativa na versão 37 | GitHub Actions, domínio público e consultas da Supabase CLI |
 | 2026-08-15 | Fases 6/7 | Portal e API modularizados; acessibilidade, SEO, AVIF e source maps tratados; Hostinger publicou `df69c42` e API chegou à versão 41 | testes locais, workflow `31892944841`, HTTP de produção e Supabase CLI |
+| 2026-08-15 | Login e recuperação | CSP específica do portal libera o Supabase, `www` converge para a origem canônica, recuperação usa PKCE e falhas assíncronas/links expirados recebem tratamento explícito; publicada pelo workflow `31898092300` | headers HTTP de produção, Auth remoto, código, typecheck, lint, build e testes |
+| 2026-08-15 | Sessão autenticada | Cliente envia `apikey` e Bearer; gateway legado deixa de rejeitar JWT ES256; middleware continua validando com `auth.getUser()`; `401` com sessão Auth válida não força logout | Edge Function v42, workflow `31898551474`, asset público e testes |
+| 2026-08-15 | Recuperação de acesso | URL principal remota deixou de apontar para localhost; redirect de reset foi confirmado em produção e um novo e-mail foi enviado | config remota do Auth, workflow `31901579322`, asset público e testes |
+| 2026-08-16 | Autenticação simplificada | Segundo fator removido do portal, API, Auth e schema; todos os perfis usam somente e-mail e senha | migration `202608160006`, configuração Auth, API e testes |
+| 2026-08-16 | Recuperação de senha | Novo envio administrativo aceito pelo Auth; tela passa a mostrar endereço solicitado, instruções, contagem de 60 segundos, reenvio e erros específicos do provedor | HTTP 200 remoto, `LoginPage.tsx`, testes e build |
 
 ---
 
