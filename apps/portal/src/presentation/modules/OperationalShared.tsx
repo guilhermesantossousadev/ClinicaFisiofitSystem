@@ -477,6 +477,7 @@ export function EditableOperationalTable({
   fields,
   editFields,
   buildBody,
+  saveRow,
   onChanged,
   onNotice,
   onOpen,
@@ -494,6 +495,7 @@ export function EditableOperationalTable({
   fields: string[];
   editFields: EditField[];
   buildBody: (form: FormData) => Row;
+  saveRow?: (row: Row, form: FormData) => void | Promise<void>;
   onChanged: () => void | Promise<void>;
   onNotice: (message: string) => void;
   onOpen?: (row: Row) => void | Promise<void>;
@@ -522,10 +524,15 @@ export function EditableOperationalTable({
     if (!editing) return;
     setSaving(true);
     try {
-      await api(`/${resource}/${editing.id}`, {
-        method: "PATCH",
-        body: JSON.stringify(buildBody(new FormData(event.currentTarget))),
-      });
+      const form = new FormData(event.currentTarget);
+      if (saveRow) {
+        await saveRow(editing, form);
+      } else {
+        await api(`/${resource}/${editing.id}`, {
+          method: "PATCH",
+          body: JSON.stringify(buildBody(form)),
+        });
+      }
       await onChanged();
       setEditing(null);
       onNotice(`${title.replace(/s$/, "")} atualizado com sucesso.`);
@@ -695,6 +702,7 @@ export function fieldLabel(field: string) {
     user_id: "Usuário", occurred_at: "Data", capacity: "Capacidade",
     duration_minutes: "Duração", council: "Conselho", specialty: "Especialidade",
     weekdays: "Dias da semana",
+    plan_name: "Plano", group_name: "Turma",
   };
   return labels[field] ?? field.replaceAll("_", " ");
 }

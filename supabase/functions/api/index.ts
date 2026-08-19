@@ -450,9 +450,10 @@ app.post("/enrollments", requireRoles(["admin", "manager", "finance"]), async (c
   return ok(context, data, 201);
 });
 
-app.patch("/enrollments/:id", requireRoles(["admin", "manager", "finance"]), async (context) => {
+app.patch("/enrollments/:id", requireRoles(["admin", "manager", "reception", "finance"]), async (context) => {
   const id = z.string().uuid().parse(context.req.param("id"));
   const input = z.object({
+    plan_id: z.string().uuid().optional(),
     starts_at: z.string().date().optional(),
     ends_at: z.string().date().nullable().optional(),
     sessions_used: z.number().int().nonnegative().optional(),
@@ -469,6 +470,14 @@ app.patch("/enrollments/:id", requireRoles(["admin", "manager", "finance"]), asy
   if (!current) return fail(context, 404, "ENROLLMENT_NOT_FOUND", "Matrícula não encontrada.");
   if (!(await hasUnitAccess(context, current.unit_id))) {
     return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+  }
+  if (input.plan_id) {
+    const { data: plan, error: planError } = await db.from("plans")
+      .select("id,name,price_cents,active")
+      .eq("id", input.plan_id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle();
+    if (planError) return databaseResult(context, null, planError);
+    if (!plan) return fail(context, 404, "PLAN_NOT_FOUND", "Plano não encontrado.");
+    if (!plan.active) return fail(context, 400, "PLAN_INACTIVE", "O plano selecionado está inativo.");
   }
   const startsAt = input.starts_at ?? current.starts_at;
   const endsAt = input.ends_at === undefined ? current.ends_at : input.ends_at;

@@ -2,6 +2,116 @@ import { z } from "npm:zod@3.24.2";
 
 export function registerAgendaRoutes(app: any, dependencies: any) {
   const { appointmentFields, appointmentSchema, requireRoles, ok, fail, databaseResult, hasUnitAccess, audit, professionalForUser, isOwnProfessional, getAuthorizedAppointment } = dependencies;
+  app.get("/attendance/daily", requireRoles(["admin", "manager", "reception", "professional"]), async (context: any) => {
+    const classDate = z.string().date().parse(context.req.query("date"));
+    const weekday = new Date(`${classDate}T12:00:00Z`).getUTCDay();
+    const unitId = context.req.query("unitId");
+    const db = context.get("db");
+    const clinicId = context.get("profile").clinic_id;
+    let slotsQuery = db.from("group_slots")
+      .select("id,unit_id,professional_id,service_id,room_id,name,starts_at,duration_minutes,capacity,units(name),professionals(name),services(name),rooms(name)")
+      .eq("clinic_id", clinicId).eq("active", true).contains("weekdays", [weekday]).is("deleted_at", null)
+      .lte("starts_on", classDate).or(`ends_on.is.null,ends_on.gte.${classDate}`);
+    if (unitId) {
+      const parsedUnitId = z.string().uuid().parse(unitId);
+      if (!(await hasUnitAccess(context, parsedUnitId))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+      slotsQuery = slotsQuery.eq("unit_id", parsedUnitId);
+    }
+    if (context.get("profile").role === "professional") {
+      const professionalId = await professionalForUser(context);
+      if (!professionalId) return fail(context, 403, "PROFESSIONAL_NOT_LINKED", "Seu usuário não está vinculado a um profissional.");
+      slotsQuery = slotsQuery.eq("professional_id", professionalId);
+    }
+    const { data: slots, error: slotsError } = await slotsQuery.order("starts_at");
+    if (slotsError) return databaseResult(context, null, slotsError);
+    const slotIds = (slots ?? []).map((slot: any) => slot.id);
+    if (!slotIds.length) return ok(context, { slots: [], makeups: [] });
+    const [{ data: memberships, error: membershipsError }, { data: attendances, error: attendanceError }, { data: makeups, error: makeupsError }] = await Promise.all([
+      db.from("group_slot_memberships")
+        .select("id,group_slot_id,enrollment_id,patient_id,patients(name,phone)")
+        .eq("clinic_id", clinicId).in("group_slot_id", slotIds).eq("status", "active").contains("weekdays", [weekday])
+        .lte("starts_at", classDate).or(`ends_at.is.null,ends_at.gte.${classDate}`).is("deleted_at", null).order("created_at"),
+      db.from("class_attendances").select("id,membership_id,status,makeup_status,updated_at")
+        .eq("clinic_id", clinicId).eq("class_date", classDate).in("group_slot_id", slotIds),
+      db.from("class_attendances")
+        .select("id,class_date,patient_id,group_slot_id,makeup_status,patients(name),group_slots(name,starts_at)")
+        .eq("clinic_id", clinicId).eq("status", "absent").eq("makeup_status", "pending").in("group_slot_id", slotIds)
+        .order("class_date", { ascending: true }).limit(500),
+    ]);
+    const error = membershipsError ?? attendanceError ?? makeupsError;
+    if (error) return databaseResult(context, null, error);
+    const attendanceByMembership = new Map((attendances ?? []).map((item: any) => [item.membership_id, item]));
+    return ok(context, {
+      slots: (slots ?? []).map((slot: any) => ({
+        ...slot,
+        members: (memberships ?? []).filter((member: any) => member.group_slot_id === slot.id).map((member: any) => ({
+          ...member,
+          attendance: attendanceByMembership.get(member.id) ?? null,
+        })),
+      })),
+      makeups: makeups ?? [],
+    });
+  });
+
+  app.put("/attendance", requireRoles(["admin", "manager", "reception", "professional"]), async (context: any) => {
+    const input = z.object({
+      membership_id: z.string().uuid(),
+      class_date: z.string().date(),
+      status: z.enum(["present", "absent"]),
+    }).parse(await context.req.json());
+    const weekday = new Date(`${input.class_date}T12:00:00Z`).getUTCDay();
+    const db = context.get("db");
+    const clinicId = context.get("profile").clinic_id;
+    const { data: membership, error: membershipError } = await db.from("group_slot_memberships")
+      .select("id,group_slot_id,enrollment_id,patient_id,weekdays,starts_at,ends_at,group_slots(unit_id,professional_id,weekdays,starts_on,ends_on)")
+      .eq("id", input.membership_id).eq("clinic_id", clinicId).eq("status", "active").is("deleted_at", null).single();
+    if (membershipError || !membership) return databaseResult(context, null, membershipError);
+    const slot = Array.isArray(membership.group_slots) ? membership.group_slots[0] : membership.group_slots;
+    const validDate = membership.weekdays?.includes(weekday) && slot?.weekdays?.includes(weekday)
+      && input.class_date >= membership.starts_at && (!membership.ends_at || input.class_date <= membership.ends_at)
+      && input.class_date >= slot.starts_on && (!slot.ends_on || input.class_date <= slot.ends_on);
+    if (!validDate) return fail(context, 422, "INVALID_CLASS_DATE", "O paciente não pertence a este horário na data selecionada.");
+    if (!(await hasUnitAccess(context, slot.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+    if (context.get("profile").role === "professional" && !(await isOwnProfessional(context, slot.professional_id))) {
+      return fail(context, 403, "PROFESSIONAL_FORBIDDEN", "Você só pode registrar a chamada das suas próprias turmas.");
+    }
+    const payload = {
+      clinic_id: clinicId,
+      unit_id: slot.unit_id,
+      group_slot_id: membership.group_slot_id,
+      membership_id: membership.id,
+      enrollment_id: membership.enrollment_id,
+      patient_id: membership.patient_id,
+      class_date: input.class_date,
+      status: input.status,
+      makeup_status: input.status === "absent" ? "pending" : "not_required",
+      makeup_completed_at: null,
+      recorded_by: context.get("user").id,
+      updated_at: new Date().toISOString(),
+    };
+    const { data, error } = await db.from("class_attendances").upsert(payload, { onConflict: "membership_id,class_date" }).select().single();
+    if (!error && data) await audit(context, `attendance.${input.status}`, "class_attendance", data.id, slot.unit_id, null, { classDate: input.class_date, patientId: membership.patient_id });
+    return databaseResult(context, data, error);
+  });
+
+  app.patch("/attendance/:id/makeup", requireRoles(["admin", "manager", "reception", "professional"]), async (context: any) => {
+    const id = z.string().uuid().parse(context.req.param("id"));
+    const input = z.object({ status: z.enum(["completed", "waived"]) }).parse(await context.req.json());
+    const db = context.get("db");
+    const clinicId = context.get("profile").clinic_id;
+    const { data: current, error: currentError } = await db.from("class_attendances").select("id,unit_id,group_slot_id")
+      .eq("id", id).eq("clinic_id", clinicId).eq("status", "absent").eq("makeup_status", "pending").single();
+    if (currentError || !current) return databaseResult(context, null, currentError);
+    if (!(await hasUnitAccess(context, current.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+    const { data, error } = await db.from("class_attendances").update({
+      makeup_status: input.status,
+      makeup_completed_at: input.status === "completed" ? new Date().toISOString() : null,
+      recorded_by: context.get("user").id,
+      updated_at: new Date().toISOString(),
+    }).eq("id", id).eq("clinic_id", clinicId).select().single();
+    if (!error && data) await audit(context, `attendance.makeup_${input.status}`, "class_attendance", id, current.unit_id);
+    return databaseResult(context, data, error);
+  });
   app.get("/appointments", requireRoles(["admin", "manager", "reception", "professional"]), async (context: any) => {
     const from = z.string().datetime({ offset: true }).parse(context.req.query("from"));
     const to = z.string().datetime({ offset: true }).parse(context.req.query("to"));
@@ -293,6 +403,7 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
   app.patch("/group-slot-memberships/:id", requireRoles(["admin", "manager", "reception"]), async (context: any) => {
     const id = z.string().uuid().parse(context.req.param("id"));
     const input = z.object({
+      group_slot_id: z.string().uuid().optional(),
       weekdays: z.array(z.number().int().min(1).max(5)).min(1).max(3).transform((days) => [...new Set(days)].sort()),
       starts_at: z.string().date(),
       ends_at: z.string().date().optional(),
@@ -302,15 +413,21 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     const db = context.get("db");
     const clinicId = context.get("profile").clinic_id;
     const { data: current, error: currentError } = await db.from("group_slot_memberships")
-      .select("id,group_slot_id")
+      .select("id,group_slot_id,enrollment_id")
       .eq("id", id).eq("clinic_id", clinicId).eq("status", "active").is("deleted_at", null).single();
     if (currentError || !current) return databaseResult(context, null, currentError);
-    const { data: slot, error: slotError } = await db.from("group_slots").select("weekdays,capacity")
-      .eq("id", current.group_slot_id).eq("clinic_id", clinicId).is("deleted_at", null).single();
+    const targetGroupSlotId = input.group_slot_id ?? current.group_slot_id;
+    const { data: slot, error: slotError } = await db.from("group_slots").select("weekdays,capacity,unit_id")
+      .eq("id", targetGroupSlotId).eq("clinic_id", clinicId).is("deleted_at", null).single();
     if (slotError || !slot) return databaseResult(context, null, slotError);
+    if (!(await hasUnitAccess(context, slot.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+    const { data: enrollment, error: enrollmentError } = await db.from("enrollments").select("unit_id")
+      .eq("id", current.enrollment_id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle();
+    if (enrollmentError) return databaseResult(context, null, enrollmentError);
+    if (!enrollment || enrollment.unit_id !== slot.unit_id) return fail(context, 400, "INVALID_ENROLLMENT", "A turma deve pertencer à mesma unidade da matrícula.");
     if (input.weekdays.some((day) => !(slot.weekdays ?? []).includes(day))) return fail(context, 400, "INVALID_WEEKDAYS", "Selecione apenas dias disponíveis neste horário fixo.");
     const { data: otherMemberships, error: countError } = await db.from("group_slot_memberships").select("weekdays")
-      .eq("clinic_id", clinicId).eq("group_slot_id", current.group_slot_id).eq("status", "active").is("deleted_at", null).neq("id", id);
+      .eq("clinic_id", clinicId).eq("group_slot_id", targetGroupSlotId).eq("status", "active").is("deleted_at", null).neq("id", id);
     if (countError) return databaseResult(context, null, countError);
     if (input.weekdays.some((day) => (otherMemberships ?? []).filter((membership: any) => membership.weekdays?.includes(day)).length >= slot.capacity)) {
       return fail(context, 409, "GROUP_CAPACITY_REACHED", "Um dos dias selecionados já atingiu a capacidade deste horário.");

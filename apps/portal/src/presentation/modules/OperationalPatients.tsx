@@ -9,9 +9,19 @@ export function OperationalPatients() {
   const [appliedSearch, setAppliedSearch] = useState("");
   const pageSize = 20;
   const patientPath = `/patients?page=${page}&pageSize=${pageSize}${appliedSearch ? `&search=${encodeURIComponent(appliedSearch)}` : ""}`;
-  const paths = [patientPath, "/units"];
+  const paths = [patientPath, "/units", "/plans", "/enrollments", "/group-slots", "/group-slot-memberships"];
   const { data, loading, error, reload } = useResources(paths);
-  const patients: Row[] = data[patientPath]?.items ?? [];
+  const enrollments: Row[] = data["/enrollments"] ?? [];
+  const memberships: Row[] = data["/group-slot-memberships"] ?? [];
+  const plans: Row[] = data["/plans"] ?? [];
+  const groupSlots: Row[] = data["/group-slots"] ?? [];
+  const patients: Row[] = (data[patientPath]?.items ?? []).map((patient: Row) => {
+    const enrollment = enrollments.find((item) => item.patient_id === patient.id && item.status === "active" && !item.deleted_at);
+    const membership = enrollment ? memberships.find((item) => item.enrollment_id === enrollment.id && item.status === "active") : undefined;
+    const plan = enrollment ? plans.find((item) => item.id === enrollment.plan_id) : undefined;
+    const group = membership ? groupSlots.find((item) => item.id === membership.group_slot_id) : undefined;
+    return { ...patient, enrollment, membership, plan_name: plan?.name, group_name: group?.name };
+  });
   const total = Number(data[patientPath]?.total ?? 0);
   const [selected, setSelected] = useState<Row | null>(null);
   const [detail, setDetail] = useState<{
@@ -122,6 +132,42 @@ export function OperationalPatients() {
       setNotice(messageOf(e));
     }
   }
+  async function updatePatient(row: Row, form: FormData) {
+    const enrollment = row.enrollment as Row | undefined;
+    const planId = value(form, "plan_id");
+    const groupSlotId = value(form, "group_slot_id");
+    if (!enrollment && (planId || groupSlotId)) throw new Error("Este paciente ainda não possui matrícula ativa. Crie a matrícula antes de definir plano ou turma.");
+    await api(`/patients/${row.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        primary_unit_id: value(form, "primary_unit_id"), name: value(form, "name"),
+        cpf: value(form, "cpf") || undefined, birth_date: value(form, "birth_date") || undefined,
+        phone: value(form, "phone") || undefined, email: value(form, "email") || undefined,
+        address: { street: value(form, "street"), number: value(form, "number"), city: value(form, "city"), state: value(form, "state"), zip: value(form, "zip") },
+        tax_data: { fiscal_name: value(form, "fiscal_name"), document: value(form, "fiscal_document") },
+        notes: value(form, "notes") || undefined,
+      }),
+    });
+    if (!enrollment) return;
+    if (planId && planId !== enrollment.plan_id) {
+      await api(`/enrollments/${enrollment.id}`, { method: "PATCH", body: JSON.stringify({ plan_id: planId }) });
+    }
+    const membership = row.membership as Row | undefined;
+    if (membership && !groupSlotId) {
+      await api(`/group-slot-memberships/${membership.id}`, { method: "DELETE" });
+    } else if (groupSlotId && groupSlotId !== membership?.group_slot_id) {
+      const group = groupSlots.find((item) => item.id === groupSlotId);
+      const availableWeekdays = (group?.weekdays as number[] | undefined) ?? [];
+      const currentWeekdays = (membership?.weekdays as number[] | undefined) ?? [];
+      const weekdays = currentWeekdays.filter((day) => availableWeekdays.includes(day)).slice(0, 3);
+      if (!weekdays.length) weekdays.push(...availableWeekdays.slice(0, 3));
+      if (membership) {
+        await api(`/group-slot-memberships/${membership.id}`, { method: "PATCH", body: JSON.stringify({ group_slot_id: groupSlotId, weekdays, starts_at: membership.starts_at, ends_at: membership.ends_at || undefined }) });
+      } else {
+        await api(`/group-slots/${groupSlotId}/members`, { method: "POST", body: JSON.stringify({ enrollment_id: enrollment.id, patient_id: row.id, weekdays, starts_at: enrollment.starts_at, ends_at: enrollment.ends_at || undefined }) });
+      }
+    }
+  }
   return (
     <div className="content">
       <div className="page-title">
@@ -189,7 +235,7 @@ export function OperationalPatients() {
         title="Pacientes cadastrados"
         resource="patients"
         rows={patients}
-        fields={["name", "phone", "email", "zip", "active"]}
+        fields={["name", "phone", "email", "plan_name", "group_name", "active"]}
         editFields={[
           { name: "name", label: "Nome completo", required: true },
           { name: "primary_unit_id", label: "Unidade principal", type: "select", required: true, options: data["/units"] ?? [] },
@@ -197,6 +243,8 @@ export function OperationalPatients() {
           { name: "birth_date", label: "Nascimento", type: "date" },
           { name: "phone", label: "Telefone", type: "tel" },
           { name: "email", label: "E-mail", type: "email" },
+          { name: "plan_id", label: "Plano atual", type: "select", options: plans.filter((item) => item.active !== false), value: (row) => row.enrollment?.plan_id },
+          { name: "group_slot_id", label: "Turma atual (opcional)", type: "select", options: groupSlots.filter((item) => item.active !== false).map((item) => ({ ...item, name: `${item.name} · ${String(item.starts_at).slice(0, 5)}` })), value: (row) => row.membership?.group_slot_id },
           { name: "street", label: "Rua", value: (row) => row.address?.street },
           { name: "number", label: "Número", value: (row) => row.address?.number },
           { name: "city", label: "Cidade", value: (row) => row.address?.city },
@@ -220,6 +268,7 @@ export function OperationalPatients() {
           tax_data: { fiscal_name: value(form, "fiscal_name"), document: value(form, "fiscal_document") },
           notes: value(form, "notes") || undefined,
         })}
+        saveRow={updatePatient}
         onChanged={reload}
         onNotice={setNotice}
         onOpen={open}
@@ -286,4 +335,3 @@ export function OperationalPatients() {
     </div>
   );
 }
-
