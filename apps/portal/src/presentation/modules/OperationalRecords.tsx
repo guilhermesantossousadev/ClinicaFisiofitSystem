@@ -68,7 +68,8 @@ export function OperationalRecords() {
             previous_history: value(form, "previous_history"),
             exam: value(form, "exam"),
             exam_detail: value(form, "exam_detail"),
-            conduct: value(form, "conduct"),
+            functional_diagnosis: value(form, "functional_diagnosis"),
+            treatment_plan: value(form, "treatment_plan"),
             goals: value(form, "goals"),
             exercises: Array.from(form.getAll("exercise")).map(String),
             observations: value(form, "observations"),
@@ -76,6 +77,7 @@ export function OperationalRecords() {
         }),
       });
       (event.target as HTMLFormElement).reset();
+      setDraftKind("assessment");
       await loadRecords(patientId);
       setNotice("Registro clínico salvo como rascunho.");
     } catch (e) {
@@ -169,11 +171,12 @@ export function OperationalRecords() {
               <TextareaField name="previous_history" label="História pregressa" rows={3} />
               <div className="form-row"><TextField name="measures" label="Peso / altura / sinais vitais" placeholder="Peso · Altura · PA · FC · FR" /><TextareaField name="exam" label="Encurtamentos" rows={2} /></div>
               <TextareaField name="exam_detail" label="Força muscular e exame físico" rows={3} />
-              <TextareaField name="conduct" label="Conduta inicial" rows={3} />
+              <TextareaField name="functional_diagnosis" label="Diagnóstico funcional" rows={3} />
+              <TextareaField name="treatment_plan" label="Plano de tratamento" rows={3} />
             </fieldset>
           </> : <>
             <fieldset className="clinical-fieldset"><legend>Evolução da sessão</legend>
-              <TextareaField name="text" label="Observações clínicas" rows={3} required placeholder="Como o paciente chegou, queixas e resposta ao atendimento…" />
+              <TextareaField name="text" label="Evolução" rows={3} required placeholder="Como o paciente chegou, queixas e resposta ao atendimento…" />
               <div className="exercise-grid" aria-label="Focos trabalhados"><span>Foco da sessão</span>{["Alongamento", "Fortalecimento", "Mobilidade", "Ex. postural", "Equilíbrio", "Outro"].map((item) => <CheckboxField key={item} label={item} name="exercise" value={item} />)}</div>
               <TextareaField name="observations" label="Observações e conduta" rows={4} placeholder="Descreva exercícios, orientações e próximos passos…" />
             </fieldset>
@@ -196,7 +199,7 @@ export function OperationalRecords() {
                 {row.kind === "assessment" ? "Avaliação inicial" : "Evolução"} · {row.status === "draft" ? "Rascunho" : row.status === "signed" ? "Assinado" : row.status}
               </strong>
               <small>
-                {new Date(row.created_at).toLocaleString("pt-BR")} · {row.payload?.complaint || row.payload?.text || "Sem descrição"}
+                {new Date(row.created_at).toLocaleString("pt-BR")} · {row.payload?.complaint || row.payload?.text || row.payload?.functional_diagnosis || "Sem descrição"}
               </small>
             </div>
             <div className="row-actions">
@@ -216,4 +219,3 @@ export function OperationalRecords() {
     </div>
   );
 }
-

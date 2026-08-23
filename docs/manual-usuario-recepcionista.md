@@ -158,10 +158,10 @@ Atualize o status assim que o fato ocorrer. Isso mantém o Painel, a agenda e os
 3. Escolha a frequência: 1x, 2x ou 3x por semana.
 4. Escolha dias diferentes da semana.
 5. Informe o horário e a duração.
-6. Revise o nome gerado, os dias e o horário.
+6. Revise o nome informado, os dias, o horário e o fisioterapeuta responsável.
 7. Salve.
 
-As turmas são criadas com capacidade para **7 alunos**. A matrícula pode ser vinculada a uma turma posteriormente.
+As turmas são criadas com capacidade para **7 alunos**. O horário é fixo, mas as turmas são separadas pela combinação de dias: por exemplo, segunda/quarta às 07:00 e terça/quinta às 07:00 são duas turmas diferentes e podem ter profissionais diferentes. Ao vincular uma matrícula, escolha a turma completa; o paciente frequentará apenas os dias definidos nela.
 
 ### 5.5 Boas práticas da agenda
 
@@ -353,7 +353,7 @@ Isso pode ser limitação de permissão do perfil Recepção. Solicite à admini
 ## 11. Glossário rápido
 
 - **Unidade:** local da clínica ao qual o atendimento ou cadastro está vinculado.
-- **Turma:** conjunto de horários fixos para alunos, com capacidade definida.
+- **Turma:** combinação de dias da semana, horário fixo e profissional responsável, com capacidade definida.
 - **Plano:** produto comercial com período, frequência, sessões e preço.
 - **Matrícula:** vínculo do paciente a um plano e, opcionalmente, a uma turma.
 - **Cobrança:** valor previsto para pagamento.

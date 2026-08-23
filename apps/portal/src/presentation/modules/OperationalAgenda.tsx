@@ -1,14 +1,16 @@
 import { FormEvent, type FormEventHandler, useEffect, useMemo, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { FormSection, SelectField, TextareaField, TextField, WeekdayCheckboxGroup } from "../components/FormPrimitives";
-import { type AgendaEnrollmentContext, Row, Unit, messageOf, value, isoLocal, localDateTime, dateKey, useResources, Select, PatientPicker, DrawerForm, ModuleState, EditableOperationalTable } from "./OperationalShared";
+import { type AgendaEnrollmentContext, Row, Unit, messageOf, value, isoLocal, localDateTime, dateKey, weekdaysLabel, useResources, Select, PatientPicker, DrawerForm, ModuleState, EditableOperationalTable } from "./OperationalShared";
+
+const FIXED_GROUP_TIMES = Array.from({ length: 15 }, (_, index) => `${String(index + 6).padStart(2, "0")}:00`);
 
 function GroupMemberForm({
   slotName,
   availablePatients,
   allowedPatientIds,
   selectedDate,
-  selectedWeekday,
+  slotWeekdays,
   full,
   onSubmit,
 }: {
@@ -16,7 +18,7 @@ function GroupMemberForm({
   availablePatients: Row[];
   allowedPatientIds: string[];
   selectedDate: string;
-  selectedWeekday: number;
+  slotWeekdays: number[];
   full: boolean;
   onSubmit: FormEventHandler<HTMLFormElement>;
 }) {
@@ -26,8 +28,9 @@ function GroupMemberForm({
       ? "Apenas matrículas ainda não vinculadas aparecem aqui."
       : "Não há matrículas disponíveis. Cadastre e matricule o paciente primeiro.";
   return (
-    <form className="group-member-form" onSubmit={onSubmit} aria-label={`Adicionar paciente ao horário ${slotName}`}>
-      <FormSection legend="Adicionar paciente ao horário">
+    <form className="group-member-form" onSubmit={onSubmit} aria-label={`Adicionar paciente à turma ${slotName}`}>
+      <FormSection legend="Adicionar paciente à turma">
+        <p className="form-instructions"><strong>Dias da turma:</strong> {weekdaysLabel(slotWeekdays)}. O paciente participará somente nesses dias.</p>
         <div className="form-row">
           <PatientPicker
             name="patient_id"
@@ -43,12 +46,11 @@ function GroupMemberForm({
             type="date"
             defaultValue={selectedDate}
             required={!full}
-            hint="A partir de qual data o paciente participa deste horário."
+            hint="A partir de qual data o paciente participa desta turma."
           />
         </div>
-        <WeekdayCheckboxGroup defaultValue={[String(selectedWeekday)]} required={!full} disabled={full} />
         <div className="group-member-form-actions">
-          <button className="btn primary group-members-add" disabled={full || !allowedPatientIds.length}>{full ? "Horário lotado" : "Adicionar paciente"}</button>
+          <button className="btn primary group-members-add" disabled={full || !allowedPatientIds.length}>{full ? "Turma lotada" : "Adicionar paciente"}</button>
           <p className="form-instructions" role="status">{helperText}</p>
         </div>
       </FormSection>
@@ -118,7 +120,6 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
   const visibleUnits = selectedUnitId ? units.filter((unit) => unit.id === selectedUnitId) : [];
   const membersForSlot = (slotId: string, date: Date) => groupMembers.filter((member) => {
     if (member.group_slot_id !== slotId || member.status !== "active") return false;
-    if (!(member.weekdays ?? []).includes(date.getDay())) return false;
     const start = String(member.starts_at ?? "").slice(0, 10);
     const end = member.ends_at ? String(member.ends_at).slice(0, 10) : "9999-12-31";
     const current = dateKey(date);
@@ -129,18 +130,35 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
     const startsOn = slot.starts_on ? String(slot.starts_on).slice(0, 10) : "0000-01-01";
     const endsOn = slot.ends_on ? String(slot.ends_on).slice(0, 10) : "9999-12-31";
     return slot.unit_id === unitId && currentDate >= startsOn && currentDate <= endsOn && (slot.weekdays ?? []).includes(day.getDay()) && slot.active !== false;
-  }).reduce<Row[]>((unique, slot) => {
-    const time = String(slot.starts_at);
-    const existingIndex = unique.findIndex((candidate) => String(candidate.starts_at) === time);
-    if (existingIndex < 0) return [...unique, slot];
-    const existing = unique[existingIndex];
-    const membersCount = (candidate: Row) => membersForSlot(candidate.id, day).length;
-    const isGeneric = (candidate: Row) => /^horário fixo/i.test(String(candidate.name ?? ""));
-    const shouldReplace = membersCount(slot) > membersCount(existing)
-      || (membersCount(slot) === membersCount(existing) && isGeneric(existing) && !isGeneric(slot));
-    if (shouldReplace) unique[existingIndex] = slot;
-    return unique;
-  }, []).sort((a, b) => String(a.starts_at).localeCompare(String(b.starts_at)));
+  }).sort((a, b) => String(a.starts_at).localeCompare(String(b.starts_at)) || String(a.name).localeCompare(String(b.name), "pt-BR"));
+
+  async function createGroup(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    try {
+      await api("/group-slots", {
+        method: "POST",
+        body: JSON.stringify({
+          unit_id: value(form, "unit_id"),
+          room_id: value(form, "room_id") || undefined,
+          professional_id: value(form, "professional_id"),
+          service_id: value(form, "service_id") || undefined,
+          name: value(form, "name"),
+          weekdays: form.getAll("weekdays").map(Number),
+          starts_at: value(form, "starts_at"),
+          starts_on: value(form, "starts_on") || undefined,
+          ends_on: value(form, "ends_on") || undefined,
+          duration_minutes: Number(value(form, "duration_minutes")),
+          capacity: Number(value(form, "capacity")),
+        }),
+      });
+      event.currentTarget.reset();
+      setNotice("Turma criada no horário fixo.");
+      await reload();
+    } catch (actionError) {
+      setNotice(messageOf(actionError));
+    }
+  }
 
   async function createAppointment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -200,24 +218,10 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
     const enrollment = (data["/enrollments"] ?? []).find((row: Row) => row.patient_id === patientId && row.unit_id === group?.unit_id && row.status === "active");
     if (!enrollment) return;
     try {
-      await api(`/group-slots/${groupId}/members`, { method: "POST", body: JSON.stringify({ enrollment_id: enrollment.id, patient_id: enrollment.patient_id, weekdays: form.getAll("weekdays").map(Number), starts_at: value(form, "starts_at"), ends_at: value(form, "ends_at") || undefined }) });
+      await api(`/group-slots/${groupId}/members`, { method: "POST", body: JSON.stringify({ enrollment_id: enrollment.id, patient_id: enrollment.patient_id, starts_at: value(form, "starts_at"), ends_at: value(form, "ends_at") || undefined }) });
       event.currentTarget.reset();
       setNotice("Paciente alocado na turma.");
       await reload();
-      const memberships = await api<Row[]>("/group-slot-memberships");
-      setGroupMembers(memberships.data ?? []);
-    } catch (actionError) { setNotice(messageOf(actionError)); }
-  }
-
-  async function updateGroupMember(event: FormEvent<HTMLFormElement>, member: Row) {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    try {
-      await api(`/group-slot-memberships/${member.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ weekdays: form.getAll("weekdays").map(Number), starts_at: member.starts_at, ends_at: member.ends_at || undefined }),
-      });
-      setNotice("Dias do paciente atualizados.");
       const memberships = await api<Row[]>("/group-slot-memberships");
       setGroupMembers(memberships.data ?? []);
     } catch (actionError) { setNotice(messageOf(actionError)); }
@@ -295,7 +299,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
                   return <div className={`month-calendar-day${dateKey(day) === dateKey(new Date()) ? " is-today" : ""}`} key={dateKey(day)} aria-label={dayLabel}>
                     <div className="month-calendar-items">
                       {dayAppointments.map((appointment) => <button type="button" className="month-calendar-item appointment-item" key={appointment.id} disabled={!canEdit} onClick={() => setCalendarAppointment(appointment)} aria-label={`${appointment.patients?.name ?? "Bloqueio"}, ${appointment.professionals?.name ? `fisioterapeuta responsável ${appointment.professionals.name}` : "sem fisioterapeuta responsável"}${canEdit ? ", editar agendamento" : ""}`}><strong>{String(new Date(appointment.starts_at).getHours()).padStart(2, "0")}:{String(new Date(appointment.starts_at).getMinutes()).padStart(2, "0")} · {appointment.patients?.name ?? "Bloqueio"}</strong><small><span>Fisioterapeuta: {appointment.professionals?.name ?? "Não informado"}</span><span>{appointment.services?.name ?? "Atendimento"}</span></small></button>)}
-                      {slots.map((slot) => { const members = membersForSlot(slot.id, day); const professional = (data["/professionals"] ?? []).find((row: Row) => row.id === slot.professional_id); const time = String(slot.starts_at).slice(0, 5); return <button type="button" className="month-calendar-item group-item" key={slot.id} onClick={() => setSelectedGroupCell({ slot, day, unitName: unit.name })} aria-label={`Horário ${time}, fisioterapeuta responsável ${professional?.name ?? "não informado"}, ${members.length} de ${slot.capacity ?? 7} vagas, abrir lista de pacientes`}><strong>Horário {time}</strong><small><span>Fisioterapeuta: {professional?.name ?? "Não informado"}</span><span>{members.length}/{slot.capacity ?? 7} vagas</span></small></button>; })}
+                      {slots.map((slot) => { const members = membersForSlot(slot.id, day); const professional = (data["/professionals"] ?? []).find((row: Row) => row.id === slot.professional_id); const time = String(slot.starts_at).slice(0, 5); return <button type="button" className="month-calendar-item group-item" key={slot.id} onClick={() => setSelectedGroupCell({ slot, day, unitName: unit.name })} aria-label={`${slot.name}, ${time}, fisioterapeuta responsável ${professional?.name ?? "não informado"}, ${members.length} de ${slot.capacity ?? 7} vagas, abrir turma`}><strong>{time} · {slot.name}</strong><small><span>Fisioterapeuta: {professional?.name ?? "Não informado"}</span><span>{members.length}/{slot.capacity ?? 7} vagas</span></small></button>; })}
                     </div>
                   </div>;
                 })}
@@ -316,14 +320,13 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
         const availablePatientIdSet = new Set(availablePatientIds);
         const availablePatients = patients.filter((patient) => availablePatientIdSet.has(patient.id));
         const full = selectedMembers.length >= capacity;
-        const selectedDate = new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" }).format(selectedGroupCell.day);
         const professionals: Row[] = data["/professionals"] ?? [];
         const selectedProfessional = professionals.find((row: Row) => row.id === selectedGroupCell.slot.professional_id);
         const availableProfessionals = professionals.filter((professional) => professional.active !== false || professional.id === selectedGroupCell.slot.professional_id);
         return <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedGroupCell(null); }}>
           <section className="modal group-members-drawer" role="dialog" aria-modal="true" aria-labelledby="group-members-title">
             <div className="modal-head">
-              <div><p className="eyebrow">HORÁRIO · {selectedGroupCell.unitName}</p><h2 id="group-members-title">Horário {String(selectedGroupCell.slot.starts_at).slice(0, 5)}</h2><span className="group-members-drawer-meta">{selectedDate} · {selectedMembers.length}/{capacity} vagas</span>{!canEdit && <span className="group-members-drawer-professional">Fisioterapeuta responsável: <strong>{selectedProfessional?.name ?? "Não informado"}</strong></span>}</div>
+              <div><p className="eyebrow">TURMA · {selectedGroupCell.unitName}</p><h2 id="group-members-title">{selectedGroupCell.slot.name}</h2><span className="group-members-drawer-meta">{weekdaysLabel(selectedGroupCell.slot.weekdays)} · {String(selectedGroupCell.slot.starts_at).slice(0, 5)} · {selectedMembers.length}/{capacity} vagas</span>{!canEdit && <span className="group-members-drawer-professional">Fisioterapeuta responsável: <strong>{selectedProfessional?.name ?? "Não informado"}</strong></span>}</div>
               <button type="button" onClick={() => setSelectedGroupCell(null)} aria-label="Fechar lista de pacientes">×</button>
             </div>
             <div className="group-members-drawer-body">
@@ -334,10 +337,10 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
                 </SelectField>
                 <button type="submit" className="btn secondary" disabled={savingGroupProfessional}>{savingGroupProfessional ? "Salvando…" : "Salvar responsável"}</button>
               </form>}
-              {full && <div className="capacity-alert" role="status"><strong>Horário lotado</strong><span>Não há vagas disponíveis para adicionar mais pacientes.</span></div>}
+              {full && <div className="capacity-alert" role="status"><strong>Turma lotada</strong><span>Não há vagas disponíveis para adicionar mais pacientes.</span></div>}
               <h3>Pacientes inscritos</h3>
-              {selectedMembers.length ? <ul className="group-members-drawer-list">{selectedMembers.map((member) => <li key={member.id}><div><span>{member.patients?.name ?? "Paciente"}</span><small>{member.patients?.phone ?? ""}</small></div>{canEdit && <div className="group-member-actions"><form className="group-member-days-form" onSubmit={(event) => void updateGroupMember(event, member)}><WeekdayCheckboxGroup label={`Dias de ${member.patients?.name ?? "paciente"}`} defaultValue={(member.weekdays ?? []).map(String)} required /><button type="submit" className="btn secondary">Salvar dias</button></form><button type="button" className="action-delete" onClick={() => void removeGroupMember(member.id)}>Retirar da turma</button></div>}</li>)}</ul> : <p className="empty-state">Nenhum paciente está inscrito neste horário neste dia.</p>}
-              {canEdit && <GroupMemberForm slotName={`Horário ${String(selectedGroupCell.slot.starts_at).slice(0, 5)}`} availablePatients={availablePatients} allowedPatientIds={availablePatientIds} selectedDate={dateKey(selectedGroupCell.day)} selectedWeekday={selectedGroupCell.day.getDay()} full={full} onSubmit={(event) => void addGroupMember(event, selectedGroupCell.slot.id)} />}
+              {selectedMembers.length ? <ul className="group-members-drawer-list">{selectedMembers.map((member) => <li key={member.id}><div><span>{member.patients?.name ?? "Paciente"}</span><small>{member.patients?.phone ?? ""}</small></div>{canEdit && <button type="button" className="action-delete" onClick={() => void removeGroupMember(member.id)}>Retirar da turma</button>}</li>)}</ul> : <p className="empty-state">Nenhum paciente está inscrito nesta turma.</p>}
+              {canEdit && <GroupMemberForm slotName={selectedGroupCell.slot.name} availablePatients={availablePatients} allowedPatientIds={availablePatientIds} selectedDate={dateKey(selectedGroupCell.day)} slotWeekdays={selectedGroupCell.slot.weekdays ?? []} full={full} onSubmit={(event) => void addGroupMember(event, selectedGroupCell.slot.id)} />}
             </div>
           </section>
         </div>;
@@ -357,6 +360,39 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
         </div>
       )}
       {canEdit && <div className="dashboard-grid">
+        <DrawerForm title="Nova turma em horário fixo" onSubmit={createGroup}>
+          <h2>Nova turma</h2>
+          <p className="form-instructions">O horário permanece fixo. Turmas diferentes podem usar o mesmo horário quando seus dias não se sobrepõem.</p>
+          <fieldset>
+            <legend>Identificação e responsável</legend>
+            <TextField name="name" label="Nome da turma" placeholder="Ex.: Lagoa · Seg/Qua 07h" required />
+            <div className="form-row">
+              <Select name="unit_id" label="Unidade" rows={data["/units"] ?? []} />
+              <Select name="professional_id" label="Fisioterapeuta responsável" rows={data["/professionals"] ?? []} />
+            </div>
+            <div className="form-row">
+              <Select name="room_id" label="Sala (opcional)" rows={data["/rooms"] ?? []} required={false} />
+              <Select name="service_id" label="Serviço (opcional)" rows={data["/services"] ?? []} required={false} />
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>Dias e horário fixo</legend>
+            <WeekdayCheckboxGroup label="Dias da turma" required maxSelections={5} />
+            <div className="form-row">
+              <SelectField name="starts_at" label="Horário fixo" required defaultValue="">
+                <option value="">Selecione</option>
+                {FIXED_GROUP_TIMES.map((time) => <option key={time} value={time}>{time}</option>)}
+              </SelectField>
+              <TextField name="duration_minutes" label="Duração (minutos)" type="number" min="15" max="240" defaultValue="60" required />
+            </div>
+            <div className="form-row">
+              <TextField name="starts_on" label="Início da turma (opcional)" type="date" />
+              <TextField name="ends_on" label="Fim da turma (opcional)" type="date" />
+            </div>
+            <TextField name="capacity" label="Capacidade" type="number" min="3" max="7" defaultValue="7" required />
+          </fieldset>
+          <button className="btn primary">Criar turma</button>
+        </DrawerForm>
         <DrawerForm title="Novo agendamento" onSubmit={createAppointment}>
           <h2>Novo agendamento</h2>
           <p className="form-instructions"><span aria-hidden="true">*</span> indica campo obrigatório.</p>
@@ -427,12 +463,12 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
         canEdit={canEdit}
       />
       <section className="card group-allocation-panel" aria-labelledby="group-allocation-title">
-          <div className="table-toolbar"><div><p className="eyebrow">ALOCAÇÃO</p><h2 id="group-allocation-title">Alunos nos horários fixos</h2><p className="form-instructions">Os horários são permanentes. Aqui você apenas adiciona ou retira alunos.</p></div>{canEdit && <button type="button" className="btn secondary" onClick={onOpenPatients}>Cadastrar paciente</button>}</div>
+          <div className="table-toolbar"><div><p className="eyebrow">ALOCAÇÃO</p><h2 id="group-allocation-title">Alunos por turma</h2><p className="form-instructions">Cada turma possui dias, horário fixo e fisioterapeuta próprios.</p></div>{canEdit && <button type="button" className="btn secondary" onClick={onOpenPatients}>Cadastrar paciente</button>}</div>
         <div className="group-allocation-grid">
           {(data["/group-slots"] ?? []).map((group: Row) => {
             const members = groupMembers.filter((member) => member.group_slot_id === group.id);
             return <article className="group-allocation-card" key={group.id}>
-              <div><strong>{group.name}</strong><span>{members.length}/{group.capacity ?? 7} vagas ocupadas · {String(group.starts_at).slice(0, 5)}</span></div>
+              <div><strong>{group.name}</strong><span>{weekdaysLabel(group.weekdays)} · {String(group.starts_at).slice(0, 5)} · {members.length}/{group.capacity ?? 7} vagas ocupadas</span></div>
               <div className="group-members-heading"><h3>Pacientes inscritos</h3><span>{members.length === 0 ? "Nenhum paciente nesta turma" : `${members.length} inscrito(s)`}</span></div>
               <ul aria-label={`Pacientes inscritos na turma ${group.name}`}>{members.map((member) => <li key={member.id}><span>{member.patients?.name ?? "Paciente"}</span>{canEdit && <button type="button" onClick={() => void removeGroupMember(member.id)} aria-label={`Remover ${member.patients?.name ?? "paciente"} da turma`}>Remover</button>}</li>)}</ul>
             </article>;
@@ -440,16 +476,17 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
         </div>
       </section>
       <EditableOperationalTable
-        title="Horários fixos"
+        title="Turmas em horários fixos"
         resource="group-slots"
         rows={(data["/group-slots"] ?? []).map((row: Row) => {
           const members = groupMembers.filter((member: Row) => member.group_slot_id === row.id);
           return {
             ...row,
+            weekdays_label: weekdaysLabel(row.weekdays),
             allocation: `${members.length}/${row.capacity ?? 7} · ${members.map((member: Row) => member.patients?.name).filter(Boolean).join(", ") || "Sem alunos"}`,
           };
         })}
-        fields={["name", "weekdays", "starts_at", "duration_minutes", "capacity", "allocation"]}
+        fields={["name", "weekdays_label", "starts_at", "duration_minutes", "capacity", "allocation"]}
         editFields={[
           { name: "unit_id", label: "Unidade", type: "select", required: true, options: data["/units"] ?? [] },
           { name: "room_id", label: "Sala", type: "select", required: true, options: data["/rooms"] ?? [] },

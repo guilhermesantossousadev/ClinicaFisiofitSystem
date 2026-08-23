@@ -6,6 +6,27 @@ import { FormField, SelectField, TextareaField, TextField } from "../components/
 export type Row = Record<string, any>;
 export type Unit = { id: string; name: string };
 
+const WEEKDAY_SHORT_LABELS: Record<number, string> = {
+  0: "Dom",
+  1: "Seg",
+  2: "Ter",
+  3: "Qua",
+  4: "Qui",
+  5: "Sex",
+  6: "Sáb",
+};
+
+export function weekdaysLabel(weekdays: unknown) {
+  if (!Array.isArray(weekdays)) return "Dias não definidos";
+  const labels = weekdays.map(Number).map((day) => WEEKDAY_SHORT_LABELS[day]).filter(Boolean);
+  return labels.length ? labels.join("/") : "Dias não definidos";
+}
+
+export function groupSlotLabel(slot: Row, professionalName?: string) {
+  const schedule = `${weekdaysLabel(slot.weekdays)} · ${String(slot.starts_at ?? "").slice(0, 5)}`;
+  return `${slot.name ?? "Turma"} · ${schedule}${professionalName ? ` · ${professionalName}` : ""}`;
+}
+
 export const PLAN_PERIODS = {
   monthly: { label: "Mensal", months: 1, durationDays: 30 },
   quarterly: { label: "Trimestral", months: 3, durationDays: 90 },
@@ -701,7 +722,7 @@ export function fieldLabel(field: string) {
     discovered_at: "Identificado em", action: "Ação", entity_type: "Recurso",
     user_id: "Usuário", occurred_at: "Data", capacity: "Capacidade",
     duration_minutes: "Duração", council: "Conselho", specialty: "Especialidade",
-    weekdays: "Dias da semana",
+    weekdays: "Dias da semana", weekdays_label: "Dias da semana",
     plan_name: "Plano", group_name: "Turma",
   };
   return labels[field] ?? field.replaceAll("_", " ");

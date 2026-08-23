@@ -94,6 +94,41 @@ test("mantém context.md como fonte única da verdade e não restaura o legado",
   await assert.rejects(access(new URL("../.openai/hosting.json", import.meta.url)));
 });
 
+test("salva avaliações e apresenta os campos clínicos corretos", async () => {
+  const [apiIndex, recordsRoute, recordsForm] = await Promise.all([
+    readFile(new URL("../supabase/functions/api/index.ts", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/functions/api/routes/prontuarios.ts", import.meta.url), "utf8"),
+    readFile(new URL("../apps/portal/src/presentation/modules/OperationalRecords.tsx", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(apiIndex, /registerProntuariosRoutes\(app, \{[^}]*validateRelatedResourceScope/);
+  assert.match(recordsRoute, /const \{[^}]*validateRelatedResourceScope[^}]*\} = dependencies/);
+  assert.match(recordsForm, /name="functional_diagnosis" label="Diagnóstico funcional"/);
+  assert.match(recordsForm, /name="treatment_plan" label="Plano de tratamento"/);
+  assert.match(recordsForm, /name="text" label="Evolução"/);
+  assert.doesNotMatch(recordsForm, /name="conduct" label="Conduta inicial"/);
+});
+
+test("mantém turmas distintas por dias dentro dos horários fixos", async () => {
+  const [agenda, enrollments, agendaRoute, migration] = await Promise.all([
+    readFile(new URL("../apps/portal/src/presentation/modules/OperationalAgenda.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../apps/portal/src/presentation/modules/OperationalEnrollments.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/functions/api/routes/agenda.ts", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/202608230001_group_based_fixed_schedule.sql", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(agenda, /Nova turma em horário fixo/);
+  assert.match(agenda, /weekdays: form\.getAll\("weekdays"\)\.map\(Number\)/);
+  assert.doesNotMatch(agenda, /updateGroupMember/);
+  assert.match(enrollments, /label="Turma \(opcional\)"/);
+  assert.doesNotMatch(enrollments, /form\.getAll\("weekdays"\)/);
+  assert.match(agendaRoute, /GROUP_SLOT_CONFLICT/);
+  assert.match(agendaRoute, /weekdays: slot\.weekdays/);
+  assert.doesNotMatch(agendaRoute, /Os horários são fixos e não podem ser cadastrados/);
+  assert.match(migration, /sync_membership_weekdays_from_group/);
+  assert.match(migration, /name ~\* '\^Horário fixo'/);
+});
+
 test("protege recuperação administrativa e consentimento de cookies", async () => {
   const [login, authClient, setPassword, portalApp, api, siteHtml, cookieConsent] = await Promise.all([
     readFile(new URL("../apps/portal/src/presentation/auth/LoginPage.tsx", import.meta.url), "utf8"),

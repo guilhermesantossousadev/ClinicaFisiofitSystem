@@ -239,7 +239,7 @@ branch `hostinger-deploy` a partir do commit `df69c42`.
 | Login/recuperação | Implementado | páginas Auth, Supabase config e CSP do portal | Conta administrativa confirmada/ativa; redirect e envio de recuperação validados no Auth remoto |
 | Autenticação | Implementado | páginas Auth e middleware API | E-mail e senha, sem segundo fator |
 | Painel | Implementado | `/dashboard`, `FisiofitApp.tsx` | Dados reais da API |
-| Agenda/turmas | Implementado | API e `OperationalAgenda` | Agenda com períodos de 7/14/30 dias, turmas recorrentes, geração automática de horários e alocação/remoção de pacientes |
+| Agenda/turmas | Implementado | API e `OperationalAgenda` | Agenda semanal com horários fixos, turmas recorrentes definidas por combinação de dias e alocação/remoção de pacientes por turma |
 | Pacientes | Parcial | endpoints e `OperationalPatients` | Cria/edita paciente; detalhes associados sem edição/remoção completa |
 | Matrículas/cobranças | Parcial | endpoints/UI | Criação e recebimento; sem gestão completa de estados |
 | Prontuário | Parcial | endpoints/UI/triggers/RLS | Criação, assinatura e retificação; profissional limitado à própria autoria e aos próprios atendimentos no código da Fase 1; falta teste integrado em banco real |
@@ -379,7 +379,7 @@ O endpoint genérico de status permite marcar atendimento `completed` sem chamar
 
 ### 8.5 Restrições
 
-Turmas têm **capacidade padrão e máxima: 7 alunos** e mínimo configurável de 3. O servidor recusa novo membro quando a contagem ativa atinge a capacidade. A contagem não considera vigência (`starts_at`/`ends_at`), podendo bloquear um novo período por vínculos antigos ainda `active`.
+Turmas têm **capacidade padrão e máxima: 7 alunos** e mínimo configurável de 3. Cada turma combina unidade, dias da semana, um horário fixo e um profissional responsável. Duas turmas podem ocupar o mesmo horário quando seus dias não se sobrepõem, como segunda/quarta às 07:00 e terça/quinta às 07:00. O paciente é vinculado à turma completa e herda os dias dela. O servidor recusa novo membro quando a contagem ativa atinge a capacidade. A contagem não considera vigência (`starts_at`/`ends_at`), podendo bloquear um novo período por vínculos antigos ainda `active`.
 
 ---
 

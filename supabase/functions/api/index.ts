@@ -579,9 +579,9 @@ app.patch("/record-templates/:id", requireRoles(["admin", "manager"]), async (co
 
 registerPacientesRoutes(app, { patientSchema, requireRoles, fail, databaseResult, hasUnitAccess, positiveInt, escapeLike, audit, createClinicResource });
 
-registerAgendaRoutes(app, { appointmentFields, appointmentSchema, requireRoles, ok, fail, databaseResult, hasUnitAccess, audit, professionalForUser, isOwnProfessional, getAuthorizedAppointment });
+registerAgendaRoutes(app, { appointmentFields, appointmentSchema, requireRoles, ok, fail, databaseResult, validateRelatedResourceScope, hasUnitAccess, audit, professionalForUser, isOwnProfessional, getAuthorizedAppointment });
 
-registerProntuariosRoutes(app, { clinicalRecordSchema, requireRoles, fail, databaseResult, hasUnitAccess, audit, professionalForUser, isOwnProfessional, requireIdempotency });
+registerProntuariosRoutes(app, { clinicalRecordSchema, requireRoles, fail, databaseResult, validateRelatedResourceScope, hasUnitAccess, audit, professionalForUser, isOwnProfessional, requireIdempotency });
 
 registerFinanceiroRoutes(app, { financialEntrySchema, requireRoles, fail, databaseResult, hasUnitAccess, audit, createClinicResource, requireIdempotency, normalizeAnnual, listResource });
 

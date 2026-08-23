@@ -1,7 +1,7 @@
 import { FormEvent, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { FormSection, TextareaField, TextField } from "../components/FormPrimitives";
-import { Row, messageOf, value, useResources, Select, DrawerForm, ModuleState, EditableOperationalTable } from "./OperationalShared";
+import { Row, groupSlotLabel, messageOf, value, useResources, Select, DrawerForm, ModuleState, EditableOperationalTable } from "./OperationalShared";
 
 export function OperationalPatients() {
   const [page, setPage] = useState(1);
@@ -156,15 +156,10 @@ export function OperationalPatients() {
     if (membership && !groupSlotId) {
       await api(`/group-slot-memberships/${membership.id}`, { method: "DELETE" });
     } else if (groupSlotId && groupSlotId !== membership?.group_slot_id) {
-      const group = groupSlots.find((item) => item.id === groupSlotId);
-      const availableWeekdays = (group?.weekdays as number[] | undefined) ?? [];
-      const currentWeekdays = (membership?.weekdays as number[] | undefined) ?? [];
-      const weekdays = currentWeekdays.filter((day) => availableWeekdays.includes(day)).slice(0, 3);
-      if (!weekdays.length) weekdays.push(...availableWeekdays.slice(0, 3));
       if (membership) {
-        await api(`/group-slot-memberships/${membership.id}`, { method: "PATCH", body: JSON.stringify({ group_slot_id: groupSlotId, weekdays, starts_at: membership.starts_at, ends_at: membership.ends_at || undefined }) });
+        await api(`/group-slot-memberships/${membership.id}`, { method: "PATCH", body: JSON.stringify({ group_slot_id: groupSlotId, starts_at: membership.starts_at, ends_at: membership.ends_at || undefined }) });
       } else {
-        await api(`/group-slots/${groupSlotId}/members`, { method: "POST", body: JSON.stringify({ enrollment_id: enrollment.id, patient_id: row.id, weekdays, starts_at: enrollment.starts_at, ends_at: enrollment.ends_at || undefined }) });
+        await api(`/group-slots/${groupSlotId}/members`, { method: "POST", body: JSON.stringify({ enrollment_id: enrollment.id, patient_id: row.id, starts_at: enrollment.starts_at, ends_at: enrollment.ends_at || undefined }) });
       }
     }
   }
@@ -244,7 +239,7 @@ export function OperationalPatients() {
           { name: "phone", label: "Telefone", type: "tel" },
           { name: "email", label: "E-mail", type: "email" },
           { name: "plan_id", label: "Plano atual", type: "select", options: plans.filter((item) => item.active !== false), value: (row) => row.enrollment?.plan_id },
-          { name: "group_slot_id", label: "Turma atual (opcional)", type: "select", options: groupSlots.filter((item) => item.active !== false).map((item) => ({ ...item, name: `${item.name} · ${String(item.starts_at).slice(0, 5)}` })), value: (row) => row.membership?.group_slot_id },
+          { name: "group_slot_id", label: "Turma atual (opcional)", type: "select", options: groupSlots.filter((item) => item.active !== false).map((item) => ({ ...item, name: `${groupSlotLabel(item)} · ${(data["/units"] ?? []).find((unit: Row) => unit.id === item.unit_id)?.name ?? "Unidade"}` })), value: (row) => row.membership?.group_slot_id },
           { name: "street", label: "Rua", value: (row) => row.address?.street },
           { name: "number", label: "Número", value: (row) => row.address?.number },
           { name: "city", label: "Cidade", value: (row) => row.address?.city },
