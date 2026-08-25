@@ -31,6 +31,12 @@ Deno.test("todos os cinco papéis possuem configuração explícita e segura", (
   }
 });
 
+Deno.test("recepção pode concluir o fluxo operacional de matrícula", () => {
+  const permission = defaultPermissionsForRole("reception").find((item) => item.module === "enrollments");
+  assert(permission?.canView, "recepção deve visualizar matrículas");
+  assert(permission?.canEdit, "recepção deve criar e atualizar matrículas");
+});
+
 Deno.test("rotas clínicas e financeiras são associadas ao módulo correto", () => {
   assert(moduleForPath("/api/v1/clinical-records") === "records", "prontuário deve exigir records");
   assert(moduleForPath("/api/v1/financial-entries") === "finance", "lançamento deve exigir finance");

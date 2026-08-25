@@ -91,13 +91,18 @@ export function useResources(paths: string[]) {
     setLoading(true);
     setError("");
     try {
-      const responses = await Promise.all(paths.map((path) => api<any>(path)));
+      const responses = await Promise.allSettled(paths.map((path) => api<any>(path)));
       const nextData = Object.fromEntries(
-          paths.map((path, index) => [path, responses[index].data]),
-        );
+        paths.flatMap((path, index) => {
+          const response = responses[index];
+          return response.status === "fulfilled" ? [[path, response.value.data]] : [];
+        }),
+      );
       if (sessionGeneration !== getPortalSessionGeneration()) return;
       operationalResourceCache.set(cacheKey, nextData);
       setData(nextData);
+      const failures = responses.filter((response): response is PromiseRejectedResult => response.status === "rejected");
+      if (failures.length) setError(messageOf(failures[0].reason));
     } catch (loadError) {
       setError(messageOf(loadError));
     } finally {

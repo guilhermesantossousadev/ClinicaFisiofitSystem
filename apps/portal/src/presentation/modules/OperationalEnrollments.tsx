@@ -4,16 +4,16 @@ import { buildPlanControlRows, renewalCopy, type PlanControlRow } from "../../ap
 import { SelectField, TextField } from "../components/FormPrimitives";
 import { type AgendaEnrollmentContext, Row, PLAN_PERIODS, PlanPeriod, WeeklyFrequency, messageOf, value, cents, brl, planTotalCents, groupSlotLabel, useResources, Select, PlanSelect, PatientPicker, DrawerForm, ModuleState, MetricLite, EditableOperationalTable, OperationalTable } from "./OperationalShared";
 
-export function OperationalEnrollments({ agendaContext, onClearAgendaContext, openEnrollment = false, units = [], selectedUnitId = "", onUnitChange = () => undefined }: { agendaContext?: AgendaEnrollmentContext; onClearAgendaContext?: () => void; openEnrollment?: boolean; units?: Array<{ id: string; name: string }>; selectedUnitId?: string; onUnitChange?: (unitId: string) => void }) {
+export function OperationalEnrollments({ agendaContext, onClearAgendaContext, openEnrollment = false, units = [], selectedUnitId = "", onUnitChange = () => undefined, canEdit = true, canManagePlans = true, canDeletePlans = true, canViewCharges = true, canManageChargeStatus = true, canViewPayments = true, canReceivePayments = true, canRollback = true }: { agendaContext?: AgendaEnrollmentContext; onClearAgendaContext?: () => void; openEnrollment?: boolean; units?: Array<{ id: string; name: string }>; selectedUnitId?: string; onUnitChange?: (unitId: string) => void; canEdit?: boolean; canManagePlans?: boolean; canDeletePlans?: boolean; canViewCharges?: boolean; canManageChargeStatus?: boolean; canViewPayments?: boolean; canReceivePayments?: boolean; canRollback?: boolean }) {
   const paths = [
     "/plans",
     "/enrollments",
-    "/charges",
-    "/payments",
     "/patients?page=1&pageSize=100",
     "/units",
     "/group-slots",
     "/professionals",
+    ...(canViewCharges ? ["/charges"] : []),
+    ...(canViewPayments ? ["/payments"] : []),
   ];
   const { data, loading, error, reload } = useResources(paths);
   const patients = data["/patients?page=1&pageSize=100"]?.items ?? [];
@@ -80,7 +80,9 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
       setSelectedEnrollmentUnit("");
       setPatientPickerVersion((version) => version + 1);
       await reload();
-      setNotice(existing ? "Paciente já matriculado; turma atualizada." : "Matrícula criada e paciente vinculado à turma escolhida.");
+      setNotice(existing
+        ? group ? "Paciente já matriculado; turma atualizada." : "Paciente já possui esta matrícula ativa."
+        : group ? "Matrícula criada e paciente vinculado à turma escolhida." : "Matrícula criada.");
     } catch (e) {
       setNotice(messageOf(e));
     }
@@ -223,9 +225,10 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
         units={units}
         selectedUnitId={selectedUnitId}
         onUnitChange={onUnitChange}
-        savingPaymentId={savingPaymentId}
-        onPaymentStatusChange={updatePaymentStatus}
-        onEdit={setEditingControlRow}
+          savingPaymentId={savingPaymentId}
+          onPaymentStatusChange={updatePaymentStatus}
+          onEdit={canEdit ? setEditingControlRow : undefined}
+          canManageChargeStatus={canManageChargeStatus}
       />
       {editingControlRow && (
         <EditControlledPlanDialog
@@ -235,7 +238,8 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
           onSubmit={updateControlledPlan}
         />
       )}
-      <div className="dashboard-grid">
+      {(canManagePlans || canEdit) && <div className="dashboard-grid">
+        {canManagePlans && (
         <DrawerForm title="Novo plano" onSubmit={createPlan}>
           <h2>Novo plano</h2>
           <div className="form-row">
@@ -267,6 +271,8 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
           <TextField id="plan-price" name="price" label="Preço do plano" type="number" min="0" step=".01" inputMode="decimal" required />
           <button className="btn primary">Criar plano</button>
         </DrawerForm>
+        )}
+        {canEdit && (
         <DrawerForm title="Nova matrícula" onSubmit={enroll} openInitially={openEnrollment || Boolean(agendaContext)} onClose={onClearAgendaContext}>
           <h2>Nova matrícula</h2>
           <div className="form-row">
@@ -286,8 +292,9 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
           <TextField id="enrollment-discount" name="discount" label="Desconto" type="number" step=".01" defaultValue="0" />
           <button className="btn primary">Matricular</button>
         </DrawerForm>
-      </div>
-      <form className="card modal-form inline-form" onSubmit={pay}>
+        )}
+      </div>}
+      {canReceivePayments && <form className="card modal-form inline-form" onSubmit={pay}>
         <h2>Registrar pagamento</h2>
         <Select
           name="charge_id"
@@ -305,7 +312,8 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
             <option value="transfer">Transferência</option>
         </SelectField>
         <button className="btn primary">Receber</button>
-      </form>
+      </form>}
+      {canManagePlans && (
       <EditableOperationalTable
         title="Planos"
         resource="plans"
@@ -323,17 +331,18 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
           duration_days: Number(value(form, "duration_days")) || null,
           price_cents: cents(value(form, "price")),
         })}
-        allowDelete
+        allowDelete={canDeletePlans}
         onChanged={reload}
         onNotice={setNotice}
       />
+      )}
       <OperationalTable
         title="Matrículas ativas"
         rows={enrollmentRows}
         fields={["status", "starts_at", "ends_at", "due_day", "sessions_used", "total_plan_cents"]}
-        actions={(row) => row.deleted_at ? null : <button type="button" onClick={() => void rollbackEnrollment(row.id)}>Reverter</button>}
+        actions={(row) => canRollback && !row.deleted_at ? <button type="button" onClick={() => void rollbackEnrollment(row.id)}>Reverter</button> : null}
       />
-      <OperationalTable
+      {canViewCharges && <OperationalTable
         title="Cobranças"
         rows={data["/charges"] ?? []}
         fields={[
@@ -343,7 +352,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
           "amount_cents",
           "paid_cents",
         ]}
-      />
+      />}
     </div>
   );
 }
@@ -369,6 +378,7 @@ function PlanControlTable({
   savingPaymentId,
   onPaymentStatusChange,
   onEdit,
+  canManageChargeStatus,
 }: {
   rows: PlanControlRow[];
   total: number;
@@ -381,7 +391,8 @@ function PlanControlTable({
   onUnitChange: (unitId: string) => void;
   savingPaymentId: string;
   onPaymentStatusChange: (row: PlanControlRow, status: string) => void | Promise<void>;
-  onEdit: (row: PlanControlRow) => void;
+  onEdit?: (row: PlanControlRow) => void;
+  canManageChargeStatus: boolean;
 }) {
   return (
     <section className="card table-card plan-control-table" aria-labelledby="plan-control-title">
@@ -430,7 +441,7 @@ function PlanControlTable({
               label={`Pagamento de ${row.patientName}`}
               labelHidden
               value={row.paymentState}
-              disabled={!row.chargeId || savingPaymentId === row.chargeId}
+              disabled={!canManageChargeStatus || !row.chargeId || savingPaymentId === row.chargeId}
               onChange={(event) => void onPaymentStatusChange(row, event.target.value)}
             >
               {row.paymentState === "uncharged" && <option value="uncharged" disabled>Sem cobrança</option>}
@@ -453,7 +464,7 @@ function PlanControlTable({
             <small>{row.renewsAt ? `Renovação em ${dateLabel(row.renewsAt)}` : "Defina o fim do período no cadastro"}</small>
           </div>
           <div className="plan-control-cell plan-control-actions" data-label="Ações">
-            <button type="button" className="btn secondary" onClick={() => onEdit(row)} aria-label={`Editar plano de ${row.patientName}`}>Editar</button>
+            {onEdit && <button type="button" className="btn secondary" onClick={() => onEdit(row)} aria-label={`Editar plano de ${row.patientName}`}>Editar</button>}
           </div>
         </div>
       ))}

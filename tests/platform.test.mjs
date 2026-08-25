@@ -129,6 +129,29 @@ test("mantém turmas distintas por dias dentro dos horários fixos", async () =>
   assert.match(migration, /name ~\* '\^Horário fixo'/);
 });
 
+test("mantém o fluxo de matrícula da recepção funcional e sem expor o financeiro", async () => {
+  const [authorization, api, enrollments, shared, migration] = await Promise.all([
+    readFile(new URL("../supabase/functions/api/authorization.ts", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/functions/api/index.ts", import.meta.url), "utf8"),
+    readFile(new URL("../apps/portal/src/presentation/modules/OperationalEnrollments.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../apps/portal/src/presentation/modules/OperationalShared.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/202608240001_reception_enrollment_flow.sql", import.meta.url), "utf8"),
+  ]);
+  assert.match(authorization, /reception:\s*\{[^}]*enrollments:\s*"edit"/);
+  assert.match(api, /app\.post\("\/enrollments", requireRoles\(\["admin", "manager", "reception", "finance"\]\)/);
+  assert.match(enrollments, /\.\.\.\(canViewCharges \? \["\/charges"\] : \[\]\)/);
+  assert.match(enrollments, /canReceivePayments && <form/);
+  assert.match(shared, /Promise\.allSettled\(paths\.map/);
+  assert.match(migration, /profile\.role = 'reception'/);
+  assert.match(migration, /create policy charges_insert/);
+  const chargesSelectPolicy = migration.slice(
+    migration.indexOf("create policy charges_select"),
+    migration.indexOf("create policy charges_insert"),
+  );
+  assert.match(chargesSelectPolicy, /'admin','manager','finance'/);
+  assert.doesNotMatch(chargesSelectPolicy, /'reception'/);
+});
+
 test("protege recuperação administrativa e consentimento de cookies", async () => {
   const [login, authClient, setPassword, portalApp, api, siteHtml, cookieConsent] = await Promise.all([
     readFile(new URL("../apps/portal/src/presentation/auth/LoginPage.tsx", import.meta.url), "utf8"),

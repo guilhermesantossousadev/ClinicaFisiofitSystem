@@ -4,7 +4,7 @@ import { supabase } from "../../infrastructure/supabase/client";
 import { CheckboxField, SelectField, TextareaField, TextField } from "../components/FormPrimitives";
 import { Row, messageOf, value, useResources, Select, DrawerForm, ModuleState } from "./OperationalShared";
 
-export function OperationalRecords() {
+export function OperationalRecords({ canEdit = true }: { canEdit?: boolean }) {
   const basePaths = [
     "/patients?page=1&pageSize=100",
     "/professionals",
@@ -138,7 +138,7 @@ export function OperationalRecords() {
         </div>
       )}
       <ModuleState loading={loading} error={error} retry={reload} />
-      {patientId && (
+      {patientId && canEdit && (
         <DrawerForm title="Novo registro" onSubmit={createRecord}>
           <h2>Novo registro</h2>
           <div className="form-row">
@@ -185,7 +185,7 @@ export function OperationalRecords() {
         </DrawerForm>
       )}
       {patientId && <section className="card table-card">
-        <div className="table-toolbar"><h2>Anexos do paciente</h2><label className="btn secondary">Adicionar arquivo<input className="sr-only" type="file" accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif" onChange={uploadAttachment} /></label></div>
+        <div className="table-toolbar"><h2>Anexos do paciente</h2>{canEdit && <label className="btn secondary">Adicionar arquivo<input className="sr-only" type="file" accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif" onChange={uploadAttachment} /></label>}</div>
         {attachments.map((file) => <div className="operational-row" key={file.id}><div><strong>{file.filename}</strong><small>{file.content_type} · {Math.round(file.size_bytes / 1024)} KB</small></div></div>)}
         {!attachments.length && <div className="empty-state">Nenhum anexo.</div>}
       </section>}
@@ -203,10 +203,10 @@ export function OperationalRecords() {
               </small>
             </div>
             <div className="row-actions">
-              {row.status === "draft" && (
+              {canEdit && row.status === "draft" && (
                 <button onClick={() => sign(row.id)}>Assinar</button>
               )}
-              {row.status === "signed" && (
+              {canEdit && row.status === "signed" && (
                 <button onClick={() => rectify(row.id)}>Retificar</button>
               )}
             </div>

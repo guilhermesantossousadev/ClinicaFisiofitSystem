@@ -3,13 +3,18 @@ import { api } from "../../infrastructure/http/api";
 import { FormSection, TextareaField, TextField } from "../components/FormPrimitives";
 import { Row, groupSlotLabel, messageOf, value, useResources, Select, DrawerForm, ModuleState, EditableOperationalTable } from "./OperationalShared";
 
-export function OperationalPatients() {
+export function OperationalPatients({ canEdit = true, canViewEnrollments = true, canEditEnrollments = true, canViewAgenda = true, canEditAgenda = true, canViewTimeline = true }: { canEdit?: boolean; canViewEnrollments?: boolean; canEditEnrollments?: boolean; canViewAgenda?: boolean; canEditAgenda?: boolean; canViewTimeline?: boolean }) {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
   const pageSize = 20;
   const patientPath = `/patients?page=${page}&pageSize=${pageSize}${appliedSearch ? `&search=${encodeURIComponent(appliedSearch)}` : ""}`;
-  const paths = [patientPath, "/units", "/plans", "/enrollments", "/group-slots", "/group-slot-memberships"];
+  const paths = [
+    patientPath,
+    "/units",
+    ...(canViewEnrollments ? ["/plans", "/enrollments"] : []),
+    ...(canViewAgenda ? ["/group-slots", "/group-slot-memberships"] : []),
+  ];
   const { data, loading, error, reload } = useResources(paths);
   const enrollments: Row[] = data["/enrollments"] ?? [];
   const memberships: Row[] = data["/group-slot-memberships"] ?? [];
@@ -76,7 +81,7 @@ export function OperationalPatients() {
       const [responsibles, consents, timeline] = await Promise.all([
         api<Row[]>(`/patients/${row.id}/responsibles`),
         api<Row[]>(`/patients/${row.id}/consents`),
-        api<Row>(`/patients/${row.id}/timeline`),
+        canViewTimeline ? api<Row>(`/patients/${row.id}/timeline`) : Promise.resolve({ data: undefined }),
       ]);
       setDetail({
         responsibles: responsibles.data ?? [],
@@ -136,7 +141,7 @@ export function OperationalPatients() {
     const enrollment = row.enrollment as Row | undefined;
     const planId = value(form, "plan_id");
     const groupSlotId = value(form, "group_slot_id");
-    if (!enrollment && (planId || groupSlotId)) throw new Error("Este paciente ainda não possui matrícula ativa. Crie a matrícula antes de definir plano ou turma.");
+    if (!enrollment && ((canEditEnrollments && planId) || (canEditAgenda && groupSlotId))) throw new Error("Este paciente ainda não possui matrícula ativa. Crie a matrícula antes de definir plano ou turma.");
     await api(`/patients/${row.id}`, {
       method: "PATCH",
       body: JSON.stringify({
@@ -149,9 +154,10 @@ export function OperationalPatients() {
       }),
     });
     if (!enrollment) return;
-    if (planId && planId !== enrollment.plan_id) {
+    if (canEditEnrollments && planId && planId !== enrollment.plan_id) {
       await api(`/enrollments/${enrollment.id}`, { method: "PATCH", body: JSON.stringify({ plan_id: planId }) });
     }
+    if (!canEditAgenda) return;
     const membership = row.membership as Row | undefined;
     if (membership && !groupSlotId) {
       await api(`/group-slot-memberships/${membership.id}`, { method: "DELETE" });
@@ -189,7 +195,7 @@ export function OperationalPatients() {
           {appliedSearch && <button type="button" className="btn secondary" onClick={() => { setSearch(""); setAppliedSearch(""); setPage(1); }}>Limpar</button>}
         </div>
       </form>
-      <DrawerForm title="Novo paciente" onSubmit={create}>
+      {canEdit && <DrawerForm title="Novo paciente" onSubmit={create}>
         <h2>Novo paciente</h2>
         <p className="form-instructions"><span aria-hidden="true">*</span> indica campo obrigatório.</p>
         <FormSection legend="Identificação e contato">
@@ -225,7 +231,7 @@ export function OperationalPatients() {
         </FormSection>
         <TextareaField name="notes" label="Observações" rows={3} />
         <button className="btn primary">Cadastrar paciente</button>
-      </DrawerForm>
+      </DrawerForm>}
       <EditableOperationalTable
         title="Pacientes cadastrados"
         resource="patients"
@@ -238,8 +244,8 @@ export function OperationalPatients() {
           { name: "birth_date", label: "Nascimento", type: "date" },
           { name: "phone", label: "Telefone", type: "tel" },
           { name: "email", label: "E-mail", type: "email" },
-          { name: "plan_id", label: "Plano atual", type: "select", options: plans.filter((item) => item.active !== false), value: (row) => row.enrollment?.plan_id },
-          { name: "group_slot_id", label: "Turma atual (opcional)", type: "select", options: groupSlots.filter((item) => item.active !== false).map((item) => ({ ...item, name: `${groupSlotLabel(item)} · ${(data["/units"] ?? []).find((unit: Row) => unit.id === item.unit_id)?.name ?? "Unidade"}` })), value: (row) => row.membership?.group_slot_id },
+          ...(canEditEnrollments ? [{ name: "plan_id", label: "Plano atual", type: "select" as const, options: plans.filter((item) => item.active !== false), value: (row: Row) => row.enrollment?.plan_id }] : []),
+          ...(canEditAgenda ? [{ name: "group_slot_id", label: "Turma atual (opcional)", type: "select" as const, options: groupSlots.filter((item) => item.active !== false).map((item) => ({ ...item, name: `${groupSlotLabel(item)} · ${(data["/units"] ?? []).find((unit: Row) => unit.id === item.unit_id)?.name ?? "Unidade"}` })), value: (row: Row) => row.membership?.group_slot_id }] : []),
           { name: "street", label: "Rua", value: (row) => row.address?.street },
           { name: "number", label: "Número", value: (row) => row.address?.number },
           { name: "city", label: "Cidade", value: (row) => row.address?.city },
@@ -268,6 +274,7 @@ export function OperationalPatients() {
         onNotice={setNotice}
         onOpen={open}
         allowDelete
+        canEdit={canEdit}
         total={total}
         page={page}
         pageSize={pageSize}
@@ -292,7 +299,7 @@ export function OperationalPatients() {
             </div>
             <div className="modal-form">
               <h3>Consentimentos</h3>
-              <div className="row-actions">
+              {canEdit && <div className="row-actions">
                 <button onClick={() => consent("whatsapp", true)}>
                   Autorizar contato
                 </button>
@@ -302,9 +309,9 @@ export function OperationalPatients() {
                 <button onClick={() => consent("data_processing", true)}>
                   Autorizar tratamento de dados
                 </button>
-              </div>
+              </div>}
               <p>{detail.consents.length} registros de consentimento.</p>
-              <form onSubmit={responsible}>
+              {canEdit && <form onSubmit={responsible}>
                 <h3>Adicionar responsável</h3>
                 <div className="form-row">
                   <TextField name="name" label="Nome" required />
@@ -316,7 +323,7 @@ export function OperationalPatients() {
                 </div>
                 <TextField name="email" label="E-mail" type="email" />
                 <button className="btn primary">Salvar responsável</button>
-              </form>
+              </form>}
               <h3>Linha do tempo</h3>
               <p>
                 {detail.timeline?.appointments?.length ?? 0} atendimentos ·{" "}

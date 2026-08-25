@@ -16,7 +16,7 @@ import {
   OperationalUsers,
 } from "../modules/OperationalModules";
 import type { AgendaEnrollmentContext } from "../modules/OperationalModules";
-import type { DashboardData, Patient, Profile, Unit, View } from "../../domain/portal";
+import type { DashboardData, Patient, PermissionModule, Profile, Unit, View } from "../../domain/portal";
 import { isView, nav, navModule, roleLabel } from "../../application/portal/navigation";
 const OperationalImports = lazy(() => import("../modules/OperationalImports"));
 const sidebarGroups: Array<{ label: string; items: View[] }> = [
@@ -43,6 +43,14 @@ function storeValue(key: string, value: string) {
   } catch {
     // O portal continua funcionando quando o navegador bloqueia armazenamento.
   }
+}
+
+function canViewModule(profile: Profile, module: PermissionModule) {
+  return profile.role === "admin" || !profile.profile_permissions || profile.profile_permissions.some((permission) => permission.module === module && permission.can_view);
+}
+
+function canEditModule(profile: Profile, module: PermissionModule) {
+  return profile.role === "admin" || !profile.profile_permissions || profile.profile_permissions.some((permission) => permission.module === module && permission.can_edit);
 }
 
 function Avatar({ initials, url, className = "" }: { initials: string; url?: string; className?: string }) {
@@ -131,29 +139,35 @@ export default function FisiofitApp() {
     }
   }, [loading, unit, units]);
   useEffect(() => {
-    void Promise.all([
-      api<{ profile: Profile }>("/me"),
-      api<DashboardData>("/dashboard"),
-      api<Unit[]>("/units"),
-      list<Patient>("/patients?page=1&pageSize=100"),
-    ])
-      .then(([me, dash, unitRows, patientRows]) => {
-        if (me.data?.profile) setProfile(me.data.profile);
-        setDashboard(dash.data);
-        setUnits(unitRows.data ?? []);
-        setPatients(patientRows.data?.items ?? []);
-      })
-      .catch((reason) =>
-        setError(
-          reason instanceof Error
-            ? reason.message
-            : "Não foi possível carregar o portal.",
-        ),
-      )
-      .finally(() => setLoading(false));
+    async function loadPortal() {
+      try {
+        const me = await api<{ profile: Profile }>("/me");
+        const loadedProfile = me.data?.profile;
+        if (!loadedProfile) throw new Error("Não foi possível identificar o perfil deste usuário.");
+        setProfile(loadedProfile);
+        const requests = [
+          api<Unit[]>("/units"),
+          canViewModule(loadedProfile, "dashboard") ? api<DashboardData>("/dashboard") : Promise.resolve({ data: null }),
+          ["admin", "manager", "reception", "professional"].includes(loadedProfile.role) && canViewModule(loadedProfile, "patients")
+            ? list<Patient>("/patients?page=1&pageSize=100")
+            : Promise.resolve({ data: null }),
+        ] as const;
+        const [unitResult, dashboardResult, patientResult] = await Promise.allSettled(requests);
+        if (unitResult.status === "fulfilled") setUnits(unitResult.value.data ?? []);
+        if (dashboardResult.status === "fulfilled") setDashboard(dashboardResult.value.data);
+        if (patientResult.status === "fulfilled") setPatients(patientResult.value.data?.items ?? []);
+        const failure = [unitResult, dashboardResult, patientResult].find((result) => result.status === "rejected");
+        if (failure?.status === "rejected") setError(failure.reason instanceof Error ? failure.reason.message : "Alguns dados não foram carregados.");
+      } catch (reason) {
+        setError(reason instanceof Error ? reason.message : "Não foi possível carregar o portal.");
+      } finally {
+        setLoading(false);
+      }
+    }
+    void loadPortal();
   }, []);
   const visibleNav = useMemo(
-    () => nav.filter((item) => item.roles.includes(profile.role) && (profile.role === "admin" || !profile.profile_permissions || profile.profile_permissions.some((permission) => permission.module === navModule[item.label] && permission.can_view))),
+    () => nav.filter((item) => item.roles.includes(profile.role) && canViewModule(profile, navModule[item.label]!)),
     [profile.role, profile.profile_permissions],
   );
   useEffect(() => {
@@ -416,12 +430,12 @@ export default function FisiofitApp() {
         {view === "Painel" && (
           <Dashboard data={dashboard} name={profile.name} setView={setView} loading={loading} />
         )}{" "}
-        {view === "Agenda" && <OperationalAgenda canEdit={profile.role === "admin" || !profile.profile_permissions || profile.profile_permissions.some((permission) => permission.module === "agenda" && permission.can_edit)} onOpenPatients={() => navigate("Pacientes")} onOpenEnrollment={(context) => { setAgendaContext(context); navigate("Matrículas"); }} />}{" "}
-        {view === "Chamada diária" && <OperationalDailyAttendance canEdit={profile.role === "admin" || !profile.profile_permissions || profile.profile_permissions.some((permission) => permission.module === "agenda" && permission.can_edit)} />}{" "}
-        {view === "Pacientes" && <OperationalPatients />}{" "}
-        {view === "Matrículas" && <OperationalEnrollments agendaContext={agendaContext} onClearAgendaContext={() => setAgendaContext(undefined)} units={units} selectedUnitId={unit} onUnitChange={setUnit} />}{" "}
-        {view === "Prontuários" && <OperationalRecords />}{" "}
-        {view === "Financeiro" && <OperationalFinance />}{" "}
+        {view === "Agenda" && <OperationalAgenda canEdit={canEditModule(profile, "agenda")} onOpenPatients={() => navigate("Pacientes")} onOpenEnrollment={(context) => { setAgendaContext(context); navigate("Matrículas"); }} />}{" "}
+        {view === "Chamada diária" && <OperationalDailyAttendance canEdit={canEditModule(profile, "agenda")} />}{" "}
+        {view === "Pacientes" && <OperationalPatients canEdit={canEditModule(profile, "patients")} canViewEnrollments={canViewModule(profile, "enrollments")} canEditEnrollments={canEditModule(profile, "enrollments")} canViewAgenda={canViewModule(profile, "agenda")} canEditAgenda={canEditModule(profile, "agenda")} canViewTimeline={["admin", "manager"].includes(profile.role)} />}{" "}
+        {view === "Matrículas" && <OperationalEnrollments agendaContext={agendaContext} onClearAgendaContext={() => setAgendaContext(undefined)} units={units} selectedUnitId={unit} onUnitChange={setUnit} canEdit={canEditModule(profile, "enrollments")} canManagePlans={canEditModule(profile, "enrollments") && ["admin", "manager", "finance"].includes(profile.role)} canDeletePlans={profile.role === "admin"} canViewCharges={["admin", "manager", "finance"].includes(profile.role) && canViewModule(profile, "enrollments")} canManageChargeStatus={["admin", "manager", "finance"].includes(profile.role) && canEditModule(profile, "enrollments")} canViewPayments={["admin", "manager", "finance"].includes(profile.role) && canViewModule(profile, "finance")} canReceivePayments={["admin", "manager", "finance"].includes(profile.role) && canEditModule(profile, "finance")} canRollback={["admin", "manager", "finance"].includes(profile.role) && canEditModule(profile, "enrollments")} />}{" "}
+        {view === "Prontuários" && <OperationalRecords canEdit={canEditModule(profile, "records")} />}{" "}
+        {view === "Financeiro" && <OperationalFinance canEdit={canEditModule(profile, "finance")} />}{" "}
         {view === "Relatórios" && <OperationalReports />}{" "}
         {view === "Importações" && (
           <Suspense fallback={<div className="content"><div className="card module-skeleton" role="status">Carregando importações…</div></div>}>
@@ -429,7 +443,7 @@ export default function FisiofitApp() {
           </Suspense>
         )}{" "}
         {view === "Usuários" && <OperationalUsers canManageUsers={profile.role === "admin"} />}
-        {view === "Configurações" && <OperationalAdministration />}
+        {view === "Configurações" && <OperationalAdministration canEdit={canEditModule(profile, "settings")} canManageUnits={profile.role === "admin"} canDelete={profile.role === "admin"} />}
         {view === "Privacidade" && (
           <OperationalPrivacy
             canEditPrivacy={profile.role === "admin" || Boolean(profile.profile_permissions?.some((permission) => permission.module === "privacy" && permission.can_edit))}

@@ -7,7 +7,7 @@ export function defaultPermissionsForRole(role: Role): Array<{ module: Permissio
       dashboard: "edit", agenda: "edit", patients: "edit", enrollments: "edit", records: "edit",
       finance: "edit", reports: "view", imports: "edit", users: "view", settings: "edit", privacy: "edit",
     },
-    reception: { agenda: "edit", patients: "edit", enrollments: "view" },
+    reception: { agenda: "edit", patients: "edit", enrollments: "edit" },
     professional: { agenda: "edit", patients: "view", records: "edit" },
     finance: { enrollments: "view", finance: "edit", reports: "view" },
   };

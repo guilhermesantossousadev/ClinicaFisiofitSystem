@@ -403,7 +403,7 @@ app.patch("/plans/:id", requireRoles(["admin", "manager", "finance"]), async (co
   return updateClinicResource(context, "plans", id, input, "plan.updated");
 });
 
-app.post("/enrollments", requireRoles(["admin", "manager", "finance"]), async (context) => {
+app.post("/enrollments", requireRoles(["admin", "manager", "reception", "finance"]), async (context) => {
   const input = z.object({
     patient_id: z.string().uuid(),
     plan_id: z.string().uuid(),
