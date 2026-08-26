@@ -129,6 +129,31 @@ test("mantém turmas distintas por dias dentro dos horários fixos", async () =>
   assert.match(migration, /name ~\* '\^Horário fixo'/);
 });
 
+test("mantém todos os recursos da agenda coerentes com a unidade selecionada", async () => {
+  const [agenda, shared, administration, api, agendaRoute, repairMigration] = await Promise.all([
+    readFile(new URL("../apps/portal/src/presentation/modules/OperationalAgenda.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../apps/portal/src/presentation/modules/OperationalShared.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../apps/portal/src/presentation/modules/OperationalAdministration.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/functions/api/index.ts", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/functions/api/routes/agenda.ts", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/202608260001_repair_professional_units.sql", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(agenda, /professionalsForUnit\(professionals, newGroupUnitId\)/);
+  assert.match(agenda, /unitId=\{newAppointmentUnitId\}/);
+  assert.match(agenda, /Salvar alterações da turma/);
+  assert.match(agenda, /Cancelar agendamento/);
+  assert.match(shared, /unitId \? `&unitId=/);
+  assert.match(administration, /name: "unitIds", label: "Unidades em que atende", type: "checkbox-group"/);
+  assert.match(api, /select\("\*,professional_units\(unit_id\)"\)/);
+  assert.match(api, /unit_ids:/);
+  assert.match(agendaRoute, /PROFESSIONAL_UNIT_NOT_LINKED/);
+  assert.match(agendaRoute, /app\.patch\("\/group-slots\/:id"/);
+  assert.match(agendaRoute, /weekdays: z\.array\(z\.number\(\)\.int\(\)\.min\(1\)\.max\(5\)\)/);
+  assert.match(repairMigration, /insert into public\.professional_units/);
+  assert.match(repairMigration, /from public\.group_slots/);
+});
+
 test("mantém o fluxo de matrícula da recepção funcional e sem expor o financeiro", async () => {
   const [authorization, api, enrollments, shared, migration] = await Promise.all([
     readFile(new URL("../supabase/functions/api/authorization.ts", import.meta.url), "utf8"),

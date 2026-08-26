@@ -276,7 +276,16 @@ app.patch("/units/:id", requireRoles(["admin"]), async (context) => {
 });
 
 app.get("/rooms", requireRoles(["admin", "manager", "reception", "professional"]), listResource("rooms", "name"));
-app.get("/professionals", requireRoles(["admin", "manager", "reception", "professional", "finance"]), listResource("professionals", "name"));
+app.get("/professionals", requireRoles(["admin", "manager", "reception", "professional", "finance"]), async (context) => {
+  const clinicId = context.get("profile").clinic_id;
+  const { data, error } = await context.get("db").from("professionals")
+    .select("*,professional_units(unit_id)")
+    .eq("clinic_id", clinicId).is("deleted_at", null).order("name");
+  return databaseResult(context, (data ?? []).map((professional) => ({
+    ...professional,
+    unit_ids: (professional.professional_units ?? []).map((item: { unit_id: string }) => item.unit_id),
+  })), error);
+});
 app.get("/services", requireRoles(["admin", "manager", "reception", "professional"]), listResource("services", "name"));
 app.get("/plans", requireRoles(["admin", "manager", "reception", "finance"]), listResource("plans", "name"));
 app.get("/group-slots", requireRoles(["admin", "manager", "reception", "professional"]), listResource("group_slots", "starts_at"));
@@ -333,15 +342,28 @@ app.post("/professionals", requireRoles(["admin", "manager"]), async (context) =
   }).parse(await context.req.json());
   const { unitIds, ...professional } = input;
   const db = context.get("db");
+  const clinicId = context.get("profile").clinic_id;
+  const uniqueUnitIds = [...new Set(unitIds)];
+  const { data: units, error: unitsError } = await db.from("units").select("id")
+    .eq("clinic_id", clinicId).in("id", uniqueUnitIds).is("deleted_at", null);
+  if (unitsError) return databaseResult(context, null, unitsError);
+  if ((units ?? []).length !== uniqueUnitIds.length) {
+    return fail(context, 400, "INVALID_PROFESSIONAL_UNITS", "Selecione apenas unidades válidas da clínica.");
+  }
+  for (const unitId of uniqueUnitIds) {
+    if (!(await hasUnitAccess(context, unitId))) {
+      return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a uma das unidades selecionadas.");
+    }
+  }
   const { data, error } = await db.from("professionals").insert({
     ...professional,
-    clinic_id: context.get("profile").clinic_id,
+    clinic_id: clinicId,
   }).select().single();
   if (error || !data) return databaseResult(context, null, error);
-  const { error: unitsError } = await db.from("professional_units").insert(
-    unitIds.map((unitId) => ({ professional_id: data.id, unit_id: unitId })),
+  const { error: linkUnitsError } = await db.from("professional_units").insert(
+    uniqueUnitIds.map((unitId) => ({ professional_id: data.id, unit_id: unitId })),
   );
-  if (unitsError) return databaseResult(context, null, unitsError);
+  if (linkUnitsError) return databaseResult(context, null, linkUnitsError);
   await audit(context, "professional.created", "professional", data.id);
   return ok(context, data, 201);
 });
@@ -353,8 +375,43 @@ app.patch("/professionals/:id", requireRoles(["admin", "manager"]), async (conte
     council: z.string().max(80).nullable().optional(),
     specialty: z.string().max(100).nullable().optional(),
     active: z.boolean().optional(),
+    unitIds: z.array(z.string().uuid()).min(1).optional(),
   }).parse(await context.req.json());
-  return updateClinicResource(context, "professionals", id, input, "professional.updated");
+  const { unitIds, ...changes } = input;
+  const db = context.get("db");
+  const clinicId = context.get("profile").clinic_id;
+  if (unitIds) {
+    const { data: units, error: unitsError } = await db.from("units").select("id")
+      .eq("clinic_id", clinicId).in("id", unitIds).is("deleted_at", null);
+    if (unitsError) return databaseResult(context, null, unitsError);
+    if ((units ?? []).length !== new Set(unitIds).size) {
+      return fail(context, 400, "INVALID_PROFESSIONAL_UNITS", "Selecione apenas unidades válidas da clínica.");
+    }
+    for (const unitId of unitIds) {
+      if (!(await hasUnitAccess(context, unitId))) {
+        return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a uma das unidades selecionadas.");
+      }
+    }
+  }
+  const { data, error } = await db.from("professionals").update({
+    ...changes,
+    updated_at: new Date().toISOString(),
+  }).eq("id", id).eq("clinic_id", clinicId).is("deleted_at", null).select().single();
+  if (error || !data) return databaseResult(context, data, error);
+  if (unitIds) {
+    const { error: removeError } = await db.from("professional_units").delete()
+      .eq("professional_id", id).not("unit_id", "in", `(${unitIds.join(",")})`);
+    if (removeError) return databaseResult(context, null, removeError);
+    const { error: linkError } = await db.from("professional_units").upsert(
+      [...new Set(unitIds)].map((unitId) => ({ professional_id: id, unit_id: unitId })),
+      { onConflict: "professional_id,unit_id" },
+    );
+    if (linkError) return databaseResult(context, null, linkError);
+  }
+  await audit(context, "professional.updated", "professional", id, undefined, {
+    changed_fields: [...Object.keys(changes), ...(unitIds ? ["unitIds"] : [])],
+  });
+  return ok(context, { ...data, ...(unitIds ? { unit_ids: unitIds } : {}) });
 });
 
 app.post("/services", requireRoles(["admin", "manager"]), async (context) => {

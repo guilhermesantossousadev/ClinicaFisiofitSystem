@@ -67,17 +67,22 @@ function FormularioServico({ data, reload, setNotice, submit, canDelete = false,
 }
 
 function FormularioProfissional({ data, reload, setNotice, submit, canDelete = false, canEdit = true }: AdministrationSectionProps) {
+  const units: Unit[] = data["/units"] ?? [];
+  const professionals = (data["/professionals"] ?? []).map((professional: Row) => ({
+    ...professional,
+    unit_names: (professional.unit_ids ?? []).map((unitId: string) => units.find((unit) => unit.id === unitId)?.name).filter(Boolean).join(", ") || "Sem unidade",
+  }));
   return <div className="administration-section">
     {canEdit && <DrawerForm title="Novo profissional" className="administration-form" onSubmit={(event) => submit(event, "/professionals", (form) => ({ name: value(form, "name"), council: value(form, "council") || undefined, specialty: value(form, "specialty") || undefined, unitIds: form.getAll("unitIds"), active: true }))}>
       <h2>Novo profissional</h2><p className="form-instructions">Informe os dados profissionais e selecione ao menos uma unidade.</p>
       <TextField name="name" label="Nome" required />
       <div className="form-row"><TextField name="council" label="Conselho" /><TextField name="specialty" label="Especialidade" /></div>
-      <FormSection legend="Unidades"><div className="weekday-checks">{(data["/units"] ?? []).map((unit: Unit) => <CheckboxField key={unit.id} name="unitIds" value={unit.id} label={unit.name} />)}</div></FormSection>
+      <FormSection legend="Unidades"><div className="weekday-checks">{units.map((unit) => <CheckboxField key={unit.id} name="unitIds" value={unit.id} label={unit.name} />)}</div></FormSection>
       <button className="btn primary">Salvar profissional</button>
     </DrawerForm>}
-    <EditableOperationalTable title="Profissionais" resource="professionals" rows={data["/professionals"] ?? []} fields={["name", "council", "specialty", "active"]}
-      editFields={[{ name: "name", label: "Nome", required: true }, { name: "council", label: "Conselho" }, { name: "specialty", label: "Especialidade" }]}
-      buildBody={(form) => ({ name: value(form, "name"), council: value(form, "council") || null, specialty: value(form, "specialty") || null })} onChanged={reload} onNotice={setNotice} allowDelete={canDelete} canEdit={canEdit} />
+    <EditableOperationalTable title="Profissionais" resource="professionals" rows={professionals} fields={["name", "council", "specialty", "unit_names", "active"]}
+      editFields={[{ name: "name", label: "Nome", required: true }, { name: "council", label: "Conselho" }, { name: "specialty", label: "Especialidade" }, { name: "unitIds", label: "Unidades em que atende", type: "checkbox-group", required: true, options: units, value: (row) => row.unit_ids ?? [] }]}
+      buildBody={(form) => ({ name: value(form, "name"), council: value(form, "council") || null, specialty: value(form, "specialty") || null, unitIds: form.getAll("unitIds").map(String) })} onChanged={reload} onNotice={setNotice} allowDelete={canDelete} canEdit={canEdit} />
   </div>;
 }
 

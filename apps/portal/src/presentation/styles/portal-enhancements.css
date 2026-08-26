@@ -1718,6 +1718,13 @@ body { background: var(--canvas); }
 .group-professional-form label { color: #29485c; font-size: 12px; font-weight: 800; }
 .group-professional-form select { width: 100%; min-height: 44px; margin-top: 6px; padding: 8px 34px 8px 10px; border: 1px solid #87a99f; border-radius: 8px; background: #fff; color: var(--ink); font-size: 14px; }
 .group-professional-form .btn { min-height: 44px; }
+.group-edit-form { margin: 0 0 24px; padding: 18px; border: 1px solid #cfe2dc; border-radius: 12px; background: #f3f9f7; }
+.group-edit-form .group-edit-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.group-edit-form .group-edit-heading h3 { margin: 0; }
+.group-edit-form .group-edit-heading p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+.group-edit-form .group-edit-heading > span { padding: 5px 9px; border-radius: 999px; background: #dcece7; color: #29485c; font-size: 12px; font-weight: 800; }
+.group-edit-form .weekday-checkbox-group { margin: 0; padding: 14px; border: 1px solid #bdd7cf; border-radius: 10px; background: #fff; }
+.group-edit-form > .btn { width: 100%; min-height: 46px; }
 .month-calendar-item.group-item { border-left-color: var(--green); background: #e9f6f1; }
 .month-calendar-item.group-item strong { color: #276d61; }
 .month-calendar-item.appointment-item { border-left-color: #df9f2d; background: #fff6df; }

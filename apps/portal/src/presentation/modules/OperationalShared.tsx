@@ -1,7 +1,7 @@
 import { FormEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useCallback, useEffect, useId, useRef, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { getPortalSessionGeneration, operationalResourceCache } from "../../infrastructure/session/portalSessionState";
-import { FormField, SelectField, TextareaField, TextField } from "../components/FormPrimitives";
+import { CheckboxField, FormField, FormSection, SelectField, TextareaField, TextField } from "../components/FormPrimitives";
 
 export type Row = Record<string, any>;
 export type Unit = { id: string; name: string };
@@ -188,6 +188,7 @@ export function PatientPicker({
   onSelect,
   id,
   allowedIds,
+  unitId,
 }: {
   name?: string;
   rows: Row[];
@@ -198,6 +199,7 @@ export function PatientPicker({
   onSelect?: (patient: Row) => void;
   id?: string;
   allowedIds?: string[];
+  unitId?: string;
 }) {
   const generatedId = useId();
   const fieldId = id ?? `${name}-${generatedId.replaceAll(":", "")}`;
@@ -213,7 +215,8 @@ export function PatientPicker({
     const search = query.trim();
     if (search.length < 2) return;
     const timer = window.setTimeout(() => {
-      void api<{ items: Row[] }>(`/patients?page=1&pageSize=100&search=${encodeURIComponent(search)}`)
+      const unitFilter = unitId ? `&unitId=${encodeURIComponent(unitId)}` : "";
+      void api<{ items: Row[] }>(`/patients?page=1&pageSize=100&search=${encodeURIComponent(search)}${unitFilter}`)
         .then((response) => {
           const results = response.data?.items ?? [];
           if (!allowedIds) return setOptions(results);
@@ -223,7 +226,7 @@ export function PatientPicker({
         .catch(() => setOptions(rows.filter((row) => String(row.name ?? "").toLocaleLowerCase("pt-BR").includes(search.toLocaleLowerCase("pt-BR")))));
     }, 220);
     return () => window.clearTimeout(timer);
-  }, [allowedIds, query, rows]);
+  }, [allowedIds, query, rows, unitId]);
   const choose = (patient: Row) => {
     setSelectedId(patient.id);
     setQuery(patient.name ?? "Paciente");
@@ -486,7 +489,7 @@ export function MetricLite({
 export type EditField = {
   name: string;
   label: string;
-  type?: "text" | "number" | "date" | "email" | "tel" | "datetime-local" | "select" | "textarea";
+  type?: "text" | "number" | "date" | "email" | "tel" | "datetime-local" | "select" | "textarea" | "checkbox-group";
   required?: boolean;
   min?: number;
   max?: number;
@@ -653,7 +656,14 @@ export function EditableOperationalTable({
                 field.type === "select" ? <SelectField key={field.name} name={field.name} label={field.label} required={field.required} defaultValue={String(field.value ? field.value(editing) ?? "" : editing[field.name] ?? "")}>
                     <option value="">Selecione</option>
                     {(field.options ?? []).map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
-                  </SelectField> : field.type === "textarea" ? <TextareaField key={field.name} name={field.name} label={field.label} rows={4} defaultValue={String(field.value ? field.value(editing) ?? "" : editing[field.name] ?? "")} /> : <TextField
+                  </SelectField> : field.type === "checkbox-group" ? <FormSection key={field.name} legend={field.label}>
+                    <div className="weekday-checks">
+                      {(field.options ?? []).map((option) => {
+                        const selected = field.value ? field.value(editing) : editing[field.name];
+                        return <CheckboxField key={option.id} name={field.name} value={option.id} label={option.name} defaultChecked={Array.isArray(selected) && selected.includes(option.id)} />;
+                      })}
+                    </div>
+                  </FormSection> : field.type === "textarea" ? <TextareaField key={field.name} name={field.name} label={field.label} rows={4} defaultValue={String(field.value ? field.value(editing) ?? "" : editing[field.name] ?? "")} /> : <TextField
                     key={field.name}
                     name={field.name}
                     label={field.label}
@@ -726,7 +736,7 @@ export function fieldLabel(field: string) {
     requester_name: "Solicitante", title: "Título", severity: "Severidade",
     discovered_at: "Identificado em", action: "Ação", entity_type: "Recurso",
     user_id: "Usuário", occurred_at: "Data", capacity: "Capacidade",
-    duration_minutes: "Duração", council: "Conselho", specialty: "Especialidade",
+    duration_minutes: "Duração", council: "Conselho", specialty: "Especialidade", unit_names: "Unidades",
     weekdays: "Dias da semana", weekdays_label: "Dias da semana",
     plan_name: "Plano", group_name: "Turma",
   };
