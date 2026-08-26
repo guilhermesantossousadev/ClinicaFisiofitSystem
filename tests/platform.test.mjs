@@ -125,6 +125,8 @@ test("mantém turmas distintas por dias dentro dos horários fixos", async () =>
   assert.match(agendaRoute, /GROUP_SLOT_CONFLICT/);
   assert.match(agendaRoute, /conflictingGroup:/);
   assert.match(agendaRoute, /Já existe outra turma nesta unidade para o mesmo dia e horário/);
+  assert.match(agendaRoute, /function groupScheduleChanged/);
+  assert.match(agendaRoute, /target\.active && groupScheduleChanged\(slot, target\)/);
   assert.match(agendaRoute, /weekdays: slot\.weekdays/);
   assert.doesNotMatch(agendaRoute, /Os horários são fixos e não podem ser cadastrados/);
   assert.match(migration, /sync_membership_weekdays_from_group/);

@@ -22,6 +22,16 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     const secondEnd = second.ends_on ?? "9999-12-31";
     return firstStart <= secondEnd && secondStart <= firstEnd;
   }
+
+  function groupScheduleChanged(current: any, target: any) {
+    const currentWeekdays = [...(current.weekdays ?? [])].sort((a: number, b: number) => a - b);
+    const targetWeekdays = [...(target.weekdays ?? [])].sort((a: number, b: number) => a - b);
+    return String(current.starts_at).slice(0, 5) !== String(target.starts_at).slice(0, 5)
+      || currentWeekdays.join(",") !== targetWeekdays.join(",")
+      || (current.starts_on ?? null) !== (target.starts_on ?? null)
+      || (current.ends_on ?? null) !== (target.ends_on ?? null)
+      || (!current.active && target.active);
+  }
   app.get("/attendance/daily", requireRoles(["admin", "manager", "reception", "professional"]), async (context: any) => {
     const classDate = z.string().date().parse(context.req.query("date"));
     const weekday = new Date(`${classDate}T12:00:00Z`).getUTCDay();
@@ -406,7 +416,10 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
       service_id: target.service_id ?? undefined,
     });
     if (scopeError) return scopeError;
-    if (target.active) {
+    // Registros antigos podem ter horários sobrepostos. Uma edição administrativa
+    // (por exemplo, trocar o responsável) não deve ser bloqueada por esse legado;
+    // o conflito é revalidado quando a grade muda ou uma turma é reativada.
+    if (target.active && groupScheduleChanged(slot, target)) {
       const { data: conflictingSlots, error: conflictError } = await db.from("group_slots")
         .select("id,name,weekdays,starts_at,starts_on,ends_on")
         .eq("clinic_id", clinicId).eq("unit_id", slot.unit_id).eq("starts_at", target.starts_at)
