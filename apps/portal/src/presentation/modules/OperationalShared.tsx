@@ -86,7 +86,9 @@ export function useResources(paths: string[]) {
   const [data, setData] = useState<Record<string, any>>(() => operationalResourceCache.get(cacheKey) ?? {});
   const [loading, setLoading] = useState(() => !operationalResourceCache.has(cacheKey));
   const [error, setError] = useState("");
+  const requestVersion = useRef(0);
   const reload = useCallback(async () => {
+    const currentRequest = ++requestVersion.current;
     const sessionGeneration = getPortalSessionGeneration();
     setLoading(true);
     setError("");
@@ -98,22 +100,25 @@ export function useResources(paths: string[]) {
           return response.status === "fulfilled" ? [[path, response.value.data]] : [];
         }),
       );
-      if (sessionGeneration !== getPortalSessionGeneration()) return;
+      if (sessionGeneration !== getPortalSessionGeneration() || currentRequest !== requestVersion.current) return;
       operationalResourceCache.set(cacheKey, nextData);
       setData(nextData);
       const failures = responses.filter((response): response is PromiseRejectedResult => response.status === "rejected");
       if (failures.length) setError(messageOf(failures[0].reason));
     } catch (loadError) {
-      setError(messageOf(loadError));
+      if (currentRequest === requestVersion.current) setError(messageOf(loadError));
     } finally {
-      setLoading(false);
+      if (currentRequest === requestVersion.current) setLoading(false);
     }
   }, [cacheKey, key]);
   useEffect(() => {
     void reload();
     const onUnitChanged = () => void reload();
     window.addEventListener("fisiofit:unit-changed", onUnitChanged);
-    return () => window.removeEventListener("fisiofit:unit-changed", onUnitChanged);
+    return () => {
+      requestVersion.current += 1;
+      window.removeEventListener("fisiofit:unit-changed", onUnitChanged);
+    };
   }, [reload]);
   return { data, loading, error, reload };
 }

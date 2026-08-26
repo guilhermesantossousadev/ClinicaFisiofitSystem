@@ -122,8 +122,8 @@ Os indicadores são informativos. Se algum número parecer incorreto, confirme o
 ### 5.1 Consultar a semana
 
 1. Abra **Agenda**.
-2. No campo **Semana**, escolha a data inicial.
-3. Revise os atendimentos exibidos para os sete dias seguintes.
+2. Use as setas para consultar a semana anterior ou seguinte; use **Hoje** para retornar à semana atual.
+3. Revise os atendimentos e turmas dos sete dias exibidos.
 4. Confirme unidade, profissional, sala, paciente, serviço, horário e status.
 
 ### 5.2 Criar um agendamento individual
@@ -140,6 +140,8 @@ Os indicadores são informativos. Se algum número parecer incorreto, confirme o
 
 O sistema valida conflitos de profissional, sala e capacidade. Se houver conflito, não tente contornar criando outro horário; ajuste os dados ou consulte a gestora.
 
+Se aparecer **“Já existe outra turma nesta unidade para o mesmo dia e horário”**, o formulário permanecerá aberto. Revise os campos destacados e escolha outro dia, horário ou período de vigência. Quando disponível, o aviso identifica a turma conflitante.
+
 ### 5.3 Atualizar o status de um atendimento
 
 Na lista de atendimentos da semana, use a ação correspondente:
@@ -148,6 +150,8 @@ Na lista de atendimentos da semana, use a ação correspondente:
 - **Concluir:** atendimento ocorreu.
 - **Falta:** paciente não compareceu.
 - **Cancelar:** horário cancelado.
+
+O cancelamento preserva o registro no histórico. Para um período reservado sem paciente, marque **Bloquear este horário sem paciente** ao criar o compromisso.
 
 Atualize o status assim que o fato ocorrer. Isso mantém o Painel, a agenda e os registros operacionais coerentes.
 

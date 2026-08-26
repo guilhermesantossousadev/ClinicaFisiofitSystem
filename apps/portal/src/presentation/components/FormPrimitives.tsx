@@ -106,6 +106,8 @@ export function WeekdayCheckboxGroup({
   maxSelections = 3,
   required = false,
   disabled = false,
+  error,
+  onSelectionChange,
 }: {
   name?: string;
   label?: string;
@@ -113,6 +115,8 @@ export function WeekdayCheckboxGroup({
   maxSelections?: number;
   required?: boolean;
   disabled?: boolean;
+  error?: string;
+  onSelectionChange?: (weekdays: string[]) => void;
 }) {
   const generatedId = useId().replaceAll(":", "");
   const groupRef = useRef<HTMLFieldSetElement>(null);
@@ -131,7 +135,7 @@ export function WeekdayCheckboxGroup({
   }, [defaultsKey]);
 
   return (
-    <fieldset ref={groupRef} className="weekday-checkbox-group" aria-describedby={hintId} aria-required={required} data-max-selections={maxSelections}>
+    <fieldset ref={groupRef} className={`weekday-checkbox-group${error ? " has-error" : ""}`} aria-describedby={hintId} aria-required={required} aria-invalid={error ? "true" : undefined} data-max-selections={maxSelections}>
       <legend>{label}{required && <span className="required-mark" aria-hidden="true">*</span>}</legend>
       <div className="weekday-picker">
         {DEFAULT_WEEKDAYS.map((day, index) => {
@@ -145,9 +149,13 @@ export function WeekdayCheckboxGroup({
                 value={day.value}
                 checked={checked}
                 disabled={disabled || (!checked && limitReached)}
-                onChange={(event) => setSelected((current) => event.target.checked
-                  ? [...current, day.value].slice(0, maxSelections)
-                  : current.filter((value) => value !== day.value))}
+                onChange={(event) => setSelected((current) => {
+                  const next = event.target.checked
+                    ? [...current, day.value].slice(0, maxSelections)
+                    : current.filter((value) => value !== day.value);
+                  onSelectionChange?.(next);
+                  return next;
+                })}
               />
               <span>{day.label}</span>
             </label>
@@ -155,7 +163,7 @@ export function WeekdayCheckboxGroup({
         })}
       </div>
       <small id={hintId} className="form-field-hint" aria-live="polite">
-        {limitReached ? `Limite de ${maxSelections} dias atingido.` : `Escolha de 1 a ${maxSelections} dias.`}
+        {error ?? (limitReached ? `Limite de ${maxSelections} dias atingido.` : `Escolha de 1 a ${maxSelections} dias.`)}
       </small>
     </fieldset>
   );

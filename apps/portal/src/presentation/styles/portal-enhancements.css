@@ -12,6 +12,12 @@
   box-shadow: 0 16px 36px rgb(16 38 58 / 16%);
 }
 
+/* Mantém a severidade das notificações acima das regras legadas do portal. */
+.toast.toast-success { border-color: #39796e; background: #193f39; color: #fff; }
+.toast.toast-error { border-color: #d88f95; background: #8f2d32; color: #fff; }
+.toast.toast-warning { border-color: #d5a151; background: #815319; color: #fff; }
+.toast.toast-info { border-color: #5f9fc8; background: #164c70; color: #fff; }
+
 /* Chamada diária: fluxo compacto, legível e operável por toque. */
 .daily-attendance-title { gap: 20px; }
 .attendance-filters { display: grid; gap: 18px; margin-bottom: 18px; padding: 20px 22px; }
@@ -234,6 +240,76 @@
   .plan-control-cell { grid-template-columns: minmax(105px, .75fr) 1fr; gap: 5px 12px; }
   .plan-control-cell::before { content: attr(data-label); grid-row: 1 / span 2; align-self: start; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
   .plan-status { width: fit-content; }
+}
+
+/* Agenda: feedback semântico, estados e visão móvel. */
+.toast {
+  max-width: min(440px, calc(100vw - 32px));
+  align-items: flex-start;
+  padding: 14px 16px;
+  font-size: 13px;
+}
+.toast > div { display: grid; gap: 3px; min-width: 0; }
+.toast > div strong { font-size: 13px; }
+.toast > div p { margin: 0; line-height: 1.4; overflow-wrap: anywhere; }
+.toast > button { min-width: 32px; min-height: 32px; margin: -6px -8px -6px 2px; border: 0; border-radius: 7px; background: transparent; color: inherit; font-size: 20px; }
+.toast-success { background: #193f39; }
+.toast-error { background: #8f2d32; }
+.toast-error > span { background: #b9474d; }
+.toast-warning { background: #815319; }
+.toast-info { background: #164c70; }
+
+.group-conflict-alert {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #d88f95;
+  border-radius: 10px;
+  background: #fff2f3;
+  color: #7f222a;
+}
+.group-conflict-alert > span { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: #b9474d; color: #fff; font-weight: 900; }
+.group-conflict-alert strong { display: block; margin-bottom: 4px; font-size: 14px; }
+.group-conflict-alert p { margin: 0; font-size: 13px; line-height: 1.45; }
+.group-conflict-alert small { display: block; margin-top: 7px; color: #6f3035; font-size: 12px; }
+.weekday-checkbox-group.has-error { padding: 12px; border: 2px solid #b9474d; border-radius: 10px; background: #fff8f8; }
+.weekday-checkbox-group.has-error .form-field-hint { color: #8f2d32; font-weight: 700; }
+
+.appointment-status-label { width: max-content; padding: 2px 7px; border-radius: 999px; background: #dfeaf1; color: #29485c; font-weight: 800; }
+.month-calendar-item.status-confirmed { border-left-color: #176da8; background: #eaf5fc; }
+.month-calendar-item.status-attending { border-left-color: #7b5aa6; background: #f1ecf8; }
+.month-calendar-item.status-completed { border-left-color: #27806c; background: #e9f6f1; }
+.month-calendar-item.status-missed { border-left-color: #bd6f28; background: #fff3e7; }
+.month-calendar-item.status-cancelled { border-left-color: #8b949a; background: #f1f3f4; opacity: .82; }
+.month-calendar-item.status-blocked { border-left-color: #6a7480; background: repeating-linear-gradient(135deg, #f3f5f6, #f3f5f6 8px, #e8ecee 8px, #e8ecee 16px); }
+
+.appointment-readonly-details { padding: 22px 24px 24px; }
+.appointment-readonly-details dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; margin: 0 0 20px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.appointment-readonly-details dl > div { min-width: 0; padding: 13px 14px; border-bottom: 1px solid var(--line); }
+.appointment-readonly-details dt { color: var(--muted); font-size: 11px; font-weight: 800; text-transform: uppercase; }
+.appointment-readonly-details dd { margin: 4px 0 0; color: var(--ink); font-size: 14px; overflow-wrap: anywhere; }
+.appointment-readonly-details > .btn { width: 100%; min-height: 44px; }
+.blocked-slot-explanation { display: grid; align-content: center; gap: 4px; min-height: 72px; padding: 12px; border: 1px dashed #8796a2; border-radius: 9px; background: #f4f6f7; }
+.blocked-slot-explanation span { color: var(--muted); font-size: 12px; }
+.agenda-mobile-list { display: none; }
+
+@media (max-width: 720px) {
+  .fixed-calendar-toolbar-actions { width: 100%; flex-direction: column; align-items: stretch; gap: 10px; }
+  .calendar-month-controls { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; gap: 6px; }
+  .calendar-month-controls strong { min-width: 0; font-size: 15px; }
+  .calendar-month-controls .btn:last-child { grid-column: 1 / -1; width: 100%; }
+  .month-calendar .fixed-calendar-scroll { display: none; }
+  .agenda-mobile-list { display: grid; gap: 12px; padding: 14px; }
+  .agenda-mobile-day { padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+  .agenda-mobile-day.is-today { border-color: var(--blue); box-shadow: inset 3px 0 0 var(--blue); }
+  .agenda-mobile-day h3 { margin: 0 0 10px; color: var(--ink); font-size: 14px; text-transform: capitalize; }
+  .agenda-mobile-empty { margin: 0; padding: 12px; color: var(--muted); font-size: 12px; text-align: center; }
+  .month-calendar-item { min-height: 88px; }
+  .appointment-readonly-details dl { grid-template-columns: 1fr; }
+  .modal-actions { position: sticky; bottom: 0; z-index: 2; flex-direction: column; padding: 12px; background: #fff; }
+  .modal-actions .btn { width: 100%; min-height: 44px; }
+  .toast { right: 16px; bottom: 82px; left: 16px; max-width: none; }
 }
 
 /* Campos acessíveis e previsíveis: um grupo semântico por controle. */
@@ -2518,3 +2594,16 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
     padding-inline: 12px;
   }
 }
+
+/* A severidade das notificações prevalece sobre as regras legadas. */
+.calendar-month-controls .btn { min-width: 44px; min-height: 44px; }
+.modal-head > button { min-width: 44px; min-height: 44px; }
+.modal:focus { outline: none; }
+.appointment-quick-status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 18px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #f6f9fb; }
+.appointment-quick-status > span { width: 100%; color: var(--muted); font-size: 11px; font-weight: 800; text-transform: uppercase; }
+.appointment-quick-status button { min-height: 40px; padding: 8px 12px; border: 1px solid #a9bfcd; border-radius: 8px; background: #fff; color: var(--ink); font-size: 12px; font-weight: 750; }
+.appointment-quick-status button.active { border-color: var(--blue); background: #e7f3fa; color: var(--blue); }
+.toast.toast-success { border-color: #39796e; background: #193f39; color: #fff; }
+.toast.toast-error { border-color: #d88f95; background: #8f2d32; color: #fff; }
+.toast.toast-warning { border-color: #d5a151; background: #815319; color: #fff; }
+.toast.toast-info { border-color: #5f9fc8; background: #164c70; color: #fff; }

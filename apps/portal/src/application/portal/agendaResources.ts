@@ -1,4 +1,27 @@
 export type AgendaResource = Record<string, unknown> & { id?: string };
+export type AgendaRole = "admin" | "manager" | "reception" | "professional" | "finance";
+
+export function agendaCapabilities(role: AgendaRole, canEdit: boolean) {
+  return {
+    canManageAppointments: canEdit,
+    canManageGroups: canEdit && role !== "professional",
+    canViewEnrollments: ["admin", "manager", "reception"].includes(role),
+  };
+}
+
+export function agendaResourcePaths(appointmentsPath: string, role: AgendaRole) {
+  return [
+    appointmentsPath,
+    "/units",
+    "/professionals",
+    "/services",
+    "/rooms",
+    "/patients?page=1&pageSize=100",
+    "/group-slots",
+    "/group-slot-memberships",
+    ...(["admin", "manager", "reception"].includes(role) ? ["/enrollments"] : []),
+  ];
+}
 
 export function professionalUnitIds(professional: AgendaResource) {
   if (Array.isArray(professional.unit_ids)) return professional.unit_ids.map(String);

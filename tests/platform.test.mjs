@@ -123,6 +123,8 @@ test("mantém turmas distintas por dias dentro dos horários fixos", async () =>
   assert.match(enrollments, /label="Turma \(opcional\)"/);
   assert.doesNotMatch(enrollments, /form\.getAll\("weekdays"\)/);
   assert.match(agendaRoute, /GROUP_SLOT_CONFLICT/);
+  assert.match(agendaRoute, /conflictingGroup:/);
+  assert.match(agendaRoute, /Já existe outra turma nesta unidade para o mesmo dia e horário/);
   assert.match(agendaRoute, /weekdays: slot\.weekdays/);
   assert.doesNotMatch(agendaRoute, /Os horários são fixos e não podem ser cadastrados/);
   assert.match(migration, /sync_membership_weekdays_from_group/);
@@ -143,6 +145,10 @@ test("mantém todos os recursos da agenda coerentes com a unidade selecionada", 
   assert.match(agenda, /unitId=\{newAppointmentUnitId\}/);
   assert.match(agenda, /Salvar alterações da turma/);
   assert.match(agenda, /Cancelar agendamento/);
+  assert.match(agenda, /toast-\$\{notice\.type\}/);
+  assert.match(agenda, /GroupConflictAlert/);
+  assert.match(agenda, /agenda-mobile-list/);
+  assert.match(agenda, /canManageGroups/);
   assert.match(shared, /unitId \? `&unitId=/);
   assert.match(administration, /name: "unitIds", label: "Unidades em que atende", type: "checkbox-group"/);
   assert.match(api, /select\("\*,professional_units\(unit_id\)"\)/);

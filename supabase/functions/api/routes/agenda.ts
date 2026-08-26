@@ -195,7 +195,7 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     const { data, error } = await db.from("appointments").insert({
       ...input,
       clinic_id: context.get("profile").clinic_id,
-      status: "scheduled",
+      status: input.patient_id ? "scheduled" : "blocked",
     }).select().single();
     if (!error && data) await audit(context, "appointment.created", "appointment", data.id, data.unit_id);
     return databaseResult(context, data, error, 201);
@@ -225,7 +225,10 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     });
     if (conflictError) return databaseResult(context, null, conflictError);
     if (conflict?.conflict) return fail(context, 409, "SCHEDULE_CONFLICT", "Profissional ou sala já possui compromisso nesse horário.");
-    const { data, error } = await db.from("appointments").update({ ...input, updated_at: new Date().toISOString() })
+    const nextStatus = input.patient_id
+      ? (currentAppointment.status === "blocked" && !input.status ? "scheduled" : input.status)
+      : (input.status === "cancelled" ? "cancelled" : "blocked");
+    const { data, error } = await db.from("appointments").update({ ...input, ...(nextStatus ? { status: nextStatus } : {}), updated_at: new Date().toISOString() })
       .eq("id", id).eq("clinic_id", context.get("profile").clinic_id).is("deleted_at", null).select().single();
     if (!error && data) await audit(context, "appointment.updated", "appointment", id, data.unit_id);
     return databaseResult(context, data, error);
@@ -282,10 +285,21 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     if (scopeError) return scopeError;
     const db = context.get("db");
     const normalizedWeekdays = [...new Set(input.weekdays)].sort();
-    const { data: conflictingSlots } = await db.from("group_slots").select("id,name,weekdays,starts_at,starts_on,ends_on")
+    const { data: conflictingSlots, error: conflictError } = await db.from("group_slots").select("id,name,weekdays,starts_at,starts_on,ends_on")
       .eq("clinic_id", context.get("profile").clinic_id).eq("unit_id", input.unit_id).eq("starts_at", input.starts_at).eq("active", true).is("deleted_at", null);
-    if ((conflictingSlots ?? []).some((slot: any) => groupPeriodsOverlap(slot, input) && (slot.weekdays ?? []).some((day: number) => normalizedWeekdays.includes(day)))) {
-      return fail(context, 409, "GROUP_SLOT_CONFLICT", "Já existe uma turma nesta unidade para o mesmo dia e horário. Escolha outro horário ou dia.");
+    if (conflictError) return databaseResult(context, null, conflictError);
+    const conflictingGroup = (conflictingSlots ?? []).find((slot: any) => groupPeriodsOverlap(slot, input) && (slot.weekdays ?? []).some((day: number) => normalizedWeekdays.includes(day)));
+    if (conflictingGroup) {
+      return fail(context, 409, "GROUP_SLOT_CONFLICT", "Já existe outra turma nesta unidade para o mesmo dia e horário.", {
+        conflictingGroup: {
+          id: conflictingGroup.id,
+          name: conflictingGroup.name,
+          weekdays: conflictingGroup.weekdays,
+          startsAt: String(conflictingGroup.starts_at).slice(0, 5),
+          startsOn: conflictingGroup.starts_on,
+          endsOn: conflictingGroup.ends_on,
+        },
+      });
     }
     const { data, error } = await db.from("group_slots").insert({
       ...input,
@@ -398,8 +412,18 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
         .eq("clinic_id", clinicId).eq("unit_id", slot.unit_id).eq("starts_at", target.starts_at)
         .eq("active", true).is("deleted_at", null).neq("id", id);
       if (conflictError) return databaseResult(context, null, conflictError);
-      if ((conflictingSlots ?? []).some((candidate: any) => groupPeriodsOverlap(candidate, target) && (candidate.weekdays ?? []).some((day: number) => target.weekdays.includes(day)))) {
-        return fail(context, 409, "GROUP_SLOT_CONFLICT", "Já existe outra turma nesta unidade para o mesmo dia e horário.");
+      const conflictingGroup = (conflictingSlots ?? []).find((candidate: any) => groupPeriodsOverlap(candidate, target) && (candidate.weekdays ?? []).some((day: number) => target.weekdays.includes(day)));
+      if (conflictingGroup) {
+        return fail(context, 409, "GROUP_SLOT_CONFLICT", "Já existe outra turma nesta unidade para o mesmo dia e horário.", {
+          conflictingGroup: {
+            id: conflictingGroup.id,
+            name: conflictingGroup.name,
+            weekdays: conflictingGroup.weekdays,
+            startsAt: String(conflictingGroup.starts_at).slice(0, 5),
+            startsOn: conflictingGroup.starts_on,
+            endsOn: conflictingGroup.ends_on,
+          },
+        });
       }
     }
 
@@ -509,7 +533,7 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     return databaseResult(context, data, error);
   });
   
-  app.post("/appointments/:id/complete", requireRoles(["admin", "manager", "professional"]), async (context: any) => {
+  app.post("/appointments/:id/complete", requireRoles(["admin", "manager", "reception", "professional"]), async (context: any) => {
     const id = z.string().uuid().parse(context.req.param("id"));
     const currentAppointment = await getAuthorizedAppointment(context, id);
     if (currentAppointment instanceof Response) return currentAppointment;

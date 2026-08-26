@@ -239,7 +239,7 @@ branch `hostinger-deploy` a partir do commit `df69c42`.
 | Login/recuperação | Implementado | páginas Auth, Supabase config e CSP do portal | Conta administrativa confirmada/ativa; redirect e envio de recuperação validados no Auth remoto |
 | Autenticação | Implementado | páginas Auth e middleware API | E-mail e senha, sem segundo fator |
 | Painel | Implementado | `/dashboard`, `FisiofitApp.tsx` | Dados reais da API |
-| Agenda/turmas | Implementado | API e `OperationalAgenda` | Agenda semanal com horários fixos, turmas recorrentes definidas por combinação de dias e alocação/remoção de pacientes por turma |
+| Agenda/turmas | Implementado com validação pendente em navegador autenticado | API e `OperationalAgenda` | Agenda semanal responsiva, bloqueios, conclusão/cancelamento preservado, turmas recorrentes, alocação e conflito de turma tratado no formulário; matriz E2E por papel ainda precisa ser executada |
 | Pacientes | Parcial | endpoints e `OperationalPatients` | Cria/edita paciente; detalhes associados sem edição/remoção completa |
 | Matrículas/cobranças | Parcial | endpoints/UI | Criação e recebimento; sem gestão completa de estados |
 | Prontuário | Parcial | endpoints/UI/triggers/RLS | Criação, assinatura e retificação; profissional limitado à própria autoria e aos próprios atendimentos no código da Fase 1; falta teste integrado em banco real |
