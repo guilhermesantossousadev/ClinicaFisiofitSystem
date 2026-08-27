@@ -23,7 +23,48 @@ export function registerPacientesRoutes(app: any, dependencies: any) {
     }
     const from = (page - 1) * pageSize;
     const { data, error, count } = await query.order("name").range(from, from + pageSize - 1);
-    return databaseResult(context, { items: data ?? [], page, pageSize, total: count ?? 0 }, error);
+    if (error || !data?.length || context.req.query("includeOperational") !== "true") {
+      return databaseResult(context, { items: data ?? [], page, pageSize, total: count ?? 0 }, error);
+    }
+
+    const patientIds = data.map((patient: any) => patient.id);
+    const db = context.get("db");
+    const { data: enrollments, error: enrollmentError } = await db.from("enrollments").select("*")
+      .eq("clinic_id", clinicId).in("patient_id", patientIds).eq("status", "active").is("deleted_at", null)
+      .order("created_at", { ascending: false });
+    if (enrollmentError) return databaseResult(context, null, enrollmentError);
+
+    const enrollmentIds = (enrollments ?? []).map((enrollment: any) => enrollment.id);
+    const planIds = [...new Set((enrollments ?? []).map((enrollment: any) => enrollment.plan_id))];
+    const [membershipsResult, plansResult] = await Promise.all([
+      enrollmentIds.length
+        ? db.from("group_slot_memberships").select("id,enrollment_id,group_slot_id,starts_at,ends_at,status,group_slots(name)")
+          .eq("clinic_id", clinicId).in("enrollment_id", enrollmentIds).eq("status", "active").is("deleted_at", null)
+        : Promise.resolve({ data: [], error: null }),
+      planIds.length
+        ? db.from("plans").select("id,name").eq("clinic_id", clinicId).in("id", planIds)
+        : Promise.resolve({ data: [], error: null }),
+    ]);
+    const relatedError = membershipsResult.error ?? plansResult.error;
+    if (relatedError) return databaseResult(context, null, relatedError);
+    const enrollmentByPatient = new Map();
+    for (const enrollment of enrollments ?? []) {
+      if (!enrollmentByPatient.has(enrollment.patient_id)) enrollmentByPatient.set(enrollment.patient_id, enrollment);
+    }
+    const membershipByEnrollment = new Map((membershipsResult.data ?? []).map((item: any) => [item.enrollment_id, item]));
+    const planById = new Map((plansResult.data ?? []).map((item: any) => [item.id, item]));
+    const items = data.map((patient: any) => {
+      const enrollment = enrollmentByPatient.get(patient.id);
+      const membership = enrollment ? membershipByEnrollment.get(enrollment.id) : undefined;
+      return {
+        ...patient,
+        enrollment: enrollment ?? null,
+        membership: membership ?? null,
+        plan_name: enrollment ? planById.get(enrollment.plan_id)?.name ?? null : null,
+        group_name: membership?.group_slots?.name ?? null,
+      };
+    });
+    return databaseResult(context, { items, page, pageSize, total: count ?? 0 }, null);
   });
   
   app.get("/patients/:id", requireRoles(["admin", "manager", "reception", "professional"]), async (context: any) => {
@@ -70,6 +111,13 @@ export function registerPacientesRoutes(app: any, dependencies: any) {
       .eq("id", id).eq("clinic_id", context.get("profile").clinic_id).is("deleted_at", null).maybeSingle();
     if (!currentPatient || !(await hasUnitAccess(context, currentPatient.primary_unit_id))) {
       return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso à unidade deste paciente.");
+    }
+    const { data: activeEnrollment, error: enrollmentError } = await context.get("db").from("enrollments").select("id")
+      .eq("clinic_id", context.get("profile").clinic_id).eq("patient_id", id).eq("status", "active")
+      .is("deleted_at", null).limit(1).maybeSingle();
+    if (enrollmentError) return databaseResult(context, null, enrollmentError);
+    if (activeEnrollment) {
+      return fail(context, 409, "PATIENT_HAS_ACTIVE_ENROLLMENT", "Este paciente possui uma matrícula ativa. Cancele ou reverta a matrícula antes de excluir o cadastro.");
     }
     const deletedAt = new Date().toISOString();
     const { data, error } = await context.get("db").from("patients").update({

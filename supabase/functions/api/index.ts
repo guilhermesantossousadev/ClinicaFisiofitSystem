@@ -299,7 +299,35 @@ app.get("/group-slot-memberships", requireRoles(["admin", "manager", "reception"
   const { data, error } = await query.order("created_at", { ascending: true }).limit(1000);
   return databaseResult(context, data, error);
 });
-app.get("/enrollments", requireRoles(["admin", "manager", "reception", "finance"]), listResource("enrollments", "created_at", false));
+app.get("/enrollments", requireRoles(["admin", "manager", "reception", "finance"]), async (context) => {
+  const clinicId = context.get("profile").clinic_id;
+  let query = context.get("db").from("enrollments").select("*")
+    .eq("clinic_id", clinicId).is("deleted_at", null);
+  const unitId = context.req.query("unitId");
+  if (unitId) {
+    const parsedUnitId = z.string().uuid().parse(unitId);
+    if (!(await hasUnitAccess(context, parsedUnitId))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+    query = query.eq("unit_id", parsedUnitId);
+  }
+  const { data: enrollments, error } = await query.order("created_at", { ascending: false }).limit(500);
+  if (error || !enrollments?.length) return databaseResult(context, enrollments ?? [], error);
+
+  const patientIds = [...new Set(enrollments.map((item) => item.patient_id))];
+  const planIds = [...new Set(enrollments.map((item) => item.plan_id))];
+  const [patientsResult, plansResult] = await Promise.all([
+    context.get("db").from("patients").select("id,name,phone").eq("clinic_id", clinicId).in("id", patientIds).is("deleted_at", null),
+    context.get("db").from("plans").select("id,name,duration_days,sessions_included").eq("clinic_id", clinicId).in("id", planIds),
+  ]);
+  const relatedError = patientsResult.error ?? plansResult.error;
+  if (relatedError) return databaseResult(context, null, relatedError);
+  const patientById = new Map((patientsResult.data ?? []).map((item) => [item.id, item]));
+  const planById = new Map((plansResult.data ?? []).map((item) => [item.id, item]));
+  return databaseResult(context, enrollments.map((enrollment) => ({
+    ...enrollment,
+    patient: patientById.get(enrollment.patient_id) ?? null,
+    plan: planById.get(enrollment.plan_id) ?? null,
+  })), null);
+});
 app.get("/charges", requireRoles(["admin", "manager", "finance"]), listResource("charges", "due_at", false));
 app.get("/payments", requireRoles(["admin", "manager", "finance"]), listResource("payments", "paid_at", false));
 app.get("/commissions", requireRoles(["admin", "manager", "finance"]), listResource("commissions", "created_at", false));

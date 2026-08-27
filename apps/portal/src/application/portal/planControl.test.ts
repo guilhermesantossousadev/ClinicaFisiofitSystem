@@ -43,4 +43,27 @@ describe("controle de planos", () => {
 
     expect(rows[0]).toMatchObject({ chargeId: "charge-1", paymentState: "cancelled" });
   });
+
+  it("usa o paciente e o plano associados à matrícula mesmo fora da página de pacientes", () => {
+    const rows = buildPlanControlRows({
+      enrollments: [{
+        ...base.enrollments[0],
+        patient: { id: "patient-1", name: "Beatriz", phone: "11988887777" },
+        plan: { id: "plan-1", name: "Trimestral", duration_days: 90, sessions_included: 24 },
+      }],
+      patients: [],
+      plans: [],
+      charges: [],
+      payments: [],
+      today: new Date(2026, 7, 16),
+    });
+
+    expect(rows[0]).toMatchObject({
+      patientName: "Beatriz",
+      patientPhone: "11988887777",
+      planName: "Trimestral",
+      sessionsIncluded: 24,
+      renewsAt: "2026-10-30",
+    });
+  });
 });

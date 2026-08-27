@@ -8,25 +8,18 @@ export function OperationalPatients({ canEdit = true, canViewEnrollments = true,
   const [search, setSearch] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
   const pageSize = 20;
-  const patientPath = `/patients?page=${page}&pageSize=${pageSize}${appliedSearch ? `&search=${encodeURIComponent(appliedSearch)}` : ""}`;
+  const includeOperational = canViewEnrollments || canViewAgenda;
+  const patientPath = `/patients?page=${page}&pageSize=${pageSize}${appliedSearch ? `&search=${encodeURIComponent(appliedSearch)}` : ""}${includeOperational ? "&includeOperational=true" : ""}`;
   const paths = [
     patientPath,
     "/units",
-    ...(canViewEnrollments ? ["/plans", "/enrollments"] : []),
-    ...(canViewAgenda ? ["/group-slots", "/group-slot-memberships"] : []),
+    ...(canViewEnrollments ? ["/plans"] : []),
+    ...(canViewAgenda ? ["/group-slots"] : []),
   ];
   const { data, loading, error, reload } = useResources(paths);
-  const enrollments: Row[] = data["/enrollments"] ?? [];
-  const memberships: Row[] = data["/group-slot-memberships"] ?? [];
   const plans: Row[] = data["/plans"] ?? [];
   const groupSlots: Row[] = data["/group-slots"] ?? [];
-  const patients: Row[] = (data[patientPath]?.items ?? []).map((patient: Row) => {
-    const enrollment = enrollments.find((item) => item.patient_id === patient.id && item.status === "active" && !item.deleted_at);
-    const membership = enrollment ? memberships.find((item) => item.enrollment_id === enrollment.id && item.status === "active") : undefined;
-    const plan = enrollment ? plans.find((item) => item.id === enrollment.plan_id) : undefined;
-    const group = membership ? groupSlots.find((item) => item.id === membership.group_slot_id) : undefined;
-    return { ...patient, enrollment, membership, plan_name: plan?.name, group_name: group?.name };
-  });
+  const patients: Row[] = data[patientPath]?.items ?? [];
   const total = Number(data[patientPath]?.total ?? 0);
   const [selected, setSelected] = useState<Row | null>(null);
   const [detail, setDetail] = useState<{

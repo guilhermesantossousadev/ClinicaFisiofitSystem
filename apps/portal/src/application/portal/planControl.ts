@@ -71,8 +71,12 @@ export function buildPlanControlRows({
   return enrollments
     .filter((enrollment) => !enrollment.deleted_at && enrollment.status !== "reversed")
     .map((enrollment) => {
-      const patient = patientById.get(String(enrollment.patient_id)) ?? {};
-      const plan = planById.get(String(enrollment.plan_id)) ?? {};
+      const patient = (enrollment.patient as PlanControlSourceRow | null)
+        ?? patientById.get(String(enrollment.patient_id))
+        ?? {};
+      const plan = (enrollment.plan as PlanControlSourceRow | null)
+        ?? planById.get(String(enrollment.plan_id))
+        ?? {};
       const enrollmentCharges = charges.filter((charge) =>
         !charge.deleted_at && String(charge.enrollment_id) === String(enrollment.id),
       );
