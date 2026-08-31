@@ -180,6 +180,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
   const groupMembers: Row[] = data["/group-slot-memberships"] ?? [];
   const [notice, setNotice] = useState<Notice | null>(null);
   const [createGroupConflict, setCreateGroupConflict] = useState<GroupConflict | null>(null);
+  const [createBulkGroupConflict, setCreateBulkGroupConflict] = useState<GroupConflict | null>(null);
   const [editGroupConflict, setEditGroupConflict] = useState<GroupConflict | null>(null);
   const [creatingBlock, setCreatingBlock] = useState(false);
   const [newAppointmentServiceId, setNewAppointmentServiceId] = useState("");
@@ -189,6 +190,10 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
   const [savingGroup, setSavingGroup] = useState(false);
   const [selectedUnitId, setSelectedUnitId] = useState(() => window.localStorage.getItem("fisiofit:selected-unit") ?? "");
   const [newGroupUnitId, setNewGroupUnitId] = useState(() => window.localStorage.getItem("fisiofit:selected-unit") ?? "");
+  const [newBulkGroupUnitId, setNewBulkGroupUnitId] = useState(() => window.localStorage.getItem("fisiofit:selected-unit") ?? "");
+  const [bulkFirstTime, setBulkFirstTime] = useState("06:00");
+  const [bulkLastTime, setBulkLastTime] = useState("20:00");
+  const [bulkIntervalMinutes, setBulkIntervalMinutes] = useState("60");
   const [newAppointmentUnitId, setNewAppointmentUnitId] = useState(() => window.localStorage.getItem("fisiofit:selected-unit") ?? "");
   const [appointmentPickerVersion, setAppointmentPickerVersion] = useState(0);
   const [calendarAppointmentUnitId, setCalendarAppointmentUnitId] = useState("");
@@ -209,6 +214,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
       const nextUnitId = (event as CustomEvent<string>).detail ?? window.localStorage.getItem("fisiofit:selected-unit") ?? "";
       setSelectedUnitId(nextUnitId);
       setNewGroupUnitId(nextUnitId);
+      setNewBulkGroupUnitId(nextUnitId);
       setNewAppointmentUnitId(nextUnitId);
     };
     window.addEventListener("fisiofit:unit-changed", onUnitChanged);
@@ -234,6 +240,10 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
   const units: Unit[] = data["/units"] ?? [];
   const professionals: Row[] = data["/professionals"] ?? [];
   const rooms: Row[] = data["/rooms"] ?? [];
+  const bulkRangeHours = Number(bulkLastTime.slice(0, 2)) - Number(bulkFirstTime.slice(0, 2));
+  const bulkIntervalHours = Number(bulkIntervalMinutes) / 60;
+  const bulkRangeIsValid = bulkRangeHours >= 0 && bulkRangeHours % bulkIntervalHours === 0;
+  const bulkSlotCount = bulkRangeIsValid ? bulkRangeHours / bulkIntervalHours + 1 : 0;
   const visibleUnits = selectedUnitId ? units.filter((unit) => unit.id === selectedUnitId) : [];
   const membersForSlot = (slotId: string, date: Date) => groupMembers.filter((member) => {
     if (member.group_slot_id !== slotId || member.status !== "active") return false;
@@ -279,6 +289,46 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
       if (conflict) {
         setCreateGroupConflict(conflict);
         requestAnimationFrame(() => formElement.querySelector<HTMLElement>('[name="starts_at"]')?.focus());
+      }
+      failure(actionError);
+    }
+  }
+
+  async function createBulkGroups(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setCreateBulkGroupConflict(null);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    try {
+      const result = await api<{ created: number }>("/group-slots/bulk", {
+        method: "POST",
+        body: JSON.stringify({
+          unit_id: value(form, "unit_id"),
+          room_id: value(form, "room_id") || undefined,
+          professional_id: value(form, "professional_id"),
+          service_id: value(form, "service_id") || undefined,
+          name_prefix: value(form, "name_prefix"),
+          weekdays: form.getAll("weekdays").map(Number),
+          first_time: value(form, "first_time"),
+          last_time: value(form, "last_time"),
+          interval_minutes: Number(value(form, "interval_minutes")),
+          starts_on: value(form, "starts_on") || undefined,
+          ends_on: value(form, "ends_on") || undefined,
+          duration_minutes: Number(value(form, "duration_minutes")),
+          capacity: Number(value(form, "capacity")),
+        }),
+      });
+      formElement.reset();
+      setBulkFirstTime("06:00");
+      setBulkLastTime("20:00");
+      setBulkIntervalMinutes("60");
+      success(`${result.data?.created ?? bulkSlotCount} turmas criadas na grade de horários.`);
+      await reload();
+    } catch (actionError) {
+      const conflict = conflictFrom(actionError);
+      if (conflict) {
+        setCreateBulkGroupConflict(conflict);
+        requestAnimationFrame(() => formElement.querySelector<HTMLElement>('[name="first_time"]')?.focus());
       }
       failure(actionError);
     }
@@ -625,6 +675,43 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
           </fieldset>
           {createGroupConflict && <GroupConflictAlert conflict={createGroupConflict} />}
           <button className="btn primary" disabled={!newGroupUnitId || !professionalsForUnit(professionals, newGroupUnitId).length || Boolean(createGroupConflict)}>{createGroupConflict ? "Ajuste o horário para continuar" : "Criar turma"}</button>
+        </DrawerForm>}
+        {role === "admin" && canManageGroups && <DrawerForm title="Criar grade de horários" onSubmit={createBulkGroups}>
+          <p className="form-instructions">Recurso exclusivo do administrador. Cria várias turmas de uma só vez, mantendo os mesmos dias, responsável, duração e capacidade.</p>
+          <fieldset>
+            <legend>Identificação e responsável</legend>
+            <TextField name="name_prefix" label="Nome base das turmas" placeholder="Ex.: Pilates · Seg/Qua" hint="O horário será acrescentado automaticamente a cada nome." required />
+            <div className="form-row">
+              <SelectField name="unit_id" label="Unidade" value={newBulkGroupUnitId} onChange={(event) => { setNewBulkGroupUnitId(event.target.value); setCreateBulkGroupConflict(null); }} required><option value="">Selecione</option>{units.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}</SelectField>
+              <Select key={`bulk-group-professional-${newBulkGroupUnitId}`} name="professional_id" label="Fisioterapeuta responsável" rows={professionalsForUnit(professionals, newBulkGroupUnitId)} />
+            </div>
+            <div className="form-row">
+              <Select key={`bulk-group-room-${newBulkGroupUnitId}`} name="room_id" label="Sala (opcional)" rows={resourcesForUnit(rooms, newBulkGroupUnitId)} required={false} />
+              <Select name="service_id" label="Serviço (opcional)" rows={(data["/services"] ?? []).filter((service: Row) => service.active !== false)} required={false} />
+            </div>
+            {newBulkGroupUnitId && !professionalsForUnit(professionals, newBulkGroupUnitId).length && <p className="form-field-error" role="alert">Esta unidade não possui fisioterapeuta ativo vinculado. Atualize o profissional em Configurações.</p>}
+          </fieldset>
+          <fieldset>
+            <legend>Dias e faixa de horários</legend>
+            <WeekdayCheckboxGroup label="Dias das turmas" required maxSelections={5} error={createBulkGroupConflict?.message} onSelectionChange={() => setCreateBulkGroupConflict(null)} />
+            <div className="form-row">
+              <SelectField name="first_time" label="Primeiro horário" value={bulkFirstTime} onChange={(event) => { setBulkFirstTime(event.target.value); setCreateBulkGroupConflict(null); }} required>{FIXED_GROUP_TIMES.map((time) => <option key={time} value={time}>{time}</option>)}</SelectField>
+              <SelectField name="last_time" label="Último horário" value={bulkLastTime} onChange={(event) => { setBulkLastTime(event.target.value); setCreateBulkGroupConflict(null); }} required>{FIXED_GROUP_TIMES.map((time) => <option key={time} value={time}>{time}</option>)}</SelectField>
+            </div>
+            <div className="form-row">
+              <SelectField name="interval_minutes" label="Intervalo entre turmas" value={bulkIntervalMinutes} onChange={(event) => setBulkIntervalMinutes(event.target.value)} required><option value="60">A cada 1 hora</option><option value="120">A cada 2 horas</option><option value="180">A cada 3 horas</option><option value="240">A cada 4 horas</option></SelectField>
+              <TextField name="duration_minutes" label="Duração de cada turma (minutos)" type="number" min="15" max="240" defaultValue="60" required />
+            </div>
+            <div className="form-row">
+              <TextField name="starts_on" label="Início das turmas (opcional)" type="date" onChange={() => setCreateBulkGroupConflict(null)} />
+              <TextField name="ends_on" label="Fim das turmas (opcional)" type="date" onChange={() => setCreateBulkGroupConflict(null)} />
+            </div>
+            <TextField name="capacity" label="Capacidade de cada turma" type="number" min="3" max="7" defaultValue="7" required />
+          </fieldset>
+          <p className="bulk-group-summary" role="status"><strong>{bulkRangeIsValid ? `${bulkSlotCount} ${bulkSlotCount === 1 ? "turma será criada" : "turmas serão criadas"}` : "Revise a faixa de horários"}</strong><span>De {bulkFirstTime} a {bulkLastTime}, {bulkIntervalMinutes === "60" ? "a cada hora" : `a cada ${Number(bulkIntervalMinutes) / 60} horas`}.</span></p>
+          {!bulkRangeIsValid && <p className="form-field-error" role="alert">Escolha um último horário que feche exatamente com o intervalo selecionado.</p>}
+          {createBulkGroupConflict && <GroupConflictAlert conflict={createBulkGroupConflict} />}
+          <button className="btn primary" disabled={!newBulkGroupUnitId || !professionalsForUnit(professionals, newBulkGroupUnitId).length || !bulkRangeIsValid || Boolean(createBulkGroupConflict)}>{createBulkGroupConflict ? "Ajuste a faixa para continuar" : `Criar ${bulkSlotCount} ${bulkSlotCount === 1 ? "turma" : "turmas"}`}</button>
         </DrawerForm>}
         {canManageAppointments && <DrawerForm title="Novo agendamento" onSubmit={createAppointment}>
           <p className="form-instructions"><span aria-hidden="true">*</span> indica campo obrigatório.</p>

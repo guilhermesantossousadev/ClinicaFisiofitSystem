@@ -321,6 +321,90 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     }
     return databaseResult(context, data, error, 201);
   });
+
+  app.post("/group-slots/bulk", requireRoles(["admin"]), async (context: any) => {
+    const input = z.object({
+      unit_id: z.string().uuid(),
+      room_id: z.string().uuid().optional(),
+      professional_id: z.string().uuid(),
+      service_id: z.string().uuid().optional(),
+      name_prefix: z.string().trim().min(3).max(85),
+      weekdays: z.array(z.number().int().min(1).max(5)).min(1).max(5),
+      first_time: z.string().regex(/^(0[6-9]|1\d|20):00$/, "Selecione um horário inicial entre 06:00 e 20:00."),
+      last_time: z.string().regex(/^(0[6-9]|1\d|20):00$/, "Selecione um horário final entre 06:00 e 20:00."),
+      interval_minutes: z.union([z.literal(60), z.literal(120), z.literal(180), z.literal(240)]).default(60),
+      starts_on: z.string().date().optional(),
+      ends_on: z.string().date().optional(),
+      duration_minutes: z.number().int().min(15).max(240),
+      capacity: z.number().int().min(3).max(7).default(7),
+    }).refine((value) => value.last_time >= value.first_time, {
+      message: "O horário final não pode ser anterior ao horário inicial.",
+      path: ["last_time"],
+    }).refine((value) => {
+      const firstHour = Number(value.first_time.slice(0, 2));
+      const lastHour = Number(value.last_time.slice(0, 2));
+      return lastHour < firstHour || (lastHour - firstHour) % (value.interval_minutes / 60) === 0;
+    }, {
+      message: "A faixa selecionada não fecha exatamente com o intervalo entre as turmas.",
+      path: ["last_time"],
+    }).refine((value) => !value.ends_on || Boolean(value.starts_on && value.ends_on >= value.starts_on), {
+      message: "A data final da turma não pode ser anterior à data inicial.",
+      path: ["ends_on"],
+    }).parse(await context.req.json());
+    const professionalError = await validateActiveProfessional(context, input.professional_id, input.unit_id);
+    if (professionalError) return professionalError;
+    const scopeError = await validateRelatedResourceScope(context, input);
+    if (scopeError) return scopeError;
+
+    const firstHour = Number(input.first_time.slice(0, 2));
+    const lastHour = Number(input.last_time.slice(0, 2));
+    const intervalHours = input.interval_minutes / 60;
+    const times = Array.from(
+      { length: Math.floor((lastHour - firstHour) / intervalHours) + 1 },
+      (_, index) => `${String(firstHour + index * intervalHours).padStart(2, "0")}:00`,
+    );
+    const normalizedWeekdays = [...new Set(input.weekdays)].sort();
+    const db = context.get("db");
+    const clinicId = context.get("profile").clinic_id;
+    const { data: conflictingSlots, error: conflictError } = await db.from("group_slots")
+      .select("id,name,weekdays,starts_at,starts_on,ends_on")
+      .eq("clinic_id", clinicId).eq("unit_id", input.unit_id).in("starts_at", times).eq("active", true).is("deleted_at", null);
+    if (conflictError) return databaseResult(context, null, conflictError);
+    const conflictingGroup = (conflictingSlots ?? []).find((slot: any) => groupPeriodsOverlap(slot, input)
+      && (slot.weekdays ?? []).some((day: number) => normalizedWeekdays.includes(day)));
+    if (conflictingGroup) {
+      return fail(context, 409, "GROUP_SLOT_CONFLICT", "A grade não foi criada porque um dos horários já está ocupado para os dias selecionados.", {
+        conflictingGroup: {
+          id: conflictingGroup.id,
+          name: conflictingGroup.name,
+          weekdays: conflictingGroup.weekdays,
+          startsAt: String(conflictingGroup.starts_at).slice(0, 5),
+          startsOn: conflictingGroup.starts_on,
+          endsOn: conflictingGroup.ends_on,
+        },
+      });
+    }
+
+    const rows = times.map((time) => ({
+      unit_id: input.unit_id,
+      room_id: input.room_id,
+      professional_id: input.professional_id,
+      service_id: input.service_id,
+      name: `${input.name_prefix} · ${time.slice(0, 2)}h`,
+      weekdays: normalizedWeekdays,
+      starts_at: time,
+      starts_on: input.starts_on,
+      ends_on: input.ends_on,
+      duration_minutes: input.duration_minutes,
+      capacity: input.capacity,
+      clinic_id: clinicId,
+    }));
+    const { data, error } = await db.from("group_slots").insert(rows).select();
+    if (!error && data) {
+      await Promise.all(data.map((slot: any) => audit(context, "group_slot.created_bulk", "group_slot", slot.id, slot.unit_id)));
+    }
+    return databaseResult(context, { items: data ?? [], created: data?.length ?? 0 }, error, 201);
+  });
   
   function addDays(date: Date, days: number) {
     const next = new Date(date);

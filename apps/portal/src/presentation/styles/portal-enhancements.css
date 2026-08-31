@@ -483,6 +483,9 @@
 .modal-form fieldset > :last-child { margin-bottom: 0; }
 .form-instructions { margin: -8px 0 18px; color: #536863; font-size: 12px; }
 .form-instructions span { color: #a52834; font-weight: 800; }
+.bulk-group-summary { display: grid; gap: 4px; margin: 0 0 18px; padding: 14px 16px; border: 1px solid #b9d8ea; border-radius: 10px; background: #f2f9fd; color: #294e68; }
+.bulk-group-summary strong { font-size: 15px; }
+.bulk-group-summary span { font-size: 13px; line-height: 1.45; }
 .required-mark { color: #a52834; font-size: 1.15em; }
 .field-error { display: flex; gap: 6px; margin-top: 6px; color: #a52834; font-size: 12px; font-weight: 650; line-height: 1.35; }
 .field-error::before { content: "!"; flex: 0 0 18px; width: 18px; height: 18px; border-radius: 50%; background: #a52834; color: white; display: grid; place-items: center; font-size: 11px; }

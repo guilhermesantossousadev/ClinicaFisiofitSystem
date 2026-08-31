@@ -133,6 +133,19 @@ test("mantém turmas distintas por dias dentro dos horários fixos", async () =>
   assert.match(migration, /name ~\* '\^Horário fixo'/);
 });
 
+test("restringe ao administrador a criação da grade de horários em lote", async () => {
+  const [agenda, agendaRoute] = await Promise.all([
+    readFile(new URL("../apps/portal/src/presentation/modules/OperationalAgenda.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/functions/api/routes/agenda.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(agenda, /role === "admin" && canManageGroups && <DrawerForm title="Criar grade de horários"/);
+  assert.match(agenda, /api<\{ created: number \}>\("\/group-slots\/bulk"/);
+  assert.match(agenda, /15 turmas serão criadas|bulkSlotCount/);
+  assert.match(agendaRoute, /app\.post\("\/group-slots\/bulk", requireRoles\(\["admin"\]\)/);
+  assert.match(agendaRoute, /group_slot\.created_bulk/);
+});
+
 test("mantém todos os recursos da agenda coerentes com a unidade selecionada", async () => {
   const [agenda, shared, administration, api, agendaRoute, repairMigration] = await Promise.all([
     readFile(new URL("../apps/portal/src/presentation/modules/OperationalAgenda.tsx", import.meta.url), "utf8"),
