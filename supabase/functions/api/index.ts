@@ -674,7 +674,8 @@ registerImportacoesRoutes(app, { requireRoles, databaseResult, listResource, req
 
 app.onError((error, context) => {
   if (error instanceof z.ZodError) {
-    return fail(context, 422, "VALIDATION_ERROR", "Revise os dados informados.", error.flatten());
+    const validationMessage = error.issues[0]?.message ?? "Revise os dados informados.";
+    return fail(context, 422, "VALIDATION_ERROR", validationMessage, error.flatten());
   }
   console.error(JSON.stringify({
     requestId: context.get("requestId"),

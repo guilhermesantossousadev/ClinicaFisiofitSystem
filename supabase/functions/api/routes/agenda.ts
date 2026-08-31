@@ -276,7 +276,7 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     const input = z.object({
       unit_id: z.string().uuid(),
       room_id: z.string().uuid().optional(),
-      professional_id: z.string().uuid(),
+      professional_id: z.string().uuid().optional(),
       service_id: z.string().uuid().optional(),
       name: z.string().trim().min(3).max(100),
       weekdays: z.array(z.number().int().min(1).max(5)).min(1).max(5),
@@ -289,8 +289,10 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
       message: "A data final da turma não pode ser anterior à data inicial.",
       path: ["ends_on"],
     }).parse(await context.req.json());
-    const professionalError = await validateActiveProfessional(context, input.professional_id, input.unit_id);
-    if (professionalError) return professionalError;
+    if (input.professional_id) {
+      const professionalError = await validateActiveProfessional(context, input.professional_id, input.unit_id);
+      if (professionalError) return professionalError;
+    }
     const scopeError = await validateRelatedResourceScope(context, input);
     if (scopeError) return scopeError;
     const db = context.get("db");
@@ -326,7 +328,7 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     const input = z.object({
       unit_id: z.string().uuid(),
       room_id: z.string().uuid().optional(),
-      professional_id: z.string().uuid(),
+      professional_id: z.string().uuid().optional(),
       service_id: z.string().uuid().optional(),
       name_prefix: z.string().trim().min(3).max(85),
       weekdays: z.array(z.number().int().min(1).max(5)).min(1).max(5),
@@ -351,8 +353,10 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
       message: "A data final da turma não pode ser anterior à data inicial.",
       path: ["ends_on"],
     }).parse(await context.req.json());
-    const professionalError = await validateActiveProfessional(context, input.professional_id, input.unit_id);
-    if (professionalError) return professionalError;
+    if (input.professional_id) {
+      const professionalError = await validateActiveProfessional(context, input.professional_id, input.unit_id);
+      if (professionalError) return professionalError;
+    }
     const scopeError = await validateRelatedResourceScope(context, input);
     if (scopeError) return scopeError;
 
@@ -388,7 +392,7 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     const rows = times.map((time) => ({
       unit_id: input.unit_id,
       room_id: input.room_id,
-      professional_id: input.professional_id,
+      professional_id: input.professional_id ?? null,
       service_id: input.service_id,
       name: `${input.name_prefix} · ${time.slice(0, 2)}h`,
       weekdays: normalizedWeekdays,
@@ -458,7 +462,7 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     const id = z.string().uuid().parse(context.req.param("id"));
     const input = z.object({
       room_id: z.string().uuid().nullable().optional(),
-      professional_id: z.string().uuid().optional(),
+      professional_id: z.string().uuid().nullable().optional(),
       service_id: z.string().uuid().nullable().optional(),
       name: z.string().trim().min(3).max(100).optional(),
       weekdays: z.array(z.number().int().min(1).max(5)).min(1).max(5).optional(),

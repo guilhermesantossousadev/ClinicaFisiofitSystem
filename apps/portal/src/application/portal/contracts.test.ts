@@ -32,6 +32,19 @@ describe("contratos da agenda", () => {
     expect(slot.capacity).toBe(7);
   });
 
+  it("permite criar turma sem fisioterapeuta para atribuição posterior", () => {
+    const slot = groupSlotInputSchema.parse({
+      unitId: ids.unitId,
+      roomId: ids.roomId,
+      serviceId: ids.serviceId,
+      name: "Segunda e quarta às 09:00",
+      weekdays: [1, 3],
+      startsAt: "09:00",
+      durationMinutes: 50,
+    });
+    expect(slot.professionalId).toBeUndefined();
+  });
+
   it("rejeita turmas acima de sete alunos", () => {
     expect(() => groupSlotInputSchema.parse({
       ...ids,

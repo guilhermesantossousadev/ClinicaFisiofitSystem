@@ -270,7 +270,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
         body: JSON.stringify({
           unit_id: value(form, "unit_id"),
           room_id: value(form, "room_id") || undefined,
-          professional_id: value(form, "professional_id"),
+          professional_id: value(form, "professional_id") || undefined,
           service_id: value(form, "service_id") || undefined,
           name: value(form, "name"),
           weekdays: form.getAll("weekdays").map(Number),
@@ -305,7 +305,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
         body: JSON.stringify({
           unit_id: value(form, "unit_id"),
           room_id: value(form, "room_id") || undefined,
-          professional_id: value(form, "professional_id"),
+          professional_id: value(form, "professional_id") || undefined,
           service_id: value(form, "service_id") || undefined,
           name_prefix: value(form, "name_prefix"),
           weekdays: form.getAll("weekdays").map(Number),
@@ -457,7 +457,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
         method: "PATCH",
         body: JSON.stringify({
           name: value(form, "name"),
-          professional_id: value(form, "professional_id"),
+          professional_id: value(form, "professional_id") || null,
           room_id: value(form, "room_id") || null,
           service_id: value(form, "service_id") || null,
           weekdays: form.getAll("weekdays").map(Number),
@@ -585,8 +585,8 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
                 <div className="group-edit-heading"><div><h3>Editar turma</h3><p>Altere os dias, horário e responsável desta turma.</p></div><span>{selectedGroupCell.unitName}</span></div>
                 <TextField name="name" label="Nome da turma" defaultValue={selectedGroupCell.slot.name} required disabled={savingGroup} />
                 <div className="form-row">
-                  <SelectField name="professional_id" label="Fisioterapeuta responsável" defaultValue={selectedGroupCell.slot.professional_id ?? ""} required disabled={savingGroup}>
-                    <option value="">Selecione</option>
+                  <SelectField name="professional_id" label="Fisioterapeuta responsável (opcional)" defaultValue={selectedGroupCell.slot.professional_id ?? ""} disabled={savingGroup} hint="Você pode atribuir ou trocar o responsável a qualquer momento.">
+                    <option value="">Sem fisioterapeuta definido</option>
                     {availableProfessionals.map((professional) => <option key={professional.id} value={professional.id}>{professional.name}</option>)}
                   </SelectField>
                   <SelectField name="room_id" label="Sala (opcional)" defaultValue={selectedGroupCell.slot.room_id ?? ""} disabled={savingGroup}>
@@ -617,8 +617,8 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
                     <option value="true">Ativa</option><option value="false">Inativa</option>
                   </SelectField>
                 </div>
-                {!availableProfessionals.length && <p className="form-field-error" role="alert">Nenhum fisioterapeuta ativo está vinculado a esta unidade. Atualize o cadastro em Configurações.</p>}
-                <button type="submit" className="btn primary" disabled={savingGroup || !availableProfessionals.length || Boolean(editGroupConflict)}>{savingGroup ? "Salvando…" : editGroupConflict ? "Ajuste o horário para continuar" : "Salvar alterações da turma"}</button>
+                {!availableProfessionals.length && <p className="form-field-hint" role="status">Nenhum fisioterapeuta está vinculado a esta unidade. Você pode manter a turma sem responsável e atribuí-lo depois.</p>}
+                <button type="submit" className="btn primary" disabled={savingGroup || Boolean(editGroupConflict)}>{savingGroup ? "Salvando…" : editGroupConflict ? "Ajuste o horário para continuar" : "Salvar alterações da turma"}</button>
               </form>}
               {full && <div className="capacity-alert" role="status"><strong>Turma lotada</strong><span>Não há vagas disponíveis para adicionar mais pacientes.</span></div>}
               <h3>Pacientes inscritos</h3>
@@ -649,13 +649,16 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
             <TextField name="name" label="Nome da turma" placeholder="Ex.: Lagoa · Seg/Qua 07h" required />
             <div className="form-row">
               <SelectField name="unit_id" label="Unidade" value={newGroupUnitId} onChange={(event) => { setNewGroupUnitId(event.target.value); setCreateGroupConflict(null); }} required><option value="">Selecione</option>{units.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}</SelectField>
-              <Select key={`group-professional-${newGroupUnitId}`} name="professional_id" label="Fisioterapeuta responsável" rows={professionalsForUnit(professionals, newGroupUnitId)} />
+              <SelectField name="professional_id" label="Fisioterapeuta responsável (opcional)" defaultValue="" hint="Se preferir, crie a turma agora e defina o responsável depois.">
+                <option value="">Definir depois</option>
+                {professionalsForUnit(professionals, newGroupUnitId).map((professional) => <option key={professional.id} value={professional.id}>{professional.name}</option>)}
+              </SelectField>
             </div>
             <div className="form-row">
               <Select key={`group-room-${newGroupUnitId}`} name="room_id" label="Sala (opcional)" rows={resourcesForUnit(rooms, newGroupUnitId)} required={false} />
               <Select name="service_id" label="Serviço (opcional)" rows={(data["/services"] ?? []).filter((service: Row) => service.active !== false)} required={false} />
             </div>
-            {newGroupUnitId && !professionalsForUnit(professionals, newGroupUnitId).length && <p className="form-field-error" role="alert">Esta unidade não possui fisioterapeuta ativo vinculado. Atualize o profissional em Configurações.</p>}
+            {newGroupUnitId && !professionalsForUnit(professionals, newGroupUnitId).length && <p className="form-field-hint" role="status">Nenhum fisioterapeuta está vinculado a esta unidade. A turma poderá ser criada e receber um responsável depois.</p>}
           </fieldset>
           <fieldset>
             <legend>Dias e horário fixo</legend>
@@ -674,7 +677,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
             <TextField name="capacity" label="Capacidade" type="number" min="3" max="7" defaultValue="7" required />
           </fieldset>
           {createGroupConflict && <GroupConflictAlert conflict={createGroupConflict} />}
-          <button className="btn primary" disabled={!newGroupUnitId || !professionalsForUnit(professionals, newGroupUnitId).length || Boolean(createGroupConflict)}>{createGroupConflict ? "Ajuste o horário para continuar" : "Criar turma"}</button>
+          <button className="btn primary" disabled={!newGroupUnitId || Boolean(createGroupConflict)}>{createGroupConflict ? "Ajuste o horário para continuar" : "Criar turma"}</button>
         </DrawerForm>}
         {role === "admin" && canManageGroups && <DrawerForm title="Criar grade de horários" onSubmit={createBulkGroups}>
           <p className="form-instructions">Recurso exclusivo do administrador. Cria várias turmas de uma só vez, mantendo os mesmos dias, responsável, duração e capacidade.</p>
@@ -683,13 +686,16 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
             <TextField name="name_prefix" label="Nome base das turmas" placeholder="Ex.: Pilates · Seg/Qua" hint="O horário será acrescentado automaticamente a cada nome." required />
             <div className="form-row">
               <SelectField name="unit_id" label="Unidade" value={newBulkGroupUnitId} onChange={(event) => { setNewBulkGroupUnitId(event.target.value); setCreateBulkGroupConflict(null); }} required><option value="">Selecione</option>{units.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}</SelectField>
-              <Select key={`bulk-group-professional-${newBulkGroupUnitId}`} name="professional_id" label="Fisioterapeuta responsável" rows={professionalsForUnit(professionals, newBulkGroupUnitId)} />
+              <SelectField name="professional_id" label="Fisioterapeuta responsável (opcional)" defaultValue="" hint="As turmas podem ser criadas agora e receber o responsável depois.">
+                <option value="">Definir depois</option>
+                {professionalsForUnit(professionals, newBulkGroupUnitId).map((professional) => <option key={professional.id} value={professional.id}>{professional.name}</option>)}
+              </SelectField>
             </div>
             <div className="form-row">
               <Select key={`bulk-group-room-${newBulkGroupUnitId}`} name="room_id" label="Sala (opcional)" rows={resourcesForUnit(rooms, newBulkGroupUnitId)} required={false} />
               <Select name="service_id" label="Serviço (opcional)" rows={(data["/services"] ?? []).filter((service: Row) => service.active !== false)} required={false} />
             </div>
-            {newBulkGroupUnitId && !professionalsForUnit(professionals, newBulkGroupUnitId).length && <p className="form-field-error" role="alert">Esta unidade não possui fisioterapeuta ativo vinculado. Atualize o profissional em Configurações.</p>}
+            {newBulkGroupUnitId && !professionalsForUnit(professionals, newBulkGroupUnitId).length && <p className="form-field-hint" role="status">Nenhum fisioterapeuta está vinculado a esta unidade. A grade poderá ser criada e receber responsáveis depois.</p>}
           </fieldset>
           <fieldset>
             <legend>Dias e faixa de horários</legend>
@@ -711,7 +717,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
           <p className="bulk-group-summary" role="status"><strong>{bulkRangeIsValid ? `${bulkSlotCount} ${bulkSlotCount === 1 ? "turma será criada" : "turmas serão criadas"}` : "Revise a faixa de horários"}</strong><span>De {bulkFirstTime} a {bulkLastTime}, {bulkIntervalMinutes === "60" ? "a cada hora" : `a cada ${Number(bulkIntervalMinutes) / 60} horas`}.</span></p>
           {!bulkRangeIsValid && <p className="form-field-error" role="alert">Escolha um último horário que feche exatamente com o intervalo selecionado.</p>}
           {createBulkGroupConflict && <GroupConflictAlert conflict={createBulkGroupConflict} />}
-          <button className="btn primary" disabled={!newBulkGroupUnitId || !professionalsForUnit(professionals, newBulkGroupUnitId).length || !bulkRangeIsValid || Boolean(createBulkGroupConflict)}>{createBulkGroupConflict ? "Ajuste a faixa para continuar" : `Criar ${bulkSlotCount} ${bulkSlotCount === 1 ? "turma" : "turmas"}`}</button>
+          <button className="btn primary" disabled={!newBulkGroupUnitId || !bulkRangeIsValid || Boolean(createBulkGroupConflict)}>{createBulkGroupConflict ? "Ajuste a faixa para continuar" : `Criar ${bulkSlotCount} ${bulkSlotCount === 1 ? "turma" : "turmas"}`}</button>
         </DrawerForm>}
         {canManageAppointments && <DrawerForm title="Novo agendamento" onSubmit={createAppointment}>
           <p className="form-instructions"><span aria-hidden="true">*</span> indica campo obrigatório.</p>

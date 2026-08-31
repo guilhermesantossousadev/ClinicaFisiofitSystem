@@ -142,7 +142,11 @@ test("restringe ao administrador a criação da grade de horários em lote", asy
   assert.match(agenda, /role === "admin" && canManageGroups && <DrawerForm title="Criar grade de horários"/);
   assert.match(agenda, /api<\{ created: number \}>\("\/group-slots\/bulk"/);
   assert.match(agenda, /15 turmas serão criadas|bulkSlotCount/);
+  assert.match(agenda, /Fisioterapeuta responsável \(opcional\)/);
+  assert.match(agenda, /professional_id: value\(form, "professional_id"\) \|\| undefined/);
   assert.match(agendaRoute, /app\.post\("\/group-slots\/bulk", requireRoles\(\["admin"\]\)/);
+  assert.match(agendaRoute, /professional_id: z\.string\(\)\.uuid\(\)\.optional\(\)/);
+  assert.match(agendaRoute, /professional_id: input\.professional_id \?\? null/);
   assert.match(agendaRoute, /group_slot\.created_bulk/);
 });
 

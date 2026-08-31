@@ -85,7 +85,7 @@ export const appointmentInputSchema = z.object({
 export const groupSlotInputSchema = z.object({
   unitId: uuidSchema,
   roomId: uuidSchema,
-  professionalId: uuidSchema,
+  professionalId: uuidSchema.optional(),
   serviceId: uuidSchema,
   name: z.string().trim().min(3).max(100),
   weekdays: z.array(z.number().int().min(0).max(6)).min(1).max(7),

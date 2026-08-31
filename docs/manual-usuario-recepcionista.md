@@ -158,16 +158,16 @@ Atualize o status assim que o fato ocorrer. Isso mantém o Painel, a agenda e os
 ### 5.4 Criar uma turma com horário fixo
 
 1. Clique em **Nova turma com horário fixo**.
-2. Selecione unidade, sala, profissional e serviço.
+2. Selecione a unidade e, se já estiverem definidos, sala, fisioterapeuta e serviço.
 3. Escolha a frequência: 1x, 2x ou 3x por semana.
 4. Escolha dias diferentes da semana.
 5. Informe o horário e a duração.
-6. Revise o nome informado, os dias, o horário e o fisioterapeuta responsável.
+6. Revise o nome informado, os dias e o horário. O fisioterapeuta pode ser atribuído agora ou depois, ao editar a turma.
 7. Salve.
 
 As turmas são criadas com capacidade para **7 alunos**. O horário é fixo, mas as turmas são separadas pela combinação de dias: por exemplo, segunda/quarta às 07:00 e terça/quinta às 07:00 são duas turmas diferentes e podem ter profissionais diferentes. Ao vincular uma matrícula, escolha a turma completa; o paciente frequentará apenas os dias definidos nela.
 
-Administradores também possuem a ação **Criar grade de horários**. Nela, informe o primeiro e o último horário, o intervalo e os demais dados compartilhados. O sistema mostra quantas turmas serão criadas antes do envio e não cria nenhuma delas quando encontra conflito na faixa selecionada.
+Administradores também possuem a ação **Criar grade de horários**. Nela, informe o primeiro e o último horário, o intervalo e os demais dados compartilhados. O fisioterapeuta é opcional e pode ser atribuído posteriormente em cada turma. O sistema mostra quantas turmas serão criadas antes do envio e não cria nenhuma delas quando encontra conflito na faixa selecionada.
 
 ### 5.5 Boas práticas da agenda
 
