@@ -54,7 +54,8 @@ acesso com o usuário. Bloqueie acessos imediatamente quando houver desligamento
 2. **Agendamento:** Agenda > Novo agendamento > unidade/profissional/paciente/serviço > horário > salvar.
 3. **Turma:** Agenda > Nova turma em horário fixo > escolha os dias e horário > atribua o fisioterapeuta agora ou depois > salvar. O mesmo horário aceita outra turma quando os dias não se sobrepõem.
 4. **Conflito de turma:** se já existir turma no mesmo dia e horário, mantenha o formulário aberto e altere dia, horário ou vigência conforme o alerta vermelho.
-5. **Bloqueio:** use “Bloquear este horário sem paciente” para reservar a agenda sem vincular paciente.
+5. **Gerenciar horários:** administradores, gestores e recepcionistas podem criar grades, editar turmas e excluir turmas vazias; o histórico é preservado.
+6. **Bloqueio:** use “Bloquear este horário sem paciente” para reservar a agenda sem vincular paciente.
 4. **Plano:** Matrículas > Novo plano > período, frequência e preço > salvar.
 5. **Matrícula:** Nova matrícula > paciente, plano, unidade, início e vencimento > matricular.
 6. **Pagamento:** selecionar cobrança > conferir saldo > informar valor e forma > receber.

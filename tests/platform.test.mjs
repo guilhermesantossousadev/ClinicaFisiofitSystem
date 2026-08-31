@@ -133,18 +133,22 @@ test("mantém turmas distintas por dias dentro dos horários fixos", async () =>
   assert.match(migration, /name ~\* '\^Horário fixo'/);
 });
 
-test("restringe ao administrador a criação da grade de horários em lote", async () => {
+test("permite à administração, gestão e recepção gerenciar a grade de horários", async () => {
   const [agenda, agendaRoute] = await Promise.all([
     readFile(new URL("../apps/portal/src/presentation/modules/OperationalAgenda.tsx", import.meta.url), "utf8"),
     readFile(new URL("../supabase/functions/api/routes/agenda.ts", import.meta.url), "utf8"),
   ]);
 
-  assert.match(agenda, /role === "admin" && canManageGroups && <DrawerForm title="Criar grade de horários"/);
+  assert.match(agenda, /canManageGroups && <DrawerForm title="Criar grade de horários"/);
   assert.match(agenda, /api<\{ created: number \}>\("\/group-slots\/bulk"/);
   assert.match(agenda, /15 turmas serão criadas|bulkSlotCount/);
   assert.match(agenda, /Fisioterapeuta responsável \(opcional\)/);
   assert.match(agenda, /professional_id: value\(form, "professional_id"\) \|\| undefined/);
-  assert.match(agendaRoute, /app\.post\("\/group-slots\/bulk", requireRoles\(\["admin"\]\)/);
+  assert.match(agenda, />Editar<\/button>/);
+  assert.match(agenda, />Excluir<\/button>/);
+  assert.match(agendaRoute, /app\.post\("\/group-slots\/bulk", requireRoles\(\["admin", "manager", "reception"\]\)/);
+  assert.match(agendaRoute, /app\.delete\("\/group-slots\/:id", requireRoles\(\["admin", "manager", "reception"\]\)/);
+  assert.match(agendaRoute, /GROUP_SLOT_HAS_MEMBERS/);
   assert.match(agendaRoute, /professional_id: z\.string\(\)\.uuid\(\)\.optional\(\)/);
   assert.match(agendaRoute, /professional_id: input\.professional_id \?\? null/);
   assert.match(agendaRoute, /group_slot\.created_bulk/);

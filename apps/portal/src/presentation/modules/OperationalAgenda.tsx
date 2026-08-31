@@ -446,6 +446,23 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
     catch (actionError) { failure(actionError); }
   }
 
+  async function deleteGroup(slot: Row) {
+    const activeMembers = groupMembers.filter((member) => member.group_slot_id === slot.id && member.status === "active");
+    if (activeMembers.length) {
+      failure(new Error(`Retire ${activeMembers.length === 1 ? "o paciente" : `os ${activeMembers.length} pacientes`} da turma antes de excluí-la.`));
+      return;
+    }
+    if (!window.confirm(`Excluir a turma "${slot.name}"? Ela será removida da agenda, mas o histórico será preservado.`)) return;
+    try {
+      await api(`/group-slots/${slot.id}`, { method: "DELETE" });
+      setSelectedGroupCell(null);
+      success("Turma excluída. O histórico foi preservado.");
+      await reload();
+    } catch (actionError) {
+      failure(actionError);
+    }
+  }
+
   async function updateGroup(event: FormEvent<HTMLFormElement>, slot: Row) {
     event.preventDefault();
     const formElement = event.currentTarget;
@@ -679,8 +696,8 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
           {createGroupConflict && <GroupConflictAlert conflict={createGroupConflict} />}
           <button className="btn primary" disabled={!newGroupUnitId || Boolean(createGroupConflict)}>{createGroupConflict ? "Ajuste o horário para continuar" : "Criar turma"}</button>
         </DrawerForm>}
-        {role === "admin" && canManageGroups && <DrawerForm title="Criar grade de horários" onSubmit={createBulkGroups}>
-          <p className="form-instructions">Recurso exclusivo do administrador. Cria várias turmas de uma só vez, mantendo os mesmos dias, responsável, duração e capacidade.</p>
+        {canManageGroups && <DrawerForm title="Criar grade de horários" onSubmit={createBulkGroups}>
+          <p className="form-instructions">Disponível para administração, gestão e recepção. Cria várias turmas de uma só vez, mantendo os mesmos dias, responsável, duração e capacidade.</p>
           <fieldset>
             <legend>Identificação e responsável</legend>
             <TextField name="name_prefix" label="Nome base das turmas" placeholder="Ex.: Pilates · Seg/Qua" hint="O horário será acrescentado automaticamente a cada nome." required />
@@ -837,7 +854,10 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
         })}
         onChanged={reload}
         onNotice={(message) => setNotice({ type: message.startsWith("Erro:") ? "error" : "success", message: message.replace(/^Erro:\s*/, "") })}
-        onOpen={(row) => setSelectedGroupCell({ slot: row, day: new Date(), unitName: units.find((unit) => unit.id === row.unit_id)?.name ?? "Unidade" })}
+        actions={(row) => canManageGroups ? <>
+          <button type="button" onClick={() => setSelectedGroupCell({ slot: row, day: new Date(), unitName: units.find((unit) => unit.id === row.unit_id)?.name ?? "Unidade" })}>Editar</button>
+          <button type="button" className="action-delete" onClick={() => void deleteGroup(row)}>Excluir</button>
+        </> : undefined}
         canEdit={false}
       />
     </div>

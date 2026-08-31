@@ -379,7 +379,7 @@ O endpoint genérico de status permite marcar atendimento `completed` sem chamar
 
 ### 8.5 Restrições
 
-Turmas têm **capacidade padrão e máxima: 7 alunos** e mínimo configurável de 3. Cada turma combina unidade, dias da semana e um horário fixo; o profissional responsável é opcional na criação e pode ser atribuído posteriormente na edição. Duas turmas podem ocupar o mesmo horário quando seus dias não se sobrepõem, como segunda/quarta às 07:00 e terça/quinta às 07:00. O paciente é vinculado à turma completa e herda os dias dela. O servidor recusa novo membro quando a contagem ativa atinge a capacidade. A contagem não considera vigência (`starts_at`/`ends_at`), podendo bloquear um novo período por vínculos antigos ainda `active`.
+Turmas têm **capacidade padrão e máxima: 7 alunos** e mínimo configurável de 3. Administradores, gestores e recepcionistas podem criar turmas e grades, editar horários e excluir turmas vazias por remoção lógica; turmas com pacientes ativos precisam ser esvaziadas antes, e o histórico é preservado. Cada turma combina unidade, dias da semana e um horário fixo; o profissional responsável é opcional na criação e pode ser atribuído posteriormente na edição. Duas turmas podem ocupar o mesmo horário quando seus dias não se sobrepõem, como segunda/quarta às 07:00 e terça/quinta às 07:00. O paciente é vinculado à turma completa e herda os dias dela. O servidor recusa novo membro quando a contagem ativa atinge a capacidade. A contagem não considera vigência (`starts_at`/`ends_at`), podendo bloquear um novo período por vínculos antigos ainda `active`.
 
 ---
 

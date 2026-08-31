@@ -324,7 +324,7 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     return databaseResult(context, data, error, 201);
   });
 
-  app.post("/group-slots/bulk", requireRoles(["admin"]), async (context: any) => {
+  app.post("/group-slots/bulk", requireRoles(["admin", "manager", "reception"]), async (context: any) => {
     const input = z.object({
       unit_id: z.string().uuid(),
       room_id: z.string().uuid().optional(),
@@ -538,17 +538,23 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
   });
   
   app.delete("/group-slots/:id", requireRoles(["admin", "manager", "reception"]), async (context: any) => {
-    return fail(context, 405, "FIXED_SCHEDULE", "Os horários e turmas são fixos e não podem ser excluídos.");
-  /*
     const id = z.string().uuid().parse(context.req.param("id"));
+    const db = context.get("db");
+    const clinicId = context.get("profile").clinic_id;
+    const { data: slot, error: slotError } = await db.from("group_slots").select("id,unit_id,name")
+      .eq("id", id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle();
+    if (slotError) return databaseResult(context, null, slotError);
+    if (!slot) return fail(context, 404, "GROUP_SLOT_NOT_FOUND", "Turma não encontrada.");
+    if (!(await hasUnitAccess(context, slot.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+    const { data: activeMemberships, error: membershipsError } = await db.from("group_slot_memberships").select("id")
+      .eq("clinic_id", clinicId).eq("group_slot_id", id).eq("status", "active").is("deleted_at", null).limit(1);
+    if (membershipsError) return databaseResult(context, null, membershipsError);
+    if (activeMemberships?.length) return fail(context, 409, "GROUP_SLOT_HAS_MEMBERS", "Retire os pacientes da turma antes de excluí-la.");
     const deletedAt = new Date().toISOString();
-    const { data, error } = await context.get("db").from("group_slots").update({ active: false, deleted_at: deletedAt, updated_at: deletedAt })
-      .eq("id", id).eq("clinic_id", context.get("profile").clinic_id).is("deleted_at", null).select("id,unit_id").single();
+    const { data, error } = await db.from("group_slots").update({ active: false, deleted_at: deletedAt, updated_at: deletedAt })
+      .eq("id", id).eq("clinic_id", clinicId).is("deleted_at", null).select("id,unit_id").single();
     if (!error && data) await audit(context, "group_slot.deleted", "group_slot", id, data.unit_id);
     return databaseResult(context, data, error);
-  });
-  */
-  
   });
   
   app.post("/group-slots/:id/members", requireRoles(["admin", "manager", "reception"]), async (context: any) => {

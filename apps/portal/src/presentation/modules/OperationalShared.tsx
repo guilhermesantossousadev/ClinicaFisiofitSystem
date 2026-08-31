@@ -590,6 +590,7 @@ export function EditableOperationalTable({
   onChanged,
   onNotice,
   onOpen,
+  actions,
   allowDelete = false,
   showToggle = true,
   canEdit = true,
@@ -609,6 +610,7 @@ export function EditableOperationalTable({
   onChanged: () => void | Promise<void>;
   onNotice: (message: string) => void;
   onOpen?: (row: Row) => void | Promise<void>;
+  actions?: (row: Row) => ReactNode;
   allowDelete?: boolean;
   showToggle?: boolean;
   canEdit?: boolean;
@@ -738,6 +740,7 @@ export function EditableOperationalTable({
             </div>)}
             <div className="row-actions" aria-label={`Ações de ${row.name}`}>
               {onOpen && <button type="button" onClick={() => void onOpen(row)}>Detalhes</button>}
+              {actions?.(row)}
               {canEdit && <button type="button" onClick={(event) => {
                 editTriggerRef.current = event.currentTarget;
                 editDirtyRef.current = false;

@@ -167,7 +167,9 @@ Atualize o status assim que o fato ocorrer. Isso mantém o Painel, a agenda e os
 
 As turmas são criadas com capacidade para **7 alunos**. O horário é fixo, mas as turmas são separadas pela combinação de dias: por exemplo, segunda/quarta às 07:00 e terça/quinta às 07:00 são duas turmas diferentes e podem ter profissionais diferentes. Ao vincular uma matrícula, escolha a turma completa; o paciente frequentará apenas os dias definidos nela.
 
-Administradores também possuem a ação **Criar grade de horários**. Nela, informe o primeiro e o último horário, o intervalo e os demais dados compartilhados. O fisioterapeuta é opcional e pode ser atribuído posteriormente em cada turma. O sistema mostra quantas turmas serão criadas antes do envio e não cria nenhuma delas quando encontra conflito na faixa selecionada.
+Administradores, gestores e recepcionistas também possuem a ação **Criar grade de horários**. Nela, informe o primeiro e o último horário, o intervalo e os demais dados compartilhados. O fisioterapeuta é opcional e pode ser atribuído posteriormente em cada turma. O sistema mostra quantas turmas serão criadas antes do envio e não cria nenhuma delas quando encontra conflito na faixa selecionada.
+
+Na tabela **Turmas em horários fixos**, use **Editar** para alterar dias, horário, responsável e situação. Use **Excluir** para retirar uma turma vazia da agenda. Se ainda houver pacientes ativos, remova-os da turma antes; o histórico dos registros anteriores será preservado.
 
 ### 5.5 Boas práticas da agenda
 
