@@ -1,7 +1,7 @@
 import { FormEvent, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { FormSection, TextareaField, TextField } from "../components/FormPrimitives";
-import { Row, groupSlotLabel, messageOf, value, useResources, Select, DrawerForm, ModuleState, EditableOperationalTable } from "./OperationalShared";
+import { Row, groupSlotLabel, messageOf, value, useDialogFocus, useResources, Select, DrawerForm, ModuleState, EditableOperationalTable } from "./OperationalShared";
 
 export function OperationalPatients({ canEdit = true, canViewEnrollments = true, canEditEnrollments = true, canViewAgenda = true, canEditAgenda = true, canViewTimeline = true }: { canEdit?: boolean; canViewEnrollments?: boolean; canEditEnrollments?: boolean; canViewAgenda?: boolean; canEditAgenda?: boolean; canViewTimeline?: boolean }) {
   const [page, setPage] = useState(1);
@@ -28,6 +28,13 @@ export function OperationalPatients({ canEdit = true, canViewEnrollments = true,
     timeline?: Row;
   }>({ responsibles: [], consents: [] });
   const [notice, setNotice] = useState("");
+  const [detailDirty, setDetailDirty] = useState(false);
+  function closePatientDetails() {
+    if (detailDirty && !window.confirm("Descartar os dados do responsável ainda não salvos?")) return;
+    setDetailDirty(false);
+    setSelected(null);
+  }
+  const patientDialogRef = useDialogFocus(Boolean(selected), closePatientDetails);
   function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setPage(1);
@@ -69,6 +76,7 @@ export function OperationalPatients({ canEdit = true, canViewEnrollments = true,
     }
   }
   async function open(row: Row) {
+    setDetailDirty(false);
     setSelected(row);
     try {
       const [responsibles, consents, timeline] = await Promise.all([
@@ -101,6 +109,7 @@ export function OperationalPatients({ canEdit = true, canViewEnrollments = true,
         }),
       });
       (event.target as HTMLFormElement).reset();
+      setDetailDirty(false);
       await open(selected);
     } catch (e) {
       setNotice(messageOf(e));
@@ -229,6 +238,7 @@ export function OperationalPatients({ canEdit = true, canViewEnrollments = true,
         title="Pacientes cadastrados"
         resource="patients"
         rows={patients}
+        emptyMessage={appliedSearch ? "Nenhum paciente corresponde à busca. Revise o nome, telefone ou CPF." : "Nenhum paciente foi cadastrado nesta unidade."}
         fields={["name", "phone", "email", "plan_name", "group_name", "active"]}
         editFields={[
           { name: "name", label: "Nome completo", required: true },
@@ -274,13 +284,16 @@ export function OperationalPatients({ canEdit = true, canViewEnrollments = true,
         onPageChange={setPage}
       />
       {selected && (
-        <div className="modal-backdrop" onClick={() => setSelected(null)}>
+        <div className="modal-backdrop" role="presentation" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) closePatientDetails();
+        }}>
           <section
+            ref={patientDialogRef}
             className="modal"
             role="dialog"
             aria-modal="true"
             aria-labelledby="patient-dialog-title"
-            onClick={(e) => e.stopPropagation()}
+            tabIndex={-1}
           >
             <div className="modal-head">
               <div>
@@ -288,7 +301,7 @@ export function OperationalPatients({ canEdit = true, canViewEnrollments = true,
                 <h2 id="patient-dialog-title">{selected.name}</h2>
                 <p>{selected.cpf ?? "CPF não informado"}</p>
               </div>
-              <button type="button" aria-label="Fechar detalhes do paciente" onClick={() => setSelected(null)}>×</button>
+              <button type="button" aria-label="Fechar detalhes do paciente" onClick={closePatientDetails}>×</button>
             </div>
             <div className="modal-form">
               <h3>Consentimentos</h3>
@@ -304,7 +317,7 @@ export function OperationalPatients({ canEdit = true, canViewEnrollments = true,
                 </button>
               </div>}
               <p>{detail.consents.length} registros de consentimento.</p>
-              {canEdit && <form onSubmit={responsible}>
+              {canEdit && <form onSubmit={responsible} onInput={() => setDetailDirty(true)}>
                 <h3>Adicionar responsável</h3>
                 <div className="form-row">
                   <TextField name="name" label="Nome" required />

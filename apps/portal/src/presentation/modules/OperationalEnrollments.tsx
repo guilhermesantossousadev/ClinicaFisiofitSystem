@@ -2,7 +2,7 @@ import { FormEvent, useMemo, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { buildPlanControlRows, renewalCopy, type PlanControlRow } from "../../application/portal/planControl";
 import { SelectField, TextField } from "../components/FormPrimitives";
-import { type AgendaEnrollmentContext, Row, PLAN_PERIODS, PlanPeriod, WeeklyFrequency, messageOf, value, cents, brl, planTotalCents, groupSlotLabel, useResources, Select, PlanSelect, PatientPicker, DrawerForm, ModuleState, MetricLite, EditableOperationalTable, OperationalTable } from "./OperationalShared";
+import { type AgendaEnrollmentContext, Row, PLAN_PERIODS, PlanPeriod, WeeklyFrequency, messageOf, value, cents, brl, planTotalCents, groupSlotLabel, useDialogFocus, useResources, Select, PlanSelect, PatientPicker, DrawerForm, ModuleState, MetricLite, EditableOperationalTable, OperationalTable } from "./OperationalShared";
 
 export function OperationalEnrollments({ agendaContext, onClearAgendaContext, openEnrollment = false, units = [], selectedUnitId = "", onUnitChange = () => undefined, canEdit = true, canManagePlans = true, canDeletePlans = true, canViewCharges = true, canManageChargeStatus = true, canViewPayments = true, canReceivePayments = true, canRollback = true }: { agendaContext?: AgendaEnrollmentContext; onClearAgendaContext?: () => void; openEnrollment?: boolean; units?: Array<{ id: string; name: string }>; selectedUnitId?: string; onUnitChange?: (unitId: string) => void; canEdit?: boolean; canManagePlans?: boolean; canDeletePlans?: boolean; canViewCharges?: boolean; canManageChargeStatus?: boolean; canViewPayments?: boolean; canReceivePayments?: boolean; canRollback?: boolean }) {
   const paths = [
@@ -489,22 +489,26 @@ function EditControlledPlanDialog({
   onSubmit: (event: FormEvent<HTMLFormElement>) => void | Promise<void>;
 }) {
   const titleId = `edit-controlled-plan-${row.id}`;
+  const [dirty, setDirty] = useState(false);
+  const requestClose = () => {
+    if (dirty && !window.confirm("Descartar as alterações deste plano?")) return;
+    onClose();
+  };
+  const dialogRef = useDialogFocus(true, requestClose, !saving);
   return (
     <div className="edit-dialog-backdrop" role="presentation" onMouseDown={(event) => {
-      if (event.target === event.currentTarget && !saving) onClose();
+      if (event.target === event.currentTarget && !saving) requestClose();
     }}>
-      <section className="edit-dialog controlled-plan-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} onKeyDown={(event) => {
-        if (event.key === "Escape" && !saving) onClose();
-      }}>
+      <section ref={dialogRef} className="edit-dialog controlled-plan-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
         <div className="edit-dialog-header">
           <div>
             <p className="eyebrow">ATUALIZAÇÃO DO PLANO</p>
             <h2 id={titleId}>Editar plano de {row.patientName}</h2>
             <p>{row.planName}</p>
           </div>
-          <button type="button" className="dialog-close" aria-label="Fechar edição do plano" onClick={onClose} disabled={saving} autoFocus>×</button>
+          <button type="button" className="dialog-close" aria-label="Fechar edição do plano" onClick={requestClose} disabled={saving} autoFocus>×</button>
         </div>
-        <form className="modal-form controlled-plan-form" onSubmit={(event) => void onSubmit(event)} aria-busy={saving}>
+        <form className="modal-form controlled-plan-form" onSubmit={(event) => void onSubmit(event)} onInput={() => setDirty(true)} aria-busy={saving}>
           <div className="form-row">
             <TextField name="starts_at" label="Início do plano" type="date" defaultValue={row.startsAt} required />
             <TextField name="ends_at" label="Data de renovação" type="date" min={row.startsAt} defaultValue={row.renewsAt} required />
@@ -519,7 +523,7 @@ function EditControlledPlanDialog({
           </div>
           <p className="form-instructions">Alterações de pagamentos devem ser feitas pelo fluxo financeiro para preservar o histórico.</p>
           <div className="edit-dialog-actions">
-            <button type="button" className="btn secondary" onClick={onClose} disabled={saving}>Cancelar</button>
+            <button type="button" className="btn secondary" onClick={requestClose} disabled={saving}>Cancelar</button>
             <button className="btn primary" disabled={saving}>{saving ? "Salvando…" : "Salvar alterações"}</button>
           </div>
         </form>

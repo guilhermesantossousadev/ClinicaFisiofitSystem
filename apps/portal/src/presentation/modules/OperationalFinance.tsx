@@ -1,7 +1,7 @@
 import { FormEvent, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { CheckboxField, SelectField, TextField } from "../components/FormPrimitives";
-import { Row, messageOf, value, cents, brl, useResources, Select, DrawerForm, ModuleState, MetricLite, OperationalTable } from "./OperationalShared";
+import { Row, messageOf, statusLabel, value, cents, brl, useResources, Select, DrawerForm, ModuleState, MetricLite, OperationalTable } from "./OperationalShared";
 
 export function OperationalFinance({ canEdit = true }: { canEdit?: boolean }) {
   const today = new Date();
@@ -173,6 +173,7 @@ export function OperationalFinance({ canEdit = true }: { canEdit?: boolean }) {
           "kind",
           "amount_cents",
         ]}
+        emptyMessage="Nenhum movimento financeiro foi lançado neste mês."
         actions={(row) => canEdit ? <button type="button" onClick={() => void removeEntry(row.id)}>Excluir</button> : null}
       />
       <section className="card table-card bespoke-table commissions-list-table">
@@ -185,7 +186,7 @@ export function OperationalFinance({ canEdit = true }: { canEdit?: boolean }) {
             <div>
               <strong>{brl(row.amount_cents)}</strong>
               <small>
-                {row.basis} · {row.status}
+                {statusLabel(row.basis)} · {statusLabel(row.status)}
               </small>
             </div>
             {canEdit && row.status === "pending" && (
@@ -195,6 +196,7 @@ export function OperationalFinance({ canEdit = true }: { canEdit?: boolean }) {
             )}
           </div>
         ))}
+        {!(data["/commissions"] ?? []).length && <div className="empty-state">Nenhuma comissão foi calculada para o período.</div>}
       </section>
     </div>
   );

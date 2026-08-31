@@ -1,17 +1,22 @@
 import { useEffect, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { TextField } from "../components/FormPrimitives";
-import { Row, messageOf, brl, MetricLite } from "./OperationalShared";
+import { Row, messageOf, brl, MetricLite, ModuleState } from "./OperationalShared";
 
 export function OperationalReports() {
   const [year, setYear] = useState(new Date().getFullYear());
   const [report, setReport] = useState<Row | null>(null);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
   async function load() {
+    setLoading(true);
+    setError("");
     try {
       setReport((await api<Row>(`/reports/annual?year=${year}`)).data);
     } catch (e) {
       setError(messageOf(e));
+    } finally {
+      setLoading(false);
     }
   }
   useEffect(() => void load(), [year]);
@@ -53,15 +58,15 @@ export function OperationalReports() {
             value={year}
             onChange={(e) => setYear(Number(e.target.value))}
           />
-          <button className="btn secondary" onClick={exportCsv}>
+          <button className="btn secondary" onClick={exportCsv} disabled={!report || loading}>
             Exportar planilha
           </button>
-          <button className="btn primary" onClick={() => window.print()}>
+          <button className="btn primary" onClick={() => window.print()} disabled={!report || loading}>
             Gerar PDF
           </button>
         </div>
       </div>
-      {error && <div className="login-error">{error}</div>}
+      <ModuleState loading={loading} error={error} retry={load} />
       <div className="metrics">
         <MetricLite
           label="Receitas realizadas"
@@ -80,14 +85,16 @@ export function OperationalReports() {
         />
         <MetricLite label="Ano" value={year} />
       </div>
-      <section className="card annual-table">
-        <div className="month-grid">
-          <div className="month-row head">
-            <strong>Indicador</strong>
+      <section className="card annual-table" aria-labelledby="annual-table-title" aria-describedby="annual-table-description">
+        <h2 className="sr-only" id="annual-table-title">Comparativo mensal de {year}</h2>
+        <p className="annual-table-description" id="annual-table-description">Valores realizados e previstos por mês, com total anual na última coluna.</p>
+        <div className="month-grid" role="table" aria-label={`Relatório financeiro de ${year}`}>
+          <div className="month-row head" role="row">
+            <strong role="columnheader">Indicador</strong>
             {(report?.months ?? []).map((m: Row) => (
-              <span key={m.month}>{m.month.slice(5, 7)}</span>
+              <span role="columnheader" key={m.month}>{new Intl.DateTimeFormat("pt-BR", { month: "short", timeZone: "UTC" }).format(new Date(`${m.month}T12:00:00Z`)).replace(".", "")}</span>
             ))}
-            <strong>Total</strong>
+            <strong role="columnheader">Total</strong>
           </div>
           {[
             ["Receitas", "realizedIncomeCents"],
@@ -95,12 +102,12 @@ export function OperationalReports() {
             ["Prev. receitas", "expectedIncomeCents"],
             ["Prev. despesas", "expectedExpenseCents"],
           ].map(([label, key]) => (
-            <div className="month-row" key={key}>
-              <strong>{label}</strong>
+            <div className="month-row" role="row" key={key}>
+              <strong role="rowheader">{label}</strong>
               {(report?.months ?? []).map((m: Row) => (
-                <span key={m.month}>{brl(m[key])}</span>
+                <span role="cell" key={m.month}>{brl(m[key])}</span>
               ))}
-              <strong>{brl(report?.totals?.[key] ?? 0)}</strong>
+              <strong role="cell">{brl(report?.totals?.[key] ?? 0)}</strong>
             </div>
           ))}
         </div>

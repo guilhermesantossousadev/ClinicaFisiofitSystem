@@ -58,6 +58,22 @@ export function brl(amountCents: number) {
   }).format(amountCents / 100);
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  active: "Ativo", inactive: "Inativo", blocked: "Bloqueado", invited: "Convite enviado",
+  scheduled: "Agendado", confirmed: "Confirmado", attending: "Em atendimento", completed: "Concluído",
+  missed: "Falta", cancelled: "Cancelado", present: "Presente", absent: "Faltou",
+  pending: "Pendente", partial: "Parcial", paid: "Pago", overdue: "Vencido",
+  approved: "Aprovado", rejected: "Rejeitado", processing: "Em processamento", imported: "Importado",
+  draft: "Rascunho", signed: "Assinado", rectification: "Retificação", closed: "Fechado",
+  income: "Entrada", expense: "Saída", appointment: "Atendimento", payment: "Recebimento",
+  manual: "Manual", succeeded: "Concluído", failed: "Falhou", rolled_back: "Revertido",
+};
+
+export function statusLabel(value: unknown) {
+  const key = String(value ?? "").trim();
+  return STATUS_LABELS[key] ?? (key.replaceAll("_", " ") || "—");
+}
+
 export function planTotalCents(plan: Row) {
   const monthlyPrice = Number(plan.price_cents ?? 0);
   const months = Math.max(1, Math.round(Number(plan.duration_days ?? 30) / 30));
@@ -121,6 +137,55 @@ export function useResources(paths: string[]) {
     };
   }, [reload]);
   return { data, loading, error, reload };
+}
+
+export function useDialogFocus(open: boolean, onClose: () => void, canClose = true) {
+  const dialogRef = useRef<HTMLElement>(null);
+  const onCloseRef = useRef(onClose);
+  const canCloseRef = useRef(canClose);
+  onCloseRef.current = onClose;
+  canCloseRef.current = canClose;
+
+  useEffect(() => {
+    if (!open) return;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const focusFrame = window.requestAnimationFrame(() => {
+      const preferred = dialogRef.current?.querySelector<HTMLElement>('[autofocus], .dialog-close, .modal-head > button, button, input, select, textarea, a[href]');
+      (preferred ?? dialogRef.current)?.focus();
+    });
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && canCloseRef.current) {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = [...(dialogRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])') ?? [])];
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      if (!first || !last) {
+        event.preventDefault();
+        dialogRef.current?.focus();
+      } else if (event.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+      if (previousFocus?.isConnected) window.requestAnimationFrame(() => previousFocus.focus());
+    };
+  }, [open]);
+
+  return dialogRef;
 }
 
 export function Select({
@@ -333,17 +398,23 @@ export function DrawerForm({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLElement>(null);
-  const close = () => {
-    if (submitting) return;
+  const formRef = useRef<HTMLFormElement>(null);
+  const dirtyRef = useRef(false);
+  const submittingRef = useRef(false);
+  const close = (force = false) => {
+    if (submittingRef.current) return;
+    if (!force && dirtyRef.current && !window.confirm("Descartar as alterações deste formulário? Os dados preenchidos não serão salvos.")) return;
+    dirtyRef.current = false;
     setOpen(false);
     onClose?.();
     requestAnimationFrame(() => triggerRef.current?.focus());
   };
   const submit = async (event: FormEvent<HTMLFormElement>) => {
-    if (submitting) {
+    if (submittingRef.current) {
       event.preventDefault();
       return;
     }
+    submittingRef.current = true;
     const submitter = (event.nativeEvent as SubmitEvent).submitter;
     setSubmitting(true);
     if (submitter instanceof HTMLButtonElement) {
@@ -355,6 +426,7 @@ export function DrawerForm({
     try {
       await onSubmit(event);
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
       if (submitter instanceof HTMLButtonElement) {
         submitter.disabled = false;
@@ -408,7 +480,10 @@ export function DrawerForm({
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={dialogId}
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          dirtyRef.current = false;
+          setOpen(true);
+        }}
       >
         <span aria-hidden="true">＋</span>
         <span><strong>{title}</strong><small>Abrir formulário de cadastro</small></span>
@@ -428,9 +503,9 @@ export function DrawerForm({
           >
             <div className="modal-head">
               <h2 id={titleId}>{title}</h2>
-              <button ref={closeRef} type="button" onClick={close} disabled={submitting} aria-label={`Fechar ${title}`}>×</button>
+              <button ref={closeRef} type="button" onClick={() => close()} disabled={submitting} aria-label={`Fechar ${title}`}>×</button>
             </div>
-            <form className="modal-form creation-drawer-form" onSubmit={(event) => void submit(event)} aria-busy={submitting}>
+            <form ref={formRef} className="modal-form creation-drawer-form" onSubmit={(event) => void submit(event)} onInput={() => { dirtyRef.current = true; }} onReset={() => { dirtyRef.current = false; }} aria-busy={submitting}>
               {children}
             </form>
           </section>
@@ -518,6 +593,7 @@ export function EditableOperationalTable({
   allowDelete = false,
   showToggle = true,
   canEdit = true,
+  emptyMessage = "Nenhum registro cadastrado.",
   total,
   page,
   pageSize,
@@ -536,6 +612,7 @@ export function EditableOperationalTable({
   allowDelete?: boolean;
   showToggle?: boolean;
   canEdit?: boolean;
+  emptyMessage?: string;
   total?: number;
   page?: number;
   pageSize?: number;
@@ -543,19 +620,55 @@ export function EditableOperationalTable({
 }) {
   const [editing, setEditing] = useState<Row | null>(null);
   const [saving, setSaving] = useState(false);
+  const editDialogRef = useRef<HTMLElement>(null);
+  const editTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const editDirtyRef = useRef(false);
+  const savingRef = useRef(false);
+
+  function closeEditing(force = false) {
+    if (savingRef.current) return;
+    if (!force && editDirtyRef.current && !window.confirm("Descartar as alterações desta edição? Os dados modificados não serão salvos.")) return;
+    editDirtyRef.current = false;
+    setEditing(null);
+  }
 
   useEffect(() => {
     if (!editing) return;
-    const close = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !saving) setEditing(null);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const focusFrame = window.requestAnimationFrame(() => editDialogRef.current?.querySelector<HTMLElement>(".dialog-close")?.focus());
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeEditing();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = [...(editDialogRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])') ?? [])];
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      if (!first || !last) return;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
-    document.addEventListener("keydown", close);
-    return () => document.removeEventListener("keydown", close);
-  }, [editing, saving]);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+      window.requestAnimationFrame(() => editTriggerRef.current?.focus());
+    };
+  }, [editing]);
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!editing) return;
+    savingRef.current = true;
     setSaving(true);
     try {
       const form = new FormData(event.currentTarget);
@@ -568,11 +681,13 @@ export function EditableOperationalTable({
         });
       }
       await onChanged();
+      editDirtyRef.current = false;
       setEditing(null);
       onNotice(`${title.replace(/s$/, "")} atualizado com sucesso.`);
     } catch (error) {
       onNotice(messageOf(error));
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
@@ -623,7 +738,11 @@ export function EditableOperationalTable({
             </div>)}
             <div className="row-actions" aria-label={`Ações de ${row.name}`}>
               {onOpen && <button type="button" onClick={() => void onOpen(row)}>Detalhes</button>}
-              {canEdit && <button type="button" onClick={() => setEditing(row)}>Editar</button>}
+              {canEdit && <button type="button" onClick={(event) => {
+                editTriggerRef.current = event.currentTarget;
+                editDirtyRef.current = false;
+                setEditing(row);
+              }}>Editar</button>}
               {canEdit && showToggle && <button
                   type="button"
                   className={row.active === false ? "action-activate" : "action-inactivate"}
@@ -635,7 +754,7 @@ export function EditableOperationalTable({
             </div>
           </div>
         ))}
-        {!rows.length && <div className="empty-state">Nenhum registro cadastrado.</div>}
+        {!rows.length && <div className="empty-state">{emptyMessage}</div>}
         {page && pageSize && total !== undefined && total > pageSize && (
           <nav className="table-pagination" aria-label={`Paginação de ${title}`}>
             <button className="btn secondary" type="button" disabled={page === 1} onClick={() => onPageChange?.(page - 1)}>Anterior</button>
@@ -646,17 +765,17 @@ export function EditableOperationalTable({
       </section>
       {editing && (
         <div className="edit-dialog-backdrop" role="presentation" onMouseDown={(event) => {
-          if (event.target === event.currentTarget && !saving) setEditing(null);
+          if (event.target === event.currentTarget) closeEditing();
         }}>
-          <section className="edit-dialog" role="dialog" aria-modal="true" aria-labelledby={`edit-${resource}-title`}>
+          <section ref={editDialogRef} className="edit-dialog" role="dialog" aria-modal="true" aria-labelledby={`edit-${resource}-title`}>
             <div className="edit-dialog-header">
               <div>
                 <p className="eyebrow">EDIÇÃO DE CADASTRO</p>
                 <h2 id={`edit-${resource}-title`}>Editar {editing.name}</h2>
               </div>
-              <button type="button" className="dialog-close" aria-label="Fechar edição" onClick={() => setEditing(null)} disabled={saving}>×</button>
+              <button type="button" className="dialog-close" aria-label="Fechar edição" onClick={() => closeEditing()} disabled={saving}>×</button>
             </div>
-            <form className="modal-form" onSubmit={save}>
+            <form className="modal-form" onSubmit={save} onInput={() => { editDirtyRef.current = true; }} aria-busy={saving}>
               {editFields.map((field) => (
                 field.type === "select" ? <SelectField key={field.name} name={field.name} label={field.label} required={field.required} defaultValue={String(field.value ? field.value(editing) ?? "" : editing[field.name] ?? "")}>
                     <option value="">Selecione</option>
@@ -682,7 +801,7 @@ export function EditableOperationalTable({
                   />
               ))}
               <div className="edit-dialog-actions">
-                <button type="button" className="btn secondary" onClick={() => setEditing(null)} disabled={saving}>Cancelar</button>
+                <button type="button" className="btn secondary" onClick={() => closeEditing()} disabled={saving}>Cancelar</button>
                 <button className="btn primary" disabled={saving}>{saving ? "Salvando…" : "Salvar alterações"}</button>
               </div>
             </form>
@@ -698,11 +817,13 @@ export function OperationalTable({
   rows,
   fields,
   actions,
+  emptyMessage = "Nenhum registro cadastrado.",
 }: {
   title: string;
   rows: Row[];
   fields: string[];
   actions?: (row: Row) => ReactNode;
+  emptyMessage?: string;
 }) {
   return (
     <section className="card table-card operational-data-table" style={{ "--table-columns": `repeat(${fields.length}, minmax(135px, 1fr))` } as CSSProperties}>
@@ -722,7 +843,7 @@ export function OperationalTable({
         </div>
       ))}
       {!rows.length && (
-        <div className="empty-state">Nenhum registro cadastrado.</div>
+        <div className="empty-state">{emptyMessage}</div>
       )}
     </section>
   );
@@ -751,13 +872,25 @@ export function render(value: any, field: string) {
   if (value == null) return "—";
   if (field.includes("amount") || field.includes("paid_cents") || field === "price_cents" || field === "total_plan_cents")
     return brl(Number(value));
-  if (field === "kind") return ({ monthly: "Mensal", package: "Pacote", single: "Avulso" } as Record<string, string>)[String(value)] ?? String(value);
+  if (field === "kind") return ({
+    monthly: "Mensal", package: "Pacote", single: "Avulso", assessment: "Avaliação", evolution: "Evolução",
+    access: "Acesso", correction: "Correção", sharing: "Compartilhamentos", opposition: "Oposição",
+    portability: "Portabilidade", revocation: "Revogação", deletion: "Eliminação aplicável",
+    income: "Entrada", expense: "Saída",
+  } as Record<string, string>)[String(value)] ?? statusLabel(value);
+  if (field === "status") return statusLabel(value);
+  if (field === "severity") return ({ low: "Baixa", medium: "Média", high: "Alta", critical: "Crítica" } as Record<string, string>)[String(value)] ?? statusLabel(value);
+  if (field === "action") return ({ INSERT: "Criação", UPDATE: "Alteração", DELETE: "Exclusão", create: "Criação", update: "Alteração", delete: "Exclusão" } as Record<string, string>)[String(value)] ?? statusLabel(value);
+  if (field === "entity_type") return ({ patient: "Paciente", patients: "Paciente", appointment: "Agendamento", appointments: "Agendamento", enrollment: "Matrícula", enrollments: "Matrícula", clinical_record: "Prontuário", clinical_records: "Prontuário", user: "Usuário", profiles: "Usuário" } as Record<string, string>)[String(value)] ?? statusLabel(value);
   if (field === "active") return value ? "Ativo" : "Inativo";
   if (field === "weekdays" && Array.isArray(value)) {
     return value.map((day: number) => (["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"] as const)[day] ?? day).join(" · ");
   }
-  if (["starts_at", "ends_at", "starts_on", "ends_on"].includes(field) && /^\d{4}-\d{2}-\d{2}$/.test(String(value))) {
+  if ((field.endsWith("_at") || field.endsWith("_date") || field.endsWith("_on")) && /^\d{4}-\d{2}-\d{2}$/.test(String(value))) {
     return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(new Date(`${value}T00:00:00`));
+  }
+  if ((field.endsWith("_at") || field.endsWith("_date") || field.endsWith("_on")) && !Number.isNaN(new Date(String(value)).valueOf())) {
+    return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(String(value)));
   }
   if (typeof value === "object") return JSON.stringify(value);
   return String(value);

@@ -11,6 +11,9 @@
   background: #fff;
   box-shadow: 0 16px 36px rgb(16 38 58 / 16%);
 }
+.global-results button[aria-selected="true"] { background: var(--green-2); }
+.global-results-empty { margin: 0; padding: 16px; color: var(--muted); font-size: 13px; text-align: center; }
+.annual-table-description { margin: 0; padding: 14px 18px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 13px; line-height: 1.5; }
 
 /* Mantém a severidade das notificações acima das regras legadas do portal. */
 .toast.toast-success { border-color: #39796e; background: #193f39; color: #fff; }
@@ -2392,6 +2395,79 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .group-member-form fieldset { grid-template-columns: 1fr; }
   .group-member-form legend, .group-member-form small { grid-column: auto; }
   .group-member-form .btn { width: 100%; }
+}
+
+/* Fundação transversal: legibilidade, foco e estados operacionais. */
+html { font-size: 100%; }
+body { line-height: 1.5; }
+
+:where(a, button, input, select, textarea, [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+:where(button, input, select, textarea):disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: .62;
+}
+
+[aria-busy="true"] { cursor: progress; }
+
+.clinical-fieldset legend,
+.record-header-note strong,
+.record-header-note span,
+.exercise-grid > span,
+.exercise-grid label,
+.clinical-alert strong,
+.clinical-alert p,
+.record-date,
+.record-content h3,
+.record-content > small,
+.record-content p {
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}
+
+.clinical-fieldset > label,
+.clinical-fieldset .form-row > label {
+  color: #40576b;
+  font-size: var(--text-sm);
+}
+
+.clinical-fieldset textarea,
+.clinical-fieldset input:not([type="checkbox"]) {
+  min-height: var(--control-min-size);
+  font-size: var(--text-md);
+  line-height: 1.5;
+}
+
+.exercise-grid label {
+  min-height: var(--control-min-size);
+  padding: 9px 12px;
+}
+
+.status,
+.appointment-status-label,
+.plan-status {
+  font-size: var(--text-xs);
+  line-height: 1.35;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+@media (forced-colors: active) {
+  :where(a, button, input, select, textarea, [tabindex]:not([tabindex="-1"])):focus-visible {
+    outline-color: Highlight;
+  }
+  .status, .appointment-status-label, .plan-status { border: 1px solid currentColor; }
 }
 
 /* Override final: uma única régua para todos os campos e linhas de formulário. */

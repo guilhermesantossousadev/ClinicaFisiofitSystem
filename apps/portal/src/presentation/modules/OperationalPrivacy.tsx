@@ -127,18 +127,21 @@ export function OperationalPrivacy({
         title="Solicitações de titulares"
         rows={data["/privacy/requests"] ?? []}
         fields={["requester_name", "kind", "status", "due_at"]}
+        emptyMessage="Nenhuma solicitação de titular foi registrada."
       />
       {canManageIncidents && (
         <OperationalTable
           title="Incidentes"
           rows={data["/privacy/incidents"] ?? []}
           fields={["title", "severity", "status", "discovered_at"]}
+          emptyMessage="Nenhum incidente de privacidade foi registrado."
         />
       )}
       <OperationalTable
         title="Auditoria recente"
         rows={data["/audit"] ?? []}
         fields={["action", "entity_type", "user_id", "occurred_at"]}
+        emptyMessage="Nenhum evento de auditoria está disponível para consulta."
       />
     </div>
   );

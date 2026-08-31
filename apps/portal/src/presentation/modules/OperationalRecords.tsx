@@ -2,7 +2,7 @@ import { FormEvent, useCallback, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { supabase } from "../../infrastructure/supabase/client";
 import { CheckboxField, SelectField, TextareaField, TextField } from "../components/FormPrimitives";
-import { Row, messageOf, value, useResources, Select, DrawerForm, ModuleState } from "./OperationalShared";
+import { Row, messageOf, statusLabel, value, useResources, Select, DrawerForm, ModuleState } from "./OperationalShared";
 
 export function OperationalRecords({ canEdit = true }: { canEdit?: boolean }) {
   const basePaths = [
@@ -187,7 +187,7 @@ export function OperationalRecords({ canEdit = true }: { canEdit?: boolean }) {
       {patientId && <section className="card table-card">
         <div className="table-toolbar"><h2>Anexos do paciente</h2>{canEdit && <label className="btn secondary">Adicionar arquivo<input className="sr-only" type="file" accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif" onChange={uploadAttachment} /></label>}</div>
         {attachments.map((file) => <div className="operational-row" key={file.id}><div><strong>{file.filename}</strong><small>{file.content_type} · {Math.round(file.size_bytes / 1024)} KB</small></div></div>)}
-        {!attachments.length && <div className="empty-state">Nenhum anexo.</div>}
+        {!attachments.length && <div className="empty-state">Nenhum anexo foi adicionado para este paciente.</div>}
       </section>}
       <section className="card table-card bespoke-table records-list-table">
         <div className="table-toolbar"><h2>Registros clínicos</h2><span>{records.length} registros</span></div>
@@ -196,7 +196,7 @@ export function OperationalRecords({ canEdit = true }: { canEdit?: boolean }) {
           <div className="operational-row" key={row.id}>
             <div>
               <strong>
-                {row.kind === "assessment" ? "Avaliação inicial" : "Evolução"} · {row.status === "draft" ? "Rascunho" : row.status === "signed" ? "Assinado" : row.status}
+                {row.kind === "assessment" ? "Avaliação inicial" : "Evolução"} · {statusLabel(row.status)}
               </strong>
               <small>
                 {new Date(row.created_at).toLocaleString("pt-BR")} · {row.payload?.complaint || row.payload?.text || row.payload?.functional_diagnosis || "Sem descrição"}
@@ -213,7 +213,7 @@ export function OperationalRecords({ canEdit = true }: { canEdit?: boolean }) {
           </div>
         ))}
         {patientId && !records.length && (
-          <div className="empty-state">Paciente sem registros clínicos.</div>
+          <div className="empty-state">Este paciente ainda não possui avaliações ou evoluções registradas.</div>
         )}
       </section>
     </div>

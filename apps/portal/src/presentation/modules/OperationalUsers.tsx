@@ -1,7 +1,9 @@
 import { FormEvent, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { CheckboxField, FormSection, SelectField, TextField } from "../components/FormPrimitives";
-import { Row, Unit, messageOf, value, useResources, DrawerForm, ModuleState } from "./OperationalShared";
+import { roleLabel } from "../../application/portal/navigation";
+import type { Role } from "../../domain/portal";
+import { Row, Unit, messageOf, statusLabel, value, useDialogFocus, useResources, DrawerForm, ModuleState } from "./OperationalShared";
 
 export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }) {
   const { data, loading, error, reload } = useResources(["/users", "/units"]);
@@ -10,6 +12,19 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
   const [editingUserId, setEditingUserId] = useState("");
   const [passwordUser, setPasswordUser] = useState<Row | null>(null);
   const [passwordError, setPasswordError] = useState("");
+  const [editingDirty, setEditingDirty] = useState(false);
+  const [passwordDirty, setPasswordDirty] = useState(false);
+  function closePasswordDialog() {
+    if (passwordDirty && !window.confirm("Descartar a nova senha ainda não salva?")) return;
+    setPasswordDirty(false);
+    setPasswordUser(null);
+  }
+  const passwordDialogRef = useDialogFocus(Boolean(passwordUser), closePasswordDialog, !updatingUserId);
+  function toggleUserEditing(id: string) {
+    if (editingUserId && editingDirty && !window.confirm("Descartar as alterações de acesso ainda não salvas?")) return;
+    setEditingDirty(false);
+    setEditingUserId(editingUserId === id ? "" : id);
+  }
   const permissionModules = [
     ["dashboard", "Painel"], ["agenda", "Agenda"], ["patients", "Pacientes"], ["enrollments", "Matrículas"], ["records", "Prontuários"],
     ["finance", "Financeiro"], ["reports", "Relatórios"], ["imports", "Importações"], ["users", "Usuários"], ["settings", "Configurações"], ["privacy", "Privacidade"],
@@ -67,6 +82,7 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
         }),
       });
       await reload();
+      setEditingDirty(false);
       setEditingUserId("");
       setNotice("Usuária atualizada.");
     } catch (e) {
@@ -106,6 +122,7 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
         body: JSON.stringify({ password }),
       });
       await reload();
+      setPasswordDirty(false);
       setPasswordUser(null);
       setNotice(`Senha de ${passwordUser.name} definida diretamente no Supabase.`);
     } catch (e) {
@@ -117,6 +134,7 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
   function openPasswordDialog(row: Row) {
     setNotice("");
     setPasswordError("");
+    setPasswordDirty(false);
     setPasswordUser(row);
   }
   async function removeUser(row: Row) {
@@ -186,7 +204,7 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
                 {row.is_owner ? " · Proprietário" : ""}
               </strong>
               <small>
-                {row.email ? `${row.email} · ` : ""}{row.role} · {row.status}
+                {row.email ? `${row.email} · ` : ""}{roleLabel[row.role as Role] ?? row.role} · {statusLabel(row.status)}
               </small>
             </div>
             {!canManageUsers ? (
@@ -200,7 +218,7 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
               </div>
             ) : (
               <div className="row-actions">
-                <button type="button" disabled={updatingUserId === row.id} onClick={() => setEditingUserId(editingUserId === row.id ? "" : row.id)}>
+                <button type="button" disabled={updatingUserId === row.id} onClick={() => toggleUserEditing(row.id)}>
                   {editingUserId === row.id ? "Cancelar edição" : "Editar"}
                 </button>
                 {row.status !== "active" && (
@@ -230,7 +248,7 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
             )}
           </div>
           {canManageUsers && editingUserId === row.id && !row.is_owner && (
-            <form className="user-edit-form" onSubmit={(event) => saveUser(event, row.id)}>
+            <form className="user-edit-form" onSubmit={(event) => saveUser(event, row.id)} onInput={() => setEditingDirty(true)}>
               <div className="form-row">
                 <TextField name="name" label="Nome" defaultValue={row.name} required minLength={3} />
                 <SelectField name="role" label="Perfil" defaultValue={row.role}>
@@ -252,29 +270,29 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
           )}
           </div>
         ))}
+        {!(data["/users"] ?? []).length && <div className="empty-state">Nenhuma colaboradora foi cadastrada.</div>}
       </section>
       {passwordUser && (
         <div className="modal-backdrop" role="presentation" onMouseDown={(event) => {
-          if (event.target === event.currentTarget && !updatingUserId) setPasswordUser(null);
+          if (event.target === event.currentTarget && !updatingUserId) closePasswordDialog();
         }}>
           <section
+            ref={passwordDialogRef}
             className="modal password-admin-modal"
             role="dialog"
             aria-modal="true"
             aria-labelledby="password-admin-title"
             aria-describedby="password-admin-description"
-            onKeyDown={(event) => {
-              if (event.key === "Escape" && !updatingUserId) setPasswordUser(null);
-            }}
+            tabIndex={-1}
           >
             <div className="modal-head">
               <div>
                 <p className="eyebrow">SEGURANÇA DA CONTA</p>
                 <h2 id="password-admin-title">Definir nova senha</h2>
               </div>
-              <button type="button" aria-label="Fechar" disabled={Boolean(updatingUserId)} onClick={() => setPasswordUser(null)}>×</button>
+              <button type="button" aria-label="Fechar" disabled={Boolean(updatingUserId)} onClick={closePasswordDialog}>×</button>
             </div>
-            <form className="modal-form" onSubmit={setDirectPassword}>
+            <form className="modal-form" onSubmit={setDirectPassword} onInput={() => setPasswordDirty(true)} aria-busy={Boolean(updatingUserId)}>
               <p className="form-instructions" id="password-admin-description">
                 A senha de <strong>{passwordUser.name}</strong>{passwordUser.email ? ` (${passwordUser.email})` : ""} será alterada imediatamente no Supabase, sem envio de e-mail.
               </p>
@@ -300,7 +318,7 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
               />
               {passwordError && <div className="login-error" role="alert">{passwordError}</div>}
               <div className="modal-actions">
-                <button className="btn secondary" type="button" disabled={Boolean(updatingUserId)} onClick={() => setPasswordUser(null)}>Cancelar</button>
+                <button className="btn secondary" type="button" disabled={Boolean(updatingUserId)} onClick={closePasswordDialog}>Cancelar</button>
                 <button className="btn primary" type="submit" disabled={Boolean(updatingUserId)}>
                   {updatingUserId ? "Salvando no Supabase…" : "Definir senha"}
                 </button>
