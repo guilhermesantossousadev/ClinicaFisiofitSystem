@@ -260,6 +260,7 @@ export function PatientPicker({
   defaultValue = "",
   defaultLabel = "",
   onSelect,
+  onClear,
   id,
   allowedIds,
   unitId,
@@ -271,6 +272,7 @@ export function PatientPicker({
   defaultValue?: string;
   defaultLabel?: string;
   onSelect?: (patient: Row) => void;
+  onClear?: () => void;
   id?: string;
   allowedIds?: string[];
   unitId?: string;
@@ -353,6 +355,7 @@ export function PatientPicker({
         onKeyDown={handleKeyDown}
         onChange={(event) => {
           setQuery(event.target.value);
+          if (selectedId) onClear?.();
           setSelectedId("");
           setOpen(event.target.value.trim().length >= 2);
         }}

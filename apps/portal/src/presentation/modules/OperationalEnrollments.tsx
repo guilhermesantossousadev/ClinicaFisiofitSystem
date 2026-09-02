@@ -1,6 +1,7 @@
 import { FormEvent, useMemo, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { buildPlanControlRows, renewalCopy, type PlanControlRow } from "../../application/portal/planControl";
+import { buildAvailablePaymentPlans } from "../../application/portal/paymentPlans";
 import { SelectField, TextField } from "../components/FormPrimitives";
 import { type AgendaEnrollmentContext, Row, PLAN_PERIODS, PlanPeriod, WeeklyFrequency, messageOf, value, cents, brl, planTotalCents, groupSlotLabel, useDialogFocus, useResources, PlanSelect, PatientPicker, DrawerForm, ModuleState, MetricLite, EditableOperationalTable, OperationalTable, dateKey, localDateAtNoonIso } from "./OperationalShared";
 
@@ -30,6 +31,8 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
   const [savingControlRow, setSavingControlRow] = useState(false);
   const [savingPaymentId, setSavingPaymentId] = useState("");
   const [selectedPaymentChargeId, setSelectedPaymentChargeId] = useState("");
+  const [selectedPaymentPatientId, setSelectedPaymentPatientId] = useState("");
+  const [paymentPatientPickerVersion, setPaymentPatientPickerVersion] = useState(0);
   const [paymentAmount, setPaymentAmount] = useState("");
   const selectedPeriod = PLAN_PERIODS[planPeriod];
   const planSessions = selectedPeriod.months * weeklyFrequency * 4;
@@ -111,6 +114,8 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
       });
       (event.target as HTMLFormElement).reset();
       setSelectedPaymentChargeId("");
+      setSelectedPaymentPatientId("");
+      setPaymentPatientPickerVersion((version) => version + 1);
       setPaymentAmount("");
       await reload();
       setNotice("Pagamento registrado.");
@@ -172,15 +177,29 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
     ...row,
     total_plan_cents: planTotalCents(row),
   }));
-  const payableCharges = (data["/charges"] ?? []).filter((row: Row) =>
-    !row.deleted_at
-    && row.status !== "cancelled"
-    && Number(row.amount_cents ?? 0) - Number(row.paid_cents ?? 0) > 0
-  );
-  const selectedPaymentCharge = payableCharges.find((row: Row) => row.id === selectedPaymentChargeId);
-  const selectedPaymentBalance = selectedPaymentCharge
-    ? Number(selectedPaymentCharge.amount_cents ?? 0) - Number(selectedPaymentCharge.paid_cents ?? 0)
-    : 0;
+  const availablePaymentPlans = useMemo(() => buildAvailablePaymentPlans({
+    charges: data["/charges"] ?? [],
+    enrollments: data["/enrollments"] ?? [],
+    plans: data["/plans"] ?? [],
+  }), [data]);
+  const payablePatientIds = useMemo(() => [...new Set(availablePaymentPlans.map((row) => row.patientId))], [availablePaymentPlans]);
+  const selectedPatientPlans = selectedPaymentPatientId
+    ? availablePaymentPlans.filter((row) => row.patientId === selectedPaymentPatientId)
+    : [];
+  const selectedPaymentPlan = selectedPatientPlans.find((row) => row.chargeId === selectedPaymentChargeId);
+  const selectedPaymentBalance = selectedPaymentPlan?.balanceCents ?? 0;
+  const selectPaymentPatient = (patient: Row) => {
+    const patientPlans = availablePaymentPlans.filter((row) => row.patientId === patient.id);
+    const onlyPlan = patientPlans.length === 1 ? patientPlans[0] : undefined;
+    setSelectedPaymentPatientId(patient.id);
+    setSelectedPaymentChargeId(onlyPlan?.chargeId ?? "");
+    setPaymentAmount(onlyPlan ? (onlyPlan.balanceCents / 100).toFixed(2) : "");
+  };
+  const clearPaymentPatient = () => {
+    setSelectedPaymentPatientId("");
+    setSelectedPaymentChargeId("");
+    setPaymentAmount("");
+  };
   const controlRows = useMemo(() => buildPlanControlRows({
     enrollments: data["/enrollments"] ?? [],
     patients,
@@ -307,29 +326,55 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
         </DrawerForm>
         )}
       </div>}
-      {canReceivePayments && <form className="card modal-form inline-form" onSubmit={pay}>
-        <h2>Registrar pagamento</h2>
-        <SelectField id="payment-charge" name="charge_id" label="Cobrança" required value={selectedPaymentChargeId} onChange={(event) => {
+      {canReceivePayments && <form className="card modal-form payment-registration-card" onSubmit={pay}>
+        <div className="payment-registration-heading">
+          <div>
+            <p className="eyebrow">RECEBIMENTO</p>
+            <h2>Registrar pagamento</h2>
+            <p>Escolha a pessoa para ver somente os planos disponíveis para pagamento.</p>
+          </div>
+          <span>{payablePatientIds.length} {payablePatientIds.length === 1 ? "pessoa com saldo" : "pessoas com saldo"}</span>
+        </div>
+        <div className="payment-registration-grid">
+          <PatientPicker
+            key={paymentPatientPickerVersion}
+            id="payment-patient"
+            name="payment_patient_id"
+            label="Pessoa"
+            rows={patients}
+            allowedIds={payablePatientIds}
+            onSelect={selectPaymentPatient}
+            onClear={clearPaymentPatient}
+          />
+          <SelectField id="payment-charge" name="charge_id" label="Plano disponível" required disabled={!selectedPaymentPatientId} value={selectedPaymentChargeId} hint={!selectedPaymentPatientId ? "Selecione a pessoa primeiro." : selectedPatientPlans.length ? `${selectedPatientPlans.length} ${selectedPatientPlans.length === 1 ? "plano disponível" : "planos disponíveis"}.` : "Nenhum plano com saldo disponível."} onChange={(event) => {
           const chargeId = event.target.value;
-          const charge = payableCharges.find((row: Row) => row.id === chargeId);
-          const balance = charge ? Number(charge.amount_cents ?? 0) - Number(charge.paid_cents ?? 0) : 0;
+          const plan = selectedPatientPlans.find((row) => row.chargeId === chargeId);
+          const balance = plan?.balanceCents ?? 0;
           setSelectedPaymentChargeId(chargeId);
           setPaymentAmount(balance > 0 ? (balance / 100).toFixed(2) : "");
         }}>
-          <option value="">Selecione</option>
-          {payableCharges.map((row: Row) => (
-            <option key={row.id} value={row.id}>{row.description} — saldo {brl(Number(row.amount_cents ?? 0) - Number(row.paid_cents ?? 0))}</option>
+          <option value="">{selectedPaymentPatientId ? "Selecione o plano" : "Selecione a pessoa primeiro"}</option>
+          {selectedPatientPlans.map((row) => (
+            <option key={row.chargeId} value={row.chargeId}>{row.planName} — {brl(row.balanceCents)}</option>
           ))}
         </SelectField>
-        <TextField id="payment-amount" name="amount" label="Valor" type="number" inputMode="decimal" min="0.01" max={selectedPaymentBalance ? (selectedPaymentBalance / 100).toFixed(2) : undefined} step=".01" value={paymentAmount} onChange={(event) => setPaymentAmount(event.target.value)} hint={selectedPaymentBalance ? `Saldo disponível: ${brl(selectedPaymentBalance)}` : "Selecione uma cobrança com saldo."} required />
-        <TextField id="payment-paid-at" name="paid_at" label="Data do pagamento" type="date" defaultValue={dateKey(new Date())} required />
-        <SelectField id="payment-method" name="method" label="Forma">
+        </div>
+        {selectedPaymentPlan && <div className="payment-plan-summary" role="status" aria-live="polite">
+          <div><span>Plano selecionado</span><strong>{selectedPaymentPlan.planName}</strong></div>
+          <div><span>Vencimento</span><strong>{dateLabel(selectedPaymentPlan.dueAt)}</strong></div>
+          <div><span>Saldo disponível</span><strong>{brl(selectedPaymentPlan.balanceCents)}</strong></div>
+        </div>}
+        <div className="payment-details-grid">
+          <TextField id="payment-amount" name="amount" label="Valor a receber" type="number" inputMode="decimal" min="0.01" max={selectedPaymentBalance ? (selectedPaymentBalance / 100).toFixed(2) : undefined} step=".01" value={paymentAmount} disabled={!selectedPaymentChargeId} onChange={(event) => setPaymentAmount(event.target.value)} hint={selectedPaymentBalance ? `Máximo: ${brl(selectedPaymentBalance)}` : "Escolha um plano para informar o valor."} required />
+          <TextField id="payment-paid-at" name="paid_at" label="Data do pagamento" type="date" defaultValue={dateKey(new Date())} required />
+          <SelectField id="payment-method" name="method" label="Forma de pagamento">
             <option value="pix">PIX</option>
             <option value="card">Cartão</option>
             <option value="cash">Dinheiro</option>
             <option value="transfer">Transferência</option>
-        </SelectField>
-        <button className="btn primary" disabled={!selectedPaymentChargeId}>Receber</button>
+          </SelectField>
+        </div>
+        <button className="btn primary payment-submit" disabled={!selectedPaymentChargeId}>Confirmar recebimento</button>
       </form>}
       {canManagePlans && (
       <EditableOperationalTable

@@ -184,11 +184,12 @@ test("mantém todos os recursos da agenda coerentes com a unidade selecionada", 
 });
 
 test("mantém o fluxo de matrícula da recepção funcional e sem expor o financeiro", async () => {
-  const [authorization, api, financeRoute, enrollments, shared, migration] = await Promise.all([
+  const [authorization, api, financeRoute, enrollments, paymentPlans, shared, migration] = await Promise.all([
     readFile(new URL("../supabase/functions/api/authorization.ts", import.meta.url), "utf8"),
     readFile(new URL("../supabase/functions/api/index.ts", import.meta.url), "utf8"),
     readFile(new URL("../supabase/functions/api/routes/financeiro.ts", import.meta.url), "utf8"),
     readFile(new URL("../apps/portal/src/presentation/modules/OperationalEnrollments.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../apps/portal/src/application/portal/paymentPlans.ts", import.meta.url), "utf8"),
     readFile(new URL("../apps/portal/src/presentation/modules/OperationalShared.tsx", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/202608240001_reception_enrollment_flow.sql", import.meta.url), "utf8"),
   ]);
@@ -196,7 +197,10 @@ test("mantém o fluxo de matrícula da recepção funcional e sem expor o financ
   assert.match(api, /app\.post\("\/enrollments", requireRoles\(\["admin", "manager", "reception", "finance"\]\)/);
   assert.match(enrollments, /\.\.\.\(canViewCharges \? \["\/charges"\] : \[\]\)/);
   assert.match(enrollments, /canReceivePayments && <form/);
-  assert.match(enrollments, /payableCharges/);
+  assert.match(enrollments, /buildAvailablePaymentPlans/);
+  assert.match(paymentPlans, /row\.status === "active"/);
+  assert.match(paymentPlans, /charge\.status === "cancelled"/);
+  assert.match(paymentPlans, /seenEnrollmentIds/);
   assert.match(enrollments, /Saldo disponível/);
   assert.match(financeRoute, /INVALID_PAYMENT_AMOUNT/);
   assert.match(shared, /Promise\.allSettled\(paths\.map/);

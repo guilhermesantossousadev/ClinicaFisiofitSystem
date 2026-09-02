@@ -2686,3 +2686,29 @@ body { line-height: 1.5; }
 .toast.toast-error { border-color: #d88f95; background: #8f2d32; color: #fff; }
 .toast.toast-warning { border-color: #d5a151; background: #815319; color: #fff; }
 .toast.toast-info { border-color: #5f9fc8; background: #164c70; color: #fff; }
+
+/* Recebimento guiado: pessoa primeiro, depois somente os planos com saldo. */
+.modal-form.payment-registration-card { display: grid; gap: 22px; margin: 18px 0; padding: 24px; overflow: visible; }
+.payment-registration-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding-bottom: 18px; border-bottom: 1px solid #e2ebf1; }
+.payment-registration-heading h2 { margin: 4px 0 5px; font-size: 20px; }
+.payment-registration-heading p:not(.eyebrow) { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.payment-registration-heading > span { flex: 0 0 auto; padding: 7px 10px; border-radius: 999px; background: #eef8fc; color: #176b8f; font-size: 12px; font-weight: 800; }
+.payment-registration-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.payment-details-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; align-items: start; }
+.payment-plan-summary { display: grid; grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(130px, .7fr)); gap: 14px; padding: 16px 18px; border: 1px solid #b8d6e5; border-radius: 12px; background: #f2f9fc; }
+.payment-plan-summary > div { display: grid; gap: 4px; min-width: 0; }
+.payment-plan-summary span { color: #597487; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .035em; }
+.payment-plan-summary strong { overflow-wrap: anywhere; color: var(--ink); font-size: 14px; }
+.modal-form.payment-registration-card .btn.primary.payment-submit { justify-self: end; width: min(100%, 280px); margin: 0; }
+.payment-registration-card select:disabled,
+.payment-registration-card input:disabled { background-color: #f2f5f7; color: #71818c; cursor: not-allowed; }
+
+@media (max-width: 760px) {
+  .modal-form.payment-registration-card { padding: 18px 16px; }
+  .payment-registration-heading { align-items: stretch; flex-direction: column; gap: 12px; }
+  .payment-registration-heading > span { align-self: flex-start; }
+  .payment-registration-grid,
+  .payment-details-grid,
+  .payment-plan-summary { grid-template-columns: 1fr; }
+  .modal-form.payment-registration-card .btn.primary.payment-submit { justify-self: stretch; width: 100%; }
+}
