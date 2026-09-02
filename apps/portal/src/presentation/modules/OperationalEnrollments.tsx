@@ -2,7 +2,7 @@ import { FormEvent, useMemo, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { buildPlanControlRows, renewalCopy, type PlanControlRow } from "../../application/portal/planControl";
 import { SelectField, TextField } from "../components/FormPrimitives";
-import { type AgendaEnrollmentContext, Row, PLAN_PERIODS, PlanPeriod, WeeklyFrequency, messageOf, value, cents, brl, planTotalCents, groupSlotLabel, useDialogFocus, useResources, Select, PlanSelect, PatientPicker, DrawerForm, ModuleState, MetricLite, EditableOperationalTable, OperationalTable, dateKey, localDateAtNoonIso } from "./OperationalShared";
+import { type AgendaEnrollmentContext, Row, PLAN_PERIODS, PlanPeriod, WeeklyFrequency, messageOf, value, cents, brl, planTotalCents, groupSlotLabel, useDialogFocus, useResources, PlanSelect, PatientPicker, DrawerForm, ModuleState, MetricLite, EditableOperationalTable, OperationalTable, dateKey, localDateAtNoonIso } from "./OperationalShared";
 
 export function OperationalEnrollments({ agendaContext, onClearAgendaContext, openEnrollment = false, units = [], selectedUnitId = "", onUnitChange = () => undefined, canEdit = true, canManagePlans = true, canDeletePlans = true, canViewCharges = true, canManageChargeStatus = true, canViewPayments = true, canReceivePayments = true, canRollback = true }: { agendaContext?: AgendaEnrollmentContext; onClearAgendaContext?: () => void; openEnrollment?: boolean; units?: Array<{ id: string; name: string }>; selectedUnitId?: string; onUnitChange?: (unitId: string) => void; canEdit?: boolean; canManagePlans?: boolean; canDeletePlans?: boolean; canViewCharges?: boolean; canManageChargeStatus?: boolean; canViewPayments?: boolean; canReceivePayments?: boolean; canRollback?: boolean }) {
   const paths = [
@@ -29,6 +29,8 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
   const [editingControlRow, setEditingControlRow] = useState<PlanControlRow | null>(null);
   const [savingControlRow, setSavingControlRow] = useState(false);
   const [savingPaymentId, setSavingPaymentId] = useState("");
+  const [selectedPaymentChargeId, setSelectedPaymentChargeId] = useState("");
+  const [paymentAmount, setPaymentAmount] = useState("");
   const selectedPeriod = PLAN_PERIODS[planPeriod];
   const planSessions = selectedPeriod.months * weeklyFrequency * 4;
   const planName = `${selectedPeriod.label} · ${weeklyFrequency}x por semana`;
@@ -108,6 +110,8 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
         }),
       });
       (event.target as HTMLFormElement).reset();
+      setSelectedPaymentChargeId("");
+      setPaymentAmount("");
       await reload();
       setNotice("Pagamento registrado.");
     } catch (e) {
@@ -168,6 +172,15 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
     ...row,
     total_plan_cents: planTotalCents(row),
   }));
+  const payableCharges = (data["/charges"] ?? []).filter((row: Row) =>
+    !row.deleted_at
+    && row.status !== "cancelled"
+    && Number(row.amount_cents ?? 0) - Number(row.paid_cents ?? 0) > 0
+  );
+  const selectedPaymentCharge = payableCharges.find((row: Row) => row.id === selectedPaymentChargeId);
+  const selectedPaymentBalance = selectedPaymentCharge
+    ? Number(selectedPaymentCharge.amount_cents ?? 0) - Number(selectedPaymentCharge.paid_cents ?? 0)
+    : 0;
   const controlRows = useMemo(() => buildPlanControlRows({
     enrollments: data["/enrollments"] ?? [],
     patients,
@@ -296,15 +309,19 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
       </div>}
       {canReceivePayments && <form className="card modal-form inline-form" onSubmit={pay}>
         <h2>Registrar pagamento</h2>
-        <Select
-          name="charge_id"
-          label="Cobrança"
-          rows={(data["/charges"] ?? []).map((row: Row) => ({
-            ...row,
-            name: `${row.description} — ${brl(row.amount_cents - row.paid_cents)}`,
-          }))}
-        />
-        <TextField id="payment-amount" name="amount" label="Valor" type="number" step=".01" required />
+        <SelectField id="payment-charge" name="charge_id" label="Cobrança" required value={selectedPaymentChargeId} onChange={(event) => {
+          const chargeId = event.target.value;
+          const charge = payableCharges.find((row: Row) => row.id === chargeId);
+          const balance = charge ? Number(charge.amount_cents ?? 0) - Number(charge.paid_cents ?? 0) : 0;
+          setSelectedPaymentChargeId(chargeId);
+          setPaymentAmount(balance > 0 ? (balance / 100).toFixed(2) : "");
+        }}>
+          <option value="">Selecione</option>
+          {payableCharges.map((row: Row) => (
+            <option key={row.id} value={row.id}>{row.description} — saldo {brl(Number(row.amount_cents ?? 0) - Number(row.paid_cents ?? 0))}</option>
+          ))}
+        </SelectField>
+        <TextField id="payment-amount" name="amount" label="Valor" type="number" inputMode="decimal" min="0.01" max={selectedPaymentBalance ? (selectedPaymentBalance / 100).toFixed(2) : undefined} step=".01" value={paymentAmount} onChange={(event) => setPaymentAmount(event.target.value)} hint={selectedPaymentBalance ? `Saldo disponível: ${brl(selectedPaymentBalance)}` : "Selecione uma cobrança com saldo."} required />
         <TextField id="payment-paid-at" name="paid_at" label="Data do pagamento" type="date" defaultValue={dateKey(new Date())} required />
         <SelectField id="payment-method" name="method" label="Forma">
             <option value="pix">PIX</option>
@@ -312,7 +329,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
             <option value="cash">Dinheiro</option>
             <option value="transfer">Transferência</option>
         </SelectField>
-        <button className="btn primary">Receber</button>
+        <button className="btn primary" disabled={!selectedPaymentChargeId}>Receber</button>
       </form>}
       {canManagePlans && (
       <EditableOperationalTable
