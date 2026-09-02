@@ -95,6 +95,10 @@ export function dateKey(date: Date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+export function localDateAtNoonIso(raw: string) {
+  return new Date(`${raw}T12:00:00`).toISOString();
+}
+
 export function useResources(paths: string[]) {
   const key = paths.join("|");
   const selectedUnit = typeof window === "undefined" ? "" : window.localStorage.getItem("fisiofit:selected-unit") ?? "";

@@ -2,7 +2,7 @@ import { FormEvent, useMemo, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { buildPlanControlRows, renewalCopy, type PlanControlRow } from "../../application/portal/planControl";
 import { SelectField, TextField } from "../components/FormPrimitives";
-import { type AgendaEnrollmentContext, Row, PLAN_PERIODS, PlanPeriod, WeeklyFrequency, messageOf, value, cents, brl, planTotalCents, groupSlotLabel, useDialogFocus, useResources, Select, PlanSelect, PatientPicker, DrawerForm, ModuleState, MetricLite, EditableOperationalTable, OperationalTable } from "./OperationalShared";
+import { type AgendaEnrollmentContext, Row, PLAN_PERIODS, PlanPeriod, WeeklyFrequency, messageOf, value, cents, brl, planTotalCents, groupSlotLabel, useDialogFocus, useResources, Select, PlanSelect, PatientPicker, DrawerForm, ModuleState, MetricLite, EditableOperationalTable, OperationalTable, dateKey, localDateAtNoonIso } from "./OperationalShared";
 
 export function OperationalEnrollments({ agendaContext, onClearAgendaContext, openEnrollment = false, units = [], selectedUnitId = "", onUnitChange = () => undefined, canEdit = true, canManagePlans = true, canDeletePlans = true, canViewCharges = true, canManageChargeStatus = true, canViewPayments = true, canReceivePayments = true, canRollback = true }: { agendaContext?: AgendaEnrollmentContext; onClearAgendaContext?: () => void; openEnrollment?: boolean; units?: Array<{ id: string; name: string }>; selectedUnitId?: string; onUnitChange?: (unitId: string) => void; canEdit?: boolean; canManagePlans?: boolean; canDeletePlans?: boolean; canViewCharges?: boolean; canManageChargeStatus?: boolean; canViewPayments?: boolean; canReceivePayments?: boolean; canRollback?: boolean }) {
   const paths = [
@@ -104,7 +104,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
           charge_id: value(form, "charge_id"),
           amount_cents: cents(value(form, "amount")),
           method: value(form, "method"),
-          paid_at: new Date().toISOString(),
+          paid_at: localDateAtNoonIso(value(form, "paid_at")),
         }),
       });
       (event.target as HTMLFormElement).reset();
@@ -305,6 +305,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
           }))}
         />
         <TextField id="payment-amount" name="amount" label="Valor" type="number" step=".01" required />
+        <TextField id="payment-paid-at" name="paid_at" label="Data do pagamento" type="date" defaultValue={dateKey(new Date())} required />
         <SelectField id="payment-method" name="method" label="Forma">
             <option value="pix">PIX</option>
             <option value="card">Cartão</option>
