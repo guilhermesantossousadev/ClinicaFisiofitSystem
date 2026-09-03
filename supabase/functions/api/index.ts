@@ -21,7 +21,6 @@ type Variables = {
     name: string;
     role: Role;
     status: string;
-    mfa_required: boolean;
   };
   db: DatabaseClient;
 };
@@ -34,7 +33,10 @@ app.use("*", cors({
     origin === allowedOrigin || origin.startsWith("http://localhost:")
       ? origin
       : allowedOrigin,
-  allowHeaders: ["authorization", "content-type", "idempotency-key", "x-request-id"],
+  // O cliente do portal envia a chave publicável no cabeçalho `apikey`.
+  // Sem autorizá-lo no preflight, o navegador bloqueia a resposta antes que
+  // ela chegue à aplicação e um login válido parece uma falha de conexão.
+  allowHeaders: ["authorization", "apikey", "content-type", "idempotency-key", "x-request-id"],
   allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
   credentials: true,
   maxAge: 86400,
@@ -93,7 +95,7 @@ app.use("*", async (context, next) => {
 
   const { data: profile, error: profileError } = await db
     .from("profiles")
-    .select("id, clinic_id, name, role, status, mfa_required, profile_permissions(module,can_view,can_edit)")
+    .select("id, clinic_id, name, role, status, profile_permissions(module,can_view,can_edit)")
     .eq("id", authData.user.id)
     .is("deleted_at", null)
     .maybeSingle();
@@ -120,29 +122,11 @@ app.use("*", async (context, next) => {
     return fail(context, 403, code, message);
   }
 
-  const requiresMfa = ["admin", "manager", "finance"].includes(profile.role);
-  const accessToken = auth.slice("Bearer ".length);
-  if (requiresMfa && jwtClaim(accessToken, "aal") !== "aal2") {
-    return fail(context, 403, "MFA_REQUIRED", "Confirme o segundo fator para continuar.");
-  }
-
   context.set("user", authData.user);
   context.set("profile", profile as Variables["profile"]);
   context.set("db", db);
   await next();
 });
-
-function jwtClaim(token: string, claim: string): unknown {
-  try {
-    const payload = token.split(".")[1];
-    if (!payload) return undefined;
-    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
-    return JSON.parse(atob(padded))[claim];
-  } catch {
-    return undefined;
-  }
-}
 
 const patientSchema = z.object({
   primary_unit_id: z.string().uuid(),
@@ -220,7 +204,7 @@ app.get("/dashboard", requireRoles(["admin", "manager"]), async (context) => {
   const nextWeekDate = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(nextWeek);
   const [patients, appointments, overdueCharges, dueCharges, monthEntries, units] = await Promise.all([
     (() => { let query = db.from("patients").select("id", { count: "exact", head: true }).eq("clinic_id", clinicId).is("deleted_at", null); if (unitId) query = query.eq("primary_unit_id", unitId); return query; })(),
-    (() => { let query = db.from("appointments").select("id,status,starts_at,ends_at,patients(id,name),professionals(id,name),services(id,name),units(id,name)").eq("clinic_id", clinicId).gte("starts_at", startsAt).lte("starts_at", endsAt).is("deleted_at", null); if (unitId) query = query.eq("unit_id", unitId); return query.order("starts_at"); })(),
+    (() => { let query = db.from("appointments").select("id,status,starts_at,ends_at,patients(id,name),professionals(id,name),services(id,name),units(id,name)").eq("clinic_id", clinicId).gte("starts_at", startsAt).lte("starts_at", endsAt).neq("status", "cancelled").is("deleted_at", null); if (unitId) query = query.eq("unit_id", unitId); return query.order("starts_at"); })(),
     (() => { let query = db.from("charges").select("id,amount_cents,paid_cents", { count: "exact" }).eq("clinic_id", clinicId).eq("status", "overdue").is("deleted_at", null); if (unitId) query = query.eq("unit_id", unitId); return query; })(),
     (() => { let query = db.from("charges").select("id,description,amount_cents,paid_cents,due_at,status,patients(name),units(name)").eq("clinic_id", clinicId).eq("status", "pending").gte("due_at", date).lte("due_at", nextWeekDate).is("deleted_at", null); if (unitId) query = query.eq("unit_id", unitId); return query.order("due_at").limit(8); })(),
     (() => { let query = db.from("financial_entries").select("kind,amount_cents,settled_at").eq("clinic_id", clinicId).gte("competence_date", monthStart).lte("competence_date", date).is("deleted_at", null); if (unitId) query = query.eq("unit_id", unitId); return query; })(),
@@ -259,7 +243,7 @@ app.get("/dashboard", requireRoles(["admin", "manager"]), async (context) => {
   }, error);
 });
 
-registerUsuariosRoutes(app, { allowedOrigin, requireRoles, ok, fail, databaseResult, audit });
+registerUsuariosRoutes(app, { allowedOrigin, requireRoles, ok, fail, databaseResult, audit, requiredEnv });
 
 app.get("/units", requireRoles(["admin", "manager", "reception", "professional", "finance"]), async (context) => {
   const { data, error } = await context.get("db").from("units").select("*").is("deleted_at", null).order("name");
@@ -292,21 +276,58 @@ app.patch("/units/:id", requireRoles(["admin"]), async (context) => {
 });
 
 app.get("/rooms", requireRoles(["admin", "manager", "reception", "professional"]), listResource("rooms", "name"));
-app.get("/professionals", requireRoles(["admin", "manager", "reception", "professional", "finance"]), listResource("professionals", "name"));
+app.get("/professionals", requireRoles(["admin", "manager", "reception", "professional", "finance"]), async (context) => {
+  const clinicId = context.get("profile").clinic_id;
+  const { data, error } = await context.get("db").from("professionals")
+    .select("*,professional_units(unit_id)")
+    .eq("clinic_id", clinicId).is("deleted_at", null).order("name");
+  return databaseResult(context, (data ?? []).map((professional) => ({
+    ...professional,
+    unit_ids: (professional.professional_units ?? []).map((item: { unit_id: string }) => item.unit_id),
+  })), error);
+});
 app.get("/services", requireRoles(["admin", "manager", "reception", "professional"]), listResource("services", "name"));
 app.get("/plans", requireRoles(["admin", "manager", "reception", "finance"]), listResource("plans", "name"));
 app.get("/group-slots", requireRoles(["admin", "manager", "reception", "professional"]), listResource("group_slots", "starts_at"));
 app.get("/group-slot-memberships", requireRoles(["admin", "manager", "reception", "professional"]), async (context) => {
   const clinicId = context.get("profile").clinic_id;
   let query = context.get("db").from("group_slot_memberships")
-    .select("id,group_slot_id,enrollment_id,patient_id,starts_at,ends_at,status,patients(name,phone)")
+    .select("id,group_slot_id,enrollment_id,patient_id,weekdays,starts_at,ends_at,status,patients(name,phone)")
     .eq("clinic_id", clinicId).is("deleted_at", null).eq("status", "active");
   const groupSlotId = context.req.query("groupSlotId");
   if (groupSlotId) query = query.eq("group_slot_id", z.string().uuid().parse(groupSlotId));
   const { data, error } = await query.order("created_at", { ascending: true }).limit(1000);
   return databaseResult(context, data, error);
 });
-app.get("/enrollments", requireRoles(["admin", "manager", "reception", "finance"]), listResource("enrollments", "created_at", false));
+app.get("/enrollments", requireRoles(["admin", "manager", "reception", "finance"]), async (context) => {
+  const clinicId = context.get("profile").clinic_id;
+  let query = context.get("db").from("enrollments").select("*")
+    .eq("clinic_id", clinicId).is("deleted_at", null);
+  const unitId = context.req.query("unitId");
+  if (unitId) {
+    const parsedUnitId = z.string().uuid().parse(unitId);
+    if (!(await hasUnitAccess(context, parsedUnitId))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+    query = query.eq("unit_id", parsedUnitId);
+  }
+  const { data: enrollments, error } = await query.order("created_at", { ascending: false }).limit(500);
+  if (error || !enrollments?.length) return databaseResult(context, enrollments ?? [], error);
+
+  const patientIds = [...new Set(enrollments.map((item) => item.patient_id))];
+  const planIds = [...new Set(enrollments.map((item) => item.plan_id))];
+  const [patientsResult, plansResult] = await Promise.all([
+    context.get("db").from("patients").select("id,name,phone").eq("clinic_id", clinicId).in("id", patientIds).is("deleted_at", null),
+    context.get("db").from("plans").select("id,name,duration_days,sessions_included").eq("clinic_id", clinicId).in("id", planIds),
+  ]);
+  const relatedError = patientsResult.error ?? plansResult.error;
+  if (relatedError) return databaseResult(context, null, relatedError);
+  const patientById = new Map((patientsResult.data ?? []).map((item) => [item.id, item]));
+  const planById = new Map((plansResult.data ?? []).map((item) => [item.id, item]));
+  return databaseResult(context, enrollments.map((enrollment) => ({
+    ...enrollment,
+    patient: patientById.get(enrollment.patient_id) ?? null,
+    plan: planById.get(enrollment.plan_id) ?? null,
+  })), null);
+});
 app.get("/charges", requireRoles(["admin", "manager", "finance"]), listResource("charges", "due_at", false));
 app.get("/payments", requireRoles(["admin", "manager", "finance"]), listResource("payments", "paid_at", false));
 app.get("/commissions", requireRoles(["admin", "manager", "finance"]), listResource("commissions", "created_at", false));
@@ -349,15 +370,28 @@ app.post("/professionals", requireRoles(["admin", "manager"]), async (context) =
   }).parse(await context.req.json());
   const { unitIds, ...professional } = input;
   const db = context.get("db");
+  const clinicId = context.get("profile").clinic_id;
+  const uniqueUnitIds = [...new Set(unitIds)];
+  const { data: units, error: unitsError } = await db.from("units").select("id")
+    .eq("clinic_id", clinicId).in("id", uniqueUnitIds).is("deleted_at", null);
+  if (unitsError) return databaseResult(context, null, unitsError);
+  if ((units ?? []).length !== uniqueUnitIds.length) {
+    return fail(context, 400, "INVALID_PROFESSIONAL_UNITS", "Selecione apenas unidades válidas da clínica.");
+  }
+  for (const unitId of uniqueUnitIds) {
+    if (!(await hasUnitAccess(context, unitId))) {
+      return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a uma das unidades selecionadas.");
+    }
+  }
   const { data, error } = await db.from("professionals").insert({
     ...professional,
-    clinic_id: context.get("profile").clinic_id,
+    clinic_id: clinicId,
   }).select().single();
   if (error || !data) return databaseResult(context, null, error);
-  const { error: unitsError } = await db.from("professional_units").insert(
-    unitIds.map((unitId) => ({ professional_id: data.id, unit_id: unitId })),
+  const { error: linkUnitsError } = await db.from("professional_units").insert(
+    uniqueUnitIds.map((unitId) => ({ professional_id: data.id, unit_id: unitId })),
   );
-  if (unitsError) return databaseResult(context, null, unitsError);
+  if (linkUnitsError) return databaseResult(context, null, linkUnitsError);
   await audit(context, "professional.created", "professional", data.id);
   return ok(context, data, 201);
 });
@@ -369,8 +403,43 @@ app.patch("/professionals/:id", requireRoles(["admin", "manager"]), async (conte
     council: z.string().max(80).nullable().optional(),
     specialty: z.string().max(100).nullable().optional(),
     active: z.boolean().optional(),
+    unitIds: z.array(z.string().uuid()).min(1).optional(),
   }).parse(await context.req.json());
-  return updateClinicResource(context, "professionals", id, input, "professional.updated");
+  const { unitIds, ...changes } = input;
+  const db = context.get("db");
+  const clinicId = context.get("profile").clinic_id;
+  if (unitIds) {
+    const { data: units, error: unitsError } = await db.from("units").select("id")
+      .eq("clinic_id", clinicId).in("id", unitIds).is("deleted_at", null);
+    if (unitsError) return databaseResult(context, null, unitsError);
+    if ((units ?? []).length !== new Set(unitIds).size) {
+      return fail(context, 400, "INVALID_PROFESSIONAL_UNITS", "Selecione apenas unidades válidas da clínica.");
+    }
+    for (const unitId of unitIds) {
+      if (!(await hasUnitAccess(context, unitId))) {
+        return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a uma das unidades selecionadas.");
+      }
+    }
+  }
+  const { data, error } = await db.from("professionals").update({
+    ...changes,
+    updated_at: new Date().toISOString(),
+  }).eq("id", id).eq("clinic_id", clinicId).is("deleted_at", null).select().single();
+  if (error || !data) return databaseResult(context, data, error);
+  if (unitIds) {
+    const { error: removeError } = await db.from("professional_units").delete()
+      .eq("professional_id", id).not("unit_id", "in", `(${unitIds.join(",")})`);
+    if (removeError) return databaseResult(context, null, removeError);
+    const { error: linkError } = await db.from("professional_units").upsert(
+      [...new Set(unitIds)].map((unitId) => ({ professional_id: id, unit_id: unitId })),
+      { onConflict: "professional_id,unit_id" },
+    );
+    if (linkError) return databaseResult(context, null, linkError);
+  }
+  await audit(context, "professional.updated", "professional", id, undefined, {
+    changed_fields: [...Object.keys(changes), ...(unitIds ? ["unitIds"] : [])],
+  });
+  return ok(context, { ...data, ...(unitIds ? { unit_ids: unitIds } : {}) });
 });
 
 app.post("/services", requireRoles(["admin", "manager"]), async (context) => {
@@ -419,7 +488,7 @@ app.patch("/plans/:id", requireRoles(["admin", "manager", "finance"]), async (co
   return updateClinicResource(context, "plans", id, input, "plan.updated");
 });
 
-app.post("/enrollments", requireRoles(["admin", "manager", "finance"]), async (context) => {
+app.post("/enrollments", requireRoles(["admin", "manager", "reception", "finance"]), async (context) => {
   const input = z.object({
     patient_id: z.string().uuid(),
     plan_id: z.string().uuid(),
@@ -466,6 +535,51 @@ app.post("/enrollments", requireRoles(["admin", "manager", "finance"]), async (c
   return ok(context, data, 201);
 });
 
+app.patch("/enrollments/:id", requireRoles(["admin", "manager", "reception", "finance"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const input = z.object({
+    plan_id: z.string().uuid().optional(),
+    starts_at: z.string().date().optional(),
+    ends_at: z.string().date().nullable().optional(),
+    sessions_used: z.number().int().nonnegative().optional(),
+    status: z.enum(["active", "paused", "expired"]).optional(),
+  }).refine((value) => Object.keys(value).length > 0, {
+    message: "Informe ao menos um dado para atualizar.",
+  }).parse(await context.req.json());
+  const db = context.get("db");
+  const clinicId = context.get("profile").clinic_id;
+  const { data: current, error: currentError } = await db.from("enrollments")
+    .select("id,unit_id,starts_at,ends_at")
+    .eq("id", id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle();
+  if (currentError) return databaseResult(context, null, currentError);
+  if (!current) return fail(context, 404, "ENROLLMENT_NOT_FOUND", "Matrícula não encontrada.");
+  if (!(await hasUnitAccess(context, current.unit_id))) {
+    return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+  }
+  if (input.plan_id) {
+    const { data: plan, error: planError } = await db.from("plans")
+      .select("id,name,price_cents,active")
+      .eq("id", input.plan_id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle();
+    if (planError) return databaseResult(context, null, planError);
+    if (!plan) return fail(context, 404, "PLAN_NOT_FOUND", "Plano não encontrado.");
+    if (!plan.active) return fail(context, 400, "PLAN_INACTIVE", "O plano selecionado está inativo.");
+  }
+  const startsAt = input.starts_at ?? current.starts_at;
+  const endsAt = input.ends_at === undefined ? current.ends_at : input.ends_at;
+  if (endsAt && endsAt < startsAt) {
+    return fail(context, 400, "INVALID_PERIOD", "A data de renovação não pode ser anterior à data inicial.");
+  }
+  const { data, error } = await db.from("enrollments")
+    .update({ ...input, updated_at: new Date().toISOString() })
+    .eq("id", id).eq("clinic_id", clinicId).is("deleted_at", null).select().single();
+  if (!error && data) {
+    await audit(context, "enrollment.updated", "enrollment", id, current.unit_id, {
+      changed_fields: Object.keys(input),
+    });
+  }
+  return databaseResult(context, data, error);
+});
+
 app.post("/enrollments/:id/rollback", requireRoles(["admin", "manager", "finance"]), async (context) => {
   const id = z.string().uuid().parse(context.req.param("id"));
   const input = z.object({ reason: z.string().trim().min(10).max(1000) }).parse(await context.req.json());
@@ -491,6 +605,33 @@ app.post("/charges", requireRoles(["admin", "manager", "finance"]), async (conte
     if (!enrollment) return fail(context, 400, "INVALID_ENROLLMENT", "A matrícula não pertence ao paciente e à unidade informados.");
   }
   return createClinicResource(context, "charges", { ...input, status: "pending" }, "charge.created", input.unit_id);
+});
+
+app.patch("/charges/:id/status", requireRoles(["admin", "manager", "finance"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const input = z.object({
+    status: z.enum(["paid", "cancelled", "overdue", "pending"]),
+  }).parse(await context.req.json());
+  const db = context.get("db");
+  const clinicId = context.get("profile").clinic_id;
+  const { data: current, error: currentError } = await db.from("charges")
+    .select("id,unit_id,status")
+    .eq("id", id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle();
+  if (currentError) return databaseResult(context, null, currentError);
+  if (!current) return fail(context, 404, "CHARGE_NOT_FOUND", "Cobrança não encontrada.");
+  if (!(await hasUnitAccess(context, current.unit_id))) {
+    return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+  }
+  const { data, error } = await db.from("charges")
+    .update({ status: input.status, updated_at: new Date().toISOString() })
+    .eq("id", id).eq("clinic_id", clinicId).is("deleted_at", null).select().single();
+  if (!error && data) {
+    await audit(context, "charge.status_updated", "charge", id, current.unit_id, {
+      previous_status: current.status,
+      status: input.status,
+    });
+  }
+  return databaseResult(context, data, error);
 });
 
 app.get("/record-templates", requireRoles(["admin", "manager", "professional"]), listResource("record_templates", "name"));
@@ -523,9 +664,9 @@ app.patch("/record-templates/:id", requireRoles(["admin", "manager"]), async (co
 
 registerPacientesRoutes(app, { patientSchema, requireRoles, fail, databaseResult, hasUnitAccess, positiveInt, escapeLike, audit, createClinicResource });
 
-registerAgendaRoutes(app, { appointmentFields, appointmentSchema, requireRoles, ok, fail, databaseResult, hasUnitAccess, audit, professionalForUser, isOwnProfessional, getAuthorizedAppointment });
+registerAgendaRoutes(app, { appointmentFields, appointmentSchema, requireRoles, ok, fail, databaseResult, validateRelatedResourceScope, hasUnitAccess, audit, professionalForUser, isOwnProfessional, getAuthorizedAppointment });
 
-registerProntuariosRoutes(app, { clinicalRecordSchema, requireRoles, fail, databaseResult, hasUnitAccess, audit, professionalForUser, isOwnProfessional, requireIdempotency });
+registerProntuariosRoutes(app, { clinicalRecordSchema, requireRoles, fail, databaseResult, validateRelatedResourceScope, hasUnitAccess, audit, professionalForUser, isOwnProfessional, requireIdempotency });
 
 registerFinanceiroRoutes(app, { financialEntrySchema, requireRoles, fail, databaseResult, hasUnitAccess, audit, createClinicResource, requireIdempotency, normalizeAnnual, listResource });
 
@@ -533,7 +674,8 @@ registerImportacoesRoutes(app, { requireRoles, databaseResult, listResource, req
 
 app.onError((error, context) => {
   if (error instanceof z.ZodError) {
-    return fail(context, 422, "VALIDATION_ERROR", "Revise os dados informados.", error.flatten());
+    const validationMessage = error.issues[0]?.message ?? "Revise os dados informados.";
+    return fail(context, 422, "VALIDATION_ERROR", validationMessage, error.flatten());
   }
   console.error(JSON.stringify({
     requestId: context.get("requestId"),
@@ -552,6 +694,11 @@ function listResource(table: string, order: string, ascending = true) {
       if (!(await hasUnitAccess(context, parsedUnitId))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
       query = query.eq("unit_id", parsedUnitId);
     }
+    if (table === "group_slots" && context.get("profile").role === "professional") {
+      const professionalId = await professionalForUser(context);
+      if (!professionalId) return fail(context, 403, "PROFESSIONAL_NOT_LINKED", "Seu usuário não está vinculado a um profissional.");
+      query = query.eq("professional_id", professionalId);
+    }
     if (![
       "audit_events",
       "notifications",
@@ -561,6 +708,8 @@ function listResource(table: string, order: string, ascending = true) {
       "record_templates",
       "monthly_closings",
       "import_batches",
+      "data_subject_requests",
+      "privacy_incidents",
     ].includes(table)) {
       query = query.is("deleted_at", null);
     }
@@ -710,7 +859,7 @@ function requireRoles(roles: Role[]) {
 
 async function getAuthorizedAppointment(context: Parameters<typeof ok>[0], appointmentId: string) {
   const { data, error } = await context.get("db").from("appointments")
-    .select("id,unit_id,professional_id")
+    .select("id,unit_id,professional_id,patient_id,status")
     .eq("id", appointmentId)
     .eq("clinic_id", context.get("profile").clinic_id)
     .is("deleted_at", null)
@@ -1051,6 +1200,8 @@ const openApiDocument = {
   paths: {
     "/patients": { get: { summary: "Lista pacientes" }, post: { summary: "Cadastra paciente" } },
     "/appointments": { get: { summary: "Lista agenda" }, post: { summary: "Cria agendamento com conflito validado" } },
+    "/attendance/daily": { get: { summary: "Lista pacientes das turmas para a chamada diária" } },
+    "/attendance": { post: { summary: "Registra presença ou falta e controla reposição" } },
     "/clinical-records": { get: { summary: "Lista prontuário" }, post: { summary: "Cria avaliação ou evolução" } },
     "/payments": { post: { summary: "Registra pagamento transacional e idempotente" } },
     "/financial-entries": { get: { summary: "Lista movimentos" }, post: { summary: "Cria movimento" } },
@@ -1062,6 +1213,7 @@ const openApiDocument = {
       delete: { summary: "Arquiva usuário, bloqueia o acesso e preserva o histórico" },
     },
     "/users/{id}/resend-access": { post: { summary: "Reenvia um link seguro de definição de senha" } },
+    "/users/{id}/password": { post: { summary: "Define a senha diretamente no Supabase Auth" } },
   },
 };
 

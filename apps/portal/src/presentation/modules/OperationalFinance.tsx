@@ -1,9 +1,9 @@
 import { FormEvent, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { CheckboxField, SelectField, TextField } from "../components/FormPrimitives";
-import { Row, messageOf, value, cents, brl, useResources, Select, DrawerForm, ModuleState, MetricLite, OperationalTable } from "./OperationalShared";
+import { Row, messageOf, statusLabel, value, cents, brl, useResources, Select, DrawerForm, ModuleState, MetricLite, OperationalTable } from "./OperationalShared";
 
-export function OperationalFinance() {
+export function OperationalFinance({ canEdit = true }: { canEdit?: boolean }) {
   const today = new Date();
   const first = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-01`;
   const last = new Date(today.getFullYear(), today.getMonth() + 1, 0)
@@ -113,7 +113,7 @@ export function OperationalFinance() {
           value={(data["/commissions"] ?? []).length}
         />
       </div>
-      <div className="dashboard-grid">
+      {canEdit && <div className="dashboard-grid">
         <DrawerForm title="Novo movimento" onSubmit={entry}>
           <h2>Novo movimento</h2>
           <div className="form-row">
@@ -162,7 +162,7 @@ export function OperationalFinance() {
           </div>
           <button className="btn primary">Calcular comissão</button>
         </DrawerForm>
-      </div>
+      </div>}
       <OperationalTable
         title="Movimentos do mês"
         rows={entries}
@@ -173,7 +173,8 @@ export function OperationalFinance() {
           "kind",
           "amount_cents",
         ]}
-        actions={(row) => <button type="button" onClick={() => void removeEntry(row.id)}>Excluir</button>}
+        emptyMessage="Nenhum movimento financeiro foi lançado neste mês."
+        actions={(row) => canEdit ? <button type="button" onClick={() => void removeEntry(row.id)}>Excluir</button> : null}
       />
       <section className="card table-card bespoke-table commissions-list-table">
         <div className="table-toolbar">
@@ -185,18 +186,18 @@ export function OperationalFinance() {
             <div>
               <strong>{brl(row.amount_cents)}</strong>
               <small>
-                {row.basis} · {row.status}
+                {statusLabel(row.basis)} · {statusLabel(row.status)}
               </small>
             </div>
-            {row.status === "pending" && (
+            {canEdit && row.status === "pending" && (
               <button onClick={() => approve(row.id)}>
                 Aprovar e lançar despesa
               </button>
             )}
           </div>
         ))}
+        {!(data["/commissions"] ?? []).length && <div className="empty-state">Nenhuma comissão foi calculada para o período.</div>}
       </section>
     </div>
   );
 }
-

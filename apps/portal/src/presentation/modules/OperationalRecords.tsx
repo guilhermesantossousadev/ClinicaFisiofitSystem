@@ -2,9 +2,9 @@ import { FormEvent, useCallback, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { supabase } from "../../infrastructure/supabase/client";
 import { CheckboxField, SelectField, TextareaField, TextField } from "../components/FormPrimitives";
-import { Row, messageOf, value, useResources, Select, DrawerForm, ModuleState } from "./OperationalShared";
+import { Row, messageOf, statusLabel, value, useResources, Select, DrawerForm, ModuleState } from "./OperationalShared";
 
-export function OperationalRecords() {
+export function OperationalRecords({ canEdit = true }: { canEdit?: boolean }) {
   const basePaths = [
     "/patients?page=1&pageSize=100",
     "/professionals",
@@ -68,7 +68,8 @@ export function OperationalRecords() {
             previous_history: value(form, "previous_history"),
             exam: value(form, "exam"),
             exam_detail: value(form, "exam_detail"),
-            conduct: value(form, "conduct"),
+            functional_diagnosis: value(form, "functional_diagnosis"),
+            treatment_plan: value(form, "treatment_plan"),
             goals: value(form, "goals"),
             exercises: Array.from(form.getAll("exercise")).map(String),
             observations: value(form, "observations"),
@@ -76,6 +77,7 @@ export function OperationalRecords() {
         }),
       });
       (event.target as HTMLFormElement).reset();
+      setDraftKind("assessment");
       await loadRecords(patientId);
       setNotice("Registro clínico salvo como rascunho.");
     } catch (e) {
@@ -136,7 +138,7 @@ export function OperationalRecords() {
         </div>
       )}
       <ModuleState loading={loading} error={error} retry={reload} />
-      {patientId && (
+      {patientId && canEdit && (
         <DrawerForm title="Novo registro" onSubmit={createRecord}>
           <h2>Novo registro</h2>
           <div className="form-row">
@@ -169,11 +171,12 @@ export function OperationalRecords() {
               <TextareaField name="previous_history" label="História pregressa" rows={3} />
               <div className="form-row"><TextField name="measures" label="Peso / altura / sinais vitais" placeholder="Peso · Altura · PA · FC · FR" /><TextareaField name="exam" label="Encurtamentos" rows={2} /></div>
               <TextareaField name="exam_detail" label="Força muscular e exame físico" rows={3} />
-              <TextareaField name="conduct" label="Conduta inicial" rows={3} />
+              <TextareaField name="functional_diagnosis" label="Diagnóstico funcional" rows={3} />
+              <TextareaField name="treatment_plan" label="Plano de tratamento" rows={3} />
             </fieldset>
           </> : <>
             <fieldset className="clinical-fieldset"><legend>Evolução da sessão</legend>
-              <TextareaField name="text" label="Observações clínicas" rows={3} required placeholder="Como o paciente chegou, queixas e resposta ao atendimento…" />
+              <TextareaField name="text" label="Evolução" rows={3} required placeholder="Como o paciente chegou, queixas e resposta ao atendimento…" />
               <div className="exercise-grid" aria-label="Focos trabalhados"><span>Foco da sessão</span>{["Alongamento", "Fortalecimento", "Mobilidade", "Ex. postural", "Equilíbrio", "Outro"].map((item) => <CheckboxField key={item} label={item} name="exercise" value={item} />)}</div>
               <TextareaField name="observations" label="Observações e conduta" rows={4} placeholder="Descreva exercícios, orientações e próximos passos…" />
             </fieldset>
@@ -182,9 +185,9 @@ export function OperationalRecords() {
         </DrawerForm>
       )}
       {patientId && <section className="card table-card">
-        <div className="table-toolbar"><h2>Anexos do paciente</h2><label className="btn secondary">Adicionar arquivo<input className="sr-only" type="file" accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif" onChange={uploadAttachment} /></label></div>
+        <div className="table-toolbar"><h2>Anexos do paciente</h2>{canEdit && <label className="btn secondary">Adicionar arquivo<input className="sr-only" type="file" accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif" onChange={uploadAttachment} /></label>}</div>
         {attachments.map((file) => <div className="operational-row" key={file.id}><div><strong>{file.filename}</strong><small>{file.content_type} · {Math.round(file.size_bytes / 1024)} KB</small></div></div>)}
-        {!attachments.length && <div className="empty-state">Nenhum anexo.</div>}
+        {!attachments.length && <div className="empty-state">Nenhum anexo foi adicionado para este paciente.</div>}
       </section>}
       <section className="card table-card bespoke-table records-list-table">
         <div className="table-toolbar"><h2>Registros clínicos</h2><span>{records.length} registros</span></div>
@@ -193,27 +196,26 @@ export function OperationalRecords() {
           <div className="operational-row" key={row.id}>
             <div>
               <strong>
-                {row.kind === "assessment" ? "Avaliação inicial" : "Evolução"} · {row.status === "draft" ? "Rascunho" : row.status === "signed" ? "Assinado" : row.status}
+                {row.kind === "assessment" ? "Avaliação inicial" : "Evolução"} · {statusLabel(row.status)}
               </strong>
               <small>
-                {new Date(row.created_at).toLocaleString("pt-BR")} · {row.payload?.complaint || row.payload?.text || "Sem descrição"}
+                {new Date(row.created_at).toLocaleString("pt-BR")} · {row.payload?.complaint || row.payload?.text || row.payload?.functional_diagnosis || "Sem descrição"}
               </small>
             </div>
             <div className="row-actions">
-              {row.status === "draft" && (
+              {canEdit && row.status === "draft" && (
                 <button onClick={() => sign(row.id)}>Assinar</button>
               )}
-              {row.status === "signed" && (
+              {canEdit && row.status === "signed" && (
                 <button onClick={() => rectify(row.id)}>Retificar</button>
               )}
             </div>
           </div>
         ))}
         {patientId && !records.length && (
-          <div className="empty-state">Paciente sem registros clínicos.</div>
+          <div className="empty-state">Este paciente ainda não possui avaliações ou evoluções registradas.</div>
         )}
       </section>
     </div>
   );
 }
-

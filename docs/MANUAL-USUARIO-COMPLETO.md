@@ -3,8 +3,7 @@
 ## Acesso comum
 
 Entre no portal com o e-mail corporativo e senha. No primeiro acesso, use o
-link enviado por e-mail para criar a senha. Administradores, gestores e
-financeiro devem concluir o segundo fator. Ao terminar, clique em **Sair**.
+link enviado por e-mail para criar a senha. Ao terminar, clique em **Sair**.
 
 ## Navegação
 
@@ -53,7 +52,10 @@ acesso com o usuário. Bloqueie acessos imediatamente quando houver desligamento
 
 1. **Paciente:** Pacientes > Novo paciente > preencher dados > revisar > salvar.
 2. **Agendamento:** Agenda > Novo agendamento > unidade/profissional/paciente/serviço > horário > salvar.
-3. **Turma:** Agenda > Nova turma > dias, horário, sala e capacidade > salvar.
+3. **Turma:** Agenda > Nova turma em horário fixo > escolha os dias e horário > atribua o fisioterapeuta agora ou depois > salvar. O mesmo horário aceita outra turma quando os dias não se sobrepõem.
+4. **Conflito de turma:** se já existir turma no mesmo dia e horário, mantenha o formulário aberto e altere dia, horário ou vigência conforme o alerta vermelho.
+5. **Gerenciar horários:** administradores, gestores e recepcionistas podem criar grades, editar turmas e excluir turmas vazias; o histórico é preservado.
+6. **Bloqueio:** use “Bloquear este horário sem paciente” para reservar a agenda sem vincular paciente.
 4. **Plano:** Matrículas > Novo plano > período, frequência e preço > salvar.
 5. **Matrícula:** Nova matrícula > paciente, plano, unidade, início e vencimento > matricular.
 6. **Pagamento:** selecionar cobrança > conferir saldo > informar valor e forma > receber.
@@ -61,7 +63,7 @@ acesso com o usuário. Bloqueie acessos imediatamente quando houver desligamento
 ## Problemas comuns
 
 - **Sem módulo no menu:** peça ao administrador para revisar sua permissão.
-- **Acesso negado:** confirme status da conta, perfil, unidade e MFA.
+- **Acesso negado:** confirme o status da conta, o perfil e a unidade.
 - **Conflito de agenda:** revise profissional, sala e horário; não crie duplicata.
 - **E-mail não chegou:** confira spam e solicite reenvio ao administrador.
 - **Número incorreto no painel:** confira filtros, cadastros e período; preserve o histórico.
@@ -71,5 +73,5 @@ acesso com o usuário. Bloqueie acessos imediatamente quando houver desligamento
 
 **Unidade:** local de atendimento. **Matrícula:** vínculo do paciente a um
 plano. **Cobrança:** valor previsto. **Prontuário:** registro clínico.
-**Retificação:** correção vinculada ao registro original. **MFA:** segundo fator
-de autenticação. **Permissão:** acesso individual a um módulo.
+**Retificação:** correção vinculada ao registro original. **Permissão:** acesso
+individual a um módulo.
