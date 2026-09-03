@@ -27,6 +27,8 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
   const [weeklyFrequency, setWeeklyFrequency] = useState<WeeklyFrequency>(2);
   const [controlSearch, setControlSearch] = useState("");
   const [controlFilter, setControlFilter] = useState("all");
+  const [activeEnrollmentSearch, setActiveEnrollmentSearch] = useState("");
+  const [activeEnrollmentFilter, setActiveEnrollmentFilter] = useState("all");
   const [editingControlRow, setEditingControlRow] = useState<PlanControlRow | null>(null);
   const [savingControlRow, setSavingControlRow] = useState(false);
   const [savingPaymentId, setSavingPaymentId] = useState("");
@@ -163,16 +165,47 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
       setSavingPaymentId("");
     }
   }
-  const enrollmentRows = (data["/enrollments"] ?? []).map((row: Row) => {
-    const plan = (data["/plans"] ?? []).find((item: Row) => item.id === row.plan_id);
-    const planPrice = plan ? planTotalCents(plan) : 0;
-    const discount = Number(row.discount_cents ?? 0);
-    const surcharge = Number(row.surcharge_cents ?? 0);
-    return {
-      ...row,
-      total_plan_cents: Math.max(planPrice - discount + surcharge, 0),
-    };
-  });
+  const enrollmentRows: ActiveEnrollmentRow[] = (data["/enrollments"] ?? [])
+    .filter((row: Row) => row.status === "active" && !row.deleted_at)
+    .map((row: Row) => {
+      const patient = row.patient ?? patients.find((item: Row) => item.id === row.patient_id);
+      const plan = row.plan ?? (data["/plans"] ?? []).find((item: Row) => item.id === row.plan_id);
+      const fullPlan = (data["/plans"] ?? []).find((item: Row) => item.id === row.plan_id) ?? plan;
+      const unit = (data["/units"] ?? []).find((item: Row) => item.id === row.unit_id);
+      const enrollmentCharges = (data["/charges"] ?? []).filter((charge: Row) => charge.enrollment_id === row.id && !charge.deleted_at && charge.status !== "cancelled");
+      const planPrice = fullPlan ? planTotalCents(fullPlan) : 0;
+      const discount = Number(row.discount_cents ?? 0);
+      const surcharge = Number(row.surcharge_cents ?? 0);
+      const currentAmountCents = Math.max(planPrice - discount + surcharge, 0);
+      const chargedCents = enrollmentCharges.reduce((sum: number, charge: Row) => sum + Number(charge.amount_cents ?? 0), 0);
+      const paidCents = enrollmentCharges.reduce((sum: number, charge: Row) => sum + Number(charge.paid_cents ?? 0), 0);
+      return {
+        id: String(row.id),
+        patientName: String(patient?.name ?? "Paciente não encontrado"),
+        patientPhone: String(patient?.phone ?? ""),
+        planName: String(fullPlan?.name ?? "Plano não encontrado"),
+        unitName: String(unit?.name ?? "Unidade não encontrada"),
+        startsAt: String(row.starts_at ?? ""),
+        endsAt: String(row.ends_at ?? ""),
+        dueDay: Number(row.due_day ?? 0),
+        currentAmountCents,
+        chargedCents,
+        paidCents,
+        balanceCents: Math.max(chargedCents - paidCents, 0),
+        hasChargeMismatch: canViewCharges && chargedCents !== currentAmountCents,
+      };
+    });
+  const filteredEnrollmentRows = useMemo(() => {
+    const search = activeEnrollmentSearch.trim().toLocaleLowerCase("pt-BR");
+    return enrollmentRows.filter((row) => {
+      const matchesSearch = !search || `${row.patientName} ${row.patientPhone} ${row.planName} ${row.unitName}`.toLocaleLowerCase("pt-BR").includes(search);
+      const matchesFilter = activeEnrollmentFilter === "all"
+        || (activeEnrollmentFilter === "divergent" && row.hasChargeMismatch)
+        || (activeEnrollmentFilter === "correctable" && row.hasChargeMismatch && row.paidCents === 0)
+        || (activeEnrollmentFilter === "paid" && row.paidCents > 0);
+      return matchesSearch && matchesFilter;
+    });
+  }, [activeEnrollmentFilter, activeEnrollmentSearch, enrollmentRows]);
   const planRows = (data["/plans"] ?? []).map((row: Row) => ({
     ...row,
     total_plan_cents: planTotalCents(row),
@@ -399,11 +432,16 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
         onNotice={setNotice}
       />
       )}
-      <OperationalTable
-        title="Matrículas ativas"
-        rows={enrollmentRows}
-        fields={["status", "starts_at", "ends_at", "due_day", "sessions_used", "total_plan_cents"]}
-        actions={(row) => canRollback && !row.deleted_at ? <button type="button" onClick={() => void rollbackEnrollment(row.id)}>Reverter</button> : null}
+      <ActiveEnrollmentsTable
+        rows={filteredEnrollmentRows}
+        total={enrollmentRows.length}
+        search={activeEnrollmentSearch}
+        filter={activeEnrollmentFilter}
+        onSearch={setActiveEnrollmentSearch}
+        onFilter={setActiveEnrollmentFilter}
+        canRollback={canRollback}
+        canViewFinancials={canViewCharges}
+        onRollback={rollbackEnrollment}
       />
       {canViewCharges && <OperationalTable
         title="Cobranças"
@@ -417,6 +455,133 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
         ]}
       />}
     </div>
+  );
+}
+
+type ActiveEnrollmentRow = {
+  id: string;
+  patientName: string;
+  patientPhone: string;
+  planName: string;
+  unitName: string;
+  startsAt: string;
+  endsAt: string;
+  dueDay: number;
+  currentAmountCents: number;
+  chargedCents: number;
+  paidCents: number;
+  balanceCents: number;
+  hasChargeMismatch: boolean;
+};
+
+function ActiveEnrollmentsTable({
+  rows,
+  total,
+  search,
+  filter,
+  onSearch,
+  onFilter,
+  canRollback,
+  canViewFinancials,
+  onRollback,
+}: {
+  rows: ActiveEnrollmentRow[];
+  total: number;
+  search: string;
+  filter: string;
+  onSearch: (value: string) => void;
+  onFilter: (value: string) => void;
+  canRollback: boolean;
+  canViewFinancials: boolean;
+  onRollback: (id: string) => void | Promise<void>;
+}) {
+  const divergentCount = rows.filter((row) => row.hasChargeMismatch).length;
+  return (
+    <section className="card table-card active-enrollments-table" aria-labelledby="active-enrollments-title">
+      <div className="table-toolbar active-enrollments-toolbar">
+        <div>
+          <p className="eyebrow">CONFERÊNCIA E CORREÇÃO</p>
+          <h2 id="active-enrollments-title">Matrículas ativas</h2>
+          <p>Compare o valor atual do plano com a cobrança criada para cada paciente.</p>
+        </div>
+        <div className="active-enrollments-filters">
+          <TextField
+            id="active-enrollment-search"
+            fieldClassName="active-enrollments-search"
+            label="Buscar matrícula"
+            type="search"
+            placeholder="Paciente, telefone, plano ou unidade"
+            value={search}
+            onChange={(event) => onSearch(event.target.value)}
+          />
+          {canViewFinancials && <SelectField
+            id="active-enrollment-filter"
+            fieldClassName="active-enrollments-filter"
+            label="Mostrar"
+            value={filter}
+            onChange={(event) => onFilter(event.target.value)}
+          >
+            <option value="all">Todas</option>
+            <option value="divergent">Valores divergentes</option>
+            <option value="correctable">Prontas para reverter</option>
+            <option value="paid">Com pagamento registrado</option>
+          </SelectField>}
+        </div>
+      </div>
+      {canRollback && <div className="active-enrollments-guidance" role="note">
+        <span aria-hidden="true">i</span>
+        <p><strong>Para corrigir uma cobrança sem pagamento:</strong> reverta a matrícula e depois faça uma nova matrícula com o plano atualizado. Matrículas com algum valor pago exigem ajuste pelo financeiro.</p>
+      </div>}
+      <div className="active-enrollments-result" role="status" aria-live="polite">
+        Exibindo {rows.length} de {total} {total === 1 ? "matrícula" : "matrículas"}{divergentCount ? ` · ${divergentCount} ${divergentCount === 1 ? "valor divergente" : "valores divergentes"}` : ""}
+      </div>
+      <div className="active-enrollments-head" aria-hidden="true">
+        <span>Paciente</span><span>Plano e período</span><span>Valores</span><span>Situação da cobrança</span><span>Ação</span>
+      </div>
+      {rows.map((row) => {
+        const hasPayment = row.paidCents > 0;
+        const canCorrect = canRollback && !hasPayment;
+        return (
+          <div className={`active-enrollment-row${row.hasChargeMismatch ? " active-enrollment-row-warning" : ""}`} key={row.id}>
+            <div className="active-enrollment-cell" data-label="Paciente">
+              <strong>{row.patientName}</strong>
+              <small>{row.patientPhone || "Telefone não informado"}</small>
+            </div>
+            <div className="active-enrollment-cell" data-label="Plano e período">
+              <strong>{row.planName}</strong>
+              <small>{row.unitName} · Início em {dateLabel(row.startsAt)}{row.endsAt ? ` · Fim em ${dateLabel(row.endsAt)}` : ""}</small>
+            </div>
+            <div className="active-enrollment-cell active-enrollment-values" data-label="Valores">
+              {canViewFinancials ? <>
+                <strong>Cobrado: {brl(row.chargedCents)}</strong>
+                <small>Plano atual: {brl(row.currentAmountCents)} · Saldo: {brl(row.balanceCents)}</small>
+              </> : <small>Acesso financeiro restrito</small>}
+            </div>
+            <div className="active-enrollment-cell" data-label="Situação da cobrança">
+              <span className={`plan-status ${canViewFinancials && hasPayment ? "plan-status-partial" : canViewFinancials && row.hasChargeMismatch ? "plan-status-overdue" : "plan-status-paid"}`}>
+                {canViewFinancials ? hasPayment ? `${brl(row.paidCents)} já pago` : row.hasChargeMismatch ? "Valor divergente" : "Valor conferido" : "Matrícula ativa"}
+              </span>
+              <small>{canViewFinancials && hasPayment ? "Procure o financeiro para corrigir" : row.dueDay ? `Vencimento no dia ${row.dueDay}` : "Dia de vencimento não informado"}</small>
+            </div>
+            <div className="active-enrollment-cell active-enrollment-actions" data-label="Ação">
+              {canRollback ? (
+                <button
+                  type="button"
+                  className="btn secondary active-enrollment-rollback"
+                  disabled={!canCorrect}
+                  title={hasPayment ? "Esta matrícula já possui pagamento e precisa ser corrigida pelo financeiro." : "Reverter esta matrícula para cadastrá-la novamente com o valor atualizado."}
+                  onClick={() => void onRollback(row.id)}
+                  aria-label={`Reverter matrícula de ${row.patientName}`}
+                >
+                  Reverter matrícula
+                </button>
+              ) : <small>Sem permissão para reverter</small>}
+            </div>
+          </div>
+        );
+      })}
+      {!rows.length && <div className="empty-state">Nenhuma matrícula corresponde à busca.</div>}
+    </section>
   );
 }
 

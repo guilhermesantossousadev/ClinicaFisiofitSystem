@@ -245,6 +245,55 @@
   .plan-status { width: fit-content; }
 }
 
+/* Matrículas: comparação explícita entre o plano atual e a cobrança existente. */
+.active-enrollments-table { margin-top: 16px; overflow: hidden; }
+.active-enrollments-toolbar { gap: 24px; }
+.active-enrollments-toolbar > div:first-child { min-width: 280px; }
+.active-enrollments-toolbar h2 { margin: 4px 0; }
+.active-enrollments-toolbar p:not(.eyebrow) { margin: 0; color: var(--muted); font-size: 12px; }
+.active-enrollments-filters { display: grid; grid-template-columns: minmax(250px, 1.4fr) minmax(190px, 1fr); align-items: end; gap: 12px; width: min(100%, 610px); }
+.active-enrollments-search,
+.active-enrollments-filter { gap: 5px; }
+.active-enrollments-search .form-field-label,
+.active-enrollments-filter .form-field-label { min-height: 0; color: var(--muted); font-size: 11px; }
+.active-enrollments-search > input,
+.active-enrollments-filter > select { min-height: 44px; height: 44px; padding-block: 9px; font-size: 12px; }
+.active-enrollments-guidance { display: flex; align-items: flex-start; gap: 10px; margin: 14px 18px; padding: 12px 14px; border: 1px solid #cfe1ec; border-radius: 9px; background: #f3f9fc; color: #375b70; }
+.active-enrollments-guidance > span { display: grid; flex: 0 0 22px; width: 22px; height: 22px; place-items: center; border-radius: 50%; background: #dceef8; font-size: 12px; font-weight: 800; }
+.active-enrollments-guidance p { margin: 0; font-size: 12px; line-height: 1.5; }
+.active-enrollments-result { padding: 8px 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; }
+.active-enrollments-head,
+.active-enrollment-row { display: grid; grid-template-columns: 1.15fr 1.45fr 1.1fr 1.1fr minmax(150px, .75fr); align-items: center; gap: 18px; min-width: 1050px; }
+.active-enrollments-head { padding: 12px 18px; border-block: 1px solid var(--line); background: #f3f6f9; color: #536a82; }
+.active-enrollments-head span { font-size: 11px; font-weight: 800; letter-spacing: .055em; text-transform: uppercase; }
+.active-enrollment-row { min-height: 88px; padding: 14px 18px; border-bottom: 1px solid #e5ebf0; }
+.active-enrollment-row:last-of-type { border-bottom: 0; }
+.active-enrollment-row-warning { box-shadow: inset 3px 0 0 #c96b70; }
+.active-enrollment-cell { display: grid; align-content: center; gap: 6px; min-width: 0; }
+.active-enrollment-cell strong { overflow: hidden; color: var(--ink); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.active-enrollment-cell small { color: var(--muted); font-size: 11px; line-height: 1.4; }
+.active-enrollment-values strong { font-variant-numeric: tabular-nums; }
+.active-enrollment-actions .btn { width: 100%; min-height: 44px; padding-inline: 12px; white-space: normal; }
+.active-enrollment-rollback { border-color: #d7a6aa; color: #8e363d; }
+.active-enrollment-rollback:hover:not(:disabled) { border-color: #c96b70; background: #f9eff0; }
+.active-enrollment-rollback:disabled { cursor: not-allowed; opacity: .55; }
+
+@media (max-width: 1050px) {
+  .active-enrollments-toolbar { align-items: stretch; flex-direction: column; }
+  .active-enrollments-filters { width: 100%; max-width: none; }
+}
+
+@media (max-width: 720px) {
+  .active-enrollments-table { overflow: visible; }
+  .active-enrollments-filters { grid-template-columns: 1fr; }
+  .active-enrollments-head { display: none; }
+  .active-enrollments-guidance { margin-inline: 12px; }
+  .active-enrollment-row { display: grid; grid-template-columns: 1fr; gap: 13px; min-width: 0; margin: 10px 12px; padding: 16px; border: 1px solid var(--line); border-radius: 10px; }
+  .active-enrollment-cell { grid-template-columns: minmax(105px, .75fr) 1fr; gap: 5px 12px; }
+  .active-enrollment-cell::before { content: attr(data-label); grid-row: 1 / span 2; align-self: start; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+  .active-enrollment-actions .btn { width: 100%; }
+}
+
 /* Agenda: feedback semântico, estados e visão móvel. */
 .toast {
   max-width: min(440px, calc(100vw - 32px));
