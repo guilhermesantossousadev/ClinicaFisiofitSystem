@@ -1,3 +1,4 @@
+import { MonthlyPayments } from "./MonthlyPayments";
 import { FormEvent, useMemo, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { buildPlanControlRows, renewalCopy, type PlanControlRow } from "../../application/portal/planControl";
@@ -19,6 +20,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
   const { data, loading, error, reload } = useResources(paths);
   const patients = data["/patients?page=1&pageSize=100"]?.items ?? [];
   const [notice, setNotice] = useState("");
+  const [paymentMonth, setPaymentMonth] = useState(() => dateKey(new Date()).slice(0, 7));
   const [selectedPatient, setSelectedPatient] = useState<Row>();
   const [selectedEnrollmentGroup, setSelectedEnrollmentGroup] = useState(agendaContext?.groupSlotId ?? "");
   const [selectedEnrollmentUnit, setSelectedEnrollmentUnit] = useState(agendaContext?.unitId ?? selectedUnitId);
@@ -211,10 +213,10 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
     total_plan_cents: planTotalCents(row),
   }));
   const availablePaymentPlans = useMemo(() => buildAvailablePaymentPlans({
-    charges: data["/charges"] ?? [],
+    charges: (data["/charges"] ?? []).filter((row: Row) => row.coverage_from ? String(row.coverage_from).slice(0, 7) <= paymentMonth && String(row.coverage_to).slice(0, 7) >= paymentMonth : String(row.due_at).slice(0, 7) === paymentMonth),
     enrollments: data["/enrollments"] ?? [],
     plans: data["/plans"] ?? [],
-  }), [data]);
+  }), [data, paymentMonth]);
   const payablePatientIds = useMemo(() => [...new Set(availablePaymentPlans.map((row) => row.patientId))], [availablePaymentPlans]);
   const selectedPatientPlans = selectedPaymentPatientId
     ? availablePaymentPlans.filter((row) => row.patientId === selectedPaymentPatientId)
@@ -359,6 +361,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
         </DrawerForm>
         )}
       </div>}
+      {canViewCharges && <MonthlyPayments data={data} month={paymentMonth} onMonth={(month) => { setPaymentMonth(month); clearPaymentPatient(); }} canEdit={canReceivePayments} reload={reload} onNotice={setNotice} />}
       {canReceivePayments && <form className="card modal-form payment-registration-card" onSubmit={pay}>
         <div className="payment-registration-heading">
           <div>
@@ -388,7 +391,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
         }}>
           <option value="">{selectedPaymentPatientId ? "Selecione o plano" : "Selecione a pessoa primeiro"}</option>
           {selectedPatientPlans.map((row) => (
-            <option key={row.chargeId} value={row.chargeId}>{row.planName} — {brl(row.balanceCents)}</option>
+            <option key={row.chargeId} value={row.chargeId}>{row.planName} · vencimento {row.dueAt} — {brl(row.balanceCents)}</option>
           ))}
         </SelectField>
         </div>

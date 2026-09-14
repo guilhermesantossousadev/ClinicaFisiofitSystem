@@ -246,7 +246,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
   const bulkSlotCount = bulkRangeIsValid ? bulkRangeHours / bulkIntervalHours + 1 : 0;
   const visibleUnits = selectedUnitId ? units.filter((unit) => unit.id === selectedUnitId) : [];
   const membersForSlot = (slotId: string, date: Date) => groupMembers.filter((member) => {
-    if (member.group_slot_id !== slotId || member.status !== "active") return false;
+    if (member.group_slot_id !== slotId || member.status !== "active" || member.deleted_at) return false;
     const start = String(member.starts_at ?? "").slice(0, 10);
     const end = member.ends_at ? String(member.ends_at).slice(0, 10) : "9999-12-31";
     const current = dateKey(date);
@@ -256,7 +256,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
     const currentDate = dateKey(day);
     const startsOn = slot.starts_on ? String(slot.starts_on).slice(0, 10) : "0000-01-01";
     const endsOn = slot.ends_on ? String(slot.ends_on).slice(0, 10) : "9999-12-31";
-    return slot.unit_id === unitId && currentDate >= startsOn && currentDate <= endsOn && (slot.weekdays ?? []).includes(day.getDay()) && slot.active !== false;
+    return !slot.deleted_at && slot.unit_id === unitId && currentDate >= startsOn && currentDate <= endsOn && (slot.weekdays ?? []).includes(day.getDay()) && slot.active !== false;
   }).sort((a, b) => String(a.starts_at).localeCompare(String(b.starts_at)) || String(a.name).localeCompare(String(b.name), "pt-BR"));
 
   async function createGroup(event: FormEvent<HTMLFormElement>) {
@@ -553,7 +553,8 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
                   return <div className={`month-calendar-day${dateKey(day) === clinicToday() ? " is-today" : ""}`} key={dateKey(day)} aria-label={dayLabel}>
                     <div className="month-calendar-items">
                       {dayAppointments.map((appointment) => <button type="button" className={`month-calendar-item appointment-item status-${appointment.status ?? "scheduled"}`} key={appointment.id} onClick={() => openCalendarAppointment(appointment)} aria-label={`${appointment.patients?.name ?? "Horário bloqueado"}, ${APPOINTMENT_STATUS[appointment.status] ?? appointment.status}, ${appointment.professionals?.name ? `fisioterapeuta responsável ${appointment.professionals.name}` : "sem fisioterapeuta responsável"}, abrir detalhes`}><strong>{appointmentTime(appointment.starts_at)} · {appointment.patients?.name ?? "Horário bloqueado"}</strong><small><span className="appointment-status-label">{APPOINTMENT_STATUS[appointment.status] ?? appointment.status}</span><span>Fisioterapeuta: {appointment.professionals?.name ?? "Não informado"}</span><span>{appointment.services?.name ?? "Atendimento"}{appointment.rooms?.name ? ` · ${appointment.rooms.name}` : ""}</span></small></button>)}
-                      {slots.map((slot) => { const members = membersForSlot(slot.id, day); const professional = (data["/professionals"] ?? []).find((row: Row) => row.id === slot.professional_id); const time = String(slot.starts_at).slice(0, 5); return <button type="button" className="month-calendar-item group-item" key={slot.id} onClick={() => setSelectedGroupCell({ slot, day, unitName: unit.name })} aria-label={`${slot.name}, ${time}, fisioterapeuta responsável ${professional?.name ?? "não informado"}, ${members.length} de ${slot.capacity ?? 7} vagas, abrir turma`}><strong>{time} · {slot.name}</strong><small><span>Fisioterapeuta: {professional?.name ?? "Não informado"}</span><span>{members.length}/{slot.capacity ?? 7} vagas</span></small></button>; })}
+                      {slots.map((slot) => { const members = membersForSlot(slot.id, day); const professional = (data["/professionals"] ?? []).find((row: Row) => row.id === slot.professional_id); const time = String(slot.starts_at).slice(0, 5); return <button type="button" className="month-calendar-item group-item" key={slot.id} onClick={() => setSelectedGroupCell({ slot, day, unitName: unit.name })} aria-label={`${slot.name}, ${time}, fisioterapeuta responsável ${professional?.name ?? "não informado"}, ${members.length} de ${slot.capacity ?? 7} vagas, abrir turma`}><strong>{time} · {slot.name}</strong><small><span>Fisioterapeuta: {professional?.name ?? "Não informado"}</span><span>{members.length}/{slot.capacity ?? 7} ocupadas · {Math.max(0, Number(slot.capacity ?? 7) - members.length)} livres</span></small></button>; })}
+                      {day.getDay() >= 1 && day.getDay() <= 5 && FIXED_GROUP_TIMES.filter((time) => !slots.some((slot) => String(slot.starts_at).slice(0, 5) === time)).map((time) => <div className="month-calendar-item" key={`empty-${time}`}><strong>{time}</strong><small>Sem turma cadastrada</small></div>)}
                     </div>
                   </div>;
                 })}
@@ -568,8 +569,9 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
                   <h3 id={`mobile-day-${dateKey(day)}`}>{dayLabel}{dateKey(day) === clinicToday() ? " · Hoje" : ""}</h3>
                   <div className="month-calendar-items">
                     {dayAppointments.map((appointment) => <button type="button" className={`month-calendar-item appointment-item status-${appointment.status ?? "scheduled"}`} key={appointment.id} onClick={() => openCalendarAppointment(appointment)}><strong>{appointmentTime(appointment.starts_at)} · {appointment.patients?.name ?? "Horário bloqueado"}</strong><small><span className="appointment-status-label">{APPOINTMENT_STATUS[appointment.status] ?? appointment.status}</span><span>{appointment.professionals?.name ?? "Profissional não informado"}</span><span>{appointment.services?.name ?? "Atendimento"}{appointment.rooms?.name ? ` · ${appointment.rooms.name}` : ""}</span></small></button>)}
-                    {slots.map((slot) => { const members = membersForSlot(slot.id, day); const professional = professionals.find((row: Row) => row.id === slot.professional_id); return <button type="button" className="month-calendar-item group-item" key={slot.id} onClick={() => setSelectedGroupCell({ slot, day, unitName: unit.name })}><strong>{String(slot.starts_at).slice(0, 5)} · {slot.name}</strong><small><span>{professional?.name ?? "Profissional não informado"}</span><span>{members.length}/{slot.capacity ?? 7} vagas</span></small></button>; })}
-                    {!dayAppointments.length && !slots.length && <p className="agenda-mobile-empty">Nenhum horário.</p>}
+                    {slots.map((slot) => { const members = membersForSlot(slot.id, day); const professional = professionals.find((row: Row) => row.id === slot.professional_id); return <button type="button" className="month-calendar-item group-item" key={slot.id} onClick={() => setSelectedGroupCell({ slot, day, unitName: unit.name })}><strong>{String(slot.starts_at).slice(0, 5)} · {slot.name}</strong><small><span>{professional?.name ?? "Profissional não informado"}</span><span>{members.length}/{slot.capacity ?? 7} ocupadas · {Math.max(0, Number(slot.capacity ?? 7) - members.length)} livres</span></small></button>; })}
+                    {day.getDay() >= 1 && day.getDay() <= 5 && !slots.some((slot) => String(slot.starts_at).slice(0, 5) === "20:00") && <div className="month-calendar-item"><strong>20:00</strong><small>Sem turma cadastrada</small></div>}
+                    {!dayAppointments.length && !slots.length && <p className="agenda-mobile-empty">Nenhuma turma cadastrada.</p>}
                   </div>
                 </section>;
               })}
@@ -580,10 +582,16 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
         {units.length > 0 && !selectedUnitId && <p className="empty-state">Selecione uma unidade no filtro superior para visualizar a agenda.</p>}
         {selectedUnitId && !visibleUnits.length && <p className="empty-state">A unidade selecionada não está disponível para este usuário.</p>}
       </section>
+      <section className="card" aria-label="Resumo de vagas disponíveis">
+        <h2>Horários disponíveis para oferecer aos clientes</h2>
+        <p>Vagas nas turmas da semana selecionada. Os horários fixos vão de 06:00 a 20:00.</p>
+        {visibleUnits.flatMap((unit) => calendarDays.flatMap((day) => slotsForDay(unit.id, day).map((slot) => ({ unit, day, slot, free: Math.max(0, Number(slot.capacity ?? 7) - membersForSlot(slot.id, day).length) })))).filter(({ free }) => free > 0).map(({ unit, day, slot, free }) => <p key={`${slot.id}-${dateKey(day)}`}><button type="button" className="btn" onClick={() => setSelectedGroupCell({ slot, day, unitName: unit.name })}>{day.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" })} · {String(slot.starts_at).slice(0, 5)} · {slot.name} · {free} vagas livres</button></p>)}
+        {!visibleUnits.length && <p>Selecione uma unidade para consultar as vagas.</p>}
+      </section>
       {selectedGroupCell && (() => {
         const selectedMembers = membersForSlot(selectedGroupCell.slot.id, selectedGroupCell.day);
         const capacity = Number(selectedGroupCell.slot.capacity ?? 7);
-        const slotMembers = groupMembers.filter((member) => member.group_slot_id === selectedGroupCell.slot.id && member.status === "active");
+        const slotMembers = selectedMembers;
         const availableEnrollments = (data["/enrollments"] ?? []).filter((enrollment: Row) => enrollment.unit_id === selectedGroupCell.slot.unit_id && enrollment.status === "active" && !slotMembers.some((member) => member.enrollment_id === enrollment.id));
         const availablePatientIds = availableEnrollments.map((enrollment: Row) => String(enrollment.patient_id));
         const availablePatientIdSet = new Set(availablePatientIds);

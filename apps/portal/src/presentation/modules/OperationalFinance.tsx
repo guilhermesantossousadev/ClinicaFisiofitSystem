@@ -5,8 +5,9 @@ import { Row, messageOf, statusLabel, value, cents, brl, useResources, Select, D
 
 export function OperationalFinance({ canEdit = true }: { canEdit?: boolean }) {
   const today = new Date();
-  const first = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-01`;
-  const last = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+  const [month, setMonth] = useState(() => `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`);
+  const first = `${month}-01`;
+  const last = new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0, 12)
     .toISOString()
     .slice(0, 10);
   const paths = [
@@ -104,6 +105,7 @@ export function OperationalFinance({ canEdit = true }: { canEdit?: boolean }) {
         </div>
       )}
       <ModuleState loading={loading} error={error} retry={reload} />
+      <TextField label="Mês de competência" type="month" value={month} onChange={(event) => { if (event.target.value) setMonth(event.target.value); }} />
       <div className="metrics">
         <MetricLite label="Receitas do mês" value={brl(income)} />
         <MetricLite label="Despesas do mês" value={brl(expense)} />

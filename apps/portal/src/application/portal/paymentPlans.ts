@@ -62,11 +62,9 @@ export function buildAvailablePaymentPlans({
   );
 
   const seenChargeIds = new Set<string>();
-  const seenEnrollmentIds = new Set<string>();
   return eligible.filter((row) => {
-    if (seenChargeIds.has(row.chargeId) || seenEnrollmentIds.has(row.enrollmentId)) return false;
+    if (seenChargeIds.has(row.chargeId)) return false;
     seenChargeIds.add(row.chargeId);
-    seenEnrollmentIds.add(row.enrollmentId);
     return true;
   });
 }

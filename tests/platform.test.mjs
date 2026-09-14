@@ -200,7 +200,7 @@ test("mantém o fluxo de matrícula da recepção funcional e sem expor o financ
   assert.match(enrollments, /buildAvailablePaymentPlans/);
   assert.match(paymentPlans, /row\.status === "active"/);
   assert.match(paymentPlans, /charge\.status === "cancelled"/);
-  assert.match(paymentPlans, /seenEnrollmentIds/);
+  assert.match(paymentPlans, /seenChargeIds/);
   assert.match(enrollments, /Saldo disponível/);
   assert.match(financeRoute, /INVALID_PAYMENT_AMOUNT/);
   assert.match(shared, /Promise\.allSettled\(paths\.map/);

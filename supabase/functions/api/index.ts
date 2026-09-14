@@ -503,7 +503,7 @@ app.post("/enrollments", requireRoles(["admin", "manager", "reception", "finance
   const scopeError = await validateRelatedResourceScope(context, input);
   if (scopeError) return scopeError;
   const clinicId = context.get("profile").clinic_id;
-  const { data: plan, error: planError } = await db.from("plans").select("id,name,price_cents,active")
+  const { data: plan, error: planError } = await db.from("plans").select("id,name,price_cents,active,duration_days")
     .eq("id", input.plan_id).eq("clinic_id", clinicId).is("deleted_at", null).single();
   if (planError || !plan) return databaseResult(context, null, planError);
   if (!plan.active) return fail(context, 400, "PLAN_INACTIVE", "O plano selecionado está inativo.");
@@ -525,6 +525,8 @@ app.post("/enrollments", requireRoles(["admin", "manager", "reception", "finance
     description: `Matrícula — ${plan.name}`,
     amount_cents: chargeAmount,
     due_at: firstDueDate(input.starts_at, input.due_day),
+    coverage_from: input.starts_at,
+    coverage_to: input.ends_at ?? new Date(new Date(`${input.starts_at}T12:00:00Z`).getTime() + (Number(plan.duration_days ?? 30) - 1) * 86400000).toISOString().slice(0, 10),
     status: "pending",
   });
   if (chargeError) {
@@ -558,7 +560,7 @@ app.patch("/enrollments/:id", requireRoles(["admin", "manager", "reception", "fi
   }
   if (input.plan_id) {
     const { data: plan, error: planError } = await db.from("plans")
-      .select("id,name,price_cents,active")
+      .select("id,name,price_cents,active,duration_days")
       .eq("id", input.plan_id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle();
     if (planError) return databaseResult(context, null, planError);
     if (!plan) return fail(context, 404, "PLAN_NOT_FOUND", "Plano não encontrado.");
@@ -595,9 +597,12 @@ app.post("/charges", requireRoles(["admin", "manager", "finance"]), async (conte
     description: z.string().trim().min(3).max(200),
     amount_cents: z.number().int().positive(),
     due_at: z.string().date(),
+    coverage_from: z.string().date(),
+    coverage_to: z.string().date(),
     installment_number: z.number().int().positive().optional(),
     installment_count: z.number().int().positive().optional(),
   }).parse(await context.req.json());
+  if (input.coverage_to < input.coverage_from) return fail(context, 400, "INVALID_PERIOD", "O fim do período deve ser posterior ao início.");
   const scopeError = await validateRelatedResourceScope(context, input);
   if (scopeError) return scopeError;
   if (input.enrollment_id) {
@@ -885,6 +890,7 @@ function fail(context: any, status: number, code: string, message: string, detai
 function databaseResult(context: any, data: unknown, error: any, status = 200) {
   if (error) {
     console.error(JSON.stringify({ requestId: context.get("requestId"), code: error.code, message: error.message }));
+    if (String(error.message).includes("GROUP_CAPACITY_REACHED")) return fail(context, 409, "GROUP_CAPACITY_REACHED", "A turma está lotada em uma das datas do período escolhido. Ajuste o período do vínculo.");
     const conflict = error.code === "23505";
     return fail(context, conflict ? 409 : 400, conflict ? "DUPLICATE" : "DATABASE_ERROR", conflict ? "Este registro já existe." : "Não foi possível salvar os dados.");
   }

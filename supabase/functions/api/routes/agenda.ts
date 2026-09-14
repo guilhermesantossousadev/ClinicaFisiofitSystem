@@ -575,14 +575,8 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
       .eq("id", input.enrollment_id).eq("clinic_id", clinicId).eq("patient_id", input.patient_id).eq("unit_id", slot.unit_id).eq("status", "active").is("deleted_at", null).maybeSingle();
     if (!enrollment) return fail(context, 400, "INVALID_ENROLLMENT", "A matrícula não corresponde ao paciente e à unidade desta turma.");
     if (input.ends_at && input.ends_at < input.starts_at) return fail(context, 400, "INVALID_PERIOD", "A data final não pode ser anterior à inicial.");
-    const { data: existingMembership } = await db.from("group_slot_memberships").select("id").eq("clinic_id", clinicId).eq("group_slot_id", groupSlotId).eq("patient_id", input.patient_id).eq("status", "active").is("deleted_at", null).maybeSingle();
+    const { data: existingMembership } = await db.from("group_slot_memberships").select("id").eq("clinic_id", clinicId).eq("group_slot_id", groupSlotId).eq("patient_id", input.patient_id).eq("status", "active").is("deleted_at", null).eq("starts_at", input.starts_at).maybeSingle();
     if (existingMembership) return ok(context, existingMembership);
-    const { count, error: countError } = await db.from("group_slot_memberships").select("id", { count: "exact", head: true })
-      .eq("clinic_id", clinicId).eq("group_slot_id", groupSlotId).eq("status", "active").is("deleted_at", null);
-    if (countError) return databaseResult(context, null, countError);
-    if ((count ?? 0) >= slot.capacity) {
-      return fail(context, 409, "GROUP_CAPACITY_REACHED", "A turma já atingiu a capacidade configurada.");
-    }
     const { data, error } = await db.from("group_slot_memberships").insert({
       ...input,
       weekdays: slot.weekdays,
@@ -627,12 +621,6 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
       .eq("id", current.enrollment_id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle();
     if (enrollmentError) return databaseResult(context, null, enrollmentError);
     if (!enrollment || enrollment.unit_id !== slot.unit_id) return fail(context, 400, "INVALID_ENROLLMENT", "A turma deve pertencer à mesma unidade da matrícula.");
-    const { count, error: countError } = await db.from("group_slot_memberships").select("id", { count: "exact", head: true })
-      .eq("clinic_id", clinicId).eq("group_slot_id", targetGroupSlotId).eq("status", "active").is("deleted_at", null).neq("id", id);
-    if (countError) return databaseResult(context, null, countError);
-    if ((count ?? 0) >= slot.capacity) {
-      return fail(context, 409, "GROUP_CAPACITY_REACHED", "A turma já atingiu a capacidade configurada.");
-    }
     const { data, error } = await db.from("group_slot_memberships")
       .update({ ...input, weekdays: slot.weekdays, updated_at: new Date().toISOString() })
       .eq("id", id).eq("clinic_id", clinicId).eq("status", "active").is("deleted_at", null).select("id,group_slot_id,weekdays,starts_at,ends_at").single();

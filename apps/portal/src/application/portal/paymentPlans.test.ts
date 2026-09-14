@@ -37,7 +37,7 @@ describe("planos disponíveis para recebimento", () => {
     })]);
   });
 
-  it("mostra uma opção por plano e prioriza a cobrança com vencimento mais antigo", () => {
+  it("mostra todos os meses e remove apenas cobranças duplicadas", () => {
     const charge = { id: "charge-1", enrollment_id: "enrollment-1", patient_id: "patient-1", amount_cents: 20000, paid_cents: 0, due_at: "2026-09-10", status: "pending" };
     const result = buildAvailablePaymentPlans({
       ...base,
@@ -48,7 +48,7 @@ describe("planos disponíveis para recebimento", () => {
       ],
     });
 
-    expect(result).toHaveLength(1);
+    expect(result).toHaveLength(2);
     expect(result[0].chargeId).toBe("charge-1");
   });
 
