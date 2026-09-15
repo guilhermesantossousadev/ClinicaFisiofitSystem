@@ -9,7 +9,9 @@ import {
   classifyAccessFailure,
   loginErrorMessage,
   normalizeLoginEmail,
+  recoveryErrorMessage,
 } from "./authAccess";
+import { privacyResourcePaths } from "../../presentation/modules/OperationalPrivacy";
 
 const ids = {
   unitId: "2a0afc6d-9c33-4e1a-b6ce-13fb448f8160",
@@ -28,6 +30,19 @@ describe("contratos da agenda", () => {
       durationMinutes: 50,
     });
     expect(slot.capacity).toBe(7);
+  });
+
+  it("permite criar turma sem fisioterapeuta para atribuição posterior", () => {
+    const slot = groupSlotInputSchema.parse({
+      unitId: ids.unitId,
+      roomId: ids.roomId,
+      serviceId: ids.serviceId,
+      name: "Segunda e quarta às 09:00",
+      weekdays: [1, 3],
+      startsAt: "09:00",
+      durationMinutes: 50,
+    });
+    expect(slot.professionalId).toBeUndefined();
   });
 
   it("rejeita turmas acima de sete alunos", () => {
@@ -69,6 +84,11 @@ describe("contratos de privacidade", () => {
       kind: "access",
     })).toThrow();
   });
+
+  it("não consulta incidentes para perfis sem acesso administrativo", () => {
+    expect(privacyResourcePaths(false)).toEqual(["/privacy/requests", "/audit"]);
+    expect(privacyResourcePaths(true)).toContain("/privacy/incidents");
+  });
 });
 
 describe("fluxo de acesso", () => {
@@ -81,8 +101,14 @@ describe("fluxo de acesso", () => {
       .toContain("Muitas tentativas");
     expect(loginErrorMessage({ message: "Failed to fetch" }))
       .toContain("conectar");
+    expect(loginErrorMessage({ message: "Load failed" }))
+      .toContain("conectar");
+    expect(loginErrorMessage({ status: 503, message: "upstream unavailable" }))
+      .toContain("temporariamente indisponível");
     expect(loginErrorMessage({ code: "invalid_credentials" }))
       .toContain("E-mail ou senha inválidos");
+    expect(loginErrorMessage({ code: "unexpected_auth_error" }))
+      .not.toContain("senha inválidos");
   });
 
   it("diferencia sessão expirada de primeiro acesso", () => {
@@ -90,6 +116,13 @@ describe("fluxo de acesso", () => {
       .toBe("session-expired");
     expect(classifyAccessFailure({ apiError: { code: "BOOTSTRAP_REQUIRED" }, status: 403 }))
       .toBe("bootstrap");
+  });
+
+  it("explica falhas de conexão e limite na recuperação de senha", () => {
+    expect(recoveryErrorMessage({ message: "Failed to fetch" })).toContain("conectar");
+    expect(recoveryErrorMessage({ status: 429 })).toContain("até uma hora");
+    expect(recoveryErrorMessage({ code: "email_address_not_authorized" })).toContain("não está autorizado");
+    expect(recoveryErrorMessage({ status: 503 })).toContain("temporariamente indisponível");
   });
 
   it("não envia conta inativa nem falha de rede ao onboarding", () => {

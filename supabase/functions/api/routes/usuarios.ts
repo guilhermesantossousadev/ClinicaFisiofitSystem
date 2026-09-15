@@ -1,7 +1,9 @@
+import { createClient } from "npm:@supabase/supabase-js@2.49.1";
 import { z } from "npm:zod@3.24.2";
+import { defaultPermissionsForRole } from "../authorization.ts";
 
 export function registerUsuariosRoutes(app: any, dependencies: any) {
-  const { allowedOrigin, requireRoles, ok, fail, databaseResult, audit } = dependencies;
+  const { allowedOrigin, requireRoles, ok, fail, databaseResult, audit, requiredEnv } = dependencies;
   app.post("/users/invite", requireRoles(["admin"]), async (context: any) => {
     const input = z.object({
       email: z.string().email(),
@@ -17,14 +19,12 @@ export function registerUsuariosRoutes(app: any, dependencies: any) {
       data: { name: input.name },
     });
     if (inviteError || !invited.user) return databaseResult(context, null, inviteError);
-    const mfaRequired = ["admin", "manager", "finance"].includes(input.role);
     const { error: profileError } = await context.get("db").from("profiles").insert({
       id: invited.user.id,
       clinic_id: context.get("profile").clinic_id,
       name: input.name,
       role: input.role,
       status: "invited",
-      mfa_required: mfaRequired,
     });
     if (profileError) return databaseResult(context, null, profileError);
     if (input.unitIds.length) {
@@ -76,6 +76,67 @@ export function registerUsuariosRoutes(app: any, dependencies: any) {
     await audit(context, "user.access_resent", "profile", id);
     return ok(context, { id, email: authUser.user.email });
   });
+
+  app.post("/users/:id/password", requireRoles(["admin"]), async (context: any) => {
+    const id = z.string().uuid().parse(context.req.param("id"));
+    const input = z.object({
+      password: z.string().min(10).max(72),
+    }).parse(await context.req.json());
+    const db = context.get("db");
+    const clinicId = context.get("profile").clinic_id;
+    const { data: target, error: targetError } = await db.from("profiles")
+      .select("id,status")
+      .eq("id", id)
+      .eq("clinic_id", clinicId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (targetError) return databaseResult(context, null, targetError);
+    if (!target) {
+      return fail(context, 404, "USER_NOT_FOUND", "Usuária não encontrada nesta clínica.");
+    }
+    if (target.status === "blocked") {
+      return fail(context, 409, "MEMBERSHIP_BLOCKED", "Ative a conta antes de definir uma nova senha.");
+    }
+
+    const admin = createClient(requiredEnv("SUPABASE_URL"), requiredEnv("SUPABASE_SERVICE_ROLE_KEY"), {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data: updated, error: passwordError } = await admin.auth.admin.updateUserById(id, {
+      password: input.password,
+    });
+    if (passwordError || !updated.user) {
+      console.error(JSON.stringify({
+        requestId: context.get("requestId"),
+        code: passwordError?.code,
+        message: passwordError?.message,
+      }));
+      const weakPassword = passwordError?.code === "weak_password";
+      return fail(
+        context,
+        400,
+        weakPassword ? "WEAK_PASSWORD" : "PASSWORD_UPDATE_FAILED",
+        weakPassword
+          ? "A senha foi recusada pela política de segurança do Supabase. Use uma senha mais forte."
+          : "Não foi possível definir a senha no Supabase.",
+      );
+    }
+
+    if (target.status === "invited") {
+      const { error: activationError } = await db.from("profiles")
+        .update({ status: "active", updated_at: new Date().toISOString() })
+        .eq("id", id)
+        .eq("clinic_id", clinicId);
+      if (activationError) return databaseResult(context, null, activationError);
+    }
+    await audit(context, "user.password_changed", "profile", id, null, {
+      targetIsCurrentUser: id === context.get("user").id,
+    });
+    return ok(context, {
+      id,
+      email: updated.user.email ?? "",
+      status: target.status === "invited" ? "active" : target.status,
+    });
+  });
   
   app.get("/users", requireRoles(["admin", "manager"]), async (context: any) => {
     const db = context.get("db");
@@ -85,7 +146,7 @@ export function registerUsuariosRoutes(app: any, dependencies: any) {
     });
     const [{ data, error }, { data: clinic, error: clinicError }, { data: authUsers, error: authError }] = await Promise.all([
       db.from("profiles")
-      .select("id,name,role,status,mfa_required,created_at,profile_units(unit_id,units(id,name)),profile_permissions(module,can_view,can_edit)")
+      .select("id,name,role,status,created_at,profile_units(unit_id,units(id,name)),profile_permissions(module,can_view,can_edit)")
       .eq("clinic_id", clinicId).is("deleted_at", null).order("name"),
       db.from("clinics").select("owner_profile_id").eq("id", clinicId).single(),
       admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
@@ -126,7 +187,6 @@ export function registerUsuariosRoutes(app: any, dependencies: any) {
     }
     const { data, error } = await db.from("profiles").update({
       ...profileChanges,
-      ...(input.role ? { mfa_required: ["admin", "manager", "finance"].includes(input.role) } : {}),
       updated_at: new Date().toISOString(),
     }).eq("id", id).eq("clinic_id", clinicId).select().single();
     if (error) return databaseResult(context, null, error);

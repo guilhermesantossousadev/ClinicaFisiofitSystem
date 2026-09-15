@@ -122,8 +122,8 @@ Os indicadores são informativos. Se algum número parecer incorreto, confirme o
 ### 5.1 Consultar a semana
 
 1. Abra **Agenda**.
-2. No campo **Semana**, escolha a data inicial.
-3. Revise os atendimentos exibidos para os sete dias seguintes.
+2. Use as setas para consultar a semana anterior ou seguinte; use **Hoje** para retornar à semana atual.
+3. Revise os atendimentos e turmas dos sete dias exibidos.
 4. Confirme unidade, profissional, sala, paciente, serviço, horário e status.
 
 ### 5.2 Criar um agendamento individual
@@ -140,6 +140,8 @@ Os indicadores são informativos. Se algum número parecer incorreto, confirme o
 
 O sistema valida conflitos de profissional, sala e capacidade. Se houver conflito, não tente contornar criando outro horário; ajuste os dados ou consulte a gestora.
 
+Se aparecer **“Já existe outra turma nesta unidade para o mesmo dia e horário”**, o formulário permanecerá aberto. Revise os campos destacados e escolha outro dia, horário ou período de vigência. Quando disponível, o aviso identifica a turma conflitante.
+
 ### 5.3 Atualizar o status de um atendimento
 
 Na lista de atendimentos da semana, use a ação correspondente:
@@ -149,19 +151,25 @@ Na lista de atendimentos da semana, use a ação correspondente:
 - **Falta:** paciente não compareceu.
 - **Cancelar:** horário cancelado.
 
+O cancelamento preserva o registro no histórico. Para um período reservado sem paciente, marque **Bloquear este horário sem paciente** ao criar o compromisso.
+
 Atualize o status assim que o fato ocorrer. Isso mantém o Painel, a agenda e os registros operacionais coerentes.
 
 ### 5.4 Criar uma turma com horário fixo
 
 1. Clique em **Nova turma com horário fixo**.
-2. Selecione unidade, sala, profissional e serviço.
+2. Selecione a unidade e, se já estiverem definidos, sala, fisioterapeuta e serviço.
 3. Escolha a frequência: 1x, 2x ou 3x por semana.
 4. Escolha dias diferentes da semana.
 5. Informe o horário e a duração.
-6. Revise o nome gerado, os dias e o horário.
+6. Revise o nome informado, os dias e o horário. O fisioterapeuta pode ser atribuído agora ou depois, ao editar a turma.
 7. Salve.
 
-As turmas são criadas com capacidade para **7 alunos**. A matrícula pode ser vinculada a uma turma posteriormente.
+As turmas são criadas com capacidade para **7 alunos**. O horário é fixo, mas as turmas são separadas pela combinação de dias: por exemplo, segunda/quarta às 07:00 e terça/quinta às 07:00 são duas turmas diferentes e podem ter profissionais diferentes. Ao vincular uma matrícula, escolha a turma completa; o paciente frequentará apenas os dias definidos nela.
+
+Administradores, gestores e recepcionistas também possuem a ação **Criar grade de horários**. Nela, informe o primeiro e o último horário, o intervalo e os demais dados compartilhados. O fisioterapeuta é opcional e pode ser atribuído posteriormente em cada turma. O sistema mostra quantas turmas serão criadas antes do envio e não cria nenhuma delas quando encontra conflito na faixa selecionada.
+
+Na tabela **Turmas em horários fixos**, use **Editar** para alterar dias, horário, responsável e situação. Use **Excluir** para retirar uma turma vazia da agenda. Se ainda houver pacientes ativos, remova-os da turma antes; o histórico dos registros anteriores será preservado.
 
 ### 5.5 Boas práticas da agenda
 
@@ -353,7 +361,7 @@ Isso pode ser limitação de permissão do perfil Recepção. Solicite à admini
 ## 11. Glossário rápido
 
 - **Unidade:** local da clínica ao qual o atendimento ou cadastro está vinculado.
-- **Turma:** conjunto de horários fixos para alunos, com capacidade definida.
+- **Turma:** combinação de dias da semana, horário fixo e profissional responsável, com capacidade definida.
 - **Plano:** produto comercial com período, frequência, sessões e preço.
 - **Matrícula:** vínculo do paciente a um plano e, opcionalmente, a uma turma.
 - **Cobrança:** valor previsto para pagamento.

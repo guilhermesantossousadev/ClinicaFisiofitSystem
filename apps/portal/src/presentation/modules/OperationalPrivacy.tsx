@@ -3,8 +3,22 @@ import { api } from "../../infrastructure/http/api";
 import { SelectField, TextareaField, TextField } from "../components/FormPrimitives";
 import { messageOf, value, useResources, DrawerForm, ModuleState, OperationalTable } from "./OperationalShared";
 
-export function OperationalPrivacy() {
-  const paths = ["/privacy/requests", "/privacy/incidents", "/audit"];
+export function privacyResourcePaths(canManageIncidents: boolean) {
+  return canManageIncidents
+    ? ["/privacy/requests", "/privacy/incidents", "/audit"]
+    : ["/privacy/requests", "/audit"];
+}
+
+export function OperationalPrivacy({
+  canEditPrivacy,
+  canManageIncidents,
+}: {
+  canEditPrivacy: boolean;
+  canManageIncidents: boolean;
+}) {
+  // Incidentes possuem dados especialmente sensíveis e são restritos ao admin
+  // tanto na API quanto no RLS. Não devemos sequer requisitá-los para gestores.
+  const paths = privacyResourcePaths(canManageIncidents);
   const { data, loading, error, reload } = useResources(paths);
   const [notice, setNotice] = useState("");
   async function request(event: FormEvent<HTMLFormElement>) {
@@ -68,7 +82,7 @@ export function OperationalPrivacy() {
         </div>
       )}
       <ModuleState loading={loading} error={error} retry={reload} />
-      <div className="dashboard-grid">
+      {canEditPrivacy && <div className="dashboard-grid">
         <DrawerForm title="Nova solicitação" onSubmit={request}>
           <h2>Nova solicitação</h2>
           <TextField name="name" label="Solicitante" required />
@@ -87,7 +101,7 @@ export function OperationalPrivacy() {
           </SelectField>
           <button className="btn primary">Registrar solicitação</button>
         </DrawerForm>
-        <DrawerForm title="Novo incidente" onSubmit={incident}>
+        {canManageIncidents && <DrawerForm title="Novo incidente" onSubmit={incident}>
           <h2>Novo incidente</h2>
           <TextField name="title" label="Título" required />
           <TextareaField name="description" label="Descrição" rows={3} required minLength={10} />
@@ -107,24 +121,28 @@ export function OperationalPrivacy() {
             />
           <TextareaField name="mitigation" label="Mitigação" rows={2} />
           <button className="btn primary">Registrar incidente</button>
-        </DrawerForm>
-      </div>
+        </DrawerForm>}
+      </div>}
       <OperationalTable
         title="Solicitações de titulares"
         rows={data["/privacy/requests"] ?? []}
         fields={["requester_name", "kind", "status", "due_at"]}
+        emptyMessage="Nenhuma solicitação de titular foi registrada."
       />
-      <OperationalTable
-        title="Incidentes"
-        rows={data["/privacy/incidents"] ?? []}
-        fields={["title", "severity", "status", "discovered_at"]}
-      />
+      {canManageIncidents && (
+        <OperationalTable
+          title="Incidentes"
+          rows={data["/privacy/incidents"] ?? []}
+          fields={["title", "severity", "status", "discovered_at"]}
+          emptyMessage="Nenhum incidente de privacidade foi registrado."
+        />
+      )}
       <OperationalTable
         title="Auditoria recente"
         rows={data["/audit"] ?? []}
         fields={["action", "entity_type", "user_id", "occurred_at"]}
+        emptyMessage="Nenhum evento de auditoria está disponível para consulta."
       />
     </div>
   );
 }
-

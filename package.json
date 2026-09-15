@@ -19,7 +19,8 @@
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
     "supabase:reset": "supabase db reset",
-    "supabase:test": "supabase test db"
+    "supabase:test": "supabase test db",
+    "admin:set-password": "node scripts/set-admin-password.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

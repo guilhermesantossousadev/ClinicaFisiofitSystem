@@ -1,6 +1,7 @@
 export type View =
   | "Painel"
   | "Agenda"
+  | "Chamada diária"
   | "Pacientes"
   | "Matrículas"
   | "Prontuários"

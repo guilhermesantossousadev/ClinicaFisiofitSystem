@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { api, list } from "../../infrastructure/http/api";
 import { supabase } from "../../infrastructure/supabase/client";
 import "../styles/portal-enhancements.css";
@@ -6,6 +6,7 @@ import { useAuth } from "../auth/AuthProvider";
 import {
   OperationalAdministration,
   OperationalAgenda,
+  OperationalDailyAttendance,
   OperationalEnrollments,
   OperationalFinance,
   OperationalPatients,
@@ -15,11 +16,12 @@ import {
   OperationalUsers,
 } from "../modules/OperationalModules";
 import type { AgendaEnrollmentContext } from "../modules/OperationalModules";
-import type { DashboardData, Patient, Profile, Unit, View } from "../../domain/portal";
+import { statusLabel } from "../modules/OperationalShared";
+import type { DashboardData, Patient, PermissionModule, Profile, Unit, View } from "../../domain/portal";
 import { isView, nav, navModule, roleLabel } from "../../application/portal/navigation";
 const OperationalImports = lazy(() => import("../modules/OperationalImports"));
 const sidebarGroups: Array<{ label: string; items: View[] }> = [
-  { label: "Operação", items: ["Painel", "Agenda", "Pacientes", "Matrículas", "Prontuários"] },
+  { label: "Operação", items: ["Painel", "Agenda", "Chamada diária", "Pacientes", "Matrículas", "Prontuários"] },
   { label: "Gestão", items: ["Financeiro", "Relatórios", "Importações"] },
   { label: "Administração", items: ["Usuários", "Configurações", "Privacidade"] },
 ];
@@ -44,6 +46,14 @@ function storeValue(key: string, value: string) {
   }
 }
 
+function canViewModule(profile: Profile, module: PermissionModule) {
+  return profile.role === "admin" || !profile.profile_permissions || profile.profile_permissions.some((permission) => permission.module === module && permission.can_view);
+}
+
+function canEditModule(profile: Profile, module: PermissionModule) {
+  return profile.role === "admin" || !profile.profile_permissions || profile.profile_permissions.some((permission) => permission.module === module && permission.can_edit);
+}
+
 function Avatar({ initials, url, className = "" }: { initials: string; url?: string; className?: string }) {
   return url
     ? <img className={`avatar avatar-image ${className}`.trim()} src={url} alt="Foto do perfil" />
@@ -53,7 +63,7 @@ function Avatar({ initials, url, className = "" }: { initials: string; url?: str
 function compressAvatar(file: File) {
   if (!file.type.startsWith("image/")) return Promise.reject(new Error("Escolha uma imagem válida."));
   if (file.size > 5 * 1024 * 1024) return Promise.reject(new Error("A imagem deve ter no máximo 5 MB."));
-  return new Promise<string>((resolve, reject) => {
+  return new Promise<Blob>((resolve, reject) => {
     const source = URL.createObjectURL(file);
     const image = new Image();
     image.onload = () => {
@@ -70,10 +80,7 @@ function compressAvatar(file: File) {
       canvas.toBlob((blob) => {
         URL.revokeObjectURL(source);
         if (!blob) { reject(new Error("Não foi possível preparar a imagem.")); return; }
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result));
-        reader.onerror = () => reject(new Error("Não foi possível ler a imagem."));
-        reader.readAsDataURL(blob);
+        resolve(blob);
       }, "image/webp", .82);
     };
     image.onerror = () => { URL.revokeObjectURL(source); reject(new Error("Não foi possível abrir a imagem.")); };
@@ -97,6 +104,8 @@ export default function FisiofitApp() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [unit, setUnit] = useState(() => storedValue(`${storagePrefix}:unit`));
   const [search, setSearch] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [activeSearchIndex, setActiveSearchIndex] = useState(-1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -105,6 +114,8 @@ export default function FisiofitApp() {
   const [avatarUrl, setAvatarUrl] = useState(() => String(user?.user_metadata?.avatar_url ?? ""));
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [avatarNotice, setAvatarNotice] = useState("");
+  const mobileMenuRef = useRef<HTMLElement>(null);
+  const mobileMenuTriggerRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     storeValue(`${storagePrefix}:view`, view);
@@ -133,29 +144,35 @@ export default function FisiofitApp() {
     }
   }, [loading, unit, units]);
   useEffect(() => {
-    void Promise.all([
-      api<{ profile: Profile }>("/me"),
-      api<DashboardData>("/dashboard"),
-      api<Unit[]>("/units"),
-      list<Patient>("/patients?page=1&pageSize=100"),
-    ])
-      .then(([me, dash, unitRows, patientRows]) => {
-        if (me.data?.profile) setProfile(me.data.profile);
-        setDashboard(dash.data);
-        setUnits(unitRows.data ?? []);
-        setPatients(patientRows.data?.items ?? []);
-      })
-      .catch((reason) =>
-        setError(
-          reason instanceof Error
-            ? reason.message
-            : "Não foi possível carregar o portal.",
-        ),
-      )
-      .finally(() => setLoading(false));
+    async function loadPortal() {
+      try {
+        const me = await api<{ profile: Profile }>("/me");
+        const loadedProfile = me.data?.profile;
+        if (!loadedProfile) throw new Error("Não foi possível identificar o perfil deste usuário.");
+        setProfile(loadedProfile);
+        const requests = [
+          api<Unit[]>("/units"),
+          canViewModule(loadedProfile, "dashboard") ? api<DashboardData>("/dashboard") : Promise.resolve({ data: null }),
+          ["admin", "manager", "reception", "professional"].includes(loadedProfile.role) && canViewModule(loadedProfile, "patients")
+            ? list<Patient>("/patients?page=1&pageSize=100")
+            : Promise.resolve({ data: null }),
+        ] as const;
+        const [unitResult, dashboardResult, patientResult] = await Promise.allSettled(requests);
+        if (unitResult.status === "fulfilled") setUnits(unitResult.value.data ?? []);
+        if (dashboardResult.status === "fulfilled") setDashboard(dashboardResult.value.data);
+        if (patientResult.status === "fulfilled") setPatients(patientResult.value.data?.items ?? []);
+        const failure = [unitResult, dashboardResult, patientResult].find((result) => result.status === "rejected");
+        if (failure?.status === "rejected") setError(failure.reason instanceof Error ? failure.reason.message : "Alguns dados não foram carregados.");
+      } catch (reason) {
+        setError(reason instanceof Error ? reason.message : "Não foi possível carregar o portal.");
+      } finally {
+        setLoading(false);
+      }
+    }
+    void loadPortal();
   }, []);
   const visibleNav = useMemo(
-    () => nav.filter((item) => item.roles.includes(profile.role) && (profile.role === "admin" || !profile.profile_permissions || profile.profile_permissions.some((permission) => permission.module === navModule[item.label] && permission.can_view))),
+    () => nav.filter((item) => item.roles.includes(profile.role) && canViewModule(profile, navModule[item.label]!)),
     [profile.role, profile.profile_permissions],
   );
   useEffect(() => {
@@ -165,11 +182,37 @@ export default function FisiofitApp() {
   }, [loading, view, visibleNav]);
   useEffect(() => {
     if (!mobileMenuOpen) return;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMobileMenuOpen(false);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const focusFrame = window.requestAnimationFrame(() => {
+      mobileMenuRef.current?.querySelector<HTMLElement>("button")?.focus();
+    });
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMobileMenuOpen(false);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = [...(mobileMenuRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])') ?? [])];
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      if (!first || !last) return;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
-    document.addEventListener("keydown", closeOnEscape);
-    return () => document.removeEventListener("keydown", closeOnEscape);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+      window.requestAnimationFrame(() => mobileMenuTriggerRef.current?.focus());
+    };
   }, [mobileMenuOpen]);
   const mobilePrimaryNav = visibleNav.slice(0, 4);
   const mobileSecondaryNav = visibleNav.slice(4);
@@ -196,6 +239,37 @@ export default function FisiofitApp() {
       )
       .slice(0, 8);
   }, [patients, search, unit]);
+  useEffect(() => setActiveSearchIndex(-1), [results, search]);
+  const chooseSearchResult = (_patient: Patient) => {
+    navigate("Pacientes");
+    setSearch("");
+    setSearchOpen(false);
+    setActiveSearchIndex(-1);
+  };
+  const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Escape") {
+      setSearchOpen(false);
+      setActiveSearchIndex(-1);
+      return;
+    }
+    if (event.key === "Tab") {
+      setSearchOpen(false);
+      return;
+    }
+    if (!results.length) return;
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setSearchOpen(true);
+      setActiveSearchIndex((current) => (current + 1) % results.length);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setSearchOpen(true);
+      setActiveSearchIndex((current) => current <= 0 ? results.length - 1 : current - 1);
+    } else if (event.key === "Enter" && activeSearchIndex >= 0) {
+      event.preventDefault();
+      chooseSearchResult(results[activeSearchIndex]);
+    }
+  };
   const initials = profile.name
     .split(" ")
     .map((part) => part[0])
@@ -203,14 +277,22 @@ export default function FisiofitApp() {
     .join("")
     .toUpperCase();
   async function changeAvatar(file: File | undefined) {
-    if (!file) return;
+    if (!file || !user) return;
     setAvatarBusy(true);
     setAvatarNotice("");
     try {
-      const dataUrl = await compressAvatar(file);
-      const { error: updateError } = await supabase.auth.updateUser({ data: { avatar_url: dataUrl } });
+      const avatar = await compressAvatar(file);
+      const path = `${user.id}/avatar.webp`;
+      const { error: uploadError } = await supabase.storage
+        .from("profile-avatars")
+        .upload(path, avatar, { contentType: "image/webp", upsert: true });
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from("profile-avatars").getPublicUrl(path);
+      const publicUrl = `${data.publicUrl}?v=${Date.now()}`;
+      const { error: updateError } = await supabase.auth.updateUser({ data: { avatar_url: publicUrl } });
       if (updateError) throw updateError;
-      setAvatarUrl(dataUrl);
+      setAvatarUrl(publicUrl);
       setAvatarNotice("Foto de perfil atualizada.");
     } catch (reason) {
       setAvatarNotice(reason instanceof Error ? reason.message : "Não foi possível atualizar a foto.");
@@ -289,6 +371,7 @@ export default function FisiofitApp() {
         ))}
         {mobileSecondaryNav.length > 0 && (
           <button
+            ref={mobileMenuTriggerRef}
             className={mobileViewIsSecondary || mobileMenuOpen ? "mobile-nav-item active" : "mobile-nav-item"}
             onClick={() => setMobileMenuOpen((open) => !open)}
             aria-expanded={mobileMenuOpen}
@@ -302,13 +385,16 @@ export default function FisiofitApp() {
       {mobileMenuOpen && (
         <div className="mobile-menu-backdrop" onClick={() => setMobileMenuOpen(false)}>
           <section
+            ref={mobileMenuRef}
             className="mobile-more-menu"
             id="mobile-more-menu"
-            aria-label="Mais módulos"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="mobile-more-menu-title"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mobile-menu-heading">
-              <div><strong>Mais módulos</strong><small>Escolha uma área do sistema</small></div>
+              <div><strong id="mobile-more-menu-title">Mais módulos</strong><small>Escolha uma área do sistema</small></div>
               <button onClick={() => setMobileMenuOpen(false)} aria-label="Fechar menu">×</button>
             </div>
             <div className="mobile-menu-grid">
@@ -352,11 +438,18 @@ export default function FisiofitApp() {
             <span aria-hidden="true">⌕</span>
             <input
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setSearchOpen(event.target.value.trim().length >= 2);
+              }}
+              onFocus={() => setSearchOpen(search.trim().length >= 2)}
+              onBlur={() => window.setTimeout(() => setSearchOpen(false), 0)}
+              onKeyDown={handleSearchKeyDown}
               placeholder="Buscar paciente, telefone ou CPF…"
               role="combobox"
-              aria-expanded={search.trim().length >= 2}
+              aria-expanded={searchOpen && search.trim().length >= 2}
               aria-controls="global-search-results"
+              aria-activedescendant={activeSearchIndex >= 0 ? `global-search-result-${results[activeSearchIndex]?.id}` : undefined}
               aria-autocomplete="list"
             />
           </label>
@@ -383,21 +476,23 @@ export default function FisiofitApp() {
               }).format(new Date())}
             </span>
           </div>
-          {results.length > 0 && (
+          {searchOpen && search.trim().length >= 2 && (
             <div className="global-results" id="global-search-results" role="listbox" aria-label="Pacientes encontrados">
-              {results.map((patient) => (
+              {results.length ? results.map((patient, index) => (
                 <button
+                  id={`global-search-result-${patient.id}`}
                   key={patient.id}
                   role="option"
-                  onClick={() => {
-                    setView("Pacientes");
-                    setSearch("");
-                  }}
+                  aria-selected={index === activeSearchIndex}
+                  tabIndex={-1}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onMouseEnter={() => setActiveSearchIndex(index)}
+                  onClick={() => chooseSearchResult(patient)}
                 >
                   <strong>{patient.name}</strong>
                   <small>{patient.phone ?? "Sem telefone"}</small>
                 </button>
-              ))}
+              )) : <p className="global-results-empty" role="status">Nenhum paciente encontrado nesta unidade.</p>}
             </div>
           )}
         </header>
@@ -410,11 +505,12 @@ export default function FisiofitApp() {
         {view === "Painel" && (
           <Dashboard data={dashboard} name={profile.name} setView={setView} loading={loading} />
         )}{" "}
-        {view === "Agenda" && <OperationalAgenda canEdit={profile.role === "admin" || !profile.profile_permissions || profile.profile_permissions.some((permission) => permission.module === "agenda" && permission.can_edit)} onOpenPatients={() => navigate("Pacientes")} onOpenEnrollment={(context) => { setAgendaContext(context); navigate("Matrículas"); }} />}{" "}
-        {view === "Pacientes" && <OperationalPatients />}{" "}
-        {view === "Matrículas" && <OperationalEnrollments agendaContext={agendaContext} onClearAgendaContext={() => setAgendaContext(undefined)} />}{" "}
-        {view === "Prontuários" && <OperationalRecords />}{" "}
-        {view === "Financeiro" && <OperationalFinance />}{" "}
+        {view === "Agenda" && <OperationalAgenda role={profile.role} canEdit={canEditModule(profile, "agenda")} onOpenPatients={() => navigate("Pacientes")} onOpenEnrollment={(context) => { setAgendaContext(context); navigate("Matrículas"); }} />}{" "}
+        {view === "Chamada diária" && <OperationalDailyAttendance canEdit={canEditModule(profile, "agenda")} />}{" "}
+        {view === "Pacientes" && <OperationalPatients canEdit={canEditModule(profile, "patients")} canViewEnrollments={canViewModule(profile, "enrollments")} canEditEnrollments={canEditModule(profile, "enrollments")} canViewAgenda={canViewModule(profile, "agenda")} canEditAgenda={canEditModule(profile, "agenda")} canViewTimeline={["admin", "manager"].includes(profile.role)} />}{" "}
+        {view === "Matrículas" && <OperationalEnrollments agendaContext={agendaContext} onClearAgendaContext={() => setAgendaContext(undefined)} units={units} selectedUnitId={unit} onUnitChange={setUnit} canEdit={canEditModule(profile, "enrollments")} canManagePlans={canEditModule(profile, "enrollments") && ["admin", "manager", "finance"].includes(profile.role)} canDeletePlans={profile.role === "admin"} canViewCharges={["admin", "manager", "finance"].includes(profile.role) && canViewModule(profile, "enrollments")} canManageChargeStatus={["admin", "manager", "finance"].includes(profile.role) && canEditModule(profile, "enrollments")} canViewPayments={["admin", "manager", "finance"].includes(profile.role) && canViewModule(profile, "finance")} canReceivePayments={["admin", "manager", "finance"].includes(profile.role) && canEditModule(profile, "finance")} canRollback={["admin", "manager", "finance"].includes(profile.role) && canEditModule(profile, "enrollments")} />}{" "}
+        {view === "Prontuários" && <OperationalRecords canEdit={canEditModule(profile, "records")} />}{" "}
+        {view === "Financeiro" && <OperationalFinance canEdit={canEditModule(profile, "finance")} />}{" "}
         {view === "Relatórios" && <OperationalReports />}{" "}
         {view === "Importações" && (
           <Suspense fallback={<div className="content"><div className="card module-skeleton" role="status">Carregando importações…</div></div>}>
@@ -422,8 +518,13 @@ export default function FisiofitApp() {
           </Suspense>
         )}{" "}
         {view === "Usuários" && <OperationalUsers canManageUsers={profile.role === "admin"} />}
-        {view === "Configurações" && <OperationalAdministration />}
-        {view === "Privacidade" && <OperationalPrivacy />}
+        {view === "Configurações" && <OperationalAdministration canEdit={canEditModule(profile, "settings")} canManageUnits={profile.role === "admin"} canDelete={profile.role === "admin"} />}
+        {view === "Privacidade" && (
+          <OperationalPrivacy
+            canEditPrivacy={profile.role === "admin" || Boolean(profile.profile_permissions?.some((permission) => permission.module === "privacy" && permission.can_edit))}
+            canManageIncidents={profile.role === "admin"}
+          />
+        )}
       </section>
       </main>
     </>
@@ -496,7 +597,7 @@ function Dashboard({
       {!loading && <>
       <section className="card table-card dashboard-agenda-top" aria-labelledby="dashboard-agenda-title">
         <div className="table-toolbar"><div><p className="eyebrow">PRÓXIMOS HORÁRIOS</p><h2 id="dashboard-agenda-title">Agenda de hoje</h2></div><button className="text-button" onClick={() => setView("Agenda")}>Abrir agenda →</button></div>
-        {(data?.appointments ?? []).map((item) => <div className="operational-row" key={item.id}><div><strong>{new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" }).format(new Date(item.starts_at))} · {item.patients?.name ?? "Horário bloqueado"}</strong><small>{item.services?.name ?? "Atendimento"} · {item.professionals?.name ?? "Sem profissional"} · {item.units?.name ?? "Sem unidade"}</small></div><span className="status info">{item.status}</span></div>)}
+        {(data?.appointments ?? []).map((item) => <div className="operational-row" key={item.id}><div><strong>{new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" }).format(new Date(item.starts_at))} · {item.patients?.name ?? "Horário bloqueado"}</strong><small>{item.services?.name ?? "Atendimento"} · {item.professionals?.name ?? "Sem profissional"} · {item.units?.name ?? "Sem unidade"}</small></div><span className="status info">{statusLabel(item.status)}</span></div>)}
         {!data?.appointments?.length && <div className="empty-state compact-empty"><strong>Nenhum atendimento para hoje</strong><p>A agenda está livre.</p></div>}
       </section>
       {Boolean(data?.dueCharges?.length) && <section className="dashboard-due-alert" role="status" aria-labelledby="dashboard-due-title"><div><strong id="dashboard-due-title">Vencimentos próximos</strong><span>Há cobranças com vencimento nos próximos 7 dias.</span></div><div className="dashboard-due-list">{data?.dueCharges.map((charge) => <span key={charge.id}><b>{new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" }).format(new Date(`${charge.due_at}T12:00:00`))}</b> · {charge.patients?.name ?? "Paciente"} · {brl(Math.max(Number(charge.amount_cents) - Number(charge.paid_cents), 0))}</span>)}</div></section>}

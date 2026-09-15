@@ -5,6 +5,7 @@ export type NavigationItem = { label: View; icon: string; roles: Role[] };
 export const nav: NavigationItem[] = [
   { label: "Painel", icon: "⌂", roles: ["admin", "manager", "reception", "professional", "finance"] },
   { label: "Agenda", icon: "□", roles: ["admin", "manager", "reception", "professional"] },
+  { label: "Chamada diária", icon: "✓", roles: ["admin", "manager", "reception", "professional"] },
   { label: "Pacientes", icon: "♙", roles: ["admin", "manager", "reception"] },
   { label: "Matrículas", icon: "◇", roles: ["admin", "manager", "reception", "finance"] },
   { label: "Prontuários", icon: "▤", roles: ["admin", "manager", "professional"] },
@@ -21,7 +22,7 @@ export const roleLabel: Record<Role, string> = {
 };
 
 export const navModule: Partial<Record<View, PermissionModule>> = {
-  Painel: "dashboard", Agenda: "agenda", Pacientes: "patients", Matrículas: "enrollments", Prontuários: "records", Financeiro: "finance", Relatórios: "reports", Importações: "imports", Usuários: "users", Configurações: "settings", Privacidade: "privacy",
+  Painel: "dashboard", Agenda: "agenda", "Chamada diária": "agenda", Pacientes: "patients", Matrículas: "enrollments", Prontuários: "records", Financeiro: "finance", Relatórios: "reports", Importações: "imports", Usuários: "users", Configurações: "settings", Privacidade: "privacy",
 };
 
 export function isView(value: string): value is View {

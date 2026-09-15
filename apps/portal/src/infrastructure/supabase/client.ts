@@ -13,6 +13,11 @@ export const supabase = createClient(
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,
+      flowType: "pkce",
     },
   },
 );
+
+export function passwordRecoveryRedirectUrl() {
+  return new URL("sistema/set-password", `${window.location.origin}/`).toString();
+}

@@ -1,5 +1,6 @@
 export type { AgendaEnrollmentContext } from "./OperationalShared";
 export { OperationalAgenda } from "./OperationalAgenda";
+export { OperationalDailyAttendance } from "./OperationalDailyAttendance";
 export { OperationalPatients } from "./OperationalPatients";
 export { OperationalEnrollments } from "./OperationalEnrollments";
 export { OperationalRecords } from "./OperationalRecords";
