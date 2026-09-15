@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="100%" height="100%">
+  <defs>
+    <!-- Teal-Blue Gradient for a premium wellness look -->
+    <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3498db" />
+      <stop offset="100%" stop-color="#1abc9c" />
+    </linearGradient>
+    <!-- Soft Drop Shadow for elements -->
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.1" />
+    </filter>
+  </defs>
+
+  <!-- Circular background -->
+  <circle cx="100" cy="100" r="95" fill="#ffffff" filter="url(#shadow)" />
+  <circle cx="100" cy="100" r="90" fill="none" stroke="url(#logoGrad)" stroke-width="1.5" stroke-dasharray="4 4" opacity="0.5" />
+
+  <!-- Pilates / Fisioterapia Silhouette -->
+  <!-- Elegant V-sit/Teaser pose -->
+  <g transform="translate(0, -5)">
+    <!-- Head -->
+    <circle cx="118" cy="62" r="7.5" fill="url(#logoGrad)" />
+    
+    <!-- Body & Legs (Seamless curve representing flexibility & flow) -->
+    <path d="M 52,68 
+             C 68,90 85,115 100,115 
+             C 112,115 116,92 112,78 
+             C 110,70 108,68 111,68
+             C 113,68 115,75 118,85
+             C 120,95 115,120 98,120
+             C 80,120 60,95 46,72
+             Z" 
+          fill="url(#logoGrad)" />
+          
+    <!-- Arms reaching forward, parallel to legs -->
+    <path d="M 103,81
+             C 90,83 75,81 60,74
+             C 57,72 58,69 61,71
+             C 74,77 88,79 101,77
+             Z" 
+          fill="url(#logoGrad)" />
+  </g>
+
+  <!-- Brand Typography -->
+  <!-- "FISIOFIT" -->
+  <text x="100" y="148" 
+        font-family="'Montserrat', 'Outfit', 'Helvetica Neue', sans-serif" 
+        font-size="19" 
+        font-weight="900" 
+        fill="#2c3e50" 
+        text-anchor="middle" 
+        letter-spacing="2">FISIOFIT</text>
+
+  <!-- "PILATES & FISIOTERAPIA" -->
+  <text x="100" y="164" 
+        font-family="'Montserrat', 'Outfit', 'Helvetica Neue', sans-serif" 
+        font-size="7.5" 
+        font-weight="600" 
+        fill="#7f8c8d" 
+        text-anchor="middle" 
+        letter-spacing="1">PILATES &amp; FISIOTERAPIA</text>
+</svg>
