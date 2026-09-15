@@ -41,3 +41,8 @@ export function professionalsForUnit<T extends AgendaResource>(rows: T[], unitId
 export function resourcesForUnit<T extends AgendaResource>(rows: T[], unitId: string, unitField = "unit_id") {
   return rows.filter((row) => Boolean(unitId) && String(row[unitField] ?? "") === unitId && row.active !== false);
 }
+
+export function patientsAvailableForGroup<T extends AgendaResource>(patients: T[], unitId: string, memberPatientIds: string[]) {
+  const currentMemberIds = new Set(memberPatientIds.map(String));
+  return patients.filter((patient) => String(patient.primary_unit_id ?? "") === unitId && !currentMemberIds.has(String(patient.id ?? "")));
+}

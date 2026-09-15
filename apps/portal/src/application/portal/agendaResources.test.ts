@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { agendaCapabilities, agendaResourcePaths, professionalUnitIds, professionalsForUnit, resourcesForUnit } from "./agendaResources";
+import { agendaCapabilities, agendaResourcePaths, patientsAvailableForGroup, professionalUnitIds, professionalsForUnit, resourcesForUnit } from "./agendaResources";
 
 describe("recursos da agenda por unidade", () => {
   const professionals = [
@@ -24,6 +24,16 @@ describe("recursos da agenda por unidade", () => {
   it("filtra salas e pacientes pela unidade", () => {
     expect(resourcesForUnit([{ id: "1", unit_id: "centro" }, { id: "2", unit_id: "lagoa" }], "centro").map((row) => row.id)).toEqual(["1"]);
     expect(resourcesForUnit([{ id: "1", primary_unit_id: "centro" }, { id: "2", primary_unit_id: "lagoa" }], "lagoa", "primary_unit_id").map((row) => row.id)).toEqual(["2"]);
+  });
+
+  it("permite adicionar à turma pacientes da unidade mesmo sem matrícula", () => {
+    const patients = [
+      { id: "sem-plano", primary_unit_id: "centro" },
+      { id: "ja-na-turma", primary_unit_id: "centro" },
+      { id: "outra-unidade", primary_unit_id: "lagoa" },
+    ];
+
+    expect(patientsAvailableForGroup(patients, "centro", ["ja-na-turma"]).map((row) => row.id)).toEqual(["sem-plano"]);
   });
 
   it("não carrega matrículas nem expõe gestão de turmas ao profissional", () => {

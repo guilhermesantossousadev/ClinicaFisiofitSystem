@@ -1,5 +1,5 @@
 begin;
-select plan(15);
+select plan(19);
 
 select has_table('public', 'patients', 'pacientes existe');
 select has_table('public', 'group_slots', 'turmas semanais existem');
@@ -16,6 +16,9 @@ select has_table('public', 'data_subject_requests', 'solicitações LGPD existem
 select has_table('public', 'privacy_incidents', 'incidentes de privacidade existem');
 select has_table('public', 'class_attendances', 'chamadas diárias existem');
 select has_trigger('public', 'profiles', 'profiles_protect_clinic_owner', 'conta proprietária é protegida no banco');
+select col_is_null('public', 'group_slot_memberships', 'enrollment_id', 'aluno pode entrar na turma sem matrícula ou plano');
+select col_is_null('public', 'class_attendances', 'enrollment_id', 'chamada pode ser registrada antes do plano');
+select has_trigger('public', 'enrollments', 'enrollment_link_pending_group_memberships', 'nova matrícula é ligada aos vínculos pendentes');
 
 select col_default_is(
   'public',

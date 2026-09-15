@@ -143,7 +143,7 @@ export function OperationalPatients({ canEdit = true, canViewEnrollments = true,
     const enrollment = row.enrollment as Row | undefined;
     const planId = value(form, "plan_id");
     const groupSlotId = value(form, "group_slot_id");
-    if (!enrollment && ((canEditEnrollments && planId) || (canEditAgenda && groupSlotId))) throw new Error("Este paciente ainda não possui matrícula ativa. Crie a matrícula antes de definir plano ou turma.");
+    if (!enrollment && canEditEnrollments && planId) throw new Error("Este paciente ainda não possui matrícula ativa. Crie a matrícula antes de definir o plano.");
     await api(`/patients/${row.id}`, {
       method: "PATCH",
       body: JSON.stringify({
@@ -155,8 +155,7 @@ export function OperationalPatients({ canEdit = true, canViewEnrollments = true,
         notes: value(form, "notes") || undefined,
       }),
     });
-    if (!enrollment) return;
-    if (canEditEnrollments && planId && planId !== enrollment.plan_id) {
+    if (enrollment && canEditEnrollments && planId && planId !== enrollment.plan_id) {
       await api(`/enrollments/${enrollment.id}`, { method: "PATCH", body: JSON.stringify({ plan_id: planId }) });
     }
     if (!canEditAgenda) return;
@@ -167,7 +166,7 @@ export function OperationalPatients({ canEdit = true, canViewEnrollments = true,
       if (membership) {
         await api(`/group-slot-memberships/${membership.id}`, { method: "PATCH", body: JSON.stringify({ group_slot_id: groupSlotId, starts_at: membership.starts_at, ends_at: membership.ends_at || undefined }) });
       } else {
-        await api(`/group-slots/${groupSlotId}/members`, { method: "POST", body: JSON.stringify({ enrollment_id: enrollment.id, patient_id: row.id, starts_at: enrollment.starts_at, ends_at: enrollment.ends_at || undefined }) });
+        await api(`/group-slots/${groupSlotId}/members`, { method: "POST", body: JSON.stringify({ enrollment_id: enrollment?.id, patient_id: row.id, starts_at: enrollment?.starts_at ?? new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date()), ends_at: enrollment?.ends_at || undefined }) });
       }
     }
   }

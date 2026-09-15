@@ -1,7 +1,7 @@
 import { FormEvent, type FormEventHandler, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import type { Role } from "../../domain/portal";
-import { agendaCapabilities, agendaResourcePaths, professionalsForUnit, resourcesForUnit } from "../../application/portal/agendaResources";
+import { agendaCapabilities, agendaResourcePaths, patientsAvailableForGroup, professionalsForUnit, resourcesForUnit } from "../../application/portal/agendaResources";
 import { CheckboxField, FormSection, SelectField, TextareaField, TextField, WeekdayCheckboxGroup } from "../components/FormPrimitives";
 import { type AgendaEnrollmentContext, Row, Unit, messageOf, value, isoLocal, localDateTime, dateKey, weekdaysLabel, useResources, Select, PatientPicker, DrawerForm, ModuleState, EditableOperationalTable } from "./OperationalShared";
 
@@ -127,8 +127,8 @@ function GroupMemberForm({
   const helperText = full
     ? "A capacidade máxima foi atingida."
     : allowedPatientIds.length
-      ? "Apenas matrículas ainda não vinculadas aparecem aqui."
-      : "Não há matrículas disponíveis. Cadastre e matricule o paciente primeiro.";
+      ? "O plano pode ser cadastrado depois, quando o paciente fizer o pagamento."
+      : "Não há pacientes disponíveis nesta unidade para adicionar à turma.";
   return (
     <form className="group-member-form" onSubmit={onSubmit} aria-label={`Adicionar paciente à turma ${slotName}`}>
       <FormSection legend="Adicionar paciente à turma">
@@ -136,7 +136,7 @@ function GroupMemberForm({
         <div className="form-row">
           <PatientPicker
             name="patient_id"
-            label="Paciente matriculado"
+            label="Paciente"
             rows={availablePatients}
             required={!full}
             id="group-member-enrollment"
@@ -428,14 +428,10 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
     const patientId = value(form, "patient_id");
     const group = fixedSlots.find((row) => row.id === groupId);
     const enrollment = (data["/enrollments"] ?? []).find((row: Row) => row.patient_id === patientId && row.unit_id === group?.unit_id && row.status === "active");
-    if (!enrollment) {
-      setNotice({ type: "error", message: "O paciente precisa ter uma matrícula ativa nesta unidade antes de entrar na turma." });
-      return;
-    }
     try {
-      await api(`/group-slots/${groupId}/members`, { method: "POST", body: JSON.stringify({ enrollment_id: enrollment.id, patient_id: enrollment.patient_id, starts_at: value(form, "starts_at"), ends_at: value(form, "ends_at") || undefined }) });
+      await api(`/group-slots/${groupId}/members`, { method: "POST", body: JSON.stringify({ enrollment_id: enrollment?.id, patient_id: patientId, starts_at: value(form, "starts_at"), ends_at: value(form, "ends_at") || undefined }) });
       formElement.reset();
-      success("Paciente alocado na turma.");
+      success(enrollment ? "Paciente alocado na turma." : "Paciente alocado na turma. O plano pode ser cadastrado depois.");
       await reload();
     } catch (actionError) { failure(actionError); }
   }
@@ -592,8 +588,8 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
         const selectedMembers = membersForSlot(selectedGroupCell.slot.id, selectedGroupCell.day);
         const capacity = Number(selectedGroupCell.slot.capacity ?? 7);
         const slotMembers = selectedMembers;
-        const availableEnrollments = (data["/enrollments"] ?? []).filter((enrollment: Row) => enrollment.unit_id === selectedGroupCell.slot.unit_id && enrollment.status === "active" && !slotMembers.some((member) => member.enrollment_id === enrollment.id));
-        const availablePatientIds = availableEnrollments.map((enrollment: Row) => String(enrollment.patient_id));
+        const availablePatientIds = patientsAvailableForGroup(patients, selectedGroupCell.slot.unit_id, slotMembers.map((member) => String(member.patient_id)))
+          .map((patient) => String(patient.id));
         const availablePatientIdSet = new Set(availablePatientIds);
         const availablePatients = patients.filter((patient) => availablePatientIdSet.has(patient.id));
         const full = selectedMembers.length >= capacity;

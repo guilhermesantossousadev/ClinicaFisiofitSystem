@@ -560,7 +560,7 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
   app.post("/group-slots/:id/members", requireRoles(["admin", "manager", "reception"]), async (context: any) => {
     const groupSlotId = z.string().uuid().parse(context.req.param("id"));
     const input = z.object({
-      enrollment_id: z.string().uuid(),
+      enrollment_id: z.string().uuid().optional(),
       patient_id: z.string().uuid(),
       starts_at: z.string().date(),
       ends_at: z.string().date().optional(),
@@ -571,9 +571,16 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
       .eq("id", groupSlotId).eq("clinic_id", clinicId).is("deleted_at", null).single();
     if (slotError || !slot) return databaseResult(context, null, slotError);
     if (!(await hasUnitAccess(context, slot.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
-    const { data: enrollment } = await db.from("enrollments").select("id,patient_id,unit_id,status,starts_at,ends_at")
-      .eq("id", input.enrollment_id).eq("clinic_id", clinicId).eq("patient_id", input.patient_id).eq("unit_id", slot.unit_id).eq("status", "active").is("deleted_at", null).maybeSingle();
-    if (!enrollment) return fail(context, 400, "INVALID_ENROLLMENT", "A matrícula não corresponde ao paciente e à unidade desta turma.");
+    const { data: patient, error: patientError } = await db.from("patients").select("id")
+      .eq("id", input.patient_id).eq("clinic_id", clinicId).eq("primary_unit_id", slot.unit_id).is("deleted_at", null).maybeSingle();
+    if (patientError) return databaseResult(context, null, patientError);
+    if (!patient) return fail(context, 400, "INVALID_PATIENT", "O paciente não pertence à unidade desta turma.");
+    if (input.enrollment_id) {
+      const { data: enrollment, error: enrollmentError } = await db.from("enrollments").select("id")
+        .eq("id", input.enrollment_id).eq("clinic_id", clinicId).eq("patient_id", input.patient_id).eq("unit_id", slot.unit_id).eq("status", "active").is("deleted_at", null).maybeSingle();
+      if (enrollmentError) return databaseResult(context, null, enrollmentError);
+      if (!enrollment) return fail(context, 400, "INVALID_ENROLLMENT", "A matrícula não corresponde ao paciente e à unidade desta turma.");
+    }
     if (input.ends_at && input.ends_at < input.starts_at) return fail(context, 400, "INVALID_PERIOD", "A data final não pode ser anterior à inicial.");
     const { data: existingMembership } = await db.from("group_slot_memberships").select("id").eq("clinic_id", clinicId).eq("group_slot_id", groupSlotId).eq("patient_id", input.patient_id).eq("status", "active").is("deleted_at", null).eq("starts_at", input.starts_at).maybeSingle();
     if (existingMembership) return ok(context, existingMembership);
@@ -609,7 +616,7 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     const db = context.get("db");
     const clinicId = context.get("profile").clinic_id;
     const { data: current, error: currentError } = await db.from("group_slot_memberships")
-      .select("id,group_slot_id,enrollment_id")
+      .select("id,group_slot_id,enrollment_id,patient_id")
       .eq("id", id).eq("clinic_id", clinicId).eq("status", "active").is("deleted_at", null).single();
     if (currentError || !current) return databaseResult(context, null, currentError);
     const targetGroupSlotId = input.group_slot_id ?? current.group_slot_id;
@@ -617,10 +624,16 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
       .eq("id", targetGroupSlotId).eq("clinic_id", clinicId).is("deleted_at", null).single();
     if (slotError || !slot) return databaseResult(context, null, slotError);
     if (!(await hasUnitAccess(context, slot.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
-    const { data: enrollment, error: enrollmentError } = await db.from("enrollments").select("unit_id")
-      .eq("id", current.enrollment_id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle();
-    if (enrollmentError) return databaseResult(context, null, enrollmentError);
-    if (!enrollment || enrollment.unit_id !== slot.unit_id) return fail(context, 400, "INVALID_ENROLLMENT", "A turma deve pertencer à mesma unidade da matrícula.");
+    const { data: patient, error: patientError } = await db.from("patients").select("id")
+      .eq("id", current.patient_id).eq("clinic_id", clinicId).eq("primary_unit_id", slot.unit_id).is("deleted_at", null).maybeSingle();
+    if (patientError) return databaseResult(context, null, patientError);
+    if (!patient) return fail(context, 400, "INVALID_PATIENT", "A turma deve pertencer à unidade atual do paciente.");
+    if (current.enrollment_id) {
+      const { data: enrollment, error: enrollmentError } = await db.from("enrollments").select("unit_id")
+        .eq("id", current.enrollment_id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle();
+      if (enrollmentError) return databaseResult(context, null, enrollmentError);
+      if (!enrollment || enrollment.unit_id !== slot.unit_id) return fail(context, 400, "INVALID_ENROLLMENT", "A turma deve pertencer à mesma unidade da matrícula.");
+    }
     const { data, error } = await db.from("group_slot_memberships")
       .update({ ...input, weekdays: slot.weekdays, updated_at: new Date().toISOString() })
       .eq("id", id).eq("clinic_id", clinicId).eq("status", "active").is("deleted_at", null).select("id,group_slot_id,weekdays,starts_at,ends_at").single();

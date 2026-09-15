@@ -34,12 +34,11 @@ export function registerPacientesRoutes(app: any, dependencies: any) {
       .order("created_at", { ascending: false });
     if (enrollmentError) return databaseResult(context, null, enrollmentError);
 
-    const enrollmentIds = (enrollments ?? []).map((enrollment: any) => enrollment.id);
     const planIds = [...new Set((enrollments ?? []).map((enrollment: any) => enrollment.plan_id))];
     const [membershipsResult, plansResult] = await Promise.all([
-      enrollmentIds.length
-        ? db.from("group_slot_memberships").select("id,enrollment_id,group_slot_id,starts_at,ends_at,status,group_slots(name)")
-          .eq("clinic_id", clinicId).in("enrollment_id", enrollmentIds).eq("status", "active").is("deleted_at", null)
+      patientIds.length
+        ? db.from("group_slot_memberships").select("id,enrollment_id,patient_id,group_slot_id,starts_at,ends_at,status,group_slots(name)")
+          .eq("clinic_id", clinicId).in("patient_id", patientIds).eq("status", "active").is("deleted_at", null)
         : Promise.resolve({ data: [], error: null }),
       planIds.length
         ? db.from("plans").select("id,name").eq("clinic_id", clinicId).in("id", planIds)
@@ -51,11 +50,11 @@ export function registerPacientesRoutes(app: any, dependencies: any) {
     for (const enrollment of enrollments ?? []) {
       if (!enrollmentByPatient.has(enrollment.patient_id)) enrollmentByPatient.set(enrollment.patient_id, enrollment);
     }
-    const membershipByEnrollment = new Map((membershipsResult.data ?? []).map((item: any) => [item.enrollment_id, item]));
+    const membershipByPatient = new Map((membershipsResult.data ?? []).map((item: any) => [item.patient_id, item]));
     const planById = new Map((plansResult.data ?? []).map((item: any) => [item.id, item]));
     const items = data.map((patient: any) => {
       const enrollment = enrollmentByPatient.get(patient.id);
-      const membership = enrollment ? membershipByEnrollment.get(enrollment.id) : undefined;
+      const membership = membershipByPatient.get(patient.id);
       return {
         ...patient,
         enrollment: enrollment ?? null,
