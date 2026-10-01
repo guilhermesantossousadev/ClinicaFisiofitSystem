@@ -226,18 +226,20 @@ export function PlanSelect({ rows }: { rows: Row[] }) {
   const generatedId = useId();
   const fieldId = `plan-${generatedId.replaceAll(":", "")}`;
   const [selectedPlanId, setSelectedPlanId] = useState("");
-  const selectedPlan = rows.find((row) => row.id === selectedPlanId);
+  const activePlans = rows.filter((row) => row.active !== false);
+  const selectedPlan = activePlans.find((row) => row.id === selectedPlanId);
 
   return (
     <div className="input-group plan-select">
       <SelectField id={fieldId} name="plan_id" label="Plano" required value={selectedPlanId} onChange={(event) => setSelectedPlanId(event.target.value)}>
-        <option value="">Selecione</option>
-        {rows.map((row) => (
+        <option value="">{activePlans.length ? "Selecione" : "Nenhum plano disponível"}</option>
+        {activePlans.map((row) => (
           <option key={row.id} value={row.id}>
             {row.name} · {brl(Number(row.price_cents ?? 0))}
           </option>
         ))}
       </SelectField>
+      {!activePlans.length && <p className="form-field-error" role="status">Não há planos ativos para novas matrículas. Peça à gestão para ativar ou cadastrar o plano utilizado pela clínica.</p>}
       {selectedPlan && (
         <div className="plan-summary" role="status" aria-live="polite">
           <strong>{brl(Number(selectedPlan.price_cents ?? 0))}</strong>

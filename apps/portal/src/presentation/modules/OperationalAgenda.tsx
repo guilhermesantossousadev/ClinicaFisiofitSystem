@@ -198,6 +198,17 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
   const [appointmentPickerVersion, setAppointmentPickerVersion] = useState(0);
   const [calendarAppointmentUnitId, setCalendarAppointmentUnitId] = useState("");
   const [selectedGroupCell, setSelectedGroupCell] = useState<{ slot: Row; day: Date; unitName: string } | null>(null);
+  // The unit in this form can differ from the global unit selector. Fetch its
+  // patients explicitly so a valid patient never disappears from the picker.
+  const appointmentPatientsPath = newAppointmentUnitId
+    ? `/patients?page=1&pageSize=100&unitId=${encodeURIComponent(newAppointmentUnitId)}`
+    : "";
+  const { data: appointmentPatientsData, loading: loadingAppointmentPatients } = useResources(
+    appointmentPatientsPath ? [appointmentPatientsPath] : [],
+  );
+  const appointmentPatients: Row[] = appointmentPatientsPath
+    ? appointmentPatientsData[appointmentPatientsPath]?.items ?? []
+    : [];
   const success = (message: string) => setNotice({ type: "success", message });
   const failure = (error: unknown) => setNotice({ type: "error", message: messageOf(error).replace(/^Erro:\s*/, "") });
   const suggestedEnd = (startsAt: string, serviceId = newAppointmentServiceId) => {
@@ -754,9 +765,11 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
               />
             </div>
             <div className="form-row">
-              {creatingBlock ? <div className="blocked-slot-explanation" role="status"><strong>Horário bloqueado</strong><span>Nenhum paciente será vinculado a este compromisso.</span></div> : <PatientPicker key={`${appointmentPickerVersion}-${newAppointmentUnitId}`} label="Paciente *" rows={resourcesForUnit(patients, newAppointmentUnitId, "primary_unit_id")} unitId={newAppointmentUnitId} />}
+              {creatingBlock ? <div className="blocked-slot-explanation" role="status"><strong>Horário bloqueado</strong><span>Nenhum paciente será vinculado a este compromisso.</span></div> : <PatientPicker key={`${appointmentPickerVersion}-${newAppointmentUnitId}`} label="Paciente *" rows={appointmentPatients} unitId={newAppointmentUnitId} />}
               <SelectField name="service_id" label="Serviço" value={newAppointmentServiceId} onChange={(event) => { const serviceId = event.target.value; setNewAppointmentServiceId(serviceId); const nextEnd = suggestedEnd(newAppointmentStart, serviceId); if (nextEnd) setNewAppointmentEnd(nextEnd); }}><option value="">Nenhum</option>{(data["/services"] ?? []).filter((service: Row) => service.active !== false).map((service: Row) => <option key={service.id} value={service.id}>{service.name}</option>)}</SelectField>
             </div>
+            {!creatingBlock && newAppointmentUnitId && loadingAppointmentPatients && <p className="form-instructions" role="status">Carregando pacientes desta unidade…</p>}
+            {!creatingBlock && newAppointmentUnitId && !loadingAppointmentPatients && !appointmentPatients.length && <p className="form-field-error" role="status">Não há pacientes cadastrados nesta unidade. Cadastre o paciente ou selecione a unidade correta antes de agendar.</p>}
             <CheckboxField name="blocked_slot" label="Bloquear este horário sem paciente" checked={creatingBlock} onChange={(event) => setCreatingBlock(event.target.checked)} />
           </fieldset>
           <fieldset>

@@ -239,9 +239,9 @@ branch `hostinger-deploy` a partir do commit `df69c42`.
 | Login/recuperação | Implementado | páginas Auth, Supabase config e CSP do portal | Conta administrativa confirmada/ativa; redirect e envio de recuperação validados no Auth remoto |
 | Autenticação | Implementado | páginas Auth e middleware API | E-mail e senha, sem segundo fator |
 | Painel | Implementado | `/dashboard`, `FisiofitApp.tsx` | Dados reais da API |
-| Agenda/turmas | Implementado com validação pendente em navegador autenticado | API e `OperationalAgenda` | Agenda semanal responsiva, bloqueios, conclusão/cancelamento preservado, turmas recorrentes, alocação e conflito de turma tratado no formulário; matriz E2E por papel ainda precisa ser executada |
+| Agenda/turmas | Implementado com validação pendente em navegador autenticado | API e `OperationalAgenda` | Agenda semanal responsiva, bloqueios, conclusão/cancelamento preservado, turmas recorrentes, alocação e conflito de turma tratado no formulário; o seletor de pacientes consulta a unidade escolhida no próprio agendamento; matriz E2E por papel ainda precisa ser executada |
 | Pacientes | Parcial | endpoints e `OperationalPatients` | Cria/edita paciente; detalhes associados sem edição/remoção completa |
-| Matrículas/cobranças | Parcial | endpoints/UI | Criação e recebimento; sem gestão completa de estados |
+| Matrículas/cobranças | Parcial | endpoints/UI | Criação e recebimento; novas matrículas exibem somente planos ativos e a API recusa plano inativo; sem gestão completa de estados |
 | Prontuário | Parcial | endpoints/UI/triggers/RLS | Criação, assinatura e retificação; profissional limitado à própria autoria e aos próprios atendimentos no código da Fase 1; falta teste integrado em banco real |
 | Financeiro | Parcial | endpoints/UI/funções SQL | Lançamentos, pagamentos, comissões e fechamento; sem estorno/reabertura |
 | Relatórios | Parcial | endpoints/UI | Anual, CSV e impressão do navegador; sem PDF/XLSX gerado pelo backend |
