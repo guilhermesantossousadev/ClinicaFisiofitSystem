@@ -132,7 +132,7 @@ function GroupMemberForm({
   return (
     <form className="group-member-form" onSubmit={onSubmit} aria-label={`Adicionar paciente à turma ${slotName}`}>
       <FormSection legend="Adicionar paciente à turma">
-        <p className="form-instructions"><strong>Dias da turma:</strong> {weekdaysLabel(slotWeekdays)}. O paciente participará somente nesses dias.</p>
+        <p className="form-instructions"><strong>Dias da turma:</strong> {weekdaysLabel(slotWeekdays)}. O paciente participará somente nesses dias; matrícula não é necessária para incluí-lo.</p>
         <div className="form-row">
           <PatientPicker
             name="patient_id"
@@ -768,6 +768,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
               {creatingBlock ? <div className="blocked-slot-explanation" role="status"><strong>Horário bloqueado</strong><span>Nenhum paciente será vinculado a este compromisso.</span></div> : <PatientPicker key={`${appointmentPickerVersion}-${newAppointmentUnitId}`} label="Paciente *" rows={appointmentPatients} unitId={newAppointmentUnitId} />}
               <SelectField name="service_id" label="Serviço" value={newAppointmentServiceId} onChange={(event) => { const serviceId = event.target.value; setNewAppointmentServiceId(serviceId); const nextEnd = suggestedEnd(newAppointmentStart, serviceId); if (nextEnd) setNewAppointmentEnd(nextEnd); }}><option value="">Nenhum</option>{(data["/services"] ?? []).filter((service: Row) => service.active !== false).map((service: Row) => <option key={service.id} value={service.id}>{service.name}</option>)}</SelectField>
             </div>
+            {!creatingBlock && <p className="form-instructions" role="status">Você pode agendar qualquer paciente cadastrado nesta unidade, mesmo que ainda não tenha matrícula.</p>}
             {!creatingBlock && newAppointmentUnitId && loadingAppointmentPatients && <p className="form-instructions" role="status">Carregando pacientes desta unidade…</p>}
             {!creatingBlock && newAppointmentUnitId && !loadingAppointmentPatients && !appointmentPatients.length && <p className="form-field-error" role="status">Não há pacientes cadastrados nesta unidade. Cadastre o paciente ou selecione a unidade correta antes de agendar.</p>}
             <CheckboxField name="blocked_slot" label="Bloquear este horário sem paciente" checked={creatingBlock} onChange={(event) => setCreatingBlock(event.target.checked)} />

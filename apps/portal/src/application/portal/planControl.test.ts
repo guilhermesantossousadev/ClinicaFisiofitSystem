@@ -17,6 +17,7 @@ describe("controle de planos", () => {
     });
 
     expect(rows[0]).toMatchObject({ patientName: "Ana", renewsAt: "2026-08-31", daysToRenewal: 15, paymentState: "paid" });
+    expect(rows[0].planId).toBe("plan-1");
     expect(rows[0].lastPaidAt).toBe("2026-08-04T12:00:00Z");
   });
 

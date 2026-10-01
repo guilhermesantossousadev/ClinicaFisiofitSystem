@@ -5,6 +5,7 @@ export type RenewalState = "expired" | "due-soon" | "current" | "unknown";
 
 export type PlanControlRow = {
   id: string;
+  planId: string;
   patientName: string;
   patientPhone: string;
   planName: string;
@@ -114,6 +115,7 @@ export function buildPlanControlRows({
 
       return {
         id: String(enrollment.id),
+        planId: String(enrollment.plan_id ?? ""),
         patientName: String(patient.name ?? "Paciente não encontrado"),
         patientPhone: String(patient.phone ?? ""),
         planName: String(plan.name ?? "Plano não encontrado"),

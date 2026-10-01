@@ -136,6 +136,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
       await api(`/enrollments/${editingControlRow.id}`, {
         method: "PATCH",
         body: JSON.stringify({
+          plan_id: value(form, "plan_id"),
           starts_at: value(form, "starts_at"),
           ends_at: value(form, "ends_at"),
           sessions_used: Number(value(form, "sessions_used")),
@@ -300,6 +301,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
       {editingControlRow && (
         <EditControlledPlanDialog
           row={editingControlRow}
+          plans={(data["/plans"] ?? []).filter((plan: Row) => plan.active !== false)}
           saving={savingControlRow}
           onClose={() => setEditingControlRow(null)}
           onSubmit={updateControlledPlan}
@@ -710,11 +712,13 @@ function enrollmentStatusLabel(status: string) {
 
 function EditControlledPlanDialog({
   row,
+  plans,
   saving,
   onClose,
   onSubmit,
 }: {
   row: PlanControlRow;
+  plans: Row[];
   saving: boolean;
   onClose: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void | Promise<void>;
@@ -733,13 +737,16 @@ function EditControlledPlanDialog({
       <section ref={dialogRef} className="edit-dialog controlled-plan-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
         <div className="edit-dialog-header">
           <div>
-            <p className="eyebrow">ATUALIZAÇÃO DO PLANO</p>
-            <h2 id={titleId}>Editar plano de {row.patientName}</h2>
+            <p className="eyebrow">EDIÇÃO DE MATRÍCULA</p>
+            <h2 id={titleId}>Editar matrícula de {row.patientName}</h2>
             <p>{row.planName}</p>
           </div>
           <button type="button" className="dialog-close" aria-label="Fechar edição do plano" onClick={requestClose} disabled={saving} autoFocus>×</button>
         </div>
         <form className="modal-form controlled-plan-form" onSubmit={(event) => void onSubmit(event)} onInput={() => setDirty(true)} aria-busy={saving}>
+          <SelectField name="plan_id" label="Plano" defaultValue={row.planId} required hint="Somente os planos ativos usados pela clínica aparecem aqui.">
+            {plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} · {brl(Number(plan.price_cents ?? 0))}</option>)}
+          </SelectField>
           <div className="form-row">
             <TextField name="starts_at" label="Início do plano" type="date" defaultValue={row.startsAt} required />
             <TextField name="ends_at" label="Data de renovação" type="date" min={row.startsAt} defaultValue={row.renewsAt} required />

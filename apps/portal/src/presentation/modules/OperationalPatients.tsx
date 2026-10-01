@@ -46,6 +46,7 @@ export function OperationalPatients({ canEdit = true, canViewEnrollments = true,
     const address = {
       street: value(f, "street"),
       number: value(f, "number"),
+      neighborhood: value(f, "neighborhood"),
       city: value(f, "city"),
       state: value(f, "state"),
       zip: value(f, "zip"),
@@ -150,7 +151,7 @@ export function OperationalPatients({ canEdit = true, canViewEnrollments = true,
         primary_unit_id: value(form, "primary_unit_id"), name: value(form, "name"),
         cpf: value(form, "cpf") || undefined, birth_date: value(form, "birth_date") || undefined,
         phone: value(form, "phone") || undefined, email: value(form, "email") || undefined,
-        address: { street: value(form, "street"), number: value(form, "number"), city: value(form, "city"), state: value(form, "state"), zip: value(form, "zip") },
+        address: { street: value(form, "street"), number: value(form, "number"), neighborhood: value(form, "neighborhood"), city: value(form, "city"), state: value(form, "state"), zip: value(form, "zip") },
         tax_data: { fiscal_name: value(form, "fiscal_name"), document: value(form, "fiscal_document") },
         notes: value(form, "notes") || undefined,
       }),
@@ -218,6 +219,7 @@ export function OperationalPatients({ canEdit = true, canViewEnrollments = true,
             <TextField name="street" label="Rua" autoComplete="street-address" />
             <TextField name="number" label="Número" inputMode="numeric" />
           </div>
+          <TextField name="neighborhood" label="Bairro" autoComplete="address-level3" />
           <div className="form-row">
             <TextField name="city" label="Cidade" autoComplete="address-level2" />
             <TextField name="state" label="Estado" maxLength={2} autoComplete="address-level1" />
@@ -250,6 +252,7 @@ export function OperationalPatients({ canEdit = true, canViewEnrollments = true,
           ...(canEditAgenda ? [{ name: "group_slot_id", label: "Turma atual (opcional)", type: "select" as const, options: groupSlots.filter((item) => item.active !== false).map((item) => ({ ...item, name: `${groupSlotLabel(item)} · ${(data["/units"] ?? []).find((unit: Row) => unit.id === item.unit_id)?.name ?? "Unidade"}` })), value: (row: Row) => row.membership?.group_slot_id }] : []),
           { name: "street", label: "Rua", value: (row) => row.address?.street },
           { name: "number", label: "Número", value: (row) => row.address?.number },
+          { name: "neighborhood", label: "Bairro", value: (row) => row.address?.neighborhood },
           { name: "city", label: "Cidade", value: (row) => row.address?.city },
           { name: "state", label: "Estado", value: (row) => row.address?.state, maxLength: 2 },
           { name: "zip", label: "CEP", value: (row) => row.address?.zip },
@@ -265,7 +268,7 @@ export function OperationalPatients({ canEdit = true, canViewEnrollments = true,
           phone: value(form, "phone") || undefined,
           email: value(form, "email") || undefined,
           address: {
-            street: value(form, "street"), number: value(form, "number"),
+            street: value(form, "street"), number: value(form, "number"), neighborhood: value(form, "neighborhood"),
             city: value(form, "city"), state: value(form, "state"), zip: value(form, "zip"),
           },
           tax_data: { fiscal_name: value(form, "fiscal_name"), document: value(form, "fiscal_document") },
