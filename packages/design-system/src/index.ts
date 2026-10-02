@@ -15,6 +15,8 @@ export const appBasePath = "/sistema";
 
 export const brandCssVariables = {
   "--ink": brand.navy,
+  "--ink-strong": brand.navyDeep,
+  "--muted": "#526777",
   "--line": brand.line,
   "--paper": brand.white,
   "--canvas": brand.surface,
@@ -23,4 +25,14 @@ export const brandCssVariables = {
   "--blue": brand.blueDark,
   "--aqua": brand.aqua,
   "--mint": brand.mint,
+  "--focus": "#e8a83e",
+  "--success": "#176b52",
+  "--warning": "#815319",
+  "--danger": "#8f2630",
+  "--info": brand.blueDark,
+  "--control-min-size": "44px",
+  "--text-xs": "0.75rem",
+  "--text-sm": "0.875rem",
+  "--text-md": "1rem",
+  "--radius-control": "0.625rem",
 } as const;

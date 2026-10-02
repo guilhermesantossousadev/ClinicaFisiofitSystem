@@ -3,6 +3,7 @@ import Papa from "papaparse";
 import { z } from "zod";
 import { api } from "../../infrastructure/http/api";
 import { SelectField, TextField } from "../components/FormPrimitives";
+import { statusLabel } from "./OperationalShared";
 
 type Row = Record<string, unknown>;
 type ImportBatch = Row & { id: string; rollback_at?: string | null };
@@ -142,7 +143,7 @@ export default function OperationalImports() {
   }
 
   async function rollbackBatch(id: string) {
-    const reason = window.prompt("Informe o motivo do rollback (mínimo 10 caracteres):");
+    const reason = window.prompt("Informe o motivo da reversão do lote (mínimo de 10 caracteres):");
     if (!reason) return;
     try {
       await api(`/imports/${id}/rollback`, { method: "POST", body: JSON.stringify({ reason }) });
@@ -171,6 +172,6 @@ export default function OperationalImports() {
       <div className="title-actions"><button className="btn secondary" type="submit" disabled={!rows.length}>Pré-validar</button><button className="btn primary" type="button" disabled={!preview} onClick={(event) => void run({ preventDefault() {}, currentTarget: event.currentTarget.closest("form") as HTMLFormElement } as FormEvent<HTMLFormElement>, false)}>Importar válidos</button></div>
       {preview && <div className="environment-warning">Aceitos: {String(preview.accepted ?? preview.imported ?? preview.total ?? 0)} · Rejeitados: {Array.isArray(preview.rejected) ? preview.rejected.length : 0}</div>}
     </form>
-    <section className="card table-card operational-data-table"><div className="table-toolbar"><h2>Histórico de lotes</h2><span>{batches.length} registros</span></div>{batches.map((batch) => <div className="operational-row" key={batch.id}><div><strong>{String(batch.filename ?? "Importação")}</strong><small>{String(batch.status ?? "—")} · {String(batch.created_at ?? "")}</small></div>{!batch.rollback_at && <button type="button" onClick={() => void rollbackBatch(batch.id)}>Rollback</button>}</div>)}{!batches.length && <div className="empty-state">Nenhum registro cadastrado.</div>}</section>
+    <section className="card table-card operational-data-table"><div className="table-toolbar"><h2>Histórico de lotes</h2><span>{batches.length} registros</span></div>{batches.map((batch) => <div className="operational-row" key={batch.id}><div><strong>{String(batch.filename ?? "Importação")}</strong><small>{statusLabel(batch.status)} · {batch.created_at ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(String(batch.created_at))) : "Data não informada"}</small></div>{!batch.rollback_at && <button type="button" onClick={() => void rollbackBatch(batch.id)}>Reverter lote</button>}</div>)}{!batches.length && <div className="empty-state">Nenhuma importação foi executada até agora.</div>}</section>
   </div>;
 }

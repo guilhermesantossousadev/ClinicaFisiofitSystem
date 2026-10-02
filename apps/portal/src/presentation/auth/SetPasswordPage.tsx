@@ -1,17 +1,15 @@
 import { FormEvent, useState } from "react";
-import { Redirect, useLocation } from "wouter";
+import { useLocation } from "wouter";
 import { useAuth } from "./AuthProvider";
-import { api } from "../../infrastructure/http/api";
 import { supabase } from "../../infrastructure/supabase/client";
 import { TextField } from "../components/FormPrimitives";
 import {
-  classifyAccessFailure,
-  sessionExpiredNotice,
+  passwordUpdatedNotice,
   sessionExpiredNoticeKey,
 } from "../../application/portal/authAccess";
 
 export default function SetPasswordPage() {
-  const { loading, session, signOut } = useAuth();
+  const { callbackError, loading, session, signOut } = useAuth();
   const [, navigate] = useLocation();
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
@@ -19,7 +17,23 @@ export default function SetPasswordPage() {
   const [busy, setBusy] = useState(false);
 
   if (loading) return <div className="auth-loading">Validando o link seguro…</div>;
-  if (!session) return <Redirect to="/login" replace />;
+  if (!session) {
+    return (
+      <main className="auth-page">
+        <section className="login-card auth-card" aria-labelledby="invalid-link-title">
+          <img src="/sistema/fisiofit-logo.jpg" alt="" />
+          <p className="eyebrow">LINK DE ACESSO</p>
+          <h2 id="invalid-link-title">Solicite um novo link</h2>
+          <div className="login-error" role="alert">
+            {callbackError ?? "Este link não possui uma sessão válida ou já expirou."}
+          </div>
+          <a className="btn primary login-submit" href="/sistema/login">
+            Voltar ao login
+          </a>
+        </section>
+      </main>
+    );
+  }
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -33,33 +47,14 @@ export default function SetPasswordPage() {
       return;
     }
     setBusy(true);
-    const { data: assurance, error: assuranceError } =
-      await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    if (assuranceError) {
-      setBusy(false);
-      setError("Não foi possível verificar a proteção da conta. Solicite um novo link e tente novamente.");
-      return;
-    }
-    if (assurance?.nextLevel === "aal2" && assurance.currentLevel !== "aal2") {
-      navigate("/mfa?returnTo=/set-password", { replace: true });
-      return;
-    }
     const { error: updateError } = await supabase.auth.updateUser({ password });
     if (updateError) {
       const message = updateError.message.toLowerCase();
-      const insufficientAal =
-        updateError.code === "insufficient_aal" ||
-        message.includes("aal2") ||
-        message.includes("assurance level");
       const passwordAlreadyDefined =
         message.includes("same password") ||
         message.includes("different from the old password") ||
         message.includes("different from old password");
 
-      if (insufficientAal) {
-        navigate("/mfa?returnTo=/set-password", { replace: true });
-        return;
-      }
       if (!passwordAlreadyDefined) {
         setBusy(false);
         setError(
@@ -79,33 +74,27 @@ export default function SetPasswordPage() {
     }
 
     try {
-      await api("/me");
-      navigate("/", { replace: true });
-    } catch (accessError) {
-      const failure = classifyAccessFailure(accessError);
-      if (failure === "session-expired") {
-        try {
-          window.sessionStorage.setItem(sessionExpiredNoticeKey, sessionExpiredNotice);
-        } catch {
-          // O login continua disponível sem o aviso persistido.
-        }
-        await signOut();
-        navigate("/login", { replace: true });
-      } else if (failure === "mfa") {
-        navigate("/mfa", { replace: true });
-      } else if (failure === "bootstrap") {
-        navigate("/onboarding", { replace: true });
-      } else {
-        navigate("/", { replace: true });
-      }
-    } finally {
-      setBusy(false);
+      window.sessionStorage.setItem(sessionExpiredNoticeKey, passwordUpdatedNotice);
+    } catch {
+      // O redirecionamento continua funcionando sem o aviso persistido.
     }
+    try {
+      await signOut();
+    } catch {
+      const { error: localSignOutError } = await supabase.auth.signOut({ scope: "local" });
+      if (localSignOutError) {
+        setBusy(false);
+        setError("A senha foi salva. Atualize a página e entre com a nova senha.");
+        return;
+      }
+    }
+    setBusy(false);
+    navigate("/login", { replace: true });
   }
 
   return (
-    <main className="mfa-page">
-      <form className="login-card mfa-card" onSubmit={submit}>
+    <main className="auth-page">
+      <form className="login-card auth-card" onSubmit={submit}>
         <img src="/sistema/fisiofit-logo.jpg" alt="" />
         <p className="eyebrow">PRIMEIRO ACESSO</p>
         <h2>Crie sua senha</h2>

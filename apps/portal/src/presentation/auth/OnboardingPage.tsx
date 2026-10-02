@@ -23,7 +23,7 @@ export default function OnboardingPage() {
         method: "POST",
         body: JSON.stringify({ clinicName, adminName }),
       });
-      navigate("/mfa", { replace: true });
+      navigate("/", { replace: true });
     } catch {
       setError("A configuração inicial já foi concluída ou sua conta precisa ser convidada pela administradora.");
     } finally {
@@ -32,8 +32,8 @@ export default function OnboardingPage() {
   }
 
   return (
-    <main className="mfa-page">
-      <form className="login-card mfa-card" onSubmit={submit}>
+    <main className="auth-page">
+      <form className="login-card auth-card" onSubmit={submit}>
         <img src="/sistema/fisiofit-logo.jpg" alt="" />
         <p className="eyebrow">PRIMEIRO ACESSO</p>
         <h2>Vamos preparar a clínica</h2>

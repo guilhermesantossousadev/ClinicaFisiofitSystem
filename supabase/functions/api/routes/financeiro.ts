@@ -18,6 +18,18 @@ export function registerFinanceiroRoutes(app: any, dependencies: any) {
       p_idempotency_key: key,
       p_request_id: context.get("requestId"),
     });
+    if (error) {
+      const reason = String(error.message ?? "");
+      if (reason.includes("INVALID_PAYMENT_AMOUNT")) {
+        return fail(context, 400, "INVALID_PAYMENT_AMOUNT", "Informe um valor maior que zero e que não ultrapasse o saldo da cobrança.");
+      }
+      if (reason.includes("CHARGE_NOT_FOUND")) {
+        return fail(context, 404, "CHARGE_NOT_FOUND", "A cobrança não foi encontrada ou não está mais disponível.");
+      }
+      if (reason.includes("UNIT_FORBIDDEN")) {
+        return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso à unidade desta cobrança.");
+      }
+    }
     return databaseResult(context, data, error, 201);
   });
   

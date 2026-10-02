@@ -17,13 +17,18 @@ test("gera site e portal no pacote único da Hostinger", async () => {
     access(new URL("../dist/sistema/index.html", import.meta.url)),
     access(new URL("../dist/sistema/.htaccess", import.meta.url)),
   ]);
-  const [site, portal] = await Promise.all([
+  const [site, portal, siteHeaders, portalHeaders] = await Promise.all([
     readFile(new URL("../dist/index.html", import.meta.url), "utf8"),
     readFile(new URL("../dist/sistema/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../dist/.htaccess", import.meta.url), "utf8"),
+    readFile(new URL("../dist/sistema/.htaccess", import.meta.url), "utf8"),
   ]);
   assert.match(site, /Clínica Fisiofit/);
   assert.match(portal, /Área da clínica/);
   assert.match(portal, /\/sistema\/assets\//);
+  assert.match(siteHeaders, /www\\\.clinicafisiofitsabara\\\.com/);
+  assert.match(portalHeaders, /www\\\.clinicafisiofitsabara\\\.com/);
+  assert.match(portalHeaders, /connect-src[^\n]+eeltguuoxpfttjznugla\.supabase\.co/);
 });
 
 test("mantém API, banco e integrações versionados", async () => {
@@ -48,6 +53,10 @@ test("mantém API, banco e integrações versionados", async () => {
   assert.match(api, /\/reports\/annual/);
   assert.match(api, /\/users\/:id/);
   assert.match(api, /\/users\/:id\/resend-access/);
+  assert.match(api, /\/users\/:id\/password/);
+  assert.match(api, /auth\.admin\.updateUserById\(id,\s*\{\s*password: input\.password/);
+  assert.match(api, /user\.password_changed/);
+  assert.doesNotMatch(api, /audit\([^\n]+password:\s*input\.password/);
   assert.match(api, /app\.delete\("\/users\/:id"/);
   assert.match(api, /\/enrollments/);
   assert.match(api, /\/clinical-records\/:id\/rectify/);
@@ -55,6 +64,12 @@ test("mantém API, banco e integrações versionados", async () => {
   assert.match(api, /\/imports\/patients/);
   assert.match(api, /PROTECTED_OWNER_ACCOUNT/);
   assert.match(api, /\/privacy\/requests/);
+  assert.match(api, /\/attendance\/daily/);
+  assert.match(
+    api,
+    /"data_subject_requests",\s*"privacy_incidents",\s*\]\.includes\(table\)/,
+    "recursos de privacidade sem deleted_at não devem receber o filtro de exclusão lógica",
+  );
   for (const resource of ["units", "rooms", "professionals", "services", "plans", "group-slots", "record-templates"]) {
     assert.match(api, new RegExp(`app\\.patch\\("/${resource}/:id"`));
   }
@@ -79,23 +94,449 @@ test("mantém context.md como fonte única da verdade e não restaura o legado",
   await assert.rejects(access(new URL("../.openai/hosting.json", import.meta.url)));
 });
 
+test("salva avaliações e apresenta os campos clínicos corretos", async () => {
+  const [apiIndex, recordsRoute, recordsForm] = await Promise.all([
+    readFile(new URL("../supabase/functions/api/index.ts", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/functions/api/routes/prontuarios.ts", import.meta.url), "utf8"),
+    readFile(new URL("../apps/portal/src/presentation/modules/OperationalRecords.tsx", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(apiIndex, /registerProntuariosRoutes\(app, \{[^}]*validateRelatedResourceScope/);
+  assert.match(recordsRoute, /const \{[^}]*validateRelatedResourceScope[^}]*\} = dependencies/);
+  assert.match(recordsForm, /name="functional_diagnosis" label="Diagnóstico funcional"/);
+  assert.match(recordsForm, /name="treatment_plan" label="Plano de tratamento"/);
+  assert.match(recordsForm, /name="text" label="Evolução"/);
+  assert.doesNotMatch(recordsForm, /name="conduct" label="Conduta inicial"/);
+});
+
+test("mantém turmas distintas por dias dentro dos horários fixos", async () => {
+  const [agenda, enrollments, agendaRoute, migration] = await Promise.all([
+    readFile(new URL("../apps/portal/src/presentation/modules/OperationalAgenda.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../apps/portal/src/presentation/modules/OperationalEnrollments.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/functions/api/routes/agenda.ts", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/202608230001_group_based_fixed_schedule.sql", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(agenda, /Nova turma em horário fixo/);
+  assert.match(agenda, /weekdays: form\.getAll\("weekdays"\)\.map\(Number\)/);
+  assert.doesNotMatch(agenda, /updateGroupMember/);
+  assert.match(enrollments, /label="Turma \(opcional\)"/);
+  assert.doesNotMatch(enrollments, /form\.getAll\("weekdays"\)/);
+  assert.match(agendaRoute, /GROUP_SLOT_CONFLICT/);
+  assert.match(agendaRoute, /conflictingGroup:/);
+  assert.match(agendaRoute, /Já existe outra turma nesta unidade para o mesmo dia e horário/);
+  assert.match(agendaRoute, /function groupScheduleChanged/);
+  assert.match(agendaRoute, /target\.active && groupScheduleChanged\(slot, target\)/);
+  assert.match(agendaRoute, /weekdays: input\.weekdays/);
+  assert.doesNotMatch(agendaRoute, /Os horários são fixos e não podem ser cadastrados/);
+  assert.match(migration, /sync_membership_weekdays_from_group/);
+  assert.match(migration, /name ~\* '\^Horário fixo'/);
+});
+
+test("permite à administração, gestão e recepção gerenciar a grade de horários", async () => {
+  const [agenda, agendaRoute] = await Promise.all([
+    readFile(new URL("../apps/portal/src/presentation/modules/OperationalAgenda.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/functions/api/routes/agenda.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(agenda, /canManageGroups && <DrawerForm title="Criar grade de horários"/);
+  assert.match(agenda, /api<\{ created: number \}>\("\/group-slots\/bulk"/);
+  assert.match(agenda, /15 turmas serão criadas|bulkSlotCount/);
+  assert.match(agenda, /Fisioterapeuta responsável \(opcional\)/);
+  assert.match(agenda, /professional_id: value\(form, "professional_id"\) \|\| undefined/);
+  assert.match(agenda, />Editar<\/button>/);
+  assert.match(agenda, />Excluir<\/button>/);
+  assert.match(agendaRoute, /app\.post\("\/group-slots\/bulk", requireRoles\(\["admin", "manager", "reception"\]\)/);
+  assert.match(agendaRoute, /app\.delete\("\/group-slots\/:id", requireRoles\(\["admin", "manager", "reception"\]\)/);
+  assert.match(agendaRoute, /GROUP_SLOT_HAS_MEMBERS/);
+  assert.match(agendaRoute, /professional_id: z\.string\(\)\.uuid\(\)\.optional\(\)/);
+  assert.match(agendaRoute, /professional_id: input\.professional_id \?\? null/);
+  assert.match(agendaRoute, /group_slot\.created_bulk/);
+});
+
+test("mantém todos os recursos da agenda coerentes com a unidade selecionada", async () => {
+  const [agenda, shared, administration, api, agendaRoute, repairMigration] = await Promise.all([
+    readFile(new URL("../apps/portal/src/presentation/modules/OperationalAgenda.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../apps/portal/src/presentation/modules/OperationalShared.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../apps/portal/src/presentation/modules/OperationalAdministration.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/functions/api/index.ts", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/functions/api/routes/agenda.ts", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/202608260001_repair_professional_units.sql", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(agenda, /professionalsForUnit\(professionals, newGroupUnitId\)/);
+  assert.match(agenda, /unitId=\{newAppointmentUnitId\}/);
+  assert.match(agenda, /Salvar alterações da turma/);
+  assert.match(agenda, /Cancelar agendamento/);
+  assert.match(agenda, /toast-\$\{notice\.type\}/);
+  assert.match(agenda, /GroupConflictAlert/);
+  assert.match(agenda, /agenda-mobile-list/);
+  assert.match(agenda, /canManageGroups/);
+  assert.match(shared, /unitId \? `&unitId=/);
+  assert.match(administration, /name: "unitIds", label: "Unidades em que atende", type: "checkbox-group"/);
+  assert.match(api, /professional_units!inner\(unit_id\)/);
+  assert.match(api, /query = query\.eq\("professional_units\.unit_id", parsedUnitId\)/);
+  assert.match(api, /group_slots!inner\(name,unit_id\)/);
+  assert.match(api, /unit_ids:/);
+  assert.match(agendaRoute, /PROFESSIONAL_UNIT_NOT_LINKED/);
+  assert.match(agendaRoute, /app\.patch\("\/group-slots\/:id"/);
+  assert.match(agendaRoute, /weekdays: z\.array\(z\.number\(\)\.int\(\)\.min\(1\)\.max\(5\)\)/);
+  assert.match(repairMigration, /insert into public\.professional_units/);
+  assert.match(repairMigration, /from public\.group_slots/);
+  assert.match(api, /app\.post\("\/professionals", requireRoles\(\["admin", "manager", "reception", "finance"\]\)/);
+});
+
+test("oferece a migração legada somente à administração com confirmação e feedback", async () => {
+  const [administration, portal] = await Promise.all([
+    readFile(new URL("../apps/portal/src/presentation/modules/OperationalAdministration.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../apps/portal/src/presentation/app/FisiofitApp.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(portal, /isAdmin=\{profile\.role === "admin"\}/);
+  assert.match(administration, /if \(!isAdmin\) return null/);
+  assert.match(administration, /Migrar agenda legada/);
+  assert.match(administration, /Esta operação migrará as turmas ativas do sistema legado para a nova Agenda/);
+  assert.match(administration, /api<LegacyAgendaBackfillResult\[]>\("\/admin\/agenda\/backfill-legacy", \{ method: "POST" \}\)/);
+  assert.match(administration, /if \(migrating\) return/);
+  assert.match(administration, /disabled=\{migrating\}/);
+  assert.match(administration, /Migrando\.\.\./);
+  assert.match(administration, /Não foi possível executar a migração/);
+  assert.match(administration, /Migração concluída/);
+});
+
+test("suporta frequência semanal por membership sem inventar dias no legado", async () => {
+  const [migration, agenda, portal, apiIndex, roster] = await Promise.all([
+    readFile(new URL("../supabase/migrations/202610010007_add_weekdays_to_class_memberships.sql", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/functions/api/routes/agenda.ts", import.meta.url), "utf8"),
+    readFile(new URL("../apps/portal/src/presentation/modules/OperationalAgenda.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/functions/api/index.ts", import.meta.url), "utf8"),
+    readFile(new URL("../packages/contracts/src/occurrenceRoster.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(migration, /add column weekdays public\.class_weekday\[\]/);
+  assert.match(migration, /weekdays is null or/);
+  assert.match(migration, /CLASS_MEMBERSHIP_WEEKDAYS_CONFLICT/);
+  assert.match(agenda, /app\.post\("\/classes\/:id\/memberships"/);
+  assert.match(agenda, /app\.patch\("\/class-memberships\/:id"/);
+  assert.match(agenda, /INVALID_MEMBERSHIP_WEEKDAYS/);
+  assert.match(agenda, /effectiveWeekdays: membership\.weekdays \?\? schedule\?\.weekdays/);
+  assert.match(agenda, /const effectiveWeekdays = membership\.weekdays \?\? slot\?\.weekdays/);
+  assert.match(roster, /membership\.weekdays \?\? scheduleWeekdays/);
+  assert.match(roster, /membership\.effective_from > localDate/);
+  assert.match(roster, /weekday/);
+  assert.match(agenda, /!input\.weekdays\.every\(\(weekday\) => slot\.weekdays\.includes\(weekday\)\)/);
+  assert.match(portal, /WeekdayCheckboxGroup name="weekdays"/);
+  assert.match(portal, /Selecione ao menos um dia para o paciente/);
+  assert.match(portal, /Editar dias/);
+  assert.match(portal, /class_membership_weekdays as string\[\] \| null/);
+  assert.match(portal, /const selectedWeekdays = explicitWeekdays\?\.map[\s\S]*\?\? scheduleWeekdays\.map\(String\)/);
+  assert.match(portal, /savingMembershipWeekdays/);
+  assert.match(portal, /`\/class-memberships\/\$\{editingMembership\.member\.class_membership_id\}`/);
+  assert.match(apiIndex, /class_membership_id: classMembership\?\.id \?\? null/);
+  assert.match(apiIndex, /class_membership_weekdays: classMembership\?\.weekdays \?\? null/);
+  assert.match(apiIndex, /class_id: classByLegacySlotId\.get\(slot\.id\) \?\? null/);
+  assert.match(portal, /if \(group\?\.class_id\)/);
+  assert.match(portal, /`\/classes\/\$\{group\.class_id\}\/memberships`/);
+  assert.match(portal, /canonicalMembers\.filter/);
+  assert.match(agenda, /patients\(id,name,phone\)/);
+});
+
+test("detalha e altera somente a ClassOccurrence sem tocar no schedule ou no legado", async () => {
+  const [route, portal, migration, generator] = await Promise.all([
+    readFile(new URL("../supabase/functions/api/routes/agenda.ts", import.meta.url), "utf8"),
+    readFile(new URL("../apps/portal/src/presentation/modules/OperationalAgenda.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/202610020001_class_occurrence_actions.sql", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/202610010003_generate_class_occurrences.sql", import.meta.url), "utf8"),
+  ]);
+  assert.match(route, /app\.get\("\/class-occurrences\/:id"/);
+  assert.match(route, /membership\.weekdays \?\? schedule\?\.weekdays/);
+  assert.match(route, /participants, occupancy: participants\.length/);
+  assert.match(route, /app\.patch\("\/class-occurrences\/:id"/);
+  assert.match(route, /app\.post\("\/class-occurrences\/:id\/cancel"/);
+  assert.match(portal, /Participantes desta aula/);
+  assert.match(portal, /Nenhum aluno previsto para esta aula\./);
+  assert.match(portal, /Alterar somente esta aula/);
+  assert.match(portal, /Cancelar esta aula/);
+  assert.match(portal, /Disponível na próxima etapa/);
+  assert.match(migration, /update_class_occurrence/);
+  assert.match(migration, /cancel_class_occurrence/);
+  assert.match(migration, /PROFESSIONAL_SCHEDULE_CONFLICT/);
+  assert.doesNotMatch(migration, /group_slots|group_slot_memberships|class_attendances/);
+  assert.match(generator, /on conflict \(class_schedule_id, local_date\) do nothing/);
+});
+
+test("confirma cancelamento da occurrence em diálogo do portal", async () => {
+  const agenda = await readFile(new URL("../apps/portal/src/presentation/modules/OperationalAgenda.tsx", import.meta.url), "utf8");
+  const confirmation = agenda.slice(agenda.indexOf("{selectedOccurrence && occurrenceDetail && confirmOccurrenceCancellation"), agenda.indexOf("{selectedGroupCell && (() => {"));
+  assert.doesNotMatch(agenda.slice(agenda.indexOf("async function cancelOccurrence()"), agenda.indexOf("useEffect(() => {\n    if (!selectedOccurrence")), /window\.(confirm|alert|prompt)\(/);
+  assert.match(agenda, /onClick=\{\(\) => \{ setOccurrenceCancelError\(""\); setConfirmOccurrenceCancellation\(true\); \}\}/);
+  assert.match(confirmation, /Cancelar esta aula\?/);
+  assert.match(confirmation, /Você está cancelando somente a aula de/);
+  assert.match(confirmation, /As demais aulas da turma continuarão normalmente\./);
+  assert.match(confirmation, /onClick=\{\(\) => setConfirmOccurrenceCancellation\(false\)\}>Voltar/);
+  assert.match(confirmation, /onClick=\{\(\) => void cancelOccurrence\(\)\}/);
+  assert.match(confirmation, /occurrenceCanceling \? "Cancelando…" : "Cancelar aula"/);
+  assert.match(confirmation, /occurrenceCancelError && <p className="occurrence-cancel-error" role="alert">/);
+  assert.match(confirmation, /disabled=\{occurrenceCanceling\}/);
+});
+
+test("opera participantes apenas na occurrence, preservando membership e a trilha", async () => {
+  const [route, migration, portal] = await Promise.all([
+    readFile(new URL("../supabase/functions/api/routes/agenda.ts", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/202610020002_occurrence_participants.sql", import.meta.url), "utf8"),
+    readFile(new URL("../apps/portal/src/presentation/modules/OperationalAgenda.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(migration, /create table public\.occurrence_participants/);
+  assert.match(migration, /unique \(class_occurrence_id, patient_id\)/);
+  assert.match(migration, /source_type in \('membership', 'makeup_reservation', 'ad_hoc_admission'\)/);
+  assert.match(migration, /status = 'cancelled'/);
+  assert.match(migration, /public\.has_unit_access\(target\.unit_id\)/);
+  assert.match(migration, /has_module_permission\('agenda', true\)/);
+  assert.match(migration, /CLASS_CAPACITY_REACHED/);
+  assert.match(migration, /PATIENT_SCHEDULE_CONFLICT/);
+  assert.match(migration, /a\.starts_at < target\.end_at and target\.start_at < a\.ends_at/);
+  assert.match(migration, /o\.start_at < target\.end_at and target\.start_at < o\.end_at/);
+  assert.doesNotMatch(migration, /update public\.class_memberships|delete from public\.class_memberships/);
+  assert.match(route, /app\.post\("\/class-occurrences\/:id\/participants"/);
+  assert.match(route, /app\.delete\("\/class-occurrences\/:id\/participants\/:patientId"/);
+  assert.match(route, /app\.get\("\/class-occurrences\/:id\/available-participants"/);
+  assert.match(route, /requireRoles\(\["admin", "manager", "reception"\]\)/);
+  assert.match(route, /effectiveOccurrenceRoster\(/);
+  assert.match(route, /occupancy: effectiveOccurrenceRoster/);
+  assert.match(route, /class_occurrence\.participant_added/);
+  assert.match(route, /class_occurrence\.participant_removed/);
+  assert.match(portal, /\+ Adicionar paciente/);
+  assert.match(portal, /Remover desta aula/);
+  assert.match(portal, /Adicionado nesta aula/);
+  assert.match(portal, /continuará matriculado normalmente na turma/);
+  assert.match(portal, /occurrence-participant-error/);
+  assert.match(portal, /effective_capacity/);
+  assert.doesNotMatch(migration, /group_slots|group_slot_memberships|class_attendances/);
+});
+
+test("aplica a política crítica de conflitos de appointments no servidor", async () => {
+  const [route, migration] = await Promise.all([
+    readFile(new URL("../supabase/functions/api/routes/agenda.ts", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/202610010001_appointment_conflict_policy_hotfix.sql", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(migration, /a\.clinic_id = public\.current_clinic_id\(\)/);
+  assert.match(migration, /a\.professional_id = p_professional_id/);
+  assert.match(migration, /a\.patient_id = p_patient_id/);
+  assert.match(migration, /tstzrange\(a\.starts_at, a\.ends_at, '\[\)'\) && tstzrange\(p_starts_at, p_ends_at, '\[\)'\)/);
+  assert.match(migration, /a\.id is distinct from p_exclude_id/);
+  assert.match(migration, /a\.status not in \('cancelled', 'missed'\)/);
+  assert.doesNotMatch(migration, /a\.room_id = p_room_id/);
+  assert.match(route, /p_patient_id: input\.patient_id \?\? null/);
+  assert.match(route, /PROFESSIONAL_SCHEDULE_CONFLICT/);
+  assert.match(route, /PATIENT_SCHEDULE_CONFLICT/);
+});
+
+test("mantém a persistência nova de turma aditiva e historicamente segura", async () => {
+  const migration = await readFile(new URL("../supabase/migrations/202610010002_agenda_additive_class_persistence.sql", import.meta.url), "utf8");
+
+  for (const table of ["classes", "class_schedules", "class_occurrences", "class_memberships"]) {
+    assert.match(migration, new RegExp(`create table public\\.${table}`));
+    assert.match(migration, new RegExp(`alter table public\\.${table} enable row level security`));
+  }
+  assert.match(migration, /daterange\(effective_from, effective_to, '\[\)'\) with &&/);
+  assert.match(migration, /unique \(class_schedule_id, local_date\)/);
+  assert.match(migration, /foreign key \(class_schedule_id, class_id\) references public\.class_schedules/);
+  assert.match(migration, /check \(start_time < end_time\)/);
+  assert.match(migration, /check \(start_at < end_at\)/);
+  assert.match(migration, /effective_capacity integer not null check \(effective_capacity > 0\)/);
+  assert.doesNotMatch(migration, /unique \(room_id/);
+  assert.doesNotMatch(migration, /insert into public\.(classes|class_schedules|class_occurrences|class_memberships)/);
+});
+
+test("materializa occurrences de schedule com janela, timezone e idempotência", async () => {
+  const migration = await readFile(new URL("../supabase/migrations/202610010003_generate_class_occurrences.sql", import.meta.url), "utf8");
+
+  assert.match(migration, /generate_class_occurrences\(/);
+  assert.match(migration, /if p_to <= p_from/);
+  assert.match(migration, /generate_series\(effective_from, effective_to - 1, interval '1 day'\)/);
+  assert.match(migration, /target\.weekdays @> array/);
+  assert.match(migration, /at time zone target\.timezone/);
+  assert.match(migration, /on conflict \(class_schedule_id, local_date\) do nothing/);
+  assert.match(migration, /target_class\.unit_id, target_class\.service_id/);
+  assert.match(migration, /target\.planned_professional_id, null, target\.effective_capacity, target\.room_id/);
+  assert.match(migration, /target_class\.status <> 'active'/);
+  assert.doesNotMatch(migration, /group_slots|appointments|class_memberships|occurrence_participants/);
+});
+
+test("expõe a API mínima versionada de Class e ClassSchedule sem tocar o legado", async () => {
+  const [route, migration] = await Promise.all([
+    readFile(new URL("../supabase/functions/api/routes/agenda.ts", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/202610010004_agenda_class_api.sql", import.meta.url), "utf8"),
+  ]);
+  for (const endpoint of ["/classes", "/classes/with-schedule", "/classes/:id/schedules", "/classes/:id/schedule-changes", "/classes/:id"]) assert.ok(route.includes(endpoint));
+  assert.match(route, /currentSchedule = scheduleHistory\.find\(.*effective_from <= targetDate.*targetDate < schedule\.effective_to/);
+  assert.match(route, /requireRoles\(\["admin", "manager", "reception"\]\)/);
+  assert.match(migration, /update public\.class_schedules set effective_to = p_effective_from/);
+  assert.match(migration, /create_class_schedule\(created_class\.id/);
+  assert.match(migration, /for update/);
+  assert.match(migration, /INVALID_SCHEDULE_EFFECTIVE_DATE/);
+  assert.match(migration, /CLASS_SCHEDULE_OVERLAP/);
+  assert.match(migration, /PROFESSIONAL_NOT_AVAILABLE_FOR_UNIT/);
+  assert.doesNotMatch(migration, /group_slots|group_slot_memberships|class_attendances|appointments/);
+  assert.doesNotMatch(route, /generate_class_occurrences/);
+});
+
+test("expõe projection semanal read-only combinando occurrences e appointments", async () => {
+  const route = await readFile(new URL("../supabase/functions/api/routes/agenda.ts", import.meta.url), "utf8");
+  assert.match(route, /app\.get\("\/calendar-items"/);
+  assert.match(route, /unitId: z\.string\(\)\.uuid\(\)/);
+  assert.match(route, /lt\("start_at", query\.to\)\.gt\("end_at", query\.from\)/);
+  assert.match(route, /lt\("starts_at", query\.to\)\.gt\("ends_at", query\.from\)/);
+  assert.match(route, /sourceType: "CLASS_OCCURRENCE"/);
+  assert.match(route, /sourceType: "APPOINTMENT"/);
+  assert.match(route, /actualProfessional \?\? plannedProfessional/);
+  assert.match(route, /occupancy: effectiveOccurrenceRoster\(occurrence\.local_date/);
+  assert.match(route, /participantRows \?\? \[\]/);
+  assert.match(route, /capacity: occurrence\.effective_capacity/);
+  assert.match(route, /query\.type === "APPOINTMENT"/);
+  assert.match(route, /sort\(\(first, second\) => first\.startAt\.localeCompare/);
+  assert.match(route, /PROFESSIONAL_FORBIDDEN/);
+  const projection = route.slice(route.indexOf('app.get("/calendar-items"'), route.indexOf("const occurrenceActionSchema"));
+  assert.doesNotMatch(projection, /generate_class_occurrences|\.insert\(|\.update\(|\.delete\(|group_slots/);
+});
+
+test("agenda semanal usa a projection consolidada sem compor cards pelo legado", async () => {
+  const agenda = await readFile(new URL("../apps/portal/src/presentation/modules/OperationalAgenda.tsx", import.meta.url), "utf8");
+  assert.match(agenda, /\/calendar-items\?unitId=/);
+  assert.match(agenda, /calendarPath \? \[calendarPath\] : \[\]/);
+  assert.match(agenda, /Selecione uma unidade para visualizar a agenda\./);
+  assert.match(agenda, /calendarItemsForDay/);
+  assert.match(agenda, /sourceType === "CLASS_OCCURRENCE"/);
+  assert.match(agenda, /occupancy == null \? `Capacidade: \$\{item\.capacity\}`/);
+  assert.match(agenda, /setFromDate\(shiftDate\(fromDate, -7\)\)/);
+  assert.match(agenda, /setFromDate\(clinicToday\(\)\)/);
+  assert.match(agenda, /calendarLoading/);
+  assert.match(agenda, /calendarError/);
+  assert.match(agenda, /reloadCalendar/);
+  const calendarSection = agenda.slice(agenda.indexOf('<section className="card fixed-calendar'), agenda.indexOf('<section className="card" aria-label="Resumo de vagas disponíveis">'));
+  assert.doesNotMatch(calendarSection, /appointments\.filter|slotsForDay\(/);
+});
+
+test("backfill operacional de group slots é idempotente, limitado e não altera legado", async () => {
+  const migration = await readFile(new URL("../supabase/migrations/202610010005_agenda_operational_legacy_backfill.sql", import.meta.url), "utf8");
+  assert.match(migration, /backfill_active_group_slots_to_classes/);
+  assert.match(migration, /legacy_source = 'group_slot'/);
+  assert.match(migration, /legacy_source = 'group_slot_membership'/);
+  assert.match(migration, /p_cutoff \+ \(p_weeks \* 7\)/);
+  assert.match(migration, /generate_class_occurrences/);
+  assert.match(migration, /classes_legacy_source_unique/);
+  assert.match(migration, /class_memberships_legacy_source_unique/);
+  assert.match(migration, /when 0 then 'sunday'/);
+  assert.match(migration, /membership\.ends_at \+ 1/);
+  assert.doesNotMatch(migration, /delete from public\.(group_slots|group_slot_memberships)|update public\.(group_slots|group_slot_memberships)/);
+});
+
+test("reconcilia referências opcionais apenas no adaptador de backfill legado", async () => {
+  const migration = await readFile(new URL("../supabase/migrations/202610010006_relax_legacy_agenda_backfill_references.sql", import.meta.url), "utf8");
+  assert.match(migration, /create or replace function public\.backfill_active_group_slots_to_classes/);
+  assert.match(migration, /resolved_service_id/);
+  assert.match(migration, /resolved_room_id/);
+  assert.match(migration, /resolved_professional_id/);
+  assert.match(migration, /if not exists \(select 1 from public\.patients/);
+  assert.match(migration, /then slot\.service_id else null end/);
+  assert.match(migration, /then slot\.room_id else null end/);
+  assert.match(migration, /then slot\.professional_id else null end/);
+  assert.doesNotMatch(migration, /delete from public\.(group_slots|group_slot_memberships)|update public\.(group_slots|group_slot_memberships)|insert into public\.(services|rooms|professionals|professional_units)/);
+});
+
+test("expõe backfill legado somente por rota administrativa autenticada e user-scoped", async () => {
+  const [api, agenda] = await Promise.all([
+    readFile(new URL("../supabase/functions/api/index.ts", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/functions/api/routes/agenda.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(api, /if \(!auth\?\.startsWith\("Bearer "\)\) return fail\(context, 401, "UNAUTHENTICATED"/);
+  assert.match(api, /global: \{ headers: \{ Authorization: auth \} \}/);
+  assert.match(api, /auth\.getUser\(\)/);
+  assert.match(agenda, /app\.post\("\/admin\/agenda\/backfill-legacy", requireRoles\(\["admin"\]\)/);
+  assert.match(agenda, /rpc\("backfill_active_group_slots_to_classes"\)/);
+  assert.match(agenda, /agenda\.legacy_backfill\.executed/);
+  const backfillRoute = agenda.slice(agenda.indexOf('app.post("/admin/agenda/backfill-legacy"'), agenda.indexOf('async function validateActiveProfessional'));
+  assert.doesNotMatch(backfillRoute, /service_role|clinic_id|p_cutoff|p_weeks/);
+});
+
+test("mantém o fluxo de matrícula da recepção funcional e sem expor o financeiro", async () => {
+  const [authorization, api, financeRoute, enrollments, paymentPlans, shared, migration] = await Promise.all([
+    readFile(new URL("../supabase/functions/api/authorization.ts", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/functions/api/index.ts", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/functions/api/routes/financeiro.ts", import.meta.url), "utf8"),
+    readFile(new URL("../apps/portal/src/presentation/modules/OperationalEnrollments.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../apps/portal/src/application/portal/paymentPlans.ts", import.meta.url), "utf8"),
+    readFile(new URL("../apps/portal/src/presentation/modules/OperationalShared.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/202608240001_reception_enrollment_flow.sql", import.meta.url), "utf8"),
+  ]);
+  assert.match(authorization, /reception:\s*\{[^}]*enrollments:\s*"edit"/);
+  assert.match(api, /app\.post\("\/enrollments", requireRoles\(\["admin", "manager", "reception", "finance"\]\)/);
+  assert.match(enrollments, /\.\.\.\(canViewCharges \? \["\/charges"\] : \[\]\)/);
+  assert.match(enrollments, /canReceivePayments && <form/);
+  assert.match(enrollments, /buildAvailablePaymentPlans/);
+  assert.match(paymentPlans, /row\.status === "active"/);
+  assert.match(paymentPlans, /charge\.status === "cancelled"/);
+  assert.match(paymentPlans, /seenChargeIds/);
+  assert.match(enrollments, /Saldo disponível/);
+  assert.match(financeRoute, /INVALID_PAYMENT_AMOUNT/);
+  assert.match(shared, /Promise\.allSettled\(paths\.map/);
+  assert.match(migration, /profile\.role = 'reception'/);
+  assert.match(migration, /create policy charges_insert/);
+  const chargesSelectPolicy = migration.slice(
+    migration.indexOf("create policy charges_select"),
+    migration.indexOf("create policy charges_insert"),
+  );
+  assert.match(chargesSelectPolicy, /'admin','manager','finance'/);
+  assert.doesNotMatch(chargesSelectPolicy, /'reception'/);
+});
+
 test("protege recuperação administrativa e consentimento de cookies", async () => {
-  const [login, setPassword, api, siteHtml, cookieConsent] = await Promise.all([
+  const [login, authClient, setPassword, portalApp, api, siteHtml, cookieConsent] = await Promise.all([
     readFile(new URL("../apps/portal/src/presentation/auth/LoginPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../apps/portal/src/infrastructure/supabase/client.ts", import.meta.url), "utf8"),
     readFile(new URL("../apps/portal/src/presentation/auth/SetPasswordPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../apps/portal/src/presentation/app/FisiofitApp.tsx", import.meta.url), "utf8"),
     readApiSource(),
     readFile(new URL("../apps/site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../apps/site/src/presentation/components/CookieConsent.tsx", import.meta.url), "utf8"),
   ]);
   assert.match(login, /resetPasswordForEmail/);
-  assert.match(login, /\/sistema\/set-password/);
+  assert.match(login, /recoveryCooldownSeconds = 60/);
+  assert.match(login, /Pedido de redefinição registrado/);
+  assert.match(login, /Reenviar em \$\{recoveryWait\}s/);
+  assert.match(login, /Spam, Lixeira/);
+  assert.match(authClient, /sistema\/set-password/);
+  assert.match(authClient, /flowType:\s*"pkce"/);
   assert.match(api, /redirectTo: `\$\{allowedOrigin\}\/sistema\/set-password`/);
   assert.match(setPassword, /password\.length < 10/);
+  assert.match(setPassword, /passwordUpdatedNotice/);
+  assert.match(setPassword, /navigate\("\/login"/);
+  assert.doesNotMatch(setPassword, /api\("\/me"\)/);
+  assert.match(portalApp, /\.from\("profile-avatars"\)/);
+  assert.doesNotMatch(portalApp, /avatar_url: dataUrl/);
   assert.doesNotMatch(`${login}\n${setPassword}`, /password\s*[:=]\s*["'][^"']+["']/i);
   assert.doesNotMatch(siteHtml, /googletagmanager\.com\/gtag\/js/);
   assert.match(cookieConsent, /Aceitar/);
   assert.match(cookieConsent, /Recusar/);
   assert.match(cookieConsent, /Configurar/);
+});
+
+test("mantém autenticação por e-mail e senha sem segundo fator", async () => {
+  const [apiClient, functionConfig, apiSource, portalMain] = await Promise.all([
+    readFile(new URL("../apps/portal/src/infrastructure/http/api.ts", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/config.toml", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/functions/api/index.ts", import.meta.url), "utf8"),
+    readFile(new URL("../apps/portal/src/main.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(apiClient, /apikey:\s*apiKey/);
+  assert.match(apiSource, /allowHeaders:\s*\[[^\]]*"apikey"/);
+  assert.match(functionConfig, /\[functions\.api\][\s\S]*verify_jwt\s*=\s*false/);
+  assert.match(apiSource, /auth\.getUser\(\)/);
+  assert.match(apiSource, /if \(authError \|\| !authData\.user\)/);
+  assert.match(functionConfig, /site_url\s*=\s*"https:\/\/clinicafisiofitsabara\.com\/sistema"/);
+  assert.match(functionConfig, /\[auth\.mfa\.totp\][\s\S]*enroll_enabled\s*=\s*false[\s\S]*verify_enabled\s*=\s*false/);
+  assert.doesNotMatch(apiSource, /MFA_REQUIRED|aal2|jwtClaim/);
+  assert.doesNotMatch(portalMain, /MfaPage|path="\/mfa"/);
+  await assert.rejects(access(new URL("../apps/portal/src/presentation/auth/MfaPage.tsx", import.meta.url)));
 });
 
 test("isola consultas operacionais por clínica", async () => {
@@ -108,9 +549,10 @@ test("isola consultas operacionais por clínica", async () => {
     api.indexOf('app.get("/appointments"'),
     api.indexOf('app.post("/appointments"'),
   );
+  const timelineStart = api.indexOf('app.get("/patients/:id/timeline"');
   const timelineRoute = api.slice(
-    api.indexOf('app.get("/patients/:id/timeline"'),
-    api.indexOf('app.get("/appointments"'),
+    timelineStart,
+    api.indexOf("\n  });\n}", timelineStart),
   );
   assert.match(patientsRoute, /\.eq\("clinic_id", clinicId\)/);
   assert.match(appointmentsRoute, /\.eq\("clinic_id", context\.get\("profile"\)\.clinic_id\)/);

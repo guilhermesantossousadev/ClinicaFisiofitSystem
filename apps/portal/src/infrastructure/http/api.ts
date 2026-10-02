@@ -2,6 +2,7 @@ import type { ApiEnvelope, ApiError, Paginated } from "@fisiofit/contracts";
 import { supabase } from "../supabase/client";
 
 const apiBase = `${import.meta.env.VITE_SUPABASE_URL ?? ""}/functions/v1/api/v1`;
+const apiKey = import.meta.env.VITE_SUPABASE_ANON_KEY ?? "";
 
 function fallbackError(status: number): ApiError {
   return {
@@ -21,7 +22,8 @@ export async function api<T>(
   const selectedUnit = init.method?.toUpperCase() === "POST" || init.method?.toUpperCase() === "PATCH" ? "" : (() => {
     try { return window.localStorage.getItem("fisiofit:selected-unit") ?? ""; } catch { return ""; }
   })();
-  const requestPath = selectedUnit && (init.method ?? "GET").toUpperCase() === "GET" && !path.includes("unitId=") && path !== "/units"
+  const pathWithoutQuery = path.split("?", 1)[0];
+  const requestPath = selectedUnit && (init.method ?? "GET").toUpperCase() === "GET" && !path.includes("unitId=") && !["/me", "/units", "/health", "/openapi.json"].includes(pathWithoutQuery)
     ? `${path}${path.includes("?") ? "&" : "?"}unitId=${encodeURIComponent(selectedUnit)}`
     : path;
   let response: Response;
@@ -30,6 +32,7 @@ export async function api<T>(
       ...init,
       headers: {
         "content-type": "application/json",
+        ...(apiKey ? { apikey: apiKey } : {}),
         ...(data.session?.access_token
           ? { authorization: `Bearer ${data.session.access_token}` }
           : {}),
