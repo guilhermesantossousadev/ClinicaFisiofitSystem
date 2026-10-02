@@ -32,6 +32,230 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
       || (current.ends_on ?? null) !== (target.ends_on ?? null)
       || (!current.active && target.active);
   }
+
+  const classInputSchema = z.object({
+    unitId: z.string().uuid(),
+    name: z.string().trim().min(1).max(100),
+    serviceId: z.string().uuid().nullable().optional(),
+    status: z.enum(["active", "inactive"]).optional(),
+  }).strict();
+  const classScheduleInputSchema = z.object({
+    effectiveFrom: z.string().date(),
+    weekdays: z.array(z.enum(["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"])).min(1).max(7),
+    startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/),
+    endTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/),
+    timezone: z.string().trim().min(1).max(100),
+    plannedProfessionalId: z.string().uuid().nullable().optional(),
+    capacity: z.number().int().positive(),
+    roomId: z.string().uuid().nullable().optional(),
+  }).strict();
+
+  function scheduleValidationError(context: any, input: any) {
+    if (new Set(input.weekdays).size !== input.weekdays.length) return fail(context, 422, "INVALID_WEEKDAYS", "Os dias da semana devem ser únicos.");
+    if (input.startTime >= input.endTime) return fail(context, 422, "INVALID_TIME_RANGE", "O horário de início deve ser anterior ao horário final.");
+    if (input.capacity <= 0) return fail(context, 422, "INVALID_CAPACITY", "A capacidade deve ser maior que zero.");
+    return null;
+  }
+
+  async function getManagedClass(context: any, classId: string) {
+    const db = context.get("db");
+    const clinicId = context.get("profile").clinic_id;
+    const { data, error } = await db.from("classes").select("id,unit_id,name,service_id,status")
+      .eq("id", classId).eq("clinic_id", clinicId).maybeSingle();
+    if (error) return databaseResult(context, null, error);
+    if (!data) return fail(context, 404, "CLASS_NOT_FOUND", "Turma não encontrada.");
+    if (!(await hasUnitAccess(context, data.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+    return data;
+  }
+
+  function classScheduleDatabaseResult(context: any, data: any, error: any, status = 200) {
+    if (!error) return databaseResult(context, data, null, status);
+    const message = String(error.message ?? "");
+    const stableErrors: Record<string, [number, string]> = {
+      CLASS_NOT_FOUND: [404, "Turma não encontrada."],
+      CLASS_SCHEDULE_NOT_FOUND: [404, "Schedule da turma não encontrado."],
+      CLASS_SCHEDULE_OVERLAP: [409, "A vigência do schedule se sobrepõe a uma versão existente."],
+      INVALID_SCHEDULE_EFFECTIVE_DATE: [422, "A data de vigência não é compatível com o schedule atual."],
+      INVALID_TIME_RANGE: [422, "O horário de início deve ser anterior ao horário final."],
+      INVALID_WEEKDAYS: [422, "Os dias da semana são inválidos."],
+      INVALID_CAPACITY: [422, "A capacidade deve ser maior que zero."],
+      PROFESSIONAL_NOT_AVAILABLE_FOR_UNIT: [422, "O profissional não está ativo nesta unidade."],
+    };
+    for (const [code, [httpStatus, detail]] of Object.entries(stableErrors)) {
+      if (message.includes(code)) return fail(context, httpStatus, code, detail);
+    }
+    return databaseResult(context, data, error, status);
+  }
+
+  async function validateClassScheduleScope(context: any, unitId: string, input: any) {
+    const scheduleError = scheduleValidationError(context, input);
+    if (scheduleError) return scheduleError;
+    const scopeError = await validateRelatedResourceScope(context, {
+      unit_id: unitId,
+      professional_id: input.plannedProfessionalId ?? undefined,
+      room_id: input.roomId ?? undefined,
+    });
+    if (scopeError) return scopeError;
+    if (input.plannedProfessionalId) {
+      const professionalError = await validateActiveProfessional(context, input.plannedProfessionalId, unitId);
+      if (professionalError) return professionalError;
+    }
+    return null;
+  }
+
+  app.post("/classes", requireRoles(["admin", "manager", "reception"]), async (context: any) => {
+    const input = classInputSchema.parse(await context.req.json());
+    const scopeError = await validateRelatedResourceScope(context, { unit_id: input.unitId, service_id: input.serviceId ?? undefined });
+    if (scopeError) return scopeError;
+    const { data, error } = await context.get("db").from("classes").insert({
+      clinic_id: context.get("profile").clinic_id, unit_id: input.unitId, name: input.name,
+      service_id: input.serviceId ?? null, status: input.status ?? "active", created_by: context.get("user").id,
+    }).select().single();
+    if (!error && data) await audit(context, "class.created", "class", data.id, data.unit_id);
+    return databaseResult(context, data, error, 201);
+  });
+
+  app.post("/classes/with-schedule", requireRoles(["admin", "manager", "reception"]), async (context: any) => {
+    const input = z.object({ ...classInputSchema.shape, schedule: classScheduleInputSchema }).strict().parse(await context.req.json());
+    const classScopeError = await validateRelatedResourceScope(context, { unit_id: input.unitId, service_id: input.serviceId ?? undefined });
+    if (classScopeError) return classScopeError;
+    const scheduleScopeError = await validateClassScheduleScope(context, input.unitId, input.schedule);
+    if (scheduleScopeError) return scheduleScopeError;
+    const { data, error } = await context.get("db").rpc("create_class_with_schedule", {
+      p_unit_id: input.unitId, p_name: input.name, p_service_id: input.serviceId ?? null, p_status: input.status ?? "active",
+      p_effective_from: input.schedule.effectiveFrom, p_weekdays: input.schedule.weekdays, p_start_time: input.schedule.startTime,
+      p_end_time: input.schedule.endTime, p_timezone: input.schedule.timezone, p_planned_professional_id: input.schedule.plannedProfessionalId ?? null,
+      p_effective_capacity: input.schedule.capacity, p_room_id: input.schedule.roomId ?? null,
+    });
+    if (!error && data) await audit(context, "class.created", "class", data.class?.id, input.unitId, { withSchedule: true });
+    return classScheduleDatabaseResult(context, data, error, 201);
+  });
+
+  app.post("/classes/:id/schedules", requireRoles(["admin", "manager", "reception"]), async (context: any) => {
+    const classId = z.string().uuid().parse(context.req.param("id"));
+    const input = classScheduleInputSchema.parse(await context.req.json());
+    const targetClass = await getManagedClass(context, classId);
+    if (targetClass instanceof Response) return targetClass;
+    const scopeError = await validateClassScheduleScope(context, targetClass.unit_id, input);
+    if (scopeError) return scopeError;
+    const { data, error } = await context.get("db").rpc("create_class_schedule", {
+      p_class_id: classId, p_effective_from: input.effectiveFrom, p_weekdays: input.weekdays, p_start_time: input.startTime,
+      p_end_time: input.endTime, p_timezone: input.timezone, p_planned_professional_id: input.plannedProfessionalId ?? null,
+      p_effective_capacity: input.capacity, p_room_id: input.roomId ?? null,
+    });
+    if (!error && data) await audit(context, "class_schedule.created", "class_schedule", data.id, targetClass.unit_id, { classId });
+    return classScheduleDatabaseResult(context, data, error, 201);
+  });
+
+  app.patch("/classes/:id", requireRoles(["admin", "manager", "reception"]), async (context: any) => {
+    const classId = z.string().uuid().parse(context.req.param("id"));
+    const input = z.object({ name: z.string().trim().min(1).max(100).optional(), serviceId: z.string().uuid().nullable().optional(), status: z.enum(["active", "inactive"]).optional() }).strict().refine((value) => Object.keys(value).length > 0).parse(await context.req.json());
+    const targetClass = await getManagedClass(context, classId);
+    if (targetClass instanceof Response) return targetClass;
+    const scopeError = await validateRelatedResourceScope(context, { unit_id: targetClass.unit_id, service_id: input.serviceId ?? undefined });
+    if (scopeError) return scopeError;
+    const { data, error } = await context.get("db").from("classes").update({
+      ...(input.name !== undefined ? { name: input.name } : {}),
+      ...(input.serviceId !== undefined ? { service_id: input.serviceId } : {}),
+      ...(input.status !== undefined ? { status: input.status } : {}), updated_at: new Date().toISOString(),
+    }).eq("id", classId).eq("clinic_id", context.get("profile").clinic_id).select().single();
+    if (!error && data) await audit(context, "class.updated", "class", classId, targetClass.unit_id, { changedFields: Object.keys(input) });
+    return databaseResult(context, data, error);
+  });
+
+  app.post("/classes/:id/schedule-changes", requireRoles(["admin", "manager", "reception"]), async (context: any) => {
+    const classId = z.string().uuid().parse(context.req.param("id"));
+    const input = classScheduleInputSchema.extend({ effectiveFrom: z.string().date(), timezone: z.string().trim().min(1).max(100).optional() }).parse(await context.req.json());
+    const targetClass = await getManagedClass(context, classId);
+    if (targetClass instanceof Response) return targetClass;
+    const scopeError = await validateClassScheduleScope(context, targetClass.unit_id, { ...input, timezone: input.timezone ?? "America/Sao_Paulo" });
+    if (scopeError) return scopeError;
+    const { data, error } = await context.get("db").rpc("change_class_schedule_from_date", {
+      p_class_id: classId, p_effective_from: input.effectiveFrom, p_weekdays: input.weekdays, p_start_time: input.startTime,
+      p_end_time: input.endTime, p_timezone: input.timezone ?? null, p_planned_professional_id: input.plannedProfessionalId ?? null,
+      p_effective_capacity: input.capacity, p_room_id: input.roomId ?? null,
+    });
+    if (!error && data) await audit(context, "class_schedule.changed", "class_schedule", data.id, targetClass.unit_id, { classId, effectiveFrom: input.effectiveFrom });
+    return classScheduleDatabaseResult(context, data, error, 201);
+  });
+
+  app.get("/classes/:id", requireRoles(["admin", "manager", "reception", "professional"]), async (context: any) => {
+    const classId = z.string().uuid().parse(context.req.param("id"));
+    const targetDate = z.string().date().catch(new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date())).parse(context.req.query("targetDate"));
+    const targetClass = await getManagedClass(context, classId);
+    if (targetClass instanceof Response) return targetClass;
+    const { data: schedules, error } = await context.get("db").from("class_schedules").select("*")
+      .eq("class_id", classId).eq("clinic_id", context.get("profile").clinic_id).order("effective_from");
+    if (error) return databaseResult(context, null, error);
+    const scheduleHistory = schedules ?? [];
+    const currentSchedule = scheduleHistory.find((schedule: any) => schedule.effective_from <= targetDate && (!schedule.effective_to || targetDate < schedule.effective_to)) ?? null;
+    return ok(context, { class: targetClass, currentSchedule, scheduleHistory });
+  });
+
+  app.get("/calendar-items", requireRoles(["admin", "manager", "reception", "professional"]), async (context: any) => {
+    const query = z.object({
+      unitId: z.string().uuid(),
+      from: z.string().datetime({ offset: true }),
+      to: z.string().datetime({ offset: true }),
+      professionalId: z.string().uuid().optional(),
+      patientId: z.string().uuid().optional(),
+      type: z.enum(["CLASS_OCCURRENCE", "APPOINTMENT"]).optional(),
+    }).refine((value) => value.from < value.to, { message: "O fim da janela deve ser posterior ao início." }).parse({
+      unitId: context.req.query("unitId"), from: context.req.query("from"), to: context.req.query("to"),
+      professionalId: context.req.query("professionalId") ?? undefined, patientId: context.req.query("patientId") ?? undefined,
+      type: context.req.query("type") ?? undefined,
+    });
+    const ownProfessionalId = context.get("profile").role === "professional" ? await professionalForUser(context) : undefined;
+    if (context.get("profile").role === "professional" && !ownProfessionalId) return fail(context, 403, "PROFESSIONAL_NOT_LINKED", "Seu usuário não está vinculado a um profissional.");
+    if (ownProfessionalId && query.professionalId && query.professionalId !== ownProfessionalId) return fail(context, 403, "PROFESSIONAL_FORBIDDEN", "Você só pode consultar sua própria agenda.");
+    const effectiveProfessionalId = ownProfessionalId ?? query.professionalId;
+    const scopeError = await validateRelatedResourceScope(context, {
+      unit_id: query.unitId, professional_id: effectiveProfessionalId, patient_id: query.patientId,
+    });
+    if (scopeError) return scopeError;
+    const db = context.get("db");
+    const clinicId = context.get("profile").clinic_id;
+    const occurrenceSelect = "id,class_id,unit_id,service_id,start_at,end_at,status,planned_professional_id,actual_professional_id,effective_capacity,room_id,classes(id,name),services(id,name),rooms(id,name),planned_professional:professionals!class_occurrences_planned_professional_id_fkey(id,name),actual_professional:professionals!class_occurrences_actual_professional_id_fkey(id,name)";
+    let occurrencesQuery = db.from("class_occurrences").select(occurrenceSelect)
+      .eq("clinic_id", clinicId).eq("unit_id", query.unitId).lt("start_at", query.to).gt("end_at", query.from);
+    if (effectiveProfessionalId) occurrencesQuery = occurrencesQuery.or(`actual_professional_id.eq.${effectiveProfessionalId},and(actual_professional_id.is.null,planned_professional_id.eq.${effectiveProfessionalId})`);
+    let appointmentsQuery = db.from("appointments")
+      .select("id,unit_id,patient_id,professional_id,service_id,room_id,starts_at,ends_at,status,patients(id,name),professionals(id,name),services(id,name),rooms(id,name)")
+      .eq("clinic_id", clinicId).eq("unit_id", query.unitId).lt("starts_at", query.to).gt("ends_at", query.from).is("deleted_at", null);
+    if (effectiveProfessionalId) appointmentsQuery = appointmentsQuery.eq("professional_id", effectiveProfessionalId);
+    if (query.patientId) appointmentsQuery = appointmentsQuery.eq("patient_id", query.patientId);
+    const [occurrencesResult, appointmentsResult] = await Promise.all([
+      query.type === "APPOINTMENT" ? Promise.resolve({ data: [], error: null }) : occurrencesQuery,
+      query.type === "CLASS_OCCURRENCE" ? Promise.resolve({ data: [], error: null }) : appointmentsQuery,
+    ]);
+    if (occurrencesResult.error) return databaseResult(context, null, occurrencesResult.error);
+    if (appointmentsResult.error) return databaseResult(context, null, appointmentsResult.error);
+    const asOne = (value: any) => Array.isArray(value) ? value[0] ?? null : value ?? null;
+    const occurrenceItems = (occurrencesResult.data ?? []).map((occurrence: any) => {
+      const actualProfessional = asOne(occurrence.actual_professional);
+      const plannedProfessional = asOne(occurrence.planned_professional);
+      const classInfo = asOne(occurrence.classes);
+      return {
+        id: occurrence.id, sourceType: "CLASS_OCCURRENCE", sourceId: occurrence.id, unitId: occurrence.unit_id,
+        startAt: occurrence.start_at, endAt: occurrence.end_at, status: occurrence.status, title: classInfo?.name ?? "Turma",
+        professional: actualProfessional ?? plannedProfessional,
+        plannedProfessional, actualProfessional,
+        patient: null, class: classInfo, service: asOne(occurrence.services), room: asOne(occurrence.rooms),
+        occupancy: null, capacity: occurrence.effective_capacity,
+      };
+    });
+    const appointmentItems = (appointmentsResult.data ?? []).map((appointment: any) => {
+      const patient = asOne(appointment.patients);
+      return {
+        id: appointment.id, sourceType: "APPOINTMENT", sourceId: appointment.id, unitId: appointment.unit_id,
+        startAt: appointment.starts_at, endAt: appointment.ends_at, status: appointment.status,
+        title: patient?.name ?? "Bloqueio de agenda", professional: asOne(appointment.professionals), patient,
+        class: null, service: asOne(appointment.services), room: asOne(appointment.rooms), occupancy: null, capacity: null,
+      };
+    });
+    const items = [...occurrenceItems, ...appointmentItems].sort((first, second) => first.startAt.localeCompare(second.startAt) || first.sourceType.localeCompare(second.sourceType) || first.id.localeCompare(second.id));
+    return ok(context, { items });
+  });
   app.get("/attendance/daily", requireRoles(["admin", "manager", "reception", "professional"]), async (context: any) => {
     const classDate = z.string().date().parse(context.req.query("date"));
     const weekday = new Date(`${classDate}T12:00:00Z`).getUTCDay();
@@ -198,9 +422,11 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
       p_ends_at: input.ends_at,
       p_exclude_id: null,
       p_group_slot_id: input.group_slot_id ?? null,
+      p_patient_id: input.patient_id ?? null,
     });
     if (conflictError) return databaseResult(context, null, conflictError);
-    if (conflict?.conflict) return fail(context, 409, "SCHEDULE_CONFLICT", "Profissional ou sala já possui compromisso nesse horário.");
+    if (conflict?.professional_conflict) return fail(context, 409, "PROFESSIONAL_SCHEDULE_CONFLICT", "O profissional já possui compromisso nesse horário.");
+    if (conflict?.patient_conflict) return fail(context, 409, "PATIENT_SCHEDULE_CONFLICT", "O paciente já possui compromisso nesse horário.");
     if (conflict?.capacity_reached) return fail(context, 409, "GROUP_CAPACITY_REACHED", "A turma já atingiu a capacidade configurada.");
     const { data, error } = await db.from("appointments").insert({
       ...input,
@@ -232,9 +458,11 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     const { data: conflict, error: conflictError } = await db.rpc("check_appointment_conflict", {
       p_unit_id: input.unit_id, p_professional_id: input.professional_id, p_room_id: input.room_id ?? null,
       p_starts_at: input.starts_at, p_ends_at: input.ends_at, p_exclude_id: id, p_group_slot_id: input.group_slot_id ?? null,
+      p_patient_id: input.patient_id ?? null,
     });
     if (conflictError) return databaseResult(context, null, conflictError);
-    if (conflict?.conflict) return fail(context, 409, "SCHEDULE_CONFLICT", "Profissional ou sala já possui compromisso nesse horário.");
+    if (conflict?.professional_conflict) return fail(context, 409, "PROFESSIONAL_SCHEDULE_CONFLICT", "O profissional já possui compromisso nesse horário.");
+    if (conflict?.patient_conflict) return fail(context, 409, "PATIENT_SCHEDULE_CONFLICT", "O paciente já possui compromisso nesse horário.");
     const nextStatus = input.patient_id
       ? (currentAppointment.status === "blocked" && !input.status ? "scheduled" : input.status)
       : (input.status === "cancelled" ? "cancelled" : "blocked");

@@ -9,6 +9,13 @@ const FIXED_GROUP_TIMES = Array.from({ length: 15 }, (_, index) => `${String(ind
 
 type Notice = { type: "success" | "error" | "warning" | "info"; message: string };
 type GroupConflict = { message: string; group?: { name?: string; weekdays?: number[]; startsAt?: string; startsOn?: string | null; endsOn?: string | null } };
+type CalendarItem = {
+  id: string; sourceType: "CLASS_OCCURRENCE" | "APPOINTMENT"; sourceId: string; unitId: string;
+  startAt: string; endAt: string; status: string; title: string;
+  professional?: Row | null; plannedProfessional?: Row | null; actualProfessional?: Row | null;
+  patient?: Row | null; class?: Row | null; service?: Row | null; room?: Row | null;
+  occupancy?: number | null; capacity?: number | null;
+};
 
 const APPOINTMENT_STATUS: Record<string, string> = {
   scheduled: "Agendado",
@@ -19,6 +26,7 @@ const APPOINTMENT_STATUS: Record<string, string> = {
   cancelled: "Cancelado",
   blocked: "Horário bloqueado",
 };
+const CALENDAR_STATUS: Record<string, string> = { ...APPOINTMENT_STATUS, planned: "Planejada", in_progress: "Em andamento" };
 
 function clinicToday() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
@@ -198,6 +206,13 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
   const [appointmentPickerVersion, setAppointmentPickerVersion] = useState(0);
   const [calendarAppointmentUnitId, setCalendarAppointmentUnitId] = useState("");
   const [selectedGroupCell, setSelectedGroupCell] = useState<{ slot: Row; day: Date; unitName: string } | null>(null);
+  const [selectedOccurrence, setSelectedOccurrence] = useState<CalendarItem | null>(null);
+  const calendarPath = selectedUnitId
+    ? `/calendar-items?unitId=${encodeURIComponent(selectedUnitId)}&from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`
+    : "";
+  const { data: calendarData, loading: calendarLoading, error: calendarError, reload: reloadCalendar } = useResources(calendarPath ? [calendarPath] : []);
+  const calendarItems: CalendarItem[] = calendarPath ? calendarData[calendarPath]?.items ?? [] : [];
+  const reloadAgenda = async () => { await Promise.all([reload(), reloadCalendar()]); };
   // The unit in this form can differ from the global unit selector. Fetch its
   // patients explicitly so a valid patient never disappears from the picker.
   const appointmentPatientsPath = newAppointmentUnitId
@@ -269,6 +284,23 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
     const endsOn = slot.ends_on ? String(slot.ends_on).slice(0, 10) : "9999-12-31";
     return !slot.deleted_at && slot.unit_id === unitId && currentDate >= startsOn && currentDate <= endsOn && (slot.weekdays ?? []).includes(day.getDay()) && slot.active !== false;
   }).sort((a, b) => String(a.starts_at).localeCompare(String(b.starts_at)) || String(a.name).localeCompare(String(b.name), "pt-BR"));
+  const calendarItemsForDay = (day: Date) => calendarItems.filter((item) => clinicDateKey(item.startAt) === dateKey(day));
+  const renderCalendarItem = (item: CalendarItem, compact = false) => {
+    const isOccurrence = item.sourceType === "CLASS_OCCURRENCE";
+    const status = CALENDAR_STATUS[item.status] ?? item.status;
+    const capacity = item.capacity == null ? null : item.occupancy == null ? `Capacidade: ${item.capacity}` : `${item.occupancy}/${item.capacity} ocupadas`;
+    const onClick = () => isOccurrence
+      ? setSelectedOccurrence(item)
+      : openCalendarAppointment({
+        id: item.sourceId, unit_id: item.unitId, patient_id: item.patient?.id, professional_id: item.professional?.id,
+        service_id: item.service?.id, room_id: item.room?.id, starts_at: item.startAt, ends_at: item.endAt, status: item.status,
+        patients: item.patient, professionals: item.professional, services: item.service, rooms: item.room,
+      });
+    return <button type="button" className={`month-calendar-item ${isOccurrence ? "group-item" : "appointment-item"} status-${item.status ?? "scheduled"}`} key={`${item.sourceType}-${item.id}`} onClick={onClick} aria-label={`${item.title}, ${appointmentTime(item.startAt)} a ${appointmentTime(item.endAt)}, ${status}, abrir detalhes`}>
+      <strong>{appointmentTime(item.startAt)}–{appointmentTime(item.endAt)} · {item.title}</strong>
+      <small><span className="appointment-status-label">{status}</span><span>{item.professional?.name ?? "Profissional não informado"}</span>{!compact && <><span>{item.service?.name ?? (isOccurrence ? "Turma" : "Atendimento")}{item.room?.name ? ` · ${item.room.name}` : ""}</span>{capacity && <span>{capacity}</span>}</>}</small>
+    </button>;
+  };
 
   async function createGroup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -294,7 +326,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
       });
       formElement.reset();
       success("Turma criada no horário fixo.");
-      await reload();
+      await reloadAgenda();
     } catch (actionError) {
       const conflict = conflictFrom(actionError);
       if (conflict) {
@@ -334,7 +366,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
       setBulkLastTime("20:00");
       setBulkIntervalMinutes("60");
       success(`${result.data?.created ?? bulkSlotCount} turmas criadas na grade de horários.`);
-      await reload();
+      await reloadAgenda();
     } catch (actionError) {
       const conflict = conflictFrom(actionError);
       if (conflict) {
@@ -369,7 +401,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
       setNewAppointmentStart("");
       setNewAppointmentEnd("");
       success(creatingBlock ? "Horário bloqueado." : "Agendamento criado.");
-      await reload();
+      await reloadAgenda();
     } catch (actionError) {
       failure(actionError);
     }
@@ -397,7 +429,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
       });
       setCalendarAppointment(undefined);
       success(calendarAppointment?.id ? "Agendamento atualizado." : "Agendamento criado.");
-      await reload();
+      await reloadAgenda();
     } catch (actionError) { failure(actionError); }
   }
 
@@ -407,7 +439,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
       await api(`/appointments/${appointment.id}/status`, { method: "PATCH", body: JSON.stringify({ status: "cancelled" }) });
       setCalendarAppointment(undefined);
       success("Agendamento cancelado e preservado no histórico.");
-      await reload();
+      await reloadAgenda();
     } catch (actionError) {
       failure(actionError);
     }
@@ -419,7 +451,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
       await api(`/appointments/${appointment.id}/complete`, { method: "POST" });
       setCalendarAppointment(undefined);
       success("Atendimento concluído.");
-      await reload();
+      await reloadAgenda();
     } catch (actionError) { failure(actionError); }
   }
 
@@ -428,7 +460,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
       await api(`/appointments/${appointment.id}/status`, { method: "PATCH", body: JSON.stringify({ status }) });
       setCalendarAppointment((current) => current ? { ...current, status } : current);
       success(`Status atualizado para ${APPOINTMENT_STATUS[status].toLocaleLowerCase("pt-BR")}.`);
-      await reload();
+      await reloadAgenda();
     } catch (actionError) { failure(actionError); }
   }
 
@@ -443,13 +475,13 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
       await api(`/group-slots/${groupId}/members`, { method: "POST", body: JSON.stringify({ enrollment_id: enrollment?.id, patient_id: patientId, starts_at: value(form, "starts_at"), ends_at: value(form, "ends_at") || undefined }) });
       formElement.reset();
       success(enrollment ? "Paciente alocado na turma." : "Paciente alocado na turma. O plano pode ser cadastrado depois.");
-      await reload();
+      await reloadAgenda();
     } catch (actionError) { failure(actionError); }
   }
 
   async function removeGroupMember(id: string) {
     if (!window.confirm("Retirar este aluno da turma? A matrícula será preservada.")) return;
-    try { await api(`/group-slot-memberships/${id}`, { method: "DELETE" }); success("Paciente removido da turma."); await reload(); }
+    try { await api(`/group-slot-memberships/${id}`, { method: "DELETE" }); success("Paciente removido da turma."); await reloadAgenda(); }
     catch (actionError) { failure(actionError); }
   }
 
@@ -464,7 +496,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
       await api(`/group-slots/${slot.id}`, { method: "DELETE" });
       setSelectedGroupCell(null);
       success("Turma excluída. O histórico foi preservado.");
-      await reload();
+      await reloadAgenda();
     } catch (actionError) {
       failure(actionError);
     }
@@ -498,7 +530,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
         ? { ...current, slot: { ...current.slot, ...updatedSlot } }
         : current);
       success("Turma atualizada.");
-      await reload();
+      await reloadAgenda();
     } catch (actionError) {
       const conflict = conflictFrom(actionError);
       if (conflict) {
@@ -554,14 +586,12 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
               <div className="month-calendar-grid">
                 {(["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"] as const).map((day, index) => <div className="month-calendar-weekday" key={day}><span>{day}</span><small>{calendarDays[index].getDate()}</small></div>)}
                 {calendarDays.map((day) => {
-                  const dayAppointments = appointments.filter((row) => row.unit_id === unit.id && clinicDateKey(row.starts_at) === dateKey(day));
-                  const slots = slotsForDay(unit.id, day);
+                  const dayItems = calendarItemsForDay(day);
                   const dayLabel = new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "numeric", month: "long" }).format(day);
                   return <div className={`month-calendar-day${dateKey(day) === clinicToday() ? " is-today" : ""}`} key={dateKey(day)} aria-label={dayLabel}>
                     <div className="month-calendar-items">
-                      {dayAppointments.map((appointment) => <button type="button" className={`month-calendar-item appointment-item status-${appointment.status ?? "scheduled"}`} key={appointment.id} onClick={() => openCalendarAppointment(appointment)} aria-label={`${appointment.patients?.name ?? "Horário bloqueado"}, ${APPOINTMENT_STATUS[appointment.status] ?? appointment.status}, ${appointment.professionals?.name ? `fisioterapeuta responsável ${appointment.professionals.name}` : "sem fisioterapeuta responsável"}, abrir detalhes`}><strong>{appointmentTime(appointment.starts_at)} · {appointment.patients?.name ?? "Horário bloqueado"}</strong><small><span className="appointment-status-label">{APPOINTMENT_STATUS[appointment.status] ?? appointment.status}</span><span>Fisioterapeuta: {appointment.professionals?.name ?? "Não informado"}</span><span>{appointment.services?.name ?? "Atendimento"}{appointment.rooms?.name ? ` · ${appointment.rooms.name}` : ""}</span></small></button>)}
-                      {slots.map((slot) => { const members = membersForSlot(slot.id, day); const professional = (data["/professionals"] ?? []).find((row: Row) => row.id === slot.professional_id); const time = String(slot.starts_at).slice(0, 5); return <button type="button" className="month-calendar-item group-item" key={slot.id} onClick={() => setSelectedGroupCell({ slot, day, unitName: unit.name })} aria-label={`${slot.name}, ${time}, fisioterapeuta responsável ${professional?.name ?? "não informado"}, ${members.length} de ${slot.capacity ?? 7} vagas, abrir turma`}><strong>{time} · {slot.name}</strong><small><span>Fisioterapeuta: {professional?.name ?? "Não informado"}</span><span>{members.length}/{slot.capacity ?? 7} ocupadas · {Math.max(0, Number(slot.capacity ?? 7) - members.length)} livres</span></small></button>; })}
-                      {day.getDay() >= 1 && day.getDay() <= 5 && FIXED_GROUP_TIMES.filter((time) => !slots.some((slot) => String(slot.starts_at).slice(0, 5) === time)).map((time) => <div className="month-calendar-item" key={`empty-${time}`}><strong>{time}</strong><small>Sem turma cadastrada</small></div>)}
+                      {dayItems.map((item) => renderCalendarItem(item))}
+                      {!calendarLoading && !calendarError && !dayItems.length && <p className="agenda-mobile-empty">Nenhum item nesta data.</p>}
                     </div>
                   </div>;
                 })}
@@ -569,16 +599,13 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
             </div>
             <div className="agenda-mobile-list" aria-label={`Agenda semanal de ${unit.name}`}>
               {calendarDays.map((day) => {
-                const dayAppointments = appointments.filter((row) => row.unit_id === unit.id && clinicDateKey(row.starts_at) === dateKey(day));
-                const slots = slotsForDay(unit.id, day);
+                const dayItems = calendarItemsForDay(day);
                 const dayLabel = new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "2-digit", month: "short" }).format(day).replaceAll(".", "");
                 return <section className={`agenda-mobile-day${dateKey(day) === clinicToday() ? " is-today" : ""}`} key={`mobile-${dateKey(day)}`} aria-labelledby={`mobile-day-${dateKey(day)}`}>
                   <h3 id={`mobile-day-${dateKey(day)}`}>{dayLabel}{dateKey(day) === clinicToday() ? " · Hoje" : ""}</h3>
                   <div className="month-calendar-items">
-                    {dayAppointments.map((appointment) => <button type="button" className={`month-calendar-item appointment-item status-${appointment.status ?? "scheduled"}`} key={appointment.id} onClick={() => openCalendarAppointment(appointment)}><strong>{appointmentTime(appointment.starts_at)} · {appointment.patients?.name ?? "Horário bloqueado"}</strong><small><span className="appointment-status-label">{APPOINTMENT_STATUS[appointment.status] ?? appointment.status}</span><span>{appointment.professionals?.name ?? "Profissional não informado"}</span><span>{appointment.services?.name ?? "Atendimento"}{appointment.rooms?.name ? ` · ${appointment.rooms.name}` : ""}</span></small></button>)}
-                    {slots.map((slot) => { const members = membersForSlot(slot.id, day); const professional = professionals.find((row: Row) => row.id === slot.professional_id); return <button type="button" className="month-calendar-item group-item" key={slot.id} onClick={() => setSelectedGroupCell({ slot, day, unitName: unit.name })}><strong>{String(slot.starts_at).slice(0, 5)} · {slot.name}</strong><small><span>{professional?.name ?? "Profissional não informado"}</span><span>{members.length}/{slot.capacity ?? 7} ocupadas · {Math.max(0, Number(slot.capacity ?? 7) - members.length)} livres</span></small></button>; })}
-                    {day.getDay() >= 1 && day.getDay() <= 5 && !slots.some((slot) => String(slot.starts_at).slice(0, 5) === "20:00") && <div className="month-calendar-item"><strong>20:00</strong><small>Sem turma cadastrada</small></div>}
-                    {!dayAppointments.length && !slots.length && <p className="agenda-mobile-empty">Nenhuma turma cadastrada.</p>}
+                    {dayItems.map((item) => renderCalendarItem(item, true))}
+                    {!calendarLoading && !calendarError && !dayItems.length && <p className="agenda-mobile-empty">Nenhum item nesta data.</p>}
                   </div>
                 </section>;
               })}
@@ -586,8 +613,11 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
           </div>
         ))}
         {!units.length && <p className="empty-state">Cadastre uma unidade para visualizar a agenda.</p>}
-        {units.length > 0 && !selectedUnitId && <p className="empty-state">Selecione uma unidade no filtro superior para visualizar a agenda.</p>}
+        {units.length > 0 && !selectedUnitId && <p className="empty-state">Selecione uma unidade para visualizar a agenda.</p>}
         {selectedUnitId && !visibleUnits.length && <p className="empty-state">A unidade selecionada não está disponível para este usuário.</p>}
+        {selectedUnitId && calendarLoading && <p className="empty-state" role="status">Carregando agenda…</p>}
+        {selectedUnitId && calendarError && <p className="empty-state" role="alert">Não foi possível carregar a agenda. <button type="button" className="btn secondary" onClick={() => void reloadCalendar()}>Tentar novamente</button></p>}
+        {selectedUnitId && !calendarLoading && !calendarError && !calendarItems.length && <p className="empty-state">Nenhum item na agenda nesta semana.</p>}
       </section>
       <section className="card" aria-label="Resumo de vagas disponíveis">
         <h2>Horários disponíveis para oferecer aos clientes</h2>
@@ -595,6 +625,17 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
         {visibleUnits.flatMap((unit) => calendarDays.flatMap((day) => slotsForDay(unit.id, day).map((slot) => ({ unit, day, slot, free: Math.max(0, Number(slot.capacity ?? 7) - membersForSlot(slot.id, day).length) })))).filter(({ free }) => free > 0).map(({ unit, day, slot, free }) => <p key={`${slot.id}-${dateKey(day)}`}><button type="button" className="btn" onClick={() => setSelectedGroupCell({ slot, day, unitName: unit.name })}>{day.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" })} · {String(slot.starts_at).slice(0, 5)} · {slot.name} · {free} vagas livres</button></p>)}
         {!visibleUnits.length && <p>Selecione uma unidade para consultar as vagas.</p>}
       </section>
+      {selectedOccurrence && <AgendaDialog labelId="occurrence-details-title" className="calendar-edit-modal" onClose={() => setSelectedOccurrence(null)}>
+        <div className="modal-head"><div><p className="eyebrow">TURMA · {CALENDAR_STATUS[selectedOccurrence.status] ?? selectedOccurrence.status}</p><h2 id="occurrence-details-title">{selectedOccurrence.title}</h2></div><button type="button" onClick={() => setSelectedOccurrence(null)} aria-label="Fechar">×</button></div>
+        <div className="appointment-readonly-details"><dl>
+          <div><dt>Data e horário</dt><dd>{new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(selectedOccurrence.startAt))} – {appointmentTime(selectedOccurrence.endAt)}</dd></div>
+          <div><dt>Profissional</dt><dd>{selectedOccurrence.professional?.name ?? "Não informado"}</dd></div>
+          <div><dt>Status</dt><dd>{CALENDAR_STATUS[selectedOccurrence.status] ?? selectedOccurrence.status}</dd></div>
+          <div><dt>Capacidade</dt><dd>{selectedOccurrence.occupancy == null ? selectedOccurrence.capacity ?? "Não informada" : `${selectedOccurrence.occupancy}/${selectedOccurrence.capacity}`}</dd></div>
+          <div><dt>Sala</dt><dd>{selectedOccurrence.room?.name ?? "Não informada"}</dd></div>
+          <div><dt>Serviço</dt><dd>{selectedOccurrence.service?.name ?? "Não informado"}</dd></div>
+        </dl><button type="button" className="btn secondary" onClick={() => setSelectedOccurrence(null)}>Fechar</button></div>
+      </AgendaDialog>}
       {selectedGroupCell && (() => {
         const selectedMembers = membersForSlot(selectedGroupCell.slot.id, selectedGroupCell.day);
         const capacity = Number(selectedGroupCell.slot.capacity ?? 7);
@@ -811,7 +852,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
           { name: "notes", label: "Observações", type: "textarea" },
         ]}
         buildBody={(form) => ({ unit_id: value(form, "unit_id"), patient_id: value(form, "patient_id") || undefined, professional_id: value(form, "professional_id"), service_id: value(form, "service_id") || undefined, room_id: value(form, "room_id") || undefined, starts_at: isoLocal(value(form, "starts_at")), ends_at: isoLocal(value(form, "ends_at")), status: value(form, "status"), notes: value(form, "notes") || undefined })}
-        onChanged={reload}
+        onChanged={reloadAgenda}
         onNotice={(message) => setNotice({ type: message.startsWith("Erro:") ? "error" : "success", message: message.replace(/^Erro:\s*/, "") })}
         onOpen={openCalendarAppointment}
         showToggle={false}
@@ -870,7 +911,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
           capacity: Number(value(form, "capacity")),
           active: value(form, "active") === "true",
         })}
-        onChanged={reload}
+        onChanged={reloadAgenda}
         onNotice={(message) => setNotice({ type: message.startsWith("Erro:") ? "error" : "success", message: message.replace(/^Erro:\s*/, "") })}
         actions={(row) => canManageGroups ? <>
           <button type="button" onClick={() => setSelectedGroupCell({ slot: row, day: new Date(), unitName: units.find((unit) => unit.id === row.unit_id)?.name ?? "Unidade" })}>Editar</button>

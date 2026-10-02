@@ -186,6 +186,122 @@ test("mantém todos os recursos da agenda coerentes com a unidade selecionada", 
   assert.match(api, /app\.post\("\/professionals", requireRoles\(\["admin", "manager", "reception", "finance"\]\)/);
 });
 
+test("aplica a política crítica de conflitos de appointments no servidor", async () => {
+  const [route, migration] = await Promise.all([
+    readFile(new URL("../supabase/functions/api/routes/agenda.ts", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/202610010001_appointment_conflict_policy_hotfix.sql", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(migration, /a\.clinic_id = public\.current_clinic_id\(\)/);
+  assert.match(migration, /a\.professional_id = p_professional_id/);
+  assert.match(migration, /a\.patient_id = p_patient_id/);
+  assert.match(migration, /tstzrange\(a\.starts_at, a\.ends_at, '\[\)'\) && tstzrange\(p_starts_at, p_ends_at, '\[\)'\)/);
+  assert.match(migration, /a\.id is distinct from p_exclude_id/);
+  assert.match(migration, /a\.status not in \('cancelled', 'missed'\)/);
+  assert.doesNotMatch(migration, /a\.room_id = p_room_id/);
+  assert.match(route, /p_patient_id: input\.patient_id \?\? null/);
+  assert.match(route, /PROFESSIONAL_SCHEDULE_CONFLICT/);
+  assert.match(route, /PATIENT_SCHEDULE_CONFLICT/);
+});
+
+test("mantém a persistência nova de turma aditiva e historicamente segura", async () => {
+  const migration = await readFile(new URL("../supabase/migrations/202610010002_agenda_additive_class_persistence.sql", import.meta.url), "utf8");
+
+  for (const table of ["classes", "class_schedules", "class_occurrences", "class_memberships"]) {
+    assert.match(migration, new RegExp(`create table public\\.${table}`));
+    assert.match(migration, new RegExp(`alter table public\\.${table} enable row level security`));
+  }
+  assert.match(migration, /daterange\(effective_from, effective_to, '\[\)'\) with &&/);
+  assert.match(migration, /unique \(class_schedule_id, local_date\)/);
+  assert.match(migration, /foreign key \(class_schedule_id, class_id\) references public\.class_schedules/);
+  assert.match(migration, /check \(start_time < end_time\)/);
+  assert.match(migration, /check \(start_at < end_at\)/);
+  assert.match(migration, /effective_capacity integer not null check \(effective_capacity > 0\)/);
+  assert.doesNotMatch(migration, /unique \(room_id/);
+  assert.doesNotMatch(migration, /insert into public\.(classes|class_schedules|class_occurrences|class_memberships)/);
+});
+
+test("materializa occurrences de schedule com janela, timezone e idempotência", async () => {
+  const migration = await readFile(new URL("../supabase/migrations/202610010003_generate_class_occurrences.sql", import.meta.url), "utf8");
+
+  assert.match(migration, /generate_class_occurrences\(/);
+  assert.match(migration, /if p_to <= p_from/);
+  assert.match(migration, /generate_series\(effective_from, effective_to - 1, interval '1 day'\)/);
+  assert.match(migration, /target\.weekdays @> array/);
+  assert.match(migration, /at time zone target\.timezone/);
+  assert.match(migration, /on conflict \(class_schedule_id, local_date\) do nothing/);
+  assert.match(migration, /target_class\.unit_id, target_class\.service_id/);
+  assert.match(migration, /target\.planned_professional_id, null, target\.effective_capacity, target\.room_id/);
+  assert.match(migration, /target_class\.status <> 'active'/);
+  assert.doesNotMatch(migration, /group_slots|appointments|class_memberships|occurrence_participants/);
+});
+
+test("expõe a API mínima versionada de Class e ClassSchedule sem tocar o legado", async () => {
+  const [route, migration] = await Promise.all([
+    readFile(new URL("../supabase/functions/api/routes/agenda.ts", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/202610010004_agenda_class_api.sql", import.meta.url), "utf8"),
+  ]);
+  for (const endpoint of ["/classes", "/classes/with-schedule", "/classes/:id/schedules", "/classes/:id/schedule-changes", "/classes/:id"]) assert.ok(route.includes(endpoint));
+  assert.match(route, /currentSchedule = scheduleHistory\.find\(.*effective_from <= targetDate.*targetDate < schedule\.effective_to/);
+  assert.match(route, /requireRoles\(\["admin", "manager", "reception"\]\)/);
+  assert.match(migration, /update public\.class_schedules set effective_to = p_effective_from/);
+  assert.match(migration, /create_class_schedule\(created_class\.id/);
+  assert.match(migration, /for update/);
+  assert.match(migration, /INVALID_SCHEDULE_EFFECTIVE_DATE/);
+  assert.match(migration, /CLASS_SCHEDULE_OVERLAP/);
+  assert.match(migration, /PROFESSIONAL_NOT_AVAILABLE_FOR_UNIT/);
+  assert.doesNotMatch(migration, /group_slots|group_slot_memberships|class_attendances|appointments/);
+  assert.doesNotMatch(route, /generate_class_occurrences/);
+});
+
+test("expõe projection semanal read-only combinando occurrences e appointments", async () => {
+  const route = await readFile(new URL("../supabase/functions/api/routes/agenda.ts", import.meta.url), "utf8");
+  assert.match(route, /app\.get\("\/calendar-items"/);
+  assert.match(route, /unitId: z\.string\(\)\.uuid\(\)/);
+  assert.match(route, /lt\("start_at", query\.to\)\.gt\("end_at", query\.from\)/);
+  assert.match(route, /lt\("starts_at", query\.to\)\.gt\("ends_at", query\.from\)/);
+  assert.match(route, /sourceType: "CLASS_OCCURRENCE"/);
+  assert.match(route, /sourceType: "APPOINTMENT"/);
+  assert.match(route, /actualProfessional \?\? plannedProfessional/);
+  assert.match(route, /occupancy: null, capacity: occurrence\.effective_capacity/);
+  assert.match(route, /query\.type === "APPOINTMENT"/);
+  assert.match(route, /sort\(\(first, second\) => first\.startAt\.localeCompare/);
+  assert.match(route, /PROFESSIONAL_FORBIDDEN/);
+  const projection = route.slice(route.indexOf('app.get("/calendar-items"'), route.indexOf('app.get("/attendance/daily"'));
+  assert.doesNotMatch(projection, /generate_class_occurrences|\.insert\(|\.update\(|\.delete\(|group_slots/);
+});
+
+test("agenda semanal usa a projection consolidada sem compor cards pelo legado", async () => {
+  const agenda = await readFile(new URL("../apps/portal/src/presentation/modules/OperationalAgenda.tsx", import.meta.url), "utf8");
+  assert.match(agenda, /\/calendar-items\?unitId=/);
+  assert.match(agenda, /calendarPath \? \[calendarPath\] : \[\]/);
+  assert.match(agenda, /Selecione uma unidade para visualizar a agenda\./);
+  assert.match(agenda, /calendarItemsForDay/);
+  assert.match(agenda, /sourceType === "CLASS_OCCURRENCE"/);
+  assert.match(agenda, /occupancy == null \? `Capacidade: \$\{item\.capacity\}`/);
+  assert.match(agenda, /setFromDate\(shiftDate\(fromDate, -7\)\)/);
+  assert.match(agenda, /setFromDate\(clinicToday\(\)\)/);
+  assert.match(agenda, /calendarLoading/);
+  assert.match(agenda, /calendarError/);
+  assert.match(agenda, /reloadCalendar/);
+  const calendarSection = agenda.slice(agenda.indexOf('<section className="card fixed-calendar'), agenda.indexOf('<section className="card" aria-label="Resumo de vagas disponíveis">'));
+  assert.doesNotMatch(calendarSection, /appointments\.filter|slotsForDay\(/);
+});
+
+test("backfill operacional de group slots é idempotente, limitado e não altera legado", async () => {
+  const migration = await readFile(new URL("../supabase/migrations/202610010005_agenda_operational_legacy_backfill.sql", import.meta.url), "utf8");
+  assert.match(migration, /backfill_active_group_slots_to_classes/);
+  assert.match(migration, /legacy_source = 'group_slot'/);
+  assert.match(migration, /legacy_source = 'group_slot_membership'/);
+  assert.match(migration, /p_cutoff \+ \(p_weeks \* 7\)/);
+  assert.match(migration, /generate_class_occurrences/);
+  assert.match(migration, /classes_legacy_source_unique/);
+  assert.match(migration, /class_memberships_legacy_source_unique/);
+  assert.match(migration, /when 0 then 'sunday'/);
+  assert.match(migration, /membership\.ends_at \+ 1/);
+  assert.doesNotMatch(migration, /delete from public\.(group_slots|group_slot_memberships)|update public\.(group_slots|group_slot_memberships)/);
+});
+
 test("mantém o fluxo de matrícula da recepção funcional e sem expor o financeiro", async () => {
   const [authorization, api, financeRoute, enrollments, paymentPlans, shared, migration] = await Promise.all([
     readFile(new URL("../supabase/functions/api/authorization.ts", import.meta.url), "utf8"),
