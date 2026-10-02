@@ -225,7 +225,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
   const [runOccurrenceCancellation] = useState(() => createOccurrenceCancellation({
     request: async (occurrenceId) => { await api(`/class-occurrences/${occurrenceId}/cancel`, { method: "POST" }); },
     onPending: setOccurrenceCanceling,
-    onSuccess: (occurrenceId) => {
+    onSuccess: (_occurrenceId) => {
       setOccurrenceDetail((current) => current ? { ...current, occurrence: { ...current.occurrence, status: "cancelled" } } : current);
       setConfirmOccurrenceCancellation(false);
       success("Aula cancelada. As demais aulas permanecem normalmente.");
