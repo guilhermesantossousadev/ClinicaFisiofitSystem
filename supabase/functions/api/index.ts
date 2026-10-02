@@ -278,9 +278,16 @@ app.patch("/units/:id", requireRoles(["admin"]), async (context) => {
 app.get("/rooms", requireRoles(["admin", "manager", "reception", "professional"]), listResource("rooms", "name"));
 app.get("/professionals", requireRoles(["admin", "manager", "reception", "professional", "finance"]), async (context) => {
   const clinicId = context.get("profile").clinic_id;
-  const { data, error } = await context.get("db").from("professionals")
-    .select("*,professional_units(unit_id)")
+  const unitId = context.req.query("unitId");
+  let query = context.get("db").from("professionals")
+    .select(unitId ? "*,professional_units!inner(unit_id)" : "*,professional_units(unit_id)")
     .eq("clinic_id", clinicId).is("deleted_at", null).order("name");
+  if (unitId) {
+    const parsedUnitId = z.string().uuid().parse(unitId);
+    if (!(await hasUnitAccess(context, parsedUnitId))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+    query = query.eq("professional_units.unit_id", parsedUnitId);
+  }
+  const { data, error } = await query;
   return databaseResult(context, (data ?? []).map((professional) => ({
     ...professional,
     unit_ids: (professional.professional_units ?? []).map((item: { unit_id: string }) => item.unit_id),
@@ -291,9 +298,15 @@ app.get("/plans", requireRoles(["admin", "manager", "reception", "finance"]), li
 app.get("/group-slots", requireRoles(["admin", "manager", "reception", "professional"]), listResource("group_slots", "starts_at"));
 app.get("/group-slot-memberships", requireRoles(["admin", "manager", "reception", "professional"]), async (context) => {
   const clinicId = context.get("profile").clinic_id;
+  const unitId = context.req.query("unitId");
   let query = context.get("db").from("group_slot_memberships")
-    .select("id,group_slot_id,enrollment_id,patient_id,weekdays,starts_at,ends_at,status,patients(name,phone)")
+    .select(unitId ? "id,group_slot_id,enrollment_id,patient_id,weekdays,starts_at,ends_at,status,patients(name,phone),group_slots!inner(name,unit_id)" : "id,group_slot_id,enrollment_id,patient_id,weekdays,starts_at,ends_at,status,patients(name,phone)")
     .eq("clinic_id", clinicId).is("deleted_at", null).eq("status", "active");
+  if (unitId) {
+    const parsedUnitId = z.string().uuid().parse(unitId);
+    if (!(await hasUnitAccess(context, parsedUnitId))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+    query = query.eq("group_slots.unit_id", parsedUnitId);
+  }
   const groupSlotId = context.req.query("groupSlotId");
   if (groupSlotId) query = query.eq("group_slot_id", z.string().uuid().parse(groupSlotId));
   const { data, error } = await query.order("created_at", { ascending: true }).limit(1000);
@@ -359,7 +372,7 @@ app.patch("/rooms/:id", requireRoles(["admin", "manager"]), async (context) => {
   return updateClinicResource(context, "rooms", id, input, "room.updated", input.unit_id);
 });
 
-app.post("/professionals", requireRoles(["admin", "manager"]), async (context) => {
+app.post("/professionals", requireRoles(["admin", "manager", "reception", "finance"]), async (context) => {
   const input = z.object({
     name: z.string().trim().min(3).max(120),
     profile_id: z.string().uuid().optional(),

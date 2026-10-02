@@ -13,7 +13,7 @@ export const nav: NavigationItem[] = [
   { label: "Relatórios", icon: "↗", roles: ["admin", "manager", "finance"] },
   { label: "Importações", icon: "⇧", roles: ["admin", "manager"] },
   { label: "Usuários", icon: "⚙", roles: ["admin", "manager"] },
-  { label: "Configurações", icon: "⌖", roles: ["admin", "manager"] },
+  { label: "Configurações", icon: "⌖", roles: ["admin", "manager", "reception", "finance"] },
   { label: "Privacidade", icon: "✓", roles: ["admin", "manager"] },
 ];
 

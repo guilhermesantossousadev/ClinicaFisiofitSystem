@@ -174,13 +174,16 @@ test("mantém todos os recursos da agenda coerentes com a unidade selecionada", 
   assert.match(agenda, /canManageGroups/);
   assert.match(shared, /unitId \? `&unitId=/);
   assert.match(administration, /name: "unitIds", label: "Unidades em que atende", type: "checkbox-group"/);
-  assert.match(api, /select\("\*,professional_units\(unit_id\)"\)/);
+  assert.match(api, /professional_units!inner\(unit_id\)/);
+  assert.match(api, /query = query\.eq\("professional_units\.unit_id", parsedUnitId\)/);
+  assert.match(api, /group_slots!inner\(name,unit_id\)/);
   assert.match(api, /unit_ids:/);
   assert.match(agendaRoute, /PROFESSIONAL_UNIT_NOT_LINKED/);
   assert.match(agendaRoute, /app\.patch\("\/group-slots\/:id"/);
   assert.match(agendaRoute, /weekdays: z\.array\(z\.number\(\)\.int\(\)\.min\(1\)\.max\(5\)\)/);
   assert.match(repairMigration, /insert into public\.professional_units/);
   assert.match(repairMigration, /from public\.group_slots/);
+  assert.match(api, /app\.post\("\/professionals", requireRoles\(\["admin", "manager", "reception", "finance"\]\)/);
 });
 
 test("mantém o fluxo de matrícula da recepção funcional e sem expor o financeiro", async () => {

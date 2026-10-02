@@ -66,14 +66,14 @@ function FormularioServico({ data, reload, setNotice, submit, canDelete = false,
   </div>;
 }
 
-function FormularioProfissional({ data, reload, setNotice, submit, canDelete = false, canEdit = true }: AdministrationSectionProps) {
+function FormularioProfissional({ data, reload, setNotice, submit, canDelete = false, canEdit = true, canCreate = false }: AdministrationSectionProps & { canCreate?: boolean }) {
   const units: Unit[] = data["/units"] ?? [];
   const professionals = (data["/professionals"] ?? []).map((professional: Row) => ({
     ...professional,
     unit_names: (professional.unit_ids ?? []).map((unitId: string) => units.find((unit) => unit.id === unitId)?.name).filter(Boolean).join(", ") || "Sem unidade",
   }));
   return <div className="administration-section">
-    {canEdit && <DrawerForm title="Novo profissional" className="administration-form" onSubmit={(event) => submit(event, "/professionals", (form) => ({ name: value(form, "name"), council: value(form, "council") || undefined, specialty: value(form, "specialty") || undefined, unitIds: form.getAll("unitIds"), active: true }))}>
+    {canCreate && <DrawerForm title="Novo profissional" className="administration-form" onSubmit={(event) => submit(event, "/professionals", (form) => ({ name: value(form, "name"), council: value(form, "council") || undefined, specialty: value(form, "specialty") || undefined, unitIds: form.getAll("unitIds"), active: true }))}>
       <h2>Novo profissional</h2><p className="form-instructions">Informe os dados profissionais e selecione ao menos uma unidade.</p>
       <TextField name="name" label="Nome" required />
       <div className="form-row"><TextField name="council" label="Conselho" /><TextField name="specialty" label="Especialidade" /></div>
@@ -106,7 +106,7 @@ const administrationTabs: Array<{ id: AdministrationTab; label: string }> = [
   { id: "templates", label: "Modelos clínicos" },
 ];
 
-export function OperationalAdministration({ canEdit = true, canManageUnits = false, canDelete = false }: { canEdit?: boolean; canManageUnits?: boolean; canDelete?: boolean }) {
+export function OperationalAdministration({ canEdit = true, canManageProfessionals = false, canManageUnits = false, canDelete = false }: { canEdit?: boolean; canManageProfessionals?: boolean; canManageUnits?: boolean; canDelete?: boolean }) {
   const paths = [
     "/units",
     "/rooms",
@@ -116,7 +116,8 @@ export function OperationalAdministration({ canEdit = true, canManageUnits = fal
   ];
   const { data, loading, error, reload } = useResources(paths);
   const [notice, setNotice] = useState("");
-  const [activeTab, setActiveTab] = useState<AdministrationTab>("units");
+  const visibleTabs = canEdit ? administrationTabs : administrationTabs.filter((tab) => tab.id === "professionals" && canManageProfessionals);
+  const [activeTab, setActiveTab] = useState<AdministrationTab>(canEdit ? "units" : "professionals");
   async function submit(
     event: FormEvent<HTMLFormElement>,
     path: string,
@@ -149,16 +150,16 @@ export function OperationalAdministration({ canEdit = true, canManageUnits = fal
         </div>
       )}
       <nav className="administration-tabs" role="tablist" aria-label="Tipos de configuração">
-        {administrationTabs.map((tab, index) => <button key={tab.id} type="button" role="tab"
+        {visibleTabs.map((tab, index) => <button key={tab.id} type="button" role="tab"
           id={`administration-tab-${tab.id}`} aria-selected={activeTab === tab.id}
           aria-controls={`administration-panel-${tab.id}`} tabIndex={activeTab === tab.id ? 0 : -1}
           className={activeTab === tab.id ? "active" : ""} onClick={() => setActiveTab(tab.id)}
           onKeyDown={(event) => {
             if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
             event.preventDefault();
-            const nextIndex = event.key === "Home" ? 0 : event.key === "End" ? administrationTabs.length - 1
-              : (index + (event.key === "ArrowRight" ? 1 : -1) + administrationTabs.length) % administrationTabs.length;
-            setActiveTab(administrationTabs[nextIndex].id);
+            const nextIndex = event.key === "Home" ? 0 : event.key === "End" ? visibleTabs.length - 1
+              : (index + (event.key === "ArrowRight" ? 1 : -1) + visibleTabs.length) % visibleTabs.length;
+            setActiveTab(visibleTabs[nextIndex].id);
             const buttons = event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]');
             buttons?.[nextIndex]?.focus();
           }}>{tab.label}</button>)}
@@ -169,7 +170,7 @@ export function OperationalAdministration({ canEdit = true, canManageUnits = fal
         {activeTab === "units" && <FormularioUnidade data={data} reload={reload} setNotice={setNotice} submit={submit} canEdit={canEdit} canManageUnits={canManageUnits} canDelete={canDelete} />}
         {activeTab === "rooms" && <FormularioSala data={data} reload={reload} setNotice={setNotice} submit={submit} canEdit={canEdit} canDelete={canDelete} />}
         {activeTab === "services" && <FormularioServico data={data} reload={reload} setNotice={setNotice} submit={submit} canEdit={canEdit} canDelete={canDelete} />}
-        {activeTab === "professionals" && <FormularioProfissional data={data} reload={reload} setNotice={setNotice} submit={submit} canEdit={canEdit} canDelete={canDelete} />}
+        {activeTab === "professionals" && <FormularioProfissional data={data} reload={reload} setNotice={setNotice} submit={submit} canCreate={canManageProfessionals} canEdit={canEdit} canDelete={canDelete} />}
         {activeTab === "templates" && <FormularioModeloClinico data={data} reload={reload} setNotice={setNotice} submit={submit} canEdit={canEdit} canDelete={canDelete} />}
       </section>}
     </div>
