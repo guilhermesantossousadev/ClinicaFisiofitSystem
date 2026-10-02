@@ -302,6 +302,34 @@ test("backfill operacional de group slots é idempotente, limitado e não altera
   assert.doesNotMatch(migration, /delete from public\.(group_slots|group_slot_memberships)|update public\.(group_slots|group_slot_memberships)/);
 });
 
+test("reconcilia referências opcionais apenas no adaptador de backfill legado", async () => {
+  const migration = await readFile(new URL("../supabase/migrations/202610010006_relax_legacy_agenda_backfill_references.sql", import.meta.url), "utf8");
+  assert.match(migration, /create or replace function public\.backfill_active_group_slots_to_classes/);
+  assert.match(migration, /resolved_service_id/);
+  assert.match(migration, /resolved_room_id/);
+  assert.match(migration, /resolved_professional_id/);
+  assert.match(migration, /if not exists \(select 1 from public\.patients/);
+  assert.match(migration, /then slot\.service_id else null end/);
+  assert.match(migration, /then slot\.room_id else null end/);
+  assert.match(migration, /then slot\.professional_id else null end/);
+  assert.doesNotMatch(migration, /delete from public\.(group_slots|group_slot_memberships)|update public\.(group_slots|group_slot_memberships)|insert into public\.(services|rooms|professionals|professional_units)/);
+});
+
+test("expõe backfill legado somente por rota administrativa autenticada e user-scoped", async () => {
+  const [api, agenda] = await Promise.all([
+    readFile(new URL("../supabase/functions/api/index.ts", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/functions/api/routes/agenda.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(api, /if \(!auth\?\.startsWith\("Bearer "\)\) return fail\(context, 401, "UNAUTHENTICATED"/);
+  assert.match(api, /global: \{ headers: \{ Authorization: auth \} \}/);
+  assert.match(api, /auth\.getUser\(\)/);
+  assert.match(agenda, /app\.post\("\/admin\/agenda\/backfill-legacy", requireRoles\(\["admin"\]\)/);
+  assert.match(agenda, /rpc\("backfill_active_group_slots_to_classes"\)/);
+  assert.match(agenda, /agenda\.legacy_backfill\.executed/);
+  const backfillRoute = agenda.slice(agenda.indexOf('app.post("/admin/agenda/backfill-legacy"'), agenda.indexOf('async function validateActiveProfessional'));
+  assert.doesNotMatch(backfillRoute, /service_role|clinic_id|p_cutoff|p_weeks/);
+});
+
 test("mantém o fluxo de matrícula da recepção funcional e sem expor o financeiro", async () => {
   const [authorization, api, financeRoute, enrollments, paymentPlans, shared, migration] = await Promise.all([
     readFile(new URL("../supabase/functions/api/authorization.ts", import.meta.url), "utf8"),

@@ -2,6 +2,17 @@ import { z } from "npm:zod@3.24.2";
 
 export function registerAgendaRoutes(app: any, dependencies: any) {
   const { appointmentFields, appointmentSchema, requireRoles, ok, fail, databaseResult, validateRelatedResourceScope, hasUnitAccess, audit, professionalForUser, isOwnProfessional, getAuthorizedAppointment } = dependencies;
+  app.post("/admin/agenda/backfill-legacy", requireRoles(["admin"]), async (context: any) => {
+    const { data, error } = await context.get("db").rpc("backfill_active_group_slots_to_classes");
+    if (!error) await audit(context, "agenda.legacy_backfill.executed", "agenda_backfill", null, null, {
+      groupSlotsActive: data?.[0]?.group_slots_active ?? null,
+      classesCreated: data?.[0]?.classes_created ?? null,
+      failures: data?.[0]?.failures ?? null,
+      ignored: data?.[0]?.ignored ?? null,
+    });
+    return databaseResult(context, data, error);
+  });
+
   async function validateActiveProfessional(context: any, professionalId: string, unitId: string) {
     const db = context.get("db");
     const clinicId = context.get("profile").clinic_id;
