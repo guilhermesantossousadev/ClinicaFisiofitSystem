@@ -1,7 +1,7 @@
 import { FormEvent, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { CheckboxField, FormSection, SelectField, TextField } from "../components/FormPrimitives";
-import { Row, Unit, messageOf, value, cents, useResources, Select, DrawerForm, ModuleState, EditableOperationalTable } from "./OperationalShared";
+import { Row, Unit, messageOf, value, cents, useDialogFocus, useResources, Select, DrawerForm, ModuleState, EditableOperationalTable } from "./OperationalShared";
 
 type AdministrationTab = "units" | "rooms" | "services" | "professionals" | "templates";
 type AdministrationSectionProps = {
@@ -16,6 +16,73 @@ type AdministrationSectionProps = {
   canDelete?: boolean;
   canEdit?: boolean;
 };
+
+type LegacyAgendaBackfillResult = {
+  group_slots_active: number;
+  classes_created: number;
+  classes_reused: number;
+  schedules_created: number;
+  schedules_reused: number;
+  memberships_migrated: number;
+  memberships_reused: number;
+  occurrences_generated: number;
+  occurrences_existing: number;
+  failures: number;
+  ignored: number;
+};
+
+function LegacyAgendaBackfillAction({ isAdmin }: { isAdmin: boolean }) {
+  const [confirming, setConfirming] = useState(false);
+  const [migrating, setMigrating] = useState(false);
+  const [result, setResult] = useState<LegacyAgendaBackfillResult | null>(null);
+  const [error, setError] = useState("");
+  const dialogRef = useDialogFocus(confirming, () => setConfirming(false), !migrating);
+
+  if (!isAdmin) return null;
+
+  async function runBackfill() {
+    if (migrating) return;
+    setMigrating(true);
+    setError("");
+    try {
+      const response = await api<LegacyAgendaBackfillResult>("/admin/agenda/backfill-legacy", { method: "POST" });
+      setResult(response.data);
+      setConfirming(false);
+    } catch (cause) {
+      setError(messageOf(cause));
+    } finally {
+      setMigrating(false);
+    }
+  }
+
+  const metrics: Array<[string, number | undefined]> = result ? [
+    ["Turmas processadas", result.group_slots_active],
+    ["Classes criadas", result.classes_created],
+    ["Schedules criados", result.schedules_created],
+    ["Memberships migrados", result.memberships_migrated],
+    ["Occurrences geradas", result.occurrences_generated],
+    ["Pendências ignoradas", result.ignored],
+    ["Failures", result.failures],
+  ] : [];
+
+  return <section className="card administration-section" aria-labelledby="legacy-agenda-backfill-title">
+    <div className="card-head"><div>
+      <p className="eyebrow">FERRAMENTA ADMINISTRATIVA TEMPORÁRIA</p>
+      <h2 id="legacy-agenda-backfill-title">Migração da Agenda legada</h2>
+      <p>Converte as turmas ativas do sistema antigo para a nova estrutura da Agenda.</p>
+    </div></div>
+    <button type="button" className="btn primary" onClick={() => { setError(""); setConfirming(true); }} disabled={migrating}>Migrar agenda legada</button>
+    {error && <p className="form-error" role="alert">Não foi possível executar a migração: {error}</p>}
+    {result && <div className="conflict-ok" role="status"><div><strong>Migração concluída</strong><div className="backfill-result" aria-label="Resultado da migração">{metrics.map(([label, count]) => <span key={label}>{label}: <strong>{count ?? 0}</strong></span>)}</div><small>Referências opcionais sem correspondência e memberships inválidos estão contabilizados em “Pendências ignoradas”.</small></div></div>}
+    {confirming && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (!migrating && event.target === event.currentTarget) setConfirming(false); }}>
+      <section ref={dialogRef} className="modal" role="dialog" aria-modal="true" aria-labelledby="legacy-agenda-backfill-confirmation-title" tabIndex={-1}>
+        <div className="modal-head"><div><p className="eyebrow">CONFIRMAÇÃO ADMINISTRATIVA</p><h2 id="legacy-agenda-backfill-confirmation-title">Migrar agenda legada</h2></div></div>
+        <div className="modal-form"><p>Esta operação migrará as turmas ativas do sistema legado para a nova Agenda. Os dados antigos serão preservados. Deseja continuar?</p></div>
+        <div className="modal-actions"><button type="button" className="btn secondary" onClick={() => setConfirming(false)} disabled={migrating}>Cancelar</button><button type="button" className="btn primary" onClick={() => void runBackfill()} disabled={migrating}>{migrating ? "Migrando..." : "Executar migração"}</button></div>
+      </section>
+    </div>}
+  </section>;
+}
 
 function FormularioUnidade({ data, reload, setNotice, submit, canDelete = false, canEdit = true, canManageUnits = false }: AdministrationSectionProps & { canManageUnits?: boolean }) {
   return <div className="administration-section">
@@ -106,7 +173,7 @@ const administrationTabs: Array<{ id: AdministrationTab; label: string }> = [
   { id: "templates", label: "Modelos clínicos" },
 ];
 
-export function OperationalAdministration({ canEdit = true, canManageProfessionals = false, canManageUnits = false, canDelete = false }: { canEdit?: boolean; canManageProfessionals?: boolean; canManageUnits?: boolean; canDelete?: boolean }) {
+export function OperationalAdministration({ canEdit = true, canManageProfessionals = false, canManageUnits = false, canDelete = false, isAdmin = false }: { canEdit?: boolean; canManageProfessionals?: boolean; canManageUnits?: boolean; canDelete?: boolean; isAdmin?: boolean }) {
   const paths = [
     "/units",
     "/rooms",
@@ -164,6 +231,7 @@ export function OperationalAdministration({ canEdit = true, canManageProfessiona
             buttons?.[nextIndex]?.focus();
           }}>{tab.label}</button>)}
       </nav>
+      <LegacyAgendaBackfillAction isAdmin={isAdmin} />
       <ModuleState loading={loading} error={error} retry={reload} />
       {!loading && !error && <section key={activeTab} className="administration-tab-panel" role="tabpanel"
         id={`administration-panel-${activeTab}`} aria-labelledby={`administration-tab-${activeTab}`} tabIndex={0}>

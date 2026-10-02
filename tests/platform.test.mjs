@@ -186,6 +186,23 @@ test("mantém todos os recursos da agenda coerentes com a unidade selecionada", 
   assert.match(api, /app\.post\("\/professionals", requireRoles\(\["admin", "manager", "reception", "finance"\]\)/);
 });
 
+test("oferece a migração legada somente à administração com confirmação e feedback", async () => {
+  const [administration, portal] = await Promise.all([
+    readFile(new URL("../apps/portal/src/presentation/modules/OperationalAdministration.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../apps/portal/src/presentation/app/FisiofitApp.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(portal, /isAdmin=\{profile\.role === "admin"\}/);
+  assert.match(administration, /if \(!isAdmin\) return null/);
+  assert.match(administration, /Migrar agenda legada/);
+  assert.match(administration, /Esta operação migrará as turmas ativas do sistema legado para a nova Agenda/);
+  assert.match(administration, /api<LegacyAgendaBackfillResult>\("\/admin\/agenda\/backfill-legacy", \{ method: "POST" \}\)/);
+  assert.match(administration, /if \(migrating\) return/);
+  assert.match(administration, /disabled=\{migrating\}/);
+  assert.match(administration, /Migrando\.\.\./);
+  assert.match(administration, /Não foi possível executar a migração/);
+  assert.match(administration, /Migração concluída/);
+});
+
 test("aplica a política crítica de conflitos de appointments no servidor", async () => {
   const [route, migration] = await Promise.all([
     readFile(new URL("../supabase/functions/api/routes/agenda.ts", import.meta.url), "utf8"),

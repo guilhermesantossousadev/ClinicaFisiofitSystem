@@ -518,7 +518,7 @@ export default function FisiofitApp() {
           </Suspense>
         )}{" "}
         {view === "Usuários" && <OperationalUsers canManageUsers={profile.role === "admin"} />}
-        {view === "Configurações" && <OperationalAdministration canEdit={["admin", "manager"].includes(profile.role) && canEditModule(profile, "settings")} canManageProfessionals={["admin", "manager", "reception", "finance"].includes(profile.role) && canViewModule(profile, "settings")} canManageUnits={profile.role === "admin"} canDelete={profile.role === "admin"} />}
+        {view === "Configurações" && <OperationalAdministration canEdit={["admin", "manager"].includes(profile.role) && canEditModule(profile, "settings")} canManageProfessionals={["admin", "manager", "reception", "finance"].includes(profile.role) && canViewModule(profile, "settings")} canManageUnits={profile.role === "admin"} canDelete={profile.role === "admin"} isAdmin={profile.role === "admin"} />}
         {view === "Privacidade" && (
           <OperationalPrivacy
             canEditPrivacy={profile.role === "admin" || Boolean(profile.profile_permissions?.some((permission) => permission.module === "privacy" && permission.can_edit))}
