@@ -140,7 +140,8 @@ function GroupMemberForm({
   return (
     <form className="group-member-form" onSubmit={onSubmit} aria-label={`Adicionar paciente à turma ${slotName}`}>
       <FormSection legend="Adicionar paciente à turma">
-        <p className="form-instructions"><strong>Dias da turma:</strong> {weekdaysLabel(slotWeekdays)}. O paciente participará somente nesses dias; matrícula não é necessária para incluí-lo.</p>
+        <p className="form-instructions"><strong>Dias da turma:</strong> {weekdaysLabel(slotWeekdays)}. Escolha os dias em que este paciente participará.</p>
+        <WeekdayCheckboxGroup name="weekdays" label="Dias em que o paciente vem" defaultValue={slotWeekdays.map(String)} availableValues={slotWeekdays.map(String)} maxSelections={slotWeekdays.length} required />
         <div className="form-row">
           <PatientPicker
             name="patient_id"
@@ -472,7 +473,9 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
     const group = fixedSlots.find((row) => row.id === groupId);
     const enrollment = (data["/enrollments"] ?? []).find((row: Row) => row.patient_id === patientId && row.unit_id === group?.unit_id && row.status === "active");
     try {
-      await api(`/group-slots/${groupId}/members`, { method: "POST", body: JSON.stringify({ enrollment_id: enrollment?.id, patient_id: patientId, starts_at: value(form, "starts_at"), ends_at: value(form, "ends_at") || undefined }) });
+      const weekdays = form.getAll("weekdays").map(Number);
+      if (!weekdays.length) throw new Error("Selecione ao menos um dia para o paciente.");
+      await api(`/group-slots/${groupId}/members`, { method: "POST", body: JSON.stringify({ enrollment_id: enrollment?.id, patient_id: patientId, starts_at: value(form, "starts_at"), ends_at: value(form, "ends_at") || undefined, weekdays }) });
       formElement.reset();
       success(enrollment ? "Paciente alocado na turma." : "Paciente alocado na turma. O plano pode ser cadastrado depois.");
       await reloadAgenda();

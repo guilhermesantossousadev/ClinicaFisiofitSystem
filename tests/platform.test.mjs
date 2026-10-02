@@ -127,7 +127,7 @@ test("mantém turmas distintas por dias dentro dos horários fixos", async () =>
   assert.match(agendaRoute, /Já existe outra turma nesta unidade para o mesmo dia e horário/);
   assert.match(agendaRoute, /function groupScheduleChanged/);
   assert.match(agendaRoute, /target\.active && groupScheduleChanged\(slot, target\)/);
-  assert.match(agendaRoute, /weekdays: slot\.weekdays/);
+  assert.match(agendaRoute, /weekdays: input\.weekdays/);
   assert.doesNotMatch(agendaRoute, /Os horários são fixos e não podem ser cadastrados/);
   assert.match(migration, /sync_membership_weekdays_from_group/);
   assert.match(migration, /name ~\* '\^Horário fixo'/);
@@ -201,6 +201,24 @@ test("oferece a migração legada somente à administração com confirmação e
   assert.match(administration, /Migrando\.\.\./);
   assert.match(administration, /Não foi possível executar a migração/);
   assert.match(administration, /Migração concluída/);
+});
+
+test("suporta frequência semanal por membership sem inventar dias no legado", async () => {
+  const [migration, agenda, portal] = await Promise.all([
+    readFile(new URL("../supabase/migrations/202610010007_add_weekdays_to_class_memberships.sql", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/functions/api/routes/agenda.ts", import.meta.url), "utf8"),
+    readFile(new URL("../apps/portal/src/presentation/modules/OperationalAgenda.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(migration, /add column weekdays public\.class_weekday\[\]/);
+  assert.match(migration, /weekdays is null or/);
+  assert.match(migration, /CLASS_MEMBERSHIP_WEEKDAYS_CONFLICT/);
+  assert.match(agenda, /app\.post\("\/classes\/:id\/memberships"/);
+  assert.match(agenda, /INVALID_MEMBERSHIP_WEEKDAYS/);
+  assert.match(agenda, /effectiveWeekdays: membership\.weekdays \?\? schedule\?\.weekdays/);
+  assert.match(agenda, /const effectiveWeekdays = membership\.weekdays \?\? slot\?\.weekdays/);
+  assert.match(agenda, /!input\.weekdays\.every\(\(weekday\) => slot\.weekdays\.includes\(weekday\)\)/);
+  assert.match(portal, /WeekdayCheckboxGroup name="weekdays"/);
+  assert.match(portal, /Selecione ao menos um dia para o paciente/);
 });
 
 test("aplica a política crítica de conflitos de appointments no servidor", async () => {

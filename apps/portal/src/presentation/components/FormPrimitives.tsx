@@ -106,6 +106,7 @@ export function WeekdayCheckboxGroup({
   maxSelections = 3,
   required = false,
   disabled = false,
+  availableValues,
   error,
   onSelectionChange,
 }: {
@@ -115,6 +116,7 @@ export function WeekdayCheckboxGroup({
   maxSelections?: number;
   required?: boolean;
   disabled?: boolean;
+  availableValues?: string[];
   error?: string;
   onSelectionChange?: (weekdays: string[]) => void;
 }) {
@@ -138,7 +140,7 @@ export function WeekdayCheckboxGroup({
     <fieldset ref={groupRef} className={`weekday-checkbox-group${error ? " has-error" : ""}`} aria-describedby={hintId} aria-required={required} aria-invalid={error ? "true" : undefined} data-max-selections={maxSelections}>
       <legend>{label}{required && <span className="required-mark" aria-hidden="true">*</span>}</legend>
       <div className="weekday-picker">
-        {DEFAULT_WEEKDAYS.map((day, index) => {
+        {DEFAULT_WEEKDAYS.filter((day) => !availableValues || availableValues.includes(day.value)).map((day, index) => {
           const checked = selected.includes(day.value);
           return (
             <label className="weekday-option" key={day.value}>

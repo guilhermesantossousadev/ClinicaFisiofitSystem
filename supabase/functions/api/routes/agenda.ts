@@ -60,6 +60,11 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     capacity: z.number().int().positive(),
     roomId: z.string().uuid().nullable().optional(),
   }).strict();
+  const classMembershipInputSchema = z.object({
+    patientId: z.string().uuid(), enrollmentId: z.string().uuid().nullable().optional(),
+    effectiveFrom: z.string().date(), effectiveTo: z.string().date().nullable().optional(),
+    weekdays: z.array(z.enum(["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"])).min(1).max(7),
+  }).strict().refine((value) => !value.effectiveTo || value.effectiveTo > value.effectiveFrom, { message: "INVALID_MEMBERSHIP_PERIOD" });
 
   function scheduleValidationError(context: any, input: any) {
     if (new Set(input.weekdays).size !== input.weekdays.length) return fail(context, 422, "INVALID_WEEKDAYS", "Os dias da semana devem ser únicos.");
@@ -90,6 +95,7 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
       INVALID_TIME_RANGE: [422, "O horário de início deve ser anterior ao horário final."],
       INVALID_WEEKDAYS: [422, "Os dias da semana são inválidos."],
       INVALID_CAPACITY: [422, "A capacidade deve ser maior que zero."],
+      CLASS_MEMBERSHIP_WEEKDAYS_CONFLICT: [409, "Há matrículas com dias explícitos incompatíveis com a nova grade."],
       PROFESSIONAL_NOT_AVAILABLE_FOR_UNIT: [422, "O profissional não está ativo nesta unidade."],
     };
     for (const [code, [httpStatus, detail]] of Object.entries(stableErrors)) {
@@ -201,6 +207,50 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     const scheduleHistory = schedules ?? [];
     const currentSchedule = scheduleHistory.find((schedule: any) => schedule.effective_from <= targetDate && (!schedule.effective_to || targetDate < schedule.effective_to)) ?? null;
     return ok(context, { class: targetClass, currentSchedule, scheduleHistory });
+  });
+
+  app.get("/classes/:id/memberships", requireRoles(["admin", "manager", "reception", "professional"]), async (context: any) => {
+    const classId = z.string().uuid().parse(context.req.param("id"));
+    const targetDate = z.string().date().catch(new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date())).parse(context.req.query("targetDate"));
+    const targetClass = await getManagedClass(context, classId);
+    if (targetClass instanceof Response) return targetClass;
+    const db = context.get("db");
+    const [{ data: schedule, error: scheduleError }, { data: memberships, error: membershipsError }] = await Promise.all([
+      db.from("class_schedules").select("weekdays").eq("class_id", classId).eq("clinic_id", context.get("profile").clinic_id).lte("effective_from", targetDate).or(`effective_to.is.null,effective_to.gt.${targetDate}`).order("effective_from", { ascending: false }).limit(1).maybeSingle(),
+      db.from("class_memberships").select("id,class_id,patient_id,effective_from,effective_to,weekdays").eq("class_id", classId).eq("clinic_id", context.get("profile").clinic_id).order("effective_from"),
+    ]);
+    if (scheduleError || membershipsError) return databaseResult(context, null, scheduleError ?? membershipsError);
+    return ok(context, { items: (memberships ?? []).map((membership: any) => ({ ...membership, effectiveWeekdays: membership.weekdays ?? schedule?.weekdays ?? [] })) });
+  });
+
+  app.post("/classes/:id/memberships", requireRoles(["admin", "manager", "reception"]), async (context: any) => {
+    const classId = z.string().uuid().parse(context.req.param("id"));
+    const input = classMembershipInputSchema.parse(await context.req.json());
+    const targetClass = await getManagedClass(context, classId);
+    if (targetClass instanceof Response) return targetClass;
+    const db = context.get("db");
+    const { data: schedule, error: scheduleError } = await db.from("class_schedules").select("weekdays").eq("class_id", classId).eq("clinic_id", context.get("profile").clinic_id).lte("effective_from", input.effectiveFrom).or(`effective_to.is.null,effective_to.gt.${input.effectiveFrom}`).order("effective_from", { ascending: false }).limit(1).maybeSingle();
+    if (scheduleError || !schedule) return fail(context, 422, "CLASS_SCHEDULE_NOT_FOUND", "Não há schedule vigente para a data da matrícula.");
+    if (new Set(input.weekdays).size !== input.weekdays.length || !input.weekdays.every((day) => schedule.weekdays.includes(day))) return fail(context, 422, "INVALID_MEMBERSHIP_WEEKDAYS", "Os dias do paciente devem pertencer à grade da turma.");
+    const { data, error } = await db.from("class_memberships").insert({ clinic_id: context.get("profile").clinic_id, class_id: classId, patient_id: input.patientId, enrollment_id: input.enrollmentId ?? null, effective_from: input.effectiveFrom, effective_to: input.effectiveTo ?? null, weekdays: input.weekdays, created_by: context.get("user").id }).select().single();
+    if (!error && data) await audit(context, "class.membership_created", "class_membership", data.id, targetClass.unit_id);
+    return databaseResult(context, data ? { ...data, effectiveWeekdays: data.weekdays } : data, error, 201);
+  });
+
+  app.patch("/class-memberships/:id", requireRoles(["admin", "manager", "reception"]), async (context: any) => {
+    const membershipId = z.string().uuid().parse(context.req.param("id"));
+    const input = z.object({ weekdays: z.array(z.enum(["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"])).min(1).max(7) }).strict().parse(await context.req.json());
+    const db = context.get("db");
+    const { data: membership, error: membershipError } = await db.from("class_memberships").select("id,class_id,effective_from").eq("id", membershipId).eq("clinic_id", context.get("profile").clinic_id).maybeSingle();
+    if (membershipError || !membership) return databaseResult(context, null, membershipError);
+    const targetClass = await getManagedClass(context, membership.class_id);
+    if (targetClass instanceof Response) return targetClass;
+    const { data: schedule, error: scheduleError } = await db.from("class_schedules").select("weekdays").eq("class_id", membership.class_id).eq("clinic_id", context.get("profile").clinic_id).lte("effective_from", membership.effective_from).or(`effective_to.is.null,effective_to.gt.${membership.effective_from}`).order("effective_from", { ascending: false }).limit(1).maybeSingle();
+    if (scheduleError || !schedule) return fail(context, 422, "CLASS_SCHEDULE_NOT_FOUND", "Não há schedule vigente para esta matrícula.");
+    if (new Set(input.weekdays).size !== input.weekdays.length || !input.weekdays.every((day) => schedule.weekdays.includes(day))) return fail(context, 422, "INVALID_MEMBERSHIP_WEEKDAYS", "Os dias do paciente devem pertencer à grade da turma.");
+    const { data, error } = await db.from("class_memberships").update({ weekdays: input.weekdays }).eq("id", membershipId).eq("clinic_id", context.get("profile").clinic_id).select().single();
+    if (!error && data) await audit(context, "class.membership_weekdays_updated", "class_membership", data.id, targetClass.unit_id);
+    return databaseResult(context, data ? { ...data, effectiveWeekdays: data.weekdays } : data, error);
   });
 
   app.get("/calendar-items", requireRoles(["admin", "manager", "reception", "professional"]), async (context: any) => {
@@ -344,7 +394,8 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
       .eq("id", input.membership_id).eq("clinic_id", clinicId).eq("status", "active").is("deleted_at", null).single();
     if (membershipError || !membership) return databaseResult(context, null, membershipError);
     const slot = Array.isArray(membership.group_slots) ? membership.group_slots[0] : membership.group_slots;
-    const validDate = slot?.weekdays?.includes(weekday)
+    const effectiveWeekdays = membership.weekdays ?? slot?.weekdays ?? [];
+    const validDate = effectiveWeekdays.includes(weekday)
       && input.class_date >= membership.starts_at && (!membership.ends_at || input.class_date <= membership.ends_at)
       && (!slot.starts_on || input.class_date >= slot.starts_on) && (!slot.ends_on || input.class_date <= slot.ends_on);
     if (!validDate) return fail(context, 422, "INVALID_CLASS_DATE", "O paciente não pertence a este horário na data selecionada.");
@@ -803,6 +854,7 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
       patient_id: z.string().uuid(),
       starts_at: z.string().date(),
       ends_at: z.string().date().optional(),
+      weekdays: z.array(z.number().int().min(1).max(5)).min(1).max(5),
     }).strict().parse(await context.req.json());
     const db = context.get("db");
     const clinicId = context.get("profile").clinic_id;
@@ -821,11 +873,11 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
       if (!enrollment) return fail(context, 400, "INVALID_ENROLLMENT", "A matrícula não corresponde ao paciente e à unidade desta turma.");
     }
     if (input.ends_at && input.ends_at < input.starts_at) return fail(context, 400, "INVALID_PERIOD", "A data final não pode ser anterior à inicial.");
+    if (new Set(input.weekdays).size !== input.weekdays.length || !input.weekdays.every((weekday) => slot.weekdays.includes(weekday))) return fail(context, 422, "INVALID_MEMBERSHIP_WEEKDAYS", "Os dias do paciente devem pertencer à turma.");
     const { data: existingMembership } = await db.from("group_slot_memberships").select("id").eq("clinic_id", clinicId).eq("group_slot_id", groupSlotId).eq("patient_id", input.patient_id).eq("status", "active").is("deleted_at", null).eq("starts_at", input.starts_at).maybeSingle();
     if (existingMembership) return ok(context, existingMembership);
     const { data, error } = await db.from("group_slot_memberships").insert({
       ...input,
-      weekdays: slot.weekdays,
       group_slot_id: groupSlotId,
       clinic_id: context.get("profile").clinic_id,
     }).select().single();
@@ -849,6 +901,7 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
       group_slot_id: z.string().uuid().optional(),
       starts_at: z.string().date(),
       ends_at: z.string().date().optional(),
+      weekdays: z.array(z.number().int().min(1).max(5)).min(1).max(5),
     }).strict().refine((value) => !value.ends_at || value.ends_at >= value.starts_at, {
       message: "A data final não pode ser anterior à inicial.",
     }).parse(await context.req.json());
@@ -873,8 +926,9 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
       if (enrollmentError) return databaseResult(context, null, enrollmentError);
       if (!enrollment || enrollment.unit_id !== slot.unit_id) return fail(context, 400, "INVALID_ENROLLMENT", "A turma deve pertencer à mesma unidade da matrícula.");
     }
+    if (new Set(input.weekdays).size !== input.weekdays.length || !input.weekdays.every((weekday) => slot.weekdays.includes(weekday))) return fail(context, 422, "INVALID_MEMBERSHIP_WEEKDAYS", "Os dias do paciente devem pertencer à turma.");
     const { data, error } = await db.from("group_slot_memberships")
-      .update({ ...input, weekdays: slot.weekdays, updated_at: new Date().toISOString() })
+      .update({ ...input, updated_at: new Date().toISOString() })
       .eq("id", id).eq("clinic_id", clinicId).eq("status", "active").is("deleted_at", null).select("id,group_slot_id,weekdays,starts_at,ends_at").single();
     if (!error && data) await audit(context, "group_slot.member_updated", "group_slot_membership", id);
     return databaseResult(context, data, error);
