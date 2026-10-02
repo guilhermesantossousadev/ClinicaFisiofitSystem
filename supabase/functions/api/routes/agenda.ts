@@ -1,4 +1,5 @@
 import { z } from "npm:zod@3.24.2";
+import { effectiveOccurrenceRoster } from "../../../../packages/contracts/src/occurrenceRoster.ts";
 
 export function registerAgendaRoutes(app: any, dependencies: any) {
   const { appointmentFields, appointmentSchema, requireRoles, ok, fail, databaseResult, validateRelatedResourceScope, hasUnitAccess, audit, professionalForUser, isOwnProfessional, getAuthorizedAppointment } = dependencies;
@@ -100,6 +101,10 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
       PROFESSIONAL_SCHEDULE_CONFLICT: [409, "O profissional possui outro compromisso neste horário."],
       CLASS_OCCURRENCE_NOT_FOUND: [404, "Aula não encontrada."],
       OCCURRENCE_CANCELLED: [409, "Esta aula já foi cancelada."],
+      INVALID_OCCURRENCE_STATE_TRANSITION: [409, "Esta aula não pode ter participantes alterados no estado atual."],
+      CLASS_CAPACITY_REACHED: [409, "Esta aula já atingiu a capacidade máxima."],
+      PATIENT_SCHEDULE_CONFLICT: [409, "O paciente possui outro compromisso neste horário."],
+      PATIENT_NOT_FOUND: [404, "Paciente não encontrado."],
       INVALID_OCCURRENCE_STATE_TRANSITION: [409, "Esta aula não pode ser cancelada no estado atual."],
     };
     for (const [code, [httpStatus, detail]] of Object.entries(stableErrors)) {
@@ -298,13 +303,14 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     const occurrenceRows = occurrencesResult.data ?? [];
     const classIds = [...new Set(occurrenceRows.map((occurrence: any) => occurrence.class_id))];
     const scheduleIds = [...new Set(occurrenceRows.map((occurrence: any) => occurrence.class_schedule_id))];
-    const [{ data: memberships, error: membershipsError }, { data: occurrenceSchedules, error: schedulesError }] = await Promise.all([
-      classIds.length ? db.from("class_memberships").select("class_id,effective_from,effective_to,weekdays").eq("clinic_id", clinicId).in("class_id", classIds) : Promise.resolve({ data: [], error: null }),
+    const occurrenceIds = occurrenceRows.map((occurrence: any) => occurrence.id);
+    const [{ data: memberships, error: membershipsError }, { data: occurrenceSchedules, error: schedulesError }, { data: participantRows, error: participantsError }] = await Promise.all([
+      classIds.length ? db.from("class_memberships").select("id,class_id,patient_id,effective_from,effective_to,weekdays,patients(id,name,active,deleted_at)").eq("clinic_id", clinicId).in("class_id", classIds) : Promise.resolve({ data: [], error: null }),
       scheduleIds.length ? db.from("class_schedules").select("id,weekdays").eq("clinic_id", clinicId).in("id", scheduleIds) : Promise.resolve({ data: [], error: null }),
+      occurrenceIds.length ? db.from("occurrence_participants").select("id,class_occurrence_id,patient_id,source_type,source_id,status,patients(id,name,active,deleted_at)").eq("clinic_id", clinicId).in("class_occurrence_id", occurrenceIds) : Promise.resolve({ data: [], error: null }),
     ]);
-    if (membershipsError || schedulesError) return databaseResult(context, null, membershipsError ?? schedulesError);
+    if (membershipsError || schedulesError || participantsError) return databaseResult(context, null, membershipsError ?? schedulesError ?? participantsError);
     const scheduleWeekdays = new Map((occurrenceSchedules ?? []).map((schedule: any) => [schedule.id, schedule.weekdays]));
-    const weekdayForLocalDate = (localDate: string) => ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"][new Date(`${localDate}T12:00:00Z`).getUTCDay()];
     const asOne = (value: any) => Array.isArray(value) ? value[0] ?? null : value ?? null;
     const occurrenceItems = occurrenceRows.map((occurrence: any) => {
       const actualProfessional = asOne(occurrence.actual_professional);
@@ -316,9 +322,9 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
         professional: actualProfessional ?? plannedProfessional,
         plannedProfessional, actualProfessional,
         patient: null, class: classInfo, service: asOne(occurrence.services), room: asOne(occurrence.rooms),
-        occupancy: (memberships ?? []).filter((membership: any) => membership.class_id === occurrence.class_id
-          && membership.effective_from <= occurrence.local_date && (!membership.effective_to || occurrence.local_date < membership.effective_to)
-          && (membership.weekdays ?? scheduleWeekdays.get(occurrence.class_schedule_id) ?? []).includes(weekdayForLocalDate(occurrence.local_date))).length,
+        occupancy: effectiveOccurrenceRoster(occurrence.local_date, scheduleWeekdays.get(occurrence.class_schedule_id) ?? [],
+          (memberships ?? []).filter((membership: any) => membership.class_id === occurrence.class_id).map((membership: any) => ({ ...membership, patient: asOne(membership.patients) })),
+          (participantRows ?? []).filter((participant: any) => participant.class_occurrence_id === occurrence.id).map((participant: any) => ({ ...participant, patient: asOne(participant.patients) }))).length,
         capacity: occurrence.effective_capacity,
       };
     });
@@ -340,17 +346,61 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     const db = context.get("db"); const clinicId = context.get("profile").clinic_id;
     const { data: occurrence, error } = await db.from("class_occurrences").select("id,class_id,class_schedule_id,local_date,local_start_time,local_end_time,start_at,end_at,status,effective_capacity,room_id,planned_professional_id,actual_professional_id,classes(id,name),services(id,name),rooms(id,name),planned_professional:professionals!class_occurrences_planned_professional_id_fkey(id,name),actual_professional:professionals!class_occurrences_actual_professional_id_fkey(id,name)").eq("id", occurrenceId).eq("clinic_id", clinicId).maybeSingle();
     if (error) return databaseResult(context, null, error); if (!occurrence) return fail(context, 404, "CLASS_OCCURRENCE_NOT_FOUND", "Aula não encontrada.");
-    const [{ data: schedule, error: scheduleError }, { data: memberships, error: membershipsError }] = await Promise.all([
+    const [{ data: schedule, error: scheduleError }, { data: memberships, error: membershipsError }, { data: participantRows, error: participantsError }] = await Promise.all([
       db.from("class_schedules").select("weekdays").eq("id", occurrence.class_schedule_id).eq("clinic_id", clinicId).maybeSingle(),
       db.from("class_memberships").select("id,patient_id,effective_from,effective_to,weekdays,patients(id,name,active,deleted_at)").eq("class_id", occurrence.class_id).eq("clinic_id", clinicId),
+      db.from("occurrence_participants").select("id,patient_id,source_type,source_id,status,patients(id,name,active,deleted_at)").eq("class_occurrence_id", occurrenceId).eq("clinic_id", clinicId),
     ]);
-    if (scheduleError || membershipsError) return databaseResult(context, null, scheduleError ?? membershipsError);
-    const weekday = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"][new Date(`${occurrence.local_date}T12:00:00Z`).getUTCDay()];
+    if (scheduleError || membershipsError || participantsError) return databaseResult(context, null, scheduleError ?? membershipsError ?? participantsError);
     const asOne = (item: any) => Array.isArray(item) ? item[0] ?? null : item ?? null;
-    const participants = (memberships ?? []).filter((membership: any) => membership.effective_from <= occurrence.local_date && (!membership.effective_to || occurrence.local_date < membership.effective_to) && (membership.weekdays ?? schedule?.weekdays ?? []).includes(weekday) && !asOne(membership.patients)?.deleted_at).map((membership: any) => ({ id: membership.id, patient: { id: asOne(membership.patients)?.id, name: asOne(membership.patients)?.name, active: asOne(membership.patients)?.active !== false }, effectiveWeekdays: membership.weekdays ?? schedule?.weekdays ?? [] }));
+    const participants = effectiveOccurrenceRoster(occurrence.local_date, schedule?.weekdays ?? [],
+      (memberships ?? []).map((membership: any) => ({ ...membership, patient: asOne(membership.patients) })),
+      (participantRows ?? []).map((participant: any) => ({ ...participant, patient: asOne(participant.patients) })));
     return ok(context, { occurrence: { ...occurrence, classes: asOne(occurrence.classes), services: asOne(occurrence.services), rooms: asOne(occurrence.rooms), plannedProfessional: asOne(occurrence.planned_professional), actualProfessional: asOne(occurrence.actual_professional) }, participants, occupancy: participants.length });
   }
   app.get("/class-occurrences/:id", requireRoles(["admin", "manager", "reception", "professional"]), async (context: any) => getOccurrenceDetail(context, z.string().uuid().parse(context.req.param("id"))));
+  app.get("/class-occurrences/:id/available-participants", requireRoles(["admin", "manager", "reception"]), async (context: any) => {
+    const id = z.string().uuid().parse(context.req.param("id")); const rawSearch = z.string().trim().min(2).max(80).parse(context.req.query("search") ?? "");
+    const search = rawSearch.replace(/[%_,()]/g, "").trim();
+    if (search.length < 2) return fail(context, 422, "INVALID_PATIENT_SEARCH", "Informe ao menos 2 letras do nome do paciente.");
+    const db = context.get("db"); const clinicId = context.get("profile").clinic_id;
+    const { data: canEditAgenda, error: permissionError } = await db.rpc("has_module_permission", { target_module: "agenda", edit_access: true });
+    if (permissionError || canEditAgenda !== true) return fail(context, 403, "MODULE_FORBIDDEN", "Seu usuário não tem permissão para editar a agenda.");
+    const { data: occurrence, error } = await db.from("class_occurrences").select("id,unit_id,status").eq("id", id).eq("clinic_id", clinicId).maybeSingle();
+    if (error) return databaseResult(context, null, error); if (!occurrence) return fail(context, 404, "CLASS_OCCURRENCE_NOT_FOUND", "Aula não encontrada.");
+    if (!(await hasUnitAccess(context, occurrence.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+    if (occurrence.status !== "planned") return fail(context, 409, occurrence.status === "cancelled" ? "OCCURRENCE_CANCELLED" : "INVALID_OCCURRENCE_STATE_TRANSITION", occurrence.status === "cancelled" ? "Esta aula já foi cancelada." : "Esta aula não pode ter participantes alterados no estado atual.");
+    const { data: rosterRows, error: rosterError } = await db.rpc("effective_occurrence_patient_ids", { p_occurrence_id: id });
+    if (rosterError) return databaseResult(context, null, rosterError);
+    const currentIds = new Set((rosterRows ?? []).map((participant: any) => participant.patient_id));
+    const { data, error: patientError } = await db.from("patients").select("id,name,active").eq("clinic_id", clinicId).eq("primary_unit_id", occurrence.unit_id).is("deleted_at", null).ilike("name", `%${search}%`).order("name").limit(20);
+    if (patientError) return databaseResult(context, null, patientError);
+    return ok(context, { items: (data ?? []).filter((patient: any) => !currentIds.has(patient.id)).map(({ id: patientId, name, active }: any) => ({ id: patientId, name, active })) });
+  });
+  app.post("/class-occurrences/:id/participants", requireRoles(["admin", "manager", "reception"]), async (context: any) => {
+    const id = z.string().uuid().parse(context.req.param("id")); const input = z.object({ patientId: z.string().uuid() }).strict().parse(await context.req.json());
+    const db = context.get("db"); const clinicId = context.get("profile").clinic_id;
+    const { data: target, error: targetError } = await db.from("class_occurrences").select("unit_id").eq("id", id).eq("clinic_id", clinicId).maybeSingle();
+    if (targetError) return databaseResult(context, null, targetError); if (!target) return fail(context, 404, "CLASS_OCCURRENCE_NOT_FOUND", "Aula não encontrada.");
+    const scopeError = await validateRelatedResourceScope(context, { unit_id: target.unit_id, patient_id: input.patientId });
+    if (scopeError) return scopeError;
+    const { data, error } = await db.rpc("add_occurrence_participant", { p_occurrence_id: id, p_patient_id: input.patientId });
+    if (error) return classScheduleDatabaseResult(context, data, error);
+    if (data?.status === "added") await audit(context, "class_occurrence.participant_added", "occurrence_participant", data.participantId, target.unit_id, { occurrenceId: id, patientId: input.patientId, sourceType: data.sourceType });
+    return ok(context, data, data?.status === "added" ? 201 : 200);
+  });
+  app.delete("/class-occurrences/:id/participants/:patientId", requireRoles(["admin", "manager", "reception"]), async (context: any) => {
+    const id = z.string().uuid().parse(context.req.param("id")); const patientId = z.string().uuid().parse(context.req.param("patientId"));
+    const db = context.get("db"); const clinicId = context.get("profile").clinic_id;
+    const { data: target, error: targetError } = await db.from("class_occurrences").select("unit_id").eq("id", id).eq("clinic_id", clinicId).maybeSingle();
+    if (targetError) return databaseResult(context, null, targetError); if (!target) return fail(context, 404, "CLASS_OCCURRENCE_NOT_FOUND", "Aula não encontrada.");
+    const scopeError = await validateRelatedResourceScope(context, { unit_id: target.unit_id, patient_id: patientId });
+    if (scopeError) return scopeError;
+    const { data, error } = await db.rpc("remove_occurrence_participant", { p_occurrence_id: id, p_patient_id: patientId });
+    if (error) return classScheduleDatabaseResult(context, data, error);
+    if (data?.status === "removed") await audit(context, "class_occurrence.participant_removed", "occurrence_participant", null, target.unit_id, { occurrenceId: id, patientId, sourceType: data.sourceType });
+    return ok(context, data);
+  });
   app.patch("/class-occurrences/:id", requireRoles(["admin", "manager", "reception"]), async (context: any) => {
     const id = z.string().uuid().parse(context.req.param("id")); const input = occurrenceActionSchema.parse(await context.req.json());
     if (input.startTime >= input.endTime) return fail(context, 422, "INVALID_TIME_RANGE", "O horário de início deve ser anterior ao horário final.");

@@ -1,4 +1,6 @@
 import { z } from "zod";
+export { effectiveOccurrenceRoster } from "./occurrenceRoster";
+export type { EffectiveOccurrenceParticipant, PersistedOccurrenceParticipant, RosterMembership } from "./occurrenceRoster";
 
 export type Role = "admin" | "manager" | "reception" | "professional" | "finance";
 export type ApiError = { code: string; message: string; details?: unknown };

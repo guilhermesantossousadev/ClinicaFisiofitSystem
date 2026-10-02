@@ -42,6 +42,8 @@ Deno.test("rotas clínicas e financeiras são associadas ao módulo correto", ()
   assert(moduleForPath("/api/v1/financial-entries") === "finance", "lançamento deve exigir finance");
   assert(moduleForPath("/api/v1/attendance/daily") === "agenda", "chamada diária deve exigir agenda");
   assert(moduleForPath("/api/v1/classes") === "agenda", "turmas devem exigir agenda");
+  assert(moduleForPath("/api/v1/class-occurrences/123/participants", "POST") === "agenda", "mutações de participantes devem exigir edição da agenda");
+  assert(moduleForPath("/api/v1/class-occurrences/123", "GET") === "agenda", "detalhes de occurrence devem exigir visualização da agenda");
   assert(moduleForPath("/api/v1/units", "POST") === "settings", "escrita de unidade deve exigir settings");
   assert(moduleForPath("/api/v1/units", "GET") === null, "referência de unidade deve continuar sob RLS");
 });

@@ -204,11 +204,12 @@ test("oferece a migração legada somente à administração com confirmação e
 });
 
 test("suporta frequência semanal por membership sem inventar dias no legado", async () => {
-  const [migration, agenda, portal, apiIndex] = await Promise.all([
+  const [migration, agenda, portal, apiIndex, roster] = await Promise.all([
     readFile(new URL("../supabase/migrations/202610010007_add_weekdays_to_class_memberships.sql", import.meta.url), "utf8"),
     readFile(new URL("../supabase/functions/api/routes/agenda.ts", import.meta.url), "utf8"),
     readFile(new URL("../apps/portal/src/presentation/modules/OperationalAgenda.tsx", import.meta.url), "utf8"),
     readFile(new URL("../supabase/functions/api/index.ts", import.meta.url), "utf8"),
+    readFile(new URL("../packages/contracts/src/occurrenceRoster.ts", import.meta.url), "utf8"),
   ]);
   assert.match(migration, /add column weekdays public\.class_weekday\[\]/);
   assert.match(migration, /weekdays is null or/);
@@ -218,8 +219,9 @@ test("suporta frequência semanal por membership sem inventar dias no legado", a
   assert.match(agenda, /INVALID_MEMBERSHIP_WEEKDAYS/);
   assert.match(agenda, /effectiveWeekdays: membership\.weekdays \?\? schedule\?\.weekdays/);
   assert.match(agenda, /const effectiveWeekdays = membership\.weekdays \?\? slot\?\.weekdays/);
-  assert.match(agenda, /membership\.weekdays \?\? scheduleWeekdays\.get\(occurrence\.class_schedule_id\)/);
-  assert.match(agenda, /membership\.effective_from <= occurrence\.local_date/);
+  assert.match(roster, /membership\.weekdays \?\? scheduleWeekdays/);
+  assert.match(roster, /membership\.effective_from > localDate/);
+  assert.match(roster, /weekday/);
   assert.match(agenda, /!input\.weekdays\.every\(\(weekday\) => slot\.weekdays\.includes\(weekday\)\)/);
   assert.match(portal, /WeekdayCheckboxGroup name="weekdays"/);
   assert.match(portal, /Selecione ao menos um dia para o paciente/);
@@ -274,6 +276,40 @@ test("confirma cancelamento da occurrence em diálogo do portal", async () => {
   assert.match(confirmation, /occurrenceCanceling \? "Cancelando…" : "Cancelar aula"/);
   assert.match(confirmation, /occurrenceCancelError && <p className="occurrence-cancel-error" role="alert">/);
   assert.match(confirmation, /disabled=\{occurrenceCanceling\}/);
+});
+
+test("opera participantes apenas na occurrence, preservando membership e a trilha", async () => {
+  const [route, migration, portal] = await Promise.all([
+    readFile(new URL("../supabase/functions/api/routes/agenda.ts", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/202610020002_occurrence_participants.sql", import.meta.url), "utf8"),
+    readFile(new URL("../apps/portal/src/presentation/modules/OperationalAgenda.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(migration, /create table public\.occurrence_participants/);
+  assert.match(migration, /unique \(class_occurrence_id, patient_id\)/);
+  assert.match(migration, /source_type in \('membership', 'makeup_reservation', 'ad_hoc_admission'\)/);
+  assert.match(migration, /status = 'cancelled'/);
+  assert.match(migration, /public\.has_unit_access\(target\.unit_id\)/);
+  assert.match(migration, /has_module_permission\('agenda', true\)/);
+  assert.match(migration, /CLASS_CAPACITY_REACHED/);
+  assert.match(migration, /PATIENT_SCHEDULE_CONFLICT/);
+  assert.match(migration, /a\.starts_at < target\.end_at and target\.start_at < a\.ends_at/);
+  assert.match(migration, /o\.start_at < target\.end_at and target\.start_at < o\.end_at/);
+  assert.doesNotMatch(migration, /update public\.class_memberships|delete from public\.class_memberships/);
+  assert.match(route, /app\.post\("\/class-occurrences\/:id\/participants"/);
+  assert.match(route, /app\.delete\("\/class-occurrences\/:id\/participants\/:patientId"/);
+  assert.match(route, /app\.get\("\/class-occurrences\/:id\/available-participants"/);
+  assert.match(route, /requireRoles\(\["admin", "manager", "reception"\]\)/);
+  assert.match(route, /effectiveOccurrenceRoster\(/);
+  assert.match(route, /occupancy: effectiveOccurrenceRoster/);
+  assert.match(route, /class_occurrence\.participant_added/);
+  assert.match(route, /class_occurrence\.participant_removed/);
+  assert.match(portal, /\+ Adicionar paciente/);
+  assert.match(portal, /Remover desta aula/);
+  assert.match(portal, /Adicionado nesta aula/);
+  assert.match(portal, /continuará matriculado normalmente na turma/);
+  assert.match(portal, /occurrence-participant-error/);
+  assert.match(portal, /effective_capacity/);
+  assert.doesNotMatch(migration, /group_slots|group_slot_memberships|class_attendances/);
 });
 
 test("aplica a política crítica de conflitos de appointments no servidor", async () => {
@@ -353,13 +389,13 @@ test("expõe projection semanal read-only combinando occurrences e appointments"
   assert.match(route, /sourceType: "CLASS_OCCURRENCE"/);
   assert.match(route, /sourceType: "APPOINTMENT"/);
   assert.match(route, /actualProfessional \?\? plannedProfessional/);
-  assert.match(route, /membership\.effective_from <= occurrence\.local_date/);
-  assert.match(route, /membership\.weekdays \?\? scheduleWeekdays\.get\(occurrence\.class_schedule_id\)/);
+  assert.match(route, /occupancy: effectiveOccurrenceRoster\(occurrence\.local_date/);
+  assert.match(route, /participantRows \?\? \[\]/);
   assert.match(route, /capacity: occurrence\.effective_capacity/);
   assert.match(route, /query\.type === "APPOINTMENT"/);
   assert.match(route, /sort\(\(first, second\) => first\.startAt\.localeCompare/);
   assert.match(route, /PROFESSIONAL_FORBIDDEN/);
-  const projection = route.slice(route.indexOf('app.get("/calendar-items"'), route.indexOf('app.get("/attendance/daily"'));
+  const projection = route.slice(route.indexOf('app.get("/calendar-items"'), route.indexOf("const occurrenceActionSchema"));
   assert.doesNotMatch(projection, /generate_class_occurrences|\.insert\(|\.update\(|\.delete\(|group_slots/);
 });
 
