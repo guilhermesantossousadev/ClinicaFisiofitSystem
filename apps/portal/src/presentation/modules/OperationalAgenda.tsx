@@ -236,7 +236,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
       const result = await api<OccurrenceDetail>(`/class-occurrences/${occurrenceId}`);
       setOccurrenceDetail(result.data ?? null);
     },
-    onRefreshError: failure,
+    onRefreshError: (refreshError) => failure(refreshError),
   }));
   const calendarPath = selectedUnitId
     ? `/calendar-items?unitId=${encodeURIComponent(selectedUnitId)}&from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`
