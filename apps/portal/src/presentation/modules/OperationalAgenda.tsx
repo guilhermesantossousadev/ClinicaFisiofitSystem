@@ -2,6 +2,7 @@ import { FormEvent, type FormEventHandler, type ReactNode, useEffect, useMemo, u
 import { api } from "../../infrastructure/http/api";
 import type { Role } from "../../domain/portal";
 import { agendaCapabilities, agendaResourcePaths, patientsAvailableForGroup, professionalsForUnit, resourcesForUnit } from "../../application/portal/agendaResources";
+import { createOccurrenceCancellation } from "../../application/portal/occurrenceCancellation";
 import { CheckboxField, FormSection, SelectField, TextareaField, TextField, WeekdayCheckboxGroup } from "../components/FormPrimitives";
 import { type AgendaEnrollmentContext, Row, Unit, messageOf, value, isoLocal, localDateTime, dateKey, weekdaysLabel, useResources, Select, PatientPicker, DrawerForm, ModuleState, EditableOperationalTable } from "./OperationalShared";
 
@@ -218,6 +219,25 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
   const [occurrenceLoading, setOccurrenceLoading] = useState(false);
   const [occurrenceEditing, setOccurrenceEditing] = useState(false);
   const [occurrenceSaving, setOccurrenceSaving] = useState(false);
+  const [occurrenceCanceling, setOccurrenceCanceling] = useState(false);
+  const [occurrenceCancelError, setOccurrenceCancelError] = useState("");
+  const [confirmOccurrenceCancellation, setConfirmOccurrenceCancellation] = useState(false);
+  const [runOccurrenceCancellation] = useState(() => createOccurrenceCancellation({
+    request: async (occurrenceId) => { await api(`/class-occurrences/${occurrenceId}/cancel`, { method: "POST" }); },
+    onPending: setOccurrenceCanceling,
+    onSuccess: (occurrenceId) => {
+      setOccurrenceDetail((current) => current ? { ...current, occurrence: { ...current.occurrence, status: "cancelled" } } : current);
+      setConfirmOccurrenceCancellation(false);
+      success("Aula cancelada. As demais aulas permanecem normalmente.");
+    },
+    onError: (actionError) => setOccurrenceCancelError(messageOf(actionError).replace(/^Erro:\s*/, "")),
+    refresh: async (occurrenceId) => {
+      await reloadAgenda();
+      const result = await api<OccurrenceDetail>(`/class-occurrences/${occurrenceId}`);
+      setOccurrenceDetail(result.data ?? null);
+    },
+    onRefreshError: failure,
+  }));
   const calendarPath = selectedUnitId
     ? `/calendar-items?unitId=${encodeURIComponent(selectedUnitId)}&from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`
     : "";
@@ -230,8 +250,9 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
     try { await api(`/class-occurrences/${selectedOccurrence.sourceId}`, { method: "PATCH", body: JSON.stringify({ startTime: value(form, "start_time"), endTime: value(form, "end_time"), actualProfessionalId: value(form, "actual_professional_id") || null, roomId: value(form, "room_id") || null }) }); success("Alteração aplicada somente a esta aula."); setOccurrenceEditing(false); await reloadAgenda(); const result = await api<OccurrenceDetail>(`/class-occurrences/${selectedOccurrence.sourceId}`); setOccurrenceDetail(result.data ?? null); } catch (actionError) { failure(actionError); } finally { setOccurrenceSaving(false); }
   }
   async function cancelOccurrence() {
-    if (!selectedOccurrence || !occurrenceDetail || !window.confirm(`Cancelar somente a aula de ${new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(occurrenceDetail.occurrence.start_at))}?\n\nAs demais aulas da turma continuarão normalmente.`)) return;
-    setOccurrenceSaving(true); try { await api(`/class-occurrences/${selectedOccurrence.sourceId}/cancel`, { method: "POST" }); success("Aula cancelada. As demais aulas permanecem normalmente."); await reloadAgenda(); const result = await api<OccurrenceDetail>(`/class-occurrences/${selectedOccurrence.sourceId}`); setOccurrenceDetail(result.data ?? null); } catch (actionError) { failure(actionError); } finally { setOccurrenceSaving(false); }
+    if (!selectedOccurrence || !occurrenceDetail || occurrenceCanceling) return;
+    setOccurrenceCancelError("");
+    await runOccurrenceCancellation(selectedOccurrence.sourceId);
   }
   useEffect(() => {
     if (!selectedOccurrence) { setOccurrenceDetail(null); setOccurrenceEditing(false); return; }
@@ -700,8 +721,17 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
           {occurrenceDetail.occurrence.actualProfessional && <div><dt>Profissional nesta aula</dt><dd>{occurrenceDetail.occurrence.actualProfessional.name}</dd></div>}
           <div><dt>Capacidade</dt><dd>{occurrenceDetail.occupancy}/{occurrenceDetail.occurrence.effective_capacity}</dd></div><div><dt>Sala</dt><dd>{occurrenceDetail.occurrence.rooms?.name ?? "Não informada"}</dd></div><div><dt>Serviço</dt><dd>{occurrenceDetail.occurrence.services?.name ?? "Não informado"}</dd></div>
         </dl><section className="occurrence-participants" aria-labelledby="occurrence-participants-title"><h3 id="occurrence-participants-title">Participantes desta aula</h3><p>{occurrenceDetail.participants.length} participante{occurrenceDetail.participants.length === 1 ? "" : "s"}</p>{occurrenceDetail.participants.length ? <ul>{occurrenceDetail.participants.map((participant) => <li key={participant.id}><span>{participant.patient.name}</span><small>{participant.patient.active ? "Ativo" : "Inativo"}</small></li>)}</ul> : <p className="empty-state">Nenhum aluno previsto para esta aula.</p>}</section>
-        <div className="modal-actions">{canManageGroups && occurrenceDetail.occurrence.status !== "cancelled" && <><button type="button" className="btn secondary" onClick={() => setOccurrenceEditing(true)}>Alterar somente esta aula</button><button type="button" className="btn secondary action-delete" disabled={occurrenceSaving} onClick={() => void cancelOccurrence()}>Cancelar esta aula</button></>}<button type="button" className="btn secondary" disabled title="Disponível na próxima etapa">Abrir chamada</button><button type="button" className="btn primary" onClick={() => setSelectedOccurrence(null)}>Fechar</button></div></div>}
+        <div className="modal-actions">{canManageGroups && occurrenceDetail.occurrence.status !== "cancelled" && <><button type="button" className="btn secondary" onClick={() => setOccurrenceEditing(true)}>Alterar somente esta aula</button><button type="button" className="btn secondary action-delete" onClick={() => { setOccurrenceCancelError(""); setConfirmOccurrenceCancellation(true); }}>Cancelar esta aula</button></>}<button type="button" className="btn secondary" disabled title="Disponível na próxima etapa">Abrir chamada</button><button type="button" className="btn primary" onClick={() => setSelectedOccurrence(null)}>Fechar</button></div></div>}
       </AgendaDialog>}
+      {selectedOccurrence && occurrenceDetail && confirmOccurrenceCancellation && <div className="occurrence-confirmation-backdrop" role="presentation"><section className="occurrence-confirmation" role="alertdialog" aria-modal="true" aria-labelledby="occurrence-cancel-title" aria-describedby="occurrence-cancel-description">
+        <div className="modal-head"><div><p className="eyebrow">AÇÃO PONTUAL</p><h2 id="occurrence-cancel-title">Cancelar esta aula?</h2></div></div>
+        <div className="occurrence-confirmation-copy" id="occurrence-cancel-description">
+          <p>Você está cancelando somente a aula de {new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(occurrenceDetail.occurrence.start_at))}, {appointmentTime(occurrenceDetail.occurrence.start_at)}–{appointmentTime(occurrenceDetail.occurrence.end_at)}.</p>
+          <p>As demais aulas da turma continuarão normalmente.</p>
+          {occurrenceCancelError && <p className="occurrence-cancel-error" role="alert">{occurrenceCancelError}</p>}
+        </div>
+        <div className="modal-actions"><button type="button" className="btn secondary" disabled={occurrenceCanceling} onClick={() => setConfirmOccurrenceCancellation(false)}>Voltar</button><button type="button" className="btn occurrence-destructive-action" disabled={occurrenceCanceling} onClick={() => void cancelOccurrence()}>{occurrenceCanceling ? "Cancelando…" : "Cancelar aula"}</button></div>
+      </section></div>}
       {selectedGroupCell && (() => {
         const selectedMembers = selectedGroupCell.slot.class_id
           ? canonicalMembers.filter((member) => {

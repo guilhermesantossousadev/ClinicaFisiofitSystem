@@ -261,6 +261,21 @@ test("detalha e altera somente a ClassOccurrence sem tocar no schedule ou no leg
   assert.match(generator, /on conflict \(class_schedule_id, local_date\) do nothing/);
 });
 
+test("confirma cancelamento da occurrence em diálogo do portal", async () => {
+  const agenda = await readFile(new URL("../apps/portal/src/presentation/modules/OperationalAgenda.tsx", import.meta.url), "utf8");
+  const confirmation = agenda.slice(agenda.indexOf("{selectedOccurrence && occurrenceDetail && confirmOccurrenceCancellation"), agenda.indexOf("{selectedGroupCell && (() => {"));
+  assert.doesNotMatch(agenda.slice(agenda.indexOf("async function cancelOccurrence()"), agenda.indexOf("useEffect(() => {\n    if (!selectedOccurrence")), /window\.(confirm|alert|prompt)\(/);
+  assert.match(agenda, /onClick=\{\(\) => \{ setOccurrenceCancelError\(""\); setConfirmOccurrenceCancellation\(true\); \}\}/);
+  assert.match(confirmation, /Cancelar esta aula\?/);
+  assert.match(confirmation, /Você está cancelando somente a aula de/);
+  assert.match(confirmation, /As demais aulas da turma continuarão normalmente\./);
+  assert.match(confirmation, /onClick=\{\(\) => setConfirmOccurrenceCancellation\(false\)\}>Voltar/);
+  assert.match(confirmation, /onClick=\{\(\) => void cancelOccurrence\(\)\}/);
+  assert.match(confirmation, /occurrenceCanceling \? "Cancelando…" : "Cancelar aula"/);
+  assert.match(confirmation, /occurrenceCancelError && <p className="occurrence-cancel-error" role="alert">/);
+  assert.match(confirmation, /disabled=\{occurrenceCanceling\}/);
+});
+
 test("aplica a política crítica de conflitos de appointments no servidor", async () => {
   const [route, migration] = await Promise.all([
     readFile(new URL("../supabase/functions/api/routes/agenda.ts", import.meta.url), "utf8"),

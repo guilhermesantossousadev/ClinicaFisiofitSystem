@@ -342,6 +342,21 @@
 .appointment-readonly-details dt { color: var(--muted); font-size: 11px; font-weight: 800; text-transform: uppercase; }
 .appointment-readonly-details dd { margin: 4px 0 0; color: var(--ink); font-size: 14px; overflow-wrap: anywhere; }
 .appointment-readonly-details > .btn { width: 100%; min-height: 44px; }
+.occurrence-confirmation-backdrop { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 16px; background: rgba(17,35,31,.56); }
+.occurrence-confirmation { width: min(440px, 100%); overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: #fff; box-shadow: 0 24px 80px rgba(0,0,0,.3); }
+.occurrence-confirmation-copy { padding: 18px 24px; color: var(--ink); font-size: 14px; line-height: 1.55; }
+.occurrence-confirmation-copy p { margin: 0 0 12px; }
+.occurrence-confirmation-copy p:last-child { margin-bottom: 0; }
+.occurrence-cancel-error { padding: 10px 12px; border: 1px solid #d88f95; border-radius: 8px; background: #fff2f3; color: #7f222a; }
+.occurrence-destructive-action { min-height: 44px; border: 1px solid #a12c36; border-radius: 8px; background: #a12c36; color: #fff; font-weight: 750; }
+.occurrence-destructive-action:hover:not(:disabled) { background: #84222b; }
+.occurrence-destructive-action:disabled { cursor: wait; opacity: .72; }
+.occurrence-confirmation .modal-actions { align-items: center; }
+@media (max-width: 720px) {
+  .occurrence-confirmation-backdrop { padding: 10px; }
+  .occurrence-confirmation .modal-actions { flex-direction: column-reverse; }
+  .occurrence-confirmation .modal-actions .btn { width: 100%; min-height: 48px; }
+}
 .blocked-slot-explanation { display: grid; align-content: center; gap: 4px; min-height: 72px; padding: 12px; border: 1px dashed #8796a2; border-radius: 9px; background: #f4f6f7; }
 .blocked-slot-explanation span { color: var(--muted); font-size: 12px; }
 .agenda-mobile-list { display: none; }
