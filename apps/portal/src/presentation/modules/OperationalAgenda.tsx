@@ -16,6 +16,7 @@ type CalendarItem = {
   patient?: Row | null; class?: Row | null; service?: Row | null; room?: Row | null;
   occupancy?: number | null; capacity?: number | null;
 };
+type OccurrenceDetail = { occurrence: any; participants: Array<{ id: string; patient: { id: string; name: string; active: boolean }; effectiveWeekdays: string[] }>; occupancy: number };
 
 const APPOINTMENT_STATUS: Record<string, string> = {
   scheduled: "Agendado",
@@ -213,12 +214,31 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
   const [savingMembershipWeekdays, setSavingMembershipWeekdays] = useState(false);
   const [canonicalMembers, setCanonicalMembers] = useState<Row[]>([]);
   const [selectedOccurrence, setSelectedOccurrence] = useState<CalendarItem | null>(null);
+  const [occurrenceDetail, setOccurrenceDetail] = useState<OccurrenceDetail | null>(null);
+  const [occurrenceLoading, setOccurrenceLoading] = useState(false);
+  const [occurrenceEditing, setOccurrenceEditing] = useState(false);
+  const [occurrenceSaving, setOccurrenceSaving] = useState(false);
   const calendarPath = selectedUnitId
     ? `/calendar-items?unitId=${encodeURIComponent(selectedUnitId)}&from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`
     : "";
   const { data: calendarData, loading: calendarLoading, error: calendarError, reload: reloadCalendar } = useResources(calendarPath ? [calendarPath] : []);
   const calendarItems: CalendarItem[] = calendarPath ? calendarData[calendarPath]?.items ?? [] : [];
   const reloadAgenda = async () => { await Promise.all([reload(), reloadCalendar()]); };
+  async function saveOccurrence(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); if (!selectedOccurrence) return;
+    const form = new FormData(event.currentTarget); setOccurrenceSaving(true);
+    try { await api(`/class-occurrences/${selectedOccurrence.sourceId}`, { method: "PATCH", body: JSON.stringify({ startTime: value(form, "start_time"), endTime: value(form, "end_time"), actualProfessionalId: value(form, "actual_professional_id") || null, roomId: value(form, "room_id") || null }) }); success("Alteração aplicada somente a esta aula."); setOccurrenceEditing(false); await reloadAgenda(); const result = await api<OccurrenceDetail>(`/class-occurrences/${selectedOccurrence.sourceId}`); setOccurrenceDetail(result.data ?? null); } catch (actionError) { failure(actionError); } finally { setOccurrenceSaving(false); }
+  }
+  async function cancelOccurrence() {
+    if (!selectedOccurrence || !occurrenceDetail || !window.confirm(`Cancelar somente a aula de ${new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(occurrenceDetail.occurrence.start_at))}?\n\nAs demais aulas da turma continuarão normalmente.`)) return;
+    setOccurrenceSaving(true); try { await api(`/class-occurrences/${selectedOccurrence.sourceId}/cancel`, { method: "POST" }); success("Aula cancelada. As demais aulas permanecem normalmente."); await reloadAgenda(); const result = await api<OccurrenceDetail>(`/class-occurrences/${selectedOccurrence.sourceId}`); setOccurrenceDetail(result.data ?? null); } catch (actionError) { failure(actionError); } finally { setOccurrenceSaving(false); }
+  }
+  useEffect(() => {
+    if (!selectedOccurrence) { setOccurrenceDetail(null); setOccurrenceEditing(false); return; }
+    let active = true; setOccurrenceLoading(true);
+    void api<OccurrenceDetail>(`/class-occurrences/${selectedOccurrence.sourceId}`).then((result) => { if (active) setOccurrenceDetail(result.data ?? null); }).catch((actionError) => { if (active) failure(actionError); }).finally(() => { if (active) setOccurrenceLoading(false); });
+    return () => { active = false; };
+  }, [selectedOccurrence?.sourceId]);
   // The unit in this form can differ from the global unit selector. Fetch its
   // patients explicitly so a valid patient never disappears from the picker.
   const appointmentPatientsPath = newAppointmentUnitId
@@ -666,15 +686,21 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
         {!visibleUnits.length && <p>Selecione uma unidade para consultar as vagas.</p>}
       </section>
       {selectedOccurrence && <AgendaDialog labelId="occurrence-details-title" className="calendar-edit-modal" onClose={() => setSelectedOccurrence(null)}>
-        <div className="modal-head"><div><p className="eyebrow">TURMA · {CALENDAR_STATUS[selectedOccurrence.status] ?? selectedOccurrence.status}</p><h2 id="occurrence-details-title">{selectedOccurrence.title}</h2></div><button type="button" onClick={() => setSelectedOccurrence(null)} aria-label="Fechar">×</button></div>
-        <div className="appointment-readonly-details"><dl>
-          <div><dt>Data e horário</dt><dd>{new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(selectedOccurrence.startAt))} – {appointmentTime(selectedOccurrence.endAt)}</dd></div>
-          <div><dt>Profissional</dt><dd>{selectedOccurrence.professional?.name ?? "Não informado"}</dd></div>
-          <div><dt>Status</dt><dd>{CALENDAR_STATUS[selectedOccurrence.status] ?? selectedOccurrence.status}</dd></div>
-          <div><dt>Capacidade</dt><dd>{selectedOccurrence.occupancy == null ? selectedOccurrence.capacity ?? "Não informada" : `${selectedOccurrence.occupancy}/${selectedOccurrence.capacity}`}</dd></div>
-          <div><dt>Sala</dt><dd>{selectedOccurrence.room?.name ?? "Não informada"}</dd></div>
-          <div><dt>Serviço</dt><dd>{selectedOccurrence.service?.name ?? "Não informado"}</dd></div>
-        </dl><button type="button" className="btn secondary" onClick={() => setSelectedOccurrence(null)}>Fechar</button></div>
+        <div className="modal-head"><div><p className="eyebrow">TURMA · {CALENDAR_STATUS[occurrenceDetail?.occurrence.status ?? selectedOccurrence.status] ?? (occurrenceDetail?.occurrence.status ?? selectedOccurrence.status)}</p><h2 id="occurrence-details-title">{occurrenceDetail?.occurrence.classes?.name ?? selectedOccurrence.title}</h2></div><button type="button" onClick={() => setSelectedOccurrence(null)} aria-label="Fechar">×</button></div>
+        {occurrenceLoading || !occurrenceDetail ? <p className="empty-state" role="status">Carregando detalhes da aula…</p> : occurrenceEditing ? <form className="modal-form" onSubmit={saveOccurrence}>
+          <p className="form-instructions">Esta alteração afetará somente a aula de {new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(occurrenceDetail.occurrence.start_at))}.</p>
+          <div className="form-row"><TextField name="start_time" label="Horário inicial" type="time" defaultValue={String(occurrenceDetail.occurrence.local_start_time).slice(0, 5)} required /><TextField name="end_time" label="Horário final" type="time" defaultValue={String(occurrenceDetail.occurrence.local_end_time).slice(0, 5)} required /></div>
+          <SelectField name="actual_professional_id" label="Profissional nesta aula" defaultValue={occurrenceDetail.occurrence.actual_professional_id ?? ""}><option value="">Manter profissional planejado</option>{professionalsForUnit(professionals, selectedOccurrence.unitId, occurrenceDetail.occurrence.actual_professional_id ?? occurrenceDetail.occurrence.planned_professional_id ?? "").map((professional) => <option key={String(professional.id)} value={String(professional.id)}>{String(professional.name)}</option>)}</SelectField>
+          <SelectField name="room_id" label="Sala" defaultValue={occurrenceDetail.occurrence.room_id ?? ""}><option value="">Não informada</option>{resourcesForUnit(rooms, selectedOccurrence.unitId).map((room) => <option key={String(room.id)} value={String(room.id)}>{String(room.name)}</option>)}</SelectField>
+          <div className="modal-actions"><button type="button" className="btn secondary" onClick={() => setOccurrenceEditing(false)}>Voltar</button><button className="btn primary" disabled={occurrenceSaving}>{occurrenceSaving ? "Salvando…" : "Salvar somente esta aula"}</button></div>
+        </form> : <div className="appointment-readonly-details occurrence-details"><dl>
+          <div><dt>Data e horário</dt><dd>{new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(occurrenceDetail.occurrence.start_at))} – {appointmentTime(occurrenceDetail.occurrence.end_at)}</dd></div>
+          <div><dt>Status</dt><dd>{CALENDAR_STATUS[occurrenceDetail.occurrence.status] ?? occurrenceDetail.occurrence.status}</dd></div>
+          <div><dt>Profissional planejado</dt><dd>{occurrenceDetail.occurrence.plannedProfessional?.name ?? "Não informado"}</dd></div>
+          {occurrenceDetail.occurrence.actualProfessional && <div><dt>Profissional nesta aula</dt><dd>{occurrenceDetail.occurrence.actualProfessional.name}</dd></div>}
+          <div><dt>Capacidade</dt><dd>{occurrenceDetail.occupancy}/{occurrenceDetail.occurrence.effective_capacity}</dd></div><div><dt>Sala</dt><dd>{occurrenceDetail.occurrence.rooms?.name ?? "Não informada"}</dd></div><div><dt>Serviço</dt><dd>{occurrenceDetail.occurrence.services?.name ?? "Não informado"}</dd></div>
+        </dl><section className="occurrence-participants" aria-labelledby="occurrence-participants-title"><h3 id="occurrence-participants-title">Participantes desta aula</h3><p>{occurrenceDetail.participants.length} participante{occurrenceDetail.participants.length === 1 ? "" : "s"}</p>{occurrenceDetail.participants.length ? <ul>{occurrenceDetail.participants.map((participant) => <li key={participant.id}><span>{participant.patient.name}</span><small>{participant.patient.active ? "Ativo" : "Inativo"}</small></li>)}</ul> : <p className="empty-state">Nenhum aluno previsto para esta aula.</p>}</section>
+        <div className="modal-actions">{canManageGroups && occurrenceDetail.occurrence.status !== "cancelled" && <><button type="button" className="btn secondary" onClick={() => setOccurrenceEditing(true)}>Alterar somente esta aula</button><button type="button" className="btn secondary action-delete" disabled={occurrenceSaving} onClick={() => void cancelOccurrence()}>Cancelar esta aula</button></>}<button type="button" className="btn secondary" disabled title="Disponível na próxima etapa">Abrir chamada</button><button type="button" className="btn primary" onClick={() => setSelectedOccurrence(null)}>Fechar</button></div></div>}
       </AgendaDialog>}
       {selectedGroupCell && (() => {
         const selectedMembers = selectedGroupCell.slot.class_id

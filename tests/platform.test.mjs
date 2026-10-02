@@ -237,6 +237,30 @@ test("suporta frequência semanal por membership sem inventar dias no legado", a
   assert.match(agenda, /patients\(id,name,phone\)/);
 });
 
+test("detalha e altera somente a ClassOccurrence sem tocar no schedule ou no legado", async () => {
+  const [route, portal, migration, generator] = await Promise.all([
+    readFile(new URL("../supabase/functions/api/routes/agenda.ts", import.meta.url), "utf8"),
+    readFile(new URL("../apps/portal/src/presentation/modules/OperationalAgenda.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/202610020001_class_occurrence_actions.sql", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/202610010003_generate_class_occurrences.sql", import.meta.url), "utf8"),
+  ]);
+  assert.match(route, /app\.get\("\/class-occurrences\/:id"/);
+  assert.match(route, /membership\.weekdays \?\? schedule\?\.weekdays/);
+  assert.match(route, /participants, occupancy: participants\.length/);
+  assert.match(route, /app\.patch\("\/class-occurrences\/:id"/);
+  assert.match(route, /app\.post\("\/class-occurrences\/:id\/cancel"/);
+  assert.match(portal, /Participantes desta aula/);
+  assert.match(portal, /Nenhum aluno previsto para esta aula\./);
+  assert.match(portal, /Alterar somente esta aula/);
+  assert.match(portal, /Cancelar esta aula/);
+  assert.match(portal, /Disponível na próxima etapa/);
+  assert.match(migration, /update_class_occurrence/);
+  assert.match(migration, /cancel_class_occurrence/);
+  assert.match(migration, /PROFESSIONAL_SCHEDULE_CONFLICT/);
+  assert.doesNotMatch(migration, /group_slots|group_slot_memberships|class_attendances/);
+  assert.match(generator, /on conflict \(class_schedule_id, local_date\) do nothing/);
+});
+
 test("aplica a política crítica de conflitos de appointments no servidor", async () => {
   const [route, migration] = await Promise.all([
     readFile(new URL("../supabase/functions/api/routes/agenda.ts", import.meta.url), "utf8"),
