@@ -216,6 +216,8 @@ test("suporta frequência semanal por membership sem inventar dias no legado", a
   assert.match(agenda, /INVALID_MEMBERSHIP_WEEKDAYS/);
   assert.match(agenda, /effectiveWeekdays: membership\.weekdays \?\? schedule\?\.weekdays/);
   assert.match(agenda, /const effectiveWeekdays = membership\.weekdays \?\? slot\?\.weekdays/);
+  assert.match(agenda, /membership\.weekdays \?\? scheduleWeekdays\.get\(occurrence\.class_schedule_id\)/);
+  assert.match(agenda, /membership\.effective_from <= occurrence\.local_date/);
   assert.match(agenda, /!input\.weekdays\.every\(\(weekday\) => slot\.weekdays\.includes\(weekday\)\)/);
   assert.match(portal, /WeekdayCheckboxGroup name="weekdays"/);
   assert.match(portal, /Selecione ao menos um dia para o paciente/);
@@ -298,7 +300,9 @@ test("expõe projection semanal read-only combinando occurrences e appointments"
   assert.match(route, /sourceType: "CLASS_OCCURRENCE"/);
   assert.match(route, /sourceType: "APPOINTMENT"/);
   assert.match(route, /actualProfessional \?\? plannedProfessional/);
-  assert.match(route, /occupancy: null, capacity: occurrence\.effective_capacity/);
+  assert.match(route, /membership\.effective_from <= occurrence\.local_date/);
+  assert.match(route, /membership\.weekdays \?\? scheduleWeekdays\.get\(occurrence\.class_schedule_id\)/);
+  assert.match(route, /capacity: occurrence\.effective_capacity/);
   assert.match(route, /query\.type === "APPOINTMENT"/);
   assert.match(route, /sort\(\(first, second\) => first\.startAt\.localeCompare/);
   assert.match(route, /PROFESSIONAL_FORBIDDEN/);

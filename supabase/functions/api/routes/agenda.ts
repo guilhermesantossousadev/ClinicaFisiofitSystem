@@ -276,7 +276,7 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     if (scopeError) return scopeError;
     const db = context.get("db");
     const clinicId = context.get("profile").clinic_id;
-    const occurrenceSelect = "id,class_id,unit_id,service_id,start_at,end_at,status,planned_professional_id,actual_professional_id,effective_capacity,room_id,classes(id,name),services(id,name),rooms(id,name),planned_professional:professionals!class_occurrences_planned_professional_id_fkey(id,name),actual_professional:professionals!class_occurrences_actual_professional_id_fkey(id,name)";
+    const occurrenceSelect = "id,class_id,class_schedule_id,local_date,unit_id,service_id,start_at,end_at,status,planned_professional_id,actual_professional_id,effective_capacity,room_id,classes(id,name),services(id,name),rooms(id,name),planned_professional:professionals!class_occurrences_planned_professional_id_fkey(id,name),actual_professional:professionals!class_occurrences_actual_professional_id_fkey(id,name)";
     let occurrencesQuery = db.from("class_occurrences").select(occurrenceSelect)
       .eq("clinic_id", clinicId).eq("unit_id", query.unitId).lt("start_at", query.to).gt("end_at", query.from);
     if (effectiveProfessionalId) occurrencesQuery = occurrencesQuery.or(`actual_professional_id.eq.${effectiveProfessionalId},and(actual_professional_id.is.null,planned_professional_id.eq.${effectiveProfessionalId})`);
@@ -291,8 +291,18 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     ]);
     if (occurrencesResult.error) return databaseResult(context, null, occurrencesResult.error);
     if (appointmentsResult.error) return databaseResult(context, null, appointmentsResult.error);
+    const occurrenceRows = occurrencesResult.data ?? [];
+    const classIds = [...new Set(occurrenceRows.map((occurrence: any) => occurrence.class_id))];
+    const scheduleIds = [...new Set(occurrenceRows.map((occurrence: any) => occurrence.class_schedule_id))];
+    const [{ data: memberships, error: membershipsError }, { data: occurrenceSchedules, error: schedulesError }] = await Promise.all([
+      classIds.length ? db.from("class_memberships").select("class_id,effective_from,effective_to,weekdays").eq("clinic_id", clinicId).in("class_id", classIds) : Promise.resolve({ data: [], error: null }),
+      scheduleIds.length ? db.from("class_schedules").select("id,weekdays").eq("clinic_id", clinicId).in("id", scheduleIds) : Promise.resolve({ data: [], error: null }),
+    ]);
+    if (membershipsError || schedulesError) return databaseResult(context, null, membershipsError ?? schedulesError);
+    const scheduleWeekdays = new Map((occurrenceSchedules ?? []).map((schedule: any) => [schedule.id, schedule.weekdays]));
+    const weekdayForLocalDate = (localDate: string) => ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"][new Date(`${localDate}T12:00:00Z`).getUTCDay()];
     const asOne = (value: any) => Array.isArray(value) ? value[0] ?? null : value ?? null;
-    const occurrenceItems = (occurrencesResult.data ?? []).map((occurrence: any) => {
+    const occurrenceItems = occurrenceRows.map((occurrence: any) => {
       const actualProfessional = asOne(occurrence.actual_professional);
       const plannedProfessional = asOne(occurrence.planned_professional);
       const classInfo = asOne(occurrence.classes);
@@ -302,7 +312,10 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
         professional: actualProfessional ?? plannedProfessional,
         plannedProfessional, actualProfessional,
         patient: null, class: classInfo, service: asOne(occurrence.services), room: asOne(occurrence.rooms),
-        occupancy: null, capacity: occurrence.effective_capacity,
+        occupancy: (memberships ?? []).filter((membership: any) => membership.class_id === occurrence.class_id
+          && membership.effective_from <= occurrence.local_date && (!membership.effective_to || occurrence.local_date < membership.effective_to)
+          && (membership.weekdays ?? scheduleWeekdays.get(occurrence.class_schedule_id) ?? []).includes(weekdayForLocalDate(occurrence.local_date))).length,
+        capacity: occurrence.effective_capacity,
       };
     });
     const appointmentItems = (appointmentsResult.data ?? []).map((appointment: any) => {
