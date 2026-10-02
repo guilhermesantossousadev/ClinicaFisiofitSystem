@@ -27,6 +27,8 @@ const APPOINTMENT_STATUS: Record<string, string> = {
   blocked: "Horário bloqueado",
 };
 const CALENDAR_STATUS: Record<string, string> = { ...APPOINTMENT_STATUS, planned: "Planejada", in_progress: "Em andamento" };
+const CLASS_WEEKDAY_BY_LEGACY_DAY: Record<number, string> = { 0: "sunday", 1: "monday", 2: "tuesday", 3: "wednesday", 4: "thursday", 5: "friday", 6: "saturday" };
+const LEGACY_DAY_BY_CLASS_WEEKDAY: Record<string, number> = Object.fromEntries(Object.entries(CLASS_WEEKDAY_BY_LEGACY_DAY).map(([day, weekday]) => [weekday, Number(day)]));
 
 function clinicToday() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
@@ -207,6 +209,8 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
   const [appointmentPickerVersion, setAppointmentPickerVersion] = useState(0);
   const [calendarAppointmentUnitId, setCalendarAppointmentUnitId] = useState("");
   const [selectedGroupCell, setSelectedGroupCell] = useState<{ slot: Row; day: Date; unitName: string } | null>(null);
+  const [editingMembership, setEditingMembership] = useState<{ member: Row; slot: Row } | null>(null);
+  const [savingMembershipWeekdays, setSavingMembershipWeekdays] = useState(false);
   const [selectedOccurrence, setSelectedOccurrence] = useState<CalendarItem | null>(null);
   const calendarPath = selectedUnitId
     ? `/calendar-items?unitId=${encodeURIComponent(selectedUnitId)}&from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`
@@ -488,6 +492,24 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
     catch (actionError) { failure(actionError); }
   }
 
+  async function updateClassMembershipWeekdays(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editingMembership?.member.class_membership_id) return;
+    const weekdays = new FormData(event.currentTarget).getAll("weekdays").map(Number);
+    if (!weekdays.length) { failure(new Error("Selecione ao menos um dia para o paciente.")); return; }
+    setSavingMembershipWeekdays(true);
+    try {
+      await api(`/class-memberships/${editingMembership.member.class_membership_id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ weekdays: weekdays.map((day) => CLASS_WEEKDAY_BY_LEGACY_DAY[day]) }),
+      });
+      setEditingMembership(null);
+      success("Dias da matrícula atualizados.");
+      await reloadAgenda();
+    } catch (actionError) { failure(actionError); }
+    finally { setSavingMembershipWeekdays(false); }
+  }
+
   async function deleteGroup(slot: Row) {
     const activeMembers = groupMembers.filter((member) => member.group_slot_id === slot.id && member.status === "active");
     if (activeMembers.length) {
@@ -698,9 +720,22 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
               </form>}
               {full && <div className="capacity-alert" role="status"><strong>Turma lotada</strong><span>Não há vagas disponíveis para adicionar mais pacientes.</span></div>}
               <h3>Pacientes inscritos</h3>
-              {selectedMembers.length ? <ul className="group-members-drawer-list">{selectedMembers.map((member) => <li key={member.id}><div><span>{member.patients?.name ?? "Paciente"}</span><small>{member.patients?.phone ?? ""}</small></div>{canManageGroups && <button type="button" className="action-delete" onClick={() => void removeGroupMember(member.id)}>Retirar da turma</button>}</li>)}</ul> : <p className="empty-state">Nenhum paciente está inscrito nesta turma.</p>}
+              {selectedMembers.length ? <ul className="group-members-drawer-list">{selectedMembers.map((member) => <li key={member.id}><div><span>{member.patients?.name ?? "Paciente"}</span><small>{member.patients?.phone ?? ""}</small></div>{canManageGroups && <div className="row-actions">{member.class_membership_id && <button type="button" className="btn secondary" onClick={() => setEditingMembership({ member, slot: selectedGroupCell.slot })}>Editar dias</button>}<button type="button" className="action-delete" onClick={() => void removeGroupMember(member.id)}>Retirar da turma</button></div>}</li>)}</ul> : <p className="empty-state">Nenhum paciente está inscrito nesta turma.</p>}
               {canManageGroups && <GroupMemberForm slotName={selectedGroupCell.slot.name} availablePatients={availablePatients} allowedPatientIds={availablePatientIds} selectedDate={dateKey(selectedGroupCell.day)} slotWeekdays={selectedGroupCell.slot.weekdays ?? []} full={full} onSubmit={(event) => void addGroupMember(event, selectedGroupCell.slot.id)} />}
             </div>
+        </AgendaDialog>;
+      })()}
+      {editingMembership && (() => {
+        const scheduleWeekdays = (editingMembership.slot.weekdays ?? []).map(Number);
+        const explicitWeekdays = editingMembership.member.class_membership_weekdays as string[] | null;
+        const selectedWeekdays = explicitWeekdays?.map((weekday) => String(LEGACY_DAY_BY_CLASS_WEEKDAY[weekday])) ?? scheduleWeekdays.map(String);
+        return <AgendaDialog labelId="membership-weekdays-title" className="calendar-edit-modal" onClose={() => { if (!savingMembershipWeekdays) setEditingMembership(null); }}>
+          <div className="modal-head"><div><p className="eyebrow">MATRÍCULA · DIAS DE PARTICIPAÇÃO</p><h2 id="membership-weekdays-title">Editar dias</h2></div><button type="button" onClick={() => setEditingMembership(null)} disabled={savingMembershipWeekdays} aria-label="Fechar">×</button></div>
+          <form className="modal-form" onSubmit={updateClassMembershipWeekdays} aria-busy={savingMembershipWeekdays}>
+            <p className="form-instructions">Dias disponíveis da turma: <strong>{weekdaysLabel(scheduleWeekdays)}</strong>. Escolha ao menos um dia para este paciente.</p>
+            <WeekdayCheckboxGroup name="weekdays" label="Dias em que o paciente vem" defaultValue={selectedWeekdays} availableValues={scheduleWeekdays.map(String)} maxSelections={scheduleWeekdays.length} required disabled={savingMembershipWeekdays} />
+            <div className="modal-actions"><button type="button" className="btn secondary" disabled={savingMembershipWeekdays} onClick={() => setEditingMembership(null)}>Cancelar</button><button type="submit" className="btn primary" disabled={savingMembershipWeekdays}>{savingMembershipWeekdays ? "Salvando…" : "Salvar dias"}</button></div>
+          </form>
         </AgendaDialog>;
       })()}
       {calendarAppointment !== undefined && calendarAppointment && (

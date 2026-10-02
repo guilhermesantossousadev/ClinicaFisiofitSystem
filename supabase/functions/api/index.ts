@@ -310,7 +310,23 @@ app.get("/group-slot-memberships", requireRoles(["admin", "manager", "reception"
   const groupSlotId = context.req.query("groupSlotId");
   if (groupSlotId) query = query.eq("group_slot_id", z.string().uuid().parse(groupSlotId));
   const { data, error } = await query.order("created_at", { ascending: true }).limit(1000);
-  return databaseResult(context, data, error);
+  if (error || !(data ?? []).length) return databaseResult(context, data, error);
+  // The legacy list remains read-only. This link lets the portal edit the
+  // corresponding additive ClassMembership without mutating legacy rows.
+  const legacyMembershipIds = data.map((membership) => membership.id);
+  const { data: classMemberships, error: classMembershipsError } = await context.get("db").from("class_memberships")
+    .select("id,legacy_source_id,weekdays")
+    .eq("clinic_id", clinicId).eq("legacy_source", "group_slot_membership").in("legacy_source_id", legacyMembershipIds);
+  if (classMembershipsError) return databaseResult(context, null, classMembershipsError);
+  const byLegacyMembershipId = new Map((classMemberships ?? []).map((membership) => [membership.legacy_source_id, membership]));
+  return databaseResult(context, data.map((membership) => {
+    const classMembership = byLegacyMembershipId.get(membership.id);
+    return {
+      ...membership,
+      class_membership_id: classMembership?.id ?? null,
+      class_membership_weekdays: classMembership?.weekdays ?? null,
+    };
+  }), null);
 });
 app.get("/enrollments", requireRoles(["admin", "manager", "reception", "finance"]), async (context) => {
   const clinicId = context.get("profile").clinic_id;

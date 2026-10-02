@@ -204,15 +204,17 @@ test("oferece a migração legada somente à administração com confirmação e
 });
 
 test("suporta frequência semanal por membership sem inventar dias no legado", async () => {
-  const [migration, agenda, portal] = await Promise.all([
+  const [migration, agenda, portal, apiIndex] = await Promise.all([
     readFile(new URL("../supabase/migrations/202610010007_add_weekdays_to_class_memberships.sql", import.meta.url), "utf8"),
     readFile(new URL("../supabase/functions/api/routes/agenda.ts", import.meta.url), "utf8"),
     readFile(new URL("../apps/portal/src/presentation/modules/OperationalAgenda.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/functions/api/index.ts", import.meta.url), "utf8"),
   ]);
   assert.match(migration, /add column weekdays public\.class_weekday\[\]/);
   assert.match(migration, /weekdays is null or/);
   assert.match(migration, /CLASS_MEMBERSHIP_WEEKDAYS_CONFLICT/);
   assert.match(agenda, /app\.post\("\/classes\/:id\/memberships"/);
+  assert.match(agenda, /app\.patch\("\/class-memberships\/:id"/);
   assert.match(agenda, /INVALID_MEMBERSHIP_WEEKDAYS/);
   assert.match(agenda, /effectiveWeekdays: membership\.weekdays \?\? schedule\?\.weekdays/);
   assert.match(agenda, /const effectiveWeekdays = membership\.weekdays \?\? slot\?\.weekdays/);
@@ -221,6 +223,13 @@ test("suporta frequência semanal por membership sem inventar dias no legado", a
   assert.match(agenda, /!input\.weekdays\.every\(\(weekday\) => slot\.weekdays\.includes\(weekday\)\)/);
   assert.match(portal, /WeekdayCheckboxGroup name="weekdays"/);
   assert.match(portal, /Selecione ao menos um dia para o paciente/);
+  assert.match(portal, /Editar dias/);
+  assert.match(portal, /class_membership_weekdays as string\[\] \| null/);
+  assert.match(portal, /const selectedWeekdays = explicitWeekdays\?\.map[\s\S]*\?\? scheduleWeekdays\.map\(String\)/);
+  assert.match(portal, /savingMembershipWeekdays/);
+  assert.match(portal, /`\/class-memberships\/\$\{editingMembership\.member\.class_membership_id\}`/);
+  assert.match(apiIndex, /class_membership_id: classMembership\?\.id \?\? null/);
+  assert.match(apiIndex, /class_membership_weekdays: classMembership\?\.weekdays \?\? null/);
 });
 
 test("aplica a política crítica de conflitos de appointments no servidor", async () => {
