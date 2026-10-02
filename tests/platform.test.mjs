@@ -195,7 +195,7 @@ test("oferece a migração legada somente à administração com confirmação e
   assert.match(administration, /if \(!isAdmin\) return null/);
   assert.match(administration, /Migrar agenda legada/);
   assert.match(administration, /Esta operação migrará as turmas ativas do sistema legado para a nova Agenda/);
-  assert.match(administration, /api<LegacyAgendaBackfillResult>\("\/admin\/agenda\/backfill-legacy", \{ method: "POST" \}\)/);
+  assert.match(administration, /api<LegacyAgendaBackfillResult\[]>\("\/admin\/agenda\/backfill-legacy", \{ method: "POST" \}\)/);
   assert.match(administration, /if \(migrating\) return/);
   assert.match(administration, /disabled=\{migrating\}/);
   assert.match(administration, /Migrando\.\.\./);

@@ -45,8 +45,10 @@ function LegacyAgendaBackfillAction({ isAdmin }: { isAdmin: boolean }) {
     setMigrating(true);
     setError("");
     try {
-      const response = await api<LegacyAgendaBackfillResult>("/admin/agenda/backfill-legacy", { method: "POST" });
-      setResult(response.data);
+      const response = await api<LegacyAgendaBackfillResult[]>("/admin/agenda/backfill-legacy", { method: "POST" });
+      const summary = response.data?.[0];
+      if (!summary) throw new Error("A migração não retornou um resumo da operação.");
+      setResult(summary);
       setConfirming(false);
     } catch (cause) {
       setError(messageOf(cause));
