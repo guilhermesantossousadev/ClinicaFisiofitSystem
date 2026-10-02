@@ -295,7 +295,28 @@ app.get("/professionals", requireRoles(["admin", "manager", "reception", "profes
 });
 app.get("/services", requireRoles(["admin", "manager", "reception", "professional"]), listResource("services", "name"));
 app.get("/plans", requireRoles(["admin", "manager", "reception", "finance"]), listResource("plans", "name"));
-app.get("/group-slots", requireRoles(["admin", "manager", "reception", "professional"]), listResource("group_slots", "starts_at"));
+app.get("/group-slots", requireRoles(["admin", "manager", "reception", "professional"]), async (context) => {
+  const clinicId = context.get("profile").clinic_id;
+  let query = context.get("db").from("group_slots").select("*").eq("clinic_id", clinicId).is("deleted_at", null);
+  const unitId = context.req.query("unitId");
+  if (unitId) {
+    const parsedUnitId = z.string().uuid().parse(unitId);
+    if (!(await hasUnitAccess(context, parsedUnitId))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+    query = query.eq("unit_id", parsedUnitId);
+  }
+  if (context.get("profile").role === "professional") {
+    const professionalId = await professionalForUser(context);
+    if (!professionalId) return fail(context, 403, "PROFESSIONAL_NOT_LINKED", "Seu usuário não está vinculado a um profissional.");
+    query = query.eq("professional_id", professionalId);
+  }
+  const { data, error } = await query.order("starts_at").limit(500);
+  if (error || !(data ?? []).length) return databaseResult(context, data, error);
+  const { data: classes, error: classesError } = await context.get("db").from("classes").select("id,legacy_source_id")
+    .eq("clinic_id", clinicId).eq("legacy_source", "group_slot").in("legacy_source_id", data.map((slot) => slot.id));
+  if (classesError) return databaseResult(context, null, classesError);
+  const classByLegacySlotId = new Map((classes ?? []).map((item) => [item.legacy_source_id, item.id]));
+  return databaseResult(context, data.map((slot) => ({ ...slot, class_id: classByLegacySlotId.get(slot.id) ?? null })), null);
+});
 app.get("/group-slot-memberships", requireRoles(["admin", "manager", "reception", "professional"]), async (context) => {
   const clinicId = context.get("profile").clinic_id;
   const unitId = context.req.query("unitId");

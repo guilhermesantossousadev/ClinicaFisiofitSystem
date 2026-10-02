@@ -230,6 +230,11 @@ test("suporta frequência semanal por membership sem inventar dias no legado", a
   assert.match(portal, /`\/class-memberships\/\$\{editingMembership\.member\.class_membership_id\}`/);
   assert.match(apiIndex, /class_membership_id: classMembership\?\.id \?\? null/);
   assert.match(apiIndex, /class_membership_weekdays: classMembership\?\.weekdays \?\? null/);
+  assert.match(apiIndex, /class_id: classByLegacySlotId\.get\(slot\.id\) \?\? null/);
+  assert.match(portal, /if \(group\?\.class_id\)/);
+  assert.match(portal, /`\/classes\/\$\{group\.class_id\}\/memberships`/);
+  assert.match(portal, /canonicalMembers\.filter/);
+  assert.match(agenda, /patients\(id,name,phone\)/);
 });
 
 test("aplica a política crítica de conflitos de appointments no servidor", async () => {

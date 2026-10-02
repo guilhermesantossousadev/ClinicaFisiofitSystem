@@ -211,6 +211,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
   const [selectedGroupCell, setSelectedGroupCell] = useState<{ slot: Row; day: Date; unitName: string } | null>(null);
   const [editingMembership, setEditingMembership] = useState<{ member: Row; slot: Row } | null>(null);
   const [savingMembershipWeekdays, setSavingMembershipWeekdays] = useState(false);
+  const [canonicalMembers, setCanonicalMembers] = useState<Row[]>([]);
   const [selectedOccurrence, setSelectedOccurrence] = useState<CalendarItem | null>(null);
   const calendarPath = selectedUnitId
     ? `/calendar-items?unitId=${encodeURIComponent(selectedUnitId)}&from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`
@@ -231,6 +232,15 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
     : [];
   const success = (message: string) => setNotice({ type: "success", message });
   const failure = (error: unknown) => setNotice({ type: "error", message: messageOf(error).replace(/^Erro:\s*/, "") });
+  const loadCanonicalMembers = async (classId: string) => {
+    const response = await api<{ items: Row[] }>(`/classes/${classId}/memberships?targetDate=${clinicToday()}`);
+    setCanonicalMembers(response.data?.items ?? []);
+  };
+  useEffect(() => {
+    const classId = selectedGroupCell?.slot.class_id;
+    if (!classId) { setCanonicalMembers([]); return; }
+    void loadCanonicalMembers(String(classId)).catch(failure);
+  }, [selectedGroupCell?.slot.class_id]);
   const suggestedEnd = (startsAt: string, serviceId = newAppointmentServiceId) => {
     const service = (data["/services"] ?? []).find((row: Row) => row.id === serviceId);
     return addMinutesToLocalDateTime(startsAt, Number(service?.duration_minutes ?? 0));
@@ -479,7 +489,12 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
     try {
       const weekdays = form.getAll("weekdays").map(Number);
       if (!weekdays.length) throw new Error("Selecione ao menos um dia para o paciente.");
-      await api(`/group-slots/${groupId}/members`, { method: "POST", body: JSON.stringify({ enrollment_id: enrollment?.id, patient_id: patientId, starts_at: value(form, "starts_at"), ends_at: value(form, "ends_at") || undefined, weekdays }) });
+      if (group?.class_id) {
+        const response = await api<Row>(`/classes/${group.class_id}/memberships`, { method: "POST", body: JSON.stringify({ patientId, enrollmentId: enrollment?.id, effectiveFrom: value(form, "starts_at"), weekdays: weekdays.map((day) => CLASS_WEEKDAY_BY_LEGACY_DAY[day]) }) });
+        if (response.data) setCanonicalMembers((current) => [...current, response.data!]);
+      } else {
+        await api(`/group-slots/${groupId}/members`, { method: "POST", body: JSON.stringify({ enrollment_id: enrollment?.id, patient_id: patientId, starts_at: value(form, "starts_at"), ends_at: value(form, "ends_at") || undefined, weekdays }) });
+      }
       formElement.reset();
       success(enrollment ? "Paciente alocado na turma." : "Paciente alocado na turma. O plano pode ser cadastrado depois.");
       await reloadAgenda();
@@ -505,7 +520,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
       });
       setEditingMembership(null);
       success("Dias da matrícula atualizados.");
-      await reloadAgenda();
+      await Promise.all([reloadAgenda(), loadCanonicalMembers(String(editingMembership.slot.class_id))]);
     } catch (actionError) { failure(actionError); }
     finally { setSavingMembershipWeekdays(false); }
   }
@@ -662,7 +677,12 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
         </dl><button type="button" className="btn secondary" onClick={() => setSelectedOccurrence(null)}>Fechar</button></div>
       </AgendaDialog>}
       {selectedGroupCell && (() => {
-        const selectedMembers = membersForSlot(selectedGroupCell.slot.id, selectedGroupCell.day);
+        const selectedMembers = selectedGroupCell.slot.class_id
+          ? canonicalMembers.filter((member) => {
+            const current = dateKey(selectedGroupCell.day);
+            return member.effective_from <= current && (!member.effective_to || current < member.effective_to);
+          })
+          : membersForSlot(selectedGroupCell.slot.id, selectedGroupCell.day);
         const capacity = Number(selectedGroupCell.slot.capacity ?? 7);
         const slotMembers = selectedMembers;
         const availablePatientIds = patientsAvailableForGroup(patients, selectedGroupCell.slot.unit_id, slotMembers.map((member) => String(member.patient_id)))
@@ -720,7 +740,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
               </form>}
               {full && <div className="capacity-alert" role="status"><strong>Turma lotada</strong><span>Não há vagas disponíveis para adicionar mais pacientes.</span></div>}
               <h3>Pacientes inscritos</h3>
-              {selectedMembers.length ? <ul className="group-members-drawer-list">{selectedMembers.map((member) => <li key={member.id}><div><span>{member.patients?.name ?? "Paciente"}</span><small>{member.patients?.phone ?? ""}</small></div>{canManageGroups && <div className="row-actions">{member.class_membership_id && <button type="button" className="btn secondary" onClick={() => setEditingMembership({ member, slot: selectedGroupCell.slot })}>Editar dias</button>}<button type="button" className="action-delete" onClick={() => void removeGroupMember(member.id)}>Retirar da turma</button></div>}</li>)}</ul> : <p className="empty-state">Nenhum paciente está inscrito nesta turma.</p>}
+              {selectedMembers.length ? <ul className="group-members-drawer-list">{selectedMembers.map((member) => <li key={member.id}><div><span>{member.patients?.name ?? "Paciente"}</span><small>{member.patients?.phone ?? ""}</small></div>{canManageGroups && <div className="row-actions">{(member.class_membership_id || selectedGroupCell.slot.class_id) && <button type="button" className="btn secondary" onClick={() => setEditingMembership({ member: { ...member, class_membership_id: member.class_membership_id ?? member.id, class_membership_weekdays: member.class_membership_weekdays ?? member.weekdays }, slot: selectedGroupCell.slot })}>Editar dias</button>}{!selectedGroupCell.slot.class_id && <button type="button" className="action-delete" onClick={() => void removeGroupMember(member.id)}>Retirar da turma</button>}</div>}</li>)}</ul> : <p className="empty-state">Nenhum paciente está inscrito nesta turma.</p>}
               {canManageGroups && <GroupMemberForm slotName={selectedGroupCell.slot.name} availablePatients={availablePatients} allowedPatientIds={availablePatientIds} selectedDate={dateKey(selectedGroupCell.day)} slotWeekdays={selectedGroupCell.slot.weekdays ?? []} full={full} onSubmit={(event) => void addGroupMember(event, selectedGroupCell.slot.id)} />}
             </div>
         </AgendaDialog>;

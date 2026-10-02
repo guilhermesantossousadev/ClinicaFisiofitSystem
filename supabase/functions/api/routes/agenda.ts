@@ -217,7 +217,7 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     const db = context.get("db");
     const [{ data: schedule, error: scheduleError }, { data: memberships, error: membershipsError }] = await Promise.all([
       db.from("class_schedules").select("weekdays").eq("class_id", classId).eq("clinic_id", context.get("profile").clinic_id).lte("effective_from", targetDate).or(`effective_to.is.null,effective_to.gt.${targetDate}`).order("effective_from", { ascending: false }).limit(1).maybeSingle(),
-      db.from("class_memberships").select("id,class_id,patient_id,effective_from,effective_to,weekdays").eq("class_id", classId).eq("clinic_id", context.get("profile").clinic_id).order("effective_from"),
+      db.from("class_memberships").select("id,class_id,patient_id,effective_from,effective_to,weekdays,patients(id,name,phone)").eq("class_id", classId).eq("clinic_id", context.get("profile").clinic_id).order("effective_from"),
     ]);
     if (scheduleError || membershipsError) return databaseResult(context, null, scheduleError ?? membershipsError);
     return ok(context, { items: (memberships ?? []).map((membership: any) => ({ ...membership, effectiveWeekdays: membership.weekdays ?? schedule?.weekdays ?? [] })) });
