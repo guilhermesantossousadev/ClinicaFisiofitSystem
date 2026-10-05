@@ -1,6 +1,6 @@
 # Documentação do Sistema Fisiofit
 
-**Versão:** 1.2 · **Atualizado em:** 15/08/2026
+**Versão:** 1.3 · **Atualizado em:** 16/08/2026
 
 ## 1. Objetivo
 
@@ -21,8 +21,8 @@ mantém middleware/composição em `index.ts` e handlers em `api/routes`, sem al
 URLs ou envelopes. O site usa SEO dinâmico e imagens AVIF; o portal não publica
 source maps de produção.
 
-O portal usa sessão Supabase, MFA obrigatório para administradores, gestores e
-financeiro, separação por clínica/unidade e bloqueio de contas arquivadas.
+O portal usa sessão Supabase com e-mail e senha, separação por clínica/unidade
+e bloqueio de contas arquivadas.
 
 ## 3. Módulos
 
@@ -58,7 +58,7 @@ históricos e registros não são apagados.
 ## 5. Fluxos críticos
 
 1. **Convite:** administrador informa nome, e-mail, perfil e unidades; o sistema envia link seguro.
-2. **Primeiro acesso:** usuário define senha e conclui MFA quando exigido.
+2. **Primeiro acesso:** usuário abre o link recebido e define a senha.
 3. **Operação:** usuário trabalha apenas nas unidades e módulos liberados.
 4. **Auditoria:** alterações relevantes registram usuário, entidade, data e contexto.
 5. **Bloqueio:** administrador bloqueia o acesso; os dados históricos permanecem preservados.

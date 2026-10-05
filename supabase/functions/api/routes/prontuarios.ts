@@ -1,7 +1,7 @@
 import { z } from "npm:zod@3.24.2";
 
 export function registerProntuariosRoutes(app: any, dependencies: any) {
-  const { clinicalRecordSchema, requireRoles, fail, databaseResult, hasUnitAccess, audit, professionalForUser, isOwnProfessional, requireIdempotency } = dependencies;
+  const { clinicalRecordSchema, requireRoles, fail, databaseResult, validateRelatedResourceScope, hasUnitAccess, audit, professionalForUser, isOwnProfessional, requireIdempotency } = dependencies;
   app.get("/clinical-records", requireRoles(["admin", "manager", "professional"]), async (context: any) => {
     const patientId = z.string().uuid().parse(context.req.query("patientId"));
     let query = context.get("db").from("clinical_records")

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { LockKeyhole, Menu, X } from "lucide-react";
 
@@ -13,6 +13,8 @@ const navLinks = [
 const Header = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [location] = useLocation();
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const mobileMenuRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     setMenuOpen(false);
@@ -26,9 +28,21 @@ const Header = () => {
 
   useEffect(() => {
     if (!menuOpen) return;
-    const closeOnEscape = (event: KeyboardEvent) => event.key === "Escape" && setMenuOpen(false);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const focusFrame = window.requestAnimationFrame(() => mobileMenuRef.current?.querySelector<HTMLElement>("a[href]")?.focus());
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setMenuOpen(false);
+      window.requestAnimationFrame(() => menuButtonRef.current?.focus());
+    };
     window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
   }, [menuOpen]);
 
   return (
@@ -77,6 +91,7 @@ const Header = () => {
             Agendar avaliação
           </Link>
           <button
+            ref={menuButtonRef}
             type="button"
             onClick={() => setMenuOpen((open) => !open)}
             className="grid h-12 w-12 place-items-center text-navy transition hover:text-blue lg:hidden"
@@ -90,7 +105,7 @@ const Header = () => {
       </div>
 
       {menuOpen && (
-        <nav id="menu-movel" className="border-t border-line bg-white px-5 py-5 lg:hidden animate-fade-in" aria-label="Navegação móvel">
+        <nav ref={mobileMenuRef} id="menu-movel" className="max-h-[calc(100dvh-78px)] overflow-y-auto border-t border-line bg-white px-5 py-5 lg:hidden animate-fade-in" aria-label="Navegação móvel">
           <div className="mx-auto grid max-w-7xl gap-2">
             {navLinks.map((link) => {
               const active = location === link.path;

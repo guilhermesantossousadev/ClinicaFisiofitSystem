@@ -2,6 +2,7 @@ import type { ApiEnvelope, ApiError, Paginated } from "@fisiofit/contracts";
 import { supabase } from "../supabase/client";
 
 const apiBase = `${import.meta.env.VITE_SUPABASE_URL ?? ""}/functions/v1/api/v1`;
+const apiKey = import.meta.env.VITE_SUPABASE_ANON_KEY ?? "";
 
 function fallbackError(status: number): ApiError {
   return {
@@ -21,15 +22,24 @@ export async function api<T>(
   const selectedUnit = init.method?.toUpperCase() === "POST" || init.method?.toUpperCase() === "PATCH" ? "" : (() => {
     try { return window.localStorage.getItem("fisiofit:selected-unit") ?? ""; } catch { return ""; }
   })();
-  const requestPath = selectedUnit && (init.method ?? "GET").toUpperCase() === "GET" && !path.includes("unitId=") && path !== "/units"
+  const pathWithoutQuery = path.split("?", 1)[0];
+  const requestPath = selectedUnit && (init.method ?? "GET").toUpperCase() === "GET" && !path.includes("unitId=") && !["/me", "/units", "/health", "/openapi.json"].includes(pathWithoutQuery)
     ? `${path}${path.includes("?") ? "&" : "?"}unitId=${encodeURIComponent(selectedUnit)}`
     : path;
   let response: Response;
+  let payload: ApiEnvelope<T>;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30_000);
+  const abort = () => controller.abort();
+  init.signal?.addEventListener("abort", abort, { once: true });
+  if (init.signal?.aborted) controller.abort();
   try {
     response = await fetch(`${apiBase}${requestPath}`, {
       ...init,
+      signal: controller.signal,
       headers: {
         "content-type": "application/json",
+        ...(apiKey ? { apikey: apiKey } : {}),
         ...(data.session?.access_token
           ? { authorization: `Bearer ${data.session.access_token}` }
           : {}),
@@ -39,17 +49,22 @@ export async function api<T>(
         ...init.headers,
       },
     });
+    const contentType = response.headers.get("content-type") ?? "";
+    payload = contentType.includes("application/json")
+      ? ((await response.json()) as ApiEnvelope<T>)
+      : ({ data: null, error: fallbackError(response.status), requestId: "" } as ApiEnvelope<T>);
   } catch {
     const error: ApiError = {
-      code: "NETWORK_ERROR",
-      message: "Sem conexão com o servidor. Verifique sua internet e tente novamente.",
+      code: controller.signal.aborted ? "REQUEST_TIMEOUT" : "NETWORK_ERROR",
+      message: controller.signal.aborted
+        ? "O servidor demorou para responder. Atualize os dados antes de repetir um pagamento."
+        : "Sem conexão com o servidor. Verifique sua internet e tente novamente.",
     };
     throw Object.assign(new Error(error.message), { apiError: error });
+  } finally {
+    clearTimeout(timeout);
+    init.signal?.removeEventListener("abort", abort);
   }
-  const contentType = response.headers.get("content-type") ?? "";
-  const payload = contentType.includes("application/json")
-    ? ((await response.json()) as ApiEnvelope<T>)
-    : ({ data: null, error: fallbackError(response.status), requestId: "" } as ApiEnvelope<T>);
   if (!response.ok) {
     const error = payload.error ?? fallbackError(response.status);
     throw Object.assign(new Error(error.message), {

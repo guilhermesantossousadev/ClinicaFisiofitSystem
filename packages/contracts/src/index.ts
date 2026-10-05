@@ -1,4 +1,6 @@
 import { z } from "zod";
+export { effectiveOccurrenceRoster } from "./occurrenceRoster";
+export type { EffectiveOccurrenceParticipant, PersistedOccurrenceParticipant, RosterMembership } from "./occurrenceRoster";
 
 export type Role = "admin" | "manager" | "reception" | "professional" | "finance";
 export type ApiError = { code: string; message: string; details?: unknown };
@@ -85,7 +87,7 @@ export const appointmentInputSchema = z.object({
 export const groupSlotInputSchema = z.object({
   unitId: uuidSchema,
   roomId: uuidSchema,
-  professionalId: uuidSchema,
+  professionalId: uuidSchema.optional(),
   serviceId: uuidSchema,
   name: z.string().trim().min(3).max(100),
   weekdays: z.array(z.number().int().min(0).max(6)).min(1).max(7),
