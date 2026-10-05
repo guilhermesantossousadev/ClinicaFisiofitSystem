@@ -1,5 +1,5 @@
 import { MonthlyPayments } from "./MonthlyPayments";
-import { FormEvent, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { buildPlanControlRows, renewalCopy, type PlanControlRow } from "../../application/portal/planControl";
 import { buildAvailablePaymentPlans } from "../../application/portal/paymentPlans";
@@ -41,6 +41,12 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
   const [selectedPaymentPatientId, setSelectedPaymentPatientId] = useState("");
   const [paymentPatientPickerVersion, setPaymentPatientPickerVersion] = useState(0);
   const [paymentAmount, setPaymentAmount] = useState("");
+  useEffect(() => {
+    setSelectedPaymentPatientId("");
+    setSelectedPaymentChargeId("");
+    setPaymentAmount("");
+    setPaymentPatientPickerVersion((version) => version + 1);
+  }, [selectedUnitId]);
   const selectedPeriod = PLAN_PERIODS[planPeriod];
   const planSessions = selectedPeriod.months * weeklyFrequency * 4;
   const planName = `${selectedPeriod.label} · ${weeklyFrequency}x por semana`;
@@ -418,7 +424,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
           <div><span>Saldo disponível</span><strong>{brl(selectedPaymentPlan.balanceCents)}</strong></div>
         </div>}
         <div className="payment-details-grid">
-          <TextField id="payment-amount" name="amount" label="Valor a receber" type="number" inputMode="decimal" min="0.01" max={selectedPaymentBalance ? (selectedPaymentBalance / 100).toFixed(2) : undefined} step=".01" value={paymentAmount} disabled={!selectedPaymentChargeId} onChange={(event) => setPaymentAmount(event.target.value)} hint={selectedPaymentBalance ? `Máximo: ${brl(selectedPaymentBalance)}` : "Escolha um plano para informar o valor."} required />
+          <TextField id="payment-amount" name="amount" label="Valor a receber" type="number" inputMode="decimal" min="0.01" max={selectedPaymentBalance ? (selectedPaymentBalance / 100).toFixed(2) : undefined} step=".01" value={paymentAmount} disabled={!selectedPaymentPlan} onChange={(event) => setPaymentAmount(event.target.value)} hint={selectedPaymentBalance ? `Máximo: ${brl(selectedPaymentBalance)}` : "Escolha um plano para informar o valor."} required />
           <TextField id="payment-paid-at" name="paid_at" label="Data do pagamento" type="date" defaultValue={dateKey(new Date())} required />
           <SelectField id="payment-method" name="method" label="Forma de pagamento">
             <option value="pix">PIX</option>
@@ -427,7 +433,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
             <option value="transfer">Transferência</option>
           </SelectField>
         </div>
-        <button className="btn primary payment-submit" disabled={!selectedPaymentChargeId || receivingPayment}>{receivingPayment ? "Registrando…" : "Confirmar recebimento"}</button>
+        <button className="btn primary payment-submit" disabled={!selectedPaymentPlan || receivingPayment}>{receivingPayment ? "Registrando…" : "Confirmar recebimento"}</button>
       </form>}
       {canManagePlans && (
       <EditableOperationalTable
