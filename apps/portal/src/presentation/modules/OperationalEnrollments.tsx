@@ -1,5 +1,5 @@
 import { MonthlyPayments } from "./MonthlyPayments";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useMemo, useRef, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { buildPlanControlRows, renewalCopy, type PlanControlRow } from "../../application/portal/planControl";
 import { buildAvailablePaymentPlans } from "../../application/portal/paymentPlans";
@@ -33,6 +33,9 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
   const [activeEnrollmentFilter, setActiveEnrollmentFilter] = useState("all");
   const [editingControlRow, setEditingControlRow] = useState<PlanControlRow | null>(null);
   const [savingControlRow, setSavingControlRow] = useState(false);
+  const paymentPending = useRef(false);
+  const paymentAttempt = useRef<{ payload: string; key: string }>();
+  const [receivingPayment, setReceivingPayment] = useState(false);
   const [savingPaymentId, setSavingPaymentId] = useState("");
   const [selectedPaymentChargeId, setSelectedPaymentChargeId] = useState("");
   const [selectedPaymentPatientId, setSelectedPaymentPatientId] = useState("");
@@ -104,19 +107,28 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
   }
   async function pay(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    if (paymentPending.current) return;
+    const paymentForm = event.currentTarget;
+    const form = new FormData(paymentForm);
+    paymentPending.current = true;
+    setReceivingPayment(true);
     try {
+      const payload = JSON.stringify({
+        charge_id: value(form, "charge_id"),
+        amount_cents: cents(value(form, "amount")),
+        method: value(form, "method"),
+        paid_at: localDateAtNoonIso(value(form, "paid_at")),
+      });
+      if (paymentAttempt.current?.payload !== payload) {
+        paymentAttempt.current = { payload, key: crypto.randomUUID() };
+      }
       await api("/payments", {
         method: "POST",
-        idempotencyKey: crypto.randomUUID(),
-        body: JSON.stringify({
-          charge_id: value(form, "charge_id"),
-          amount_cents: cents(value(form, "amount")),
-          method: value(form, "method"),
-          paid_at: localDateAtNoonIso(value(form, "paid_at")),
-        }),
+        idempotencyKey: paymentAttempt.current.key,
+        body: payload,
       });
-      (event.target as HTMLFormElement).reset();
+      paymentAttempt.current = undefined;
+      paymentForm.reset();
       setSelectedPaymentChargeId("");
       setSelectedPaymentPatientId("");
       setPaymentPatientPickerVersion((version) => version + 1);
@@ -125,6 +137,9 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
       setNotice("Pagamento registrado.");
     } catch (e) {
       setNotice(messageOf(e));
+    } finally {
+      paymentPending.current = false;
+      setReceivingPayment(false);
     }
   }
   async function updateControlledPlan(event: FormEvent<HTMLFormElement>) {
@@ -412,7 +427,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
             <option value="transfer">Transferência</option>
           </SelectField>
         </div>
-        <button className="btn primary payment-submit" disabled={!selectedPaymentChargeId}>Confirmar recebimento</button>
+        <button className="btn primary payment-submit" disabled={!selectedPaymentChargeId || receivingPayment}>{receivingPayment ? "Registrando…" : "Confirmar recebimento"}</button>
       </form>}
       {canManagePlans && (
       <EditableOperationalTable

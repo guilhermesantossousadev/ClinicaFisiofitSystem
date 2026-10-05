@@ -82,6 +82,26 @@ test("mantém API, banco e integrações versionados", async () => {
   assert.match(providers, /interface MessagingProvider/);
 });
 
+test("attendance por occurrence preserva roster, grava sob demanda e mantém correções", async () => {
+  const [migration, agenda] = await Promise.all([
+    readFile(new URL("../supabase/migrations/202610020003_occurrence_attendance.sql", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/functions/api/routes/agenda.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(migration, /create table public\.attendances/);
+  assert.match(migration, /occurrence_participant_id uuid not null unique/);
+  assert.match(migration, /create table public\.attendance_revisions/);
+  assert.match(migration, /on delete restrict/);
+  assert.match(migration, /insert into public\.attendance_revisions/);
+  assert.match(migration, /if target\.status = 'cancelled' then raise exception 'OCCURRENCE_CANCELLED'/);
+  assert.match(migration, /_effective_occurrence_patient_ids\(target\.id\)/);
+  const readProcedure = migration.slice(migration.indexOf("create or replace function public.get_class_occurrence_attendance"), migration.indexOf("create or replace function public.record_class_occurrence_attendance"));
+  assert.doesNotMatch(readProcedure, /insert into public\.attendances/);
+  assert.doesNotMatch(migration, /class_attendances|group_slots|group_slot_memberships/);
+  assert.match(agenda, /app\.get\("\/class-occurrences\/:id\/attendance"/);
+  assert.match(agenda, /app\.put\("\/class-occurrences\/:id\/attendance\/:patientId"/);
+  assert.match(agenda, /record_class_occurrence_attendance/);
+});
+
 test("mantém context.md como fonte única da verdade e não restaura o legado", async () => {
   const context = await readFile(new URL("../context.md", import.meta.url), "utf8");
   assert.match(context, /fonte única da verdade/i);
@@ -255,7 +275,7 @@ test("detalha e altera somente a ClassOccurrence sem tocar no schedule ou no leg
   assert.match(portal, /Nenhum aluno previsto para esta aula\./);
   assert.match(portal, /Alterar somente esta aula/);
   assert.match(portal, /Cancelar esta aula/);
-  assert.match(portal, /Disponível na próxima etapa/);
+  assert.match(portal, /Abrir chamada/);
   assert.match(migration, /update_class_occurrence/);
   assert.match(migration, /cancel_class_occurrence/);
   assert.match(migration, /PROFESSIONAL_SCHEDULE_CONFLICT/);

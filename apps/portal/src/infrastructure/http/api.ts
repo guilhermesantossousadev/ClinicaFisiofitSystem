@@ -27,9 +27,16 @@ export async function api<T>(
     ? `${path}${path.includes("?") ? "&" : "?"}unitId=${encodeURIComponent(selectedUnit)}`
     : path;
   let response: Response;
+  let payload: ApiEnvelope<T>;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30_000);
+  const abort = () => controller.abort();
+  init.signal?.addEventListener("abort", abort, { once: true });
+  if (init.signal?.aborted) controller.abort();
   try {
     response = await fetch(`${apiBase}${requestPath}`, {
       ...init,
+      signal: controller.signal,
       headers: {
         "content-type": "application/json",
         ...(apiKey ? { apikey: apiKey } : {}),
@@ -42,17 +49,22 @@ export async function api<T>(
         ...init.headers,
       },
     });
+    const contentType = response.headers.get("content-type") ?? "";
+    payload = contentType.includes("application/json")
+      ? ((await response.json()) as ApiEnvelope<T>)
+      : ({ data: null, error: fallbackError(response.status), requestId: "" } as ApiEnvelope<T>);
   } catch {
     const error: ApiError = {
-      code: "NETWORK_ERROR",
-      message: "Sem conexão com o servidor. Verifique sua internet e tente novamente.",
+      code: controller.signal.aborted ? "REQUEST_TIMEOUT" : "NETWORK_ERROR",
+      message: controller.signal.aborted
+        ? "O servidor demorou para responder. Atualize os dados antes de repetir um pagamento."
+        : "Sem conexão com o servidor. Verifique sua internet e tente novamente.",
     };
     throw Object.assign(new Error(error.message), { apiError: error });
+  } finally {
+    clearTimeout(timeout);
+    init.signal?.removeEventListener("abort", abort);
   }
-  const contentType = response.headers.get("content-type") ?? "";
-  const payload = contentType.includes("application/json")
-    ? ((await response.json()) as ApiEnvelope<T>)
-    : ({ data: null, error: fallbackError(response.status), requestId: "" } as ApiEnvelope<T>);
   if (!response.ok) {
     const error = payload.error ?? fallbackError(response.status);
     throw Object.assign(new Error(error.message), {

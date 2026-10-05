@@ -719,3 +719,7 @@ Não existem fontes executáveis para containers, Kubernetes, Terraform, cache, 
 ---
 
 *Fim do contexto normativo único do projeto.*
+
+## Correções locais — 5 de outubro de 2026
+
+Portal: consultas HTTP têm limite de 30 segundos, incluindo leitura da resposta; recursos operacionais são exibidos conforme chegam e trocas de unidade limpam dados de outro escopo. Recebimentos bloqueiam envio simultâneo e reutilizam a chave de idempotência ao repetir o mesmo formulário após falha. A migration `202610050001_payment_safety.sql` impede recebimentos em cobranças canceladas. Permissões financeiras da recepção permanecem restritas conforme implementação atual, aguardando decisão explícita. Typecheck, lint, build e testes JavaScript passaram. Testes de banco não executaram porque PostgreSQL local está indisponível em `127.0.0.1:54322`. Publicação e aplicação remota da migration não foram realizadas.

@@ -20,6 +20,9 @@ export function registerFinanceiroRoutes(app: any, dependencies: any) {
     });
     if (error) {
       const reason = String(error.message ?? "");
+      if (reason.includes("CHARGE_CANCELLED")) {
+        return fail(context, 409, "CHARGE_CANCELLED", "Esta cobrança foi cancelada. Atualize os dados antes de registrar o pagamento.");
+      }
       if (reason.includes("INVALID_PAYMENT_AMOUNT")) {
         return fail(context, 400, "INVALID_PAYMENT_AMOUNT", "Informe um valor maior que zero e que não ultrapasse o saldo da cobrança.");
       }

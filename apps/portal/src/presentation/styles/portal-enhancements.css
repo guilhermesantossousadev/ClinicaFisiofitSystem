@@ -87,6 +87,23 @@
   .makeup-row { align-items: stretch; flex-direction: column; }
   .makeup-row .attendance-actions { grid-column: auto; }
 }
+
+.occurrence-attendance{padding:18px 22px 22px;max-height:min(72vh,680px);overflow:auto}
+.occurrence-attendance-summary{display:grid;gap:5px;padding:12px;background:#f5f8f7;border-radius:9px;font-size:10px}
+.occurrence-attendance-summary strong{font-size:13px}
+.occurrence-attendance-summary span,.occurrence-attendance-review{color:var(--muted);font-size:9px}
+.occurrence-attendance-cancelled{padding:10px 12px;border-radius:8px;background:#f6e5e6;color:#a7484c;font-size:10px}
+.attendance-mark-all{margin:14px 0 0}
+.occurrence-attendance-list{padding:0;margin:12px 0;list-style:none}
+.occurrence-attendance-list>li{display:grid;grid-template-columns:minmax(130px,1fr) minmax(150px,190px) auto;align-items:center;gap:9px;padding:12px 0;border-top:1px solid var(--line)}
+.occurrence-attendance-person strong,.occurrence-attendance-person small{display:block}
+.occurrence-attendance-person strong{font-size:10px}
+.occurrence-attendance-person small{margin-top:4px;color:var(--muted);font-size:8px}
+.occurrence-attendance-list select,.attendance-correction-reason input{width:100%;min-width:0;border:1px solid #dfe5e2;border-radius:7px;background:#fff;padding:8px;font:inherit;font-size:9px}
+.attendance-correction-reason{grid-column:1/-1;font-size:9px;color:#5d6b68}
+.attendance-correction-reason input{display:block;margin-top:5px}
+.occurrence-attendance-list .attendance-save{white-space:nowrap}
+@media(max-width:600px){.occurrence-attendance{padding:14px 16px;max-height:70vh}.occurrence-attendance-list>li{grid-template-columns:minmax(0,1fr) auto}.occurrence-attendance-list select{grid-column:1}.occurrence-attendance-list .attendance-save{grid-column:2;grid-row:2}.attendance-correction-reason{grid-column:1/-1}}
 .record-header-note { border: 1px solid var(--line); background: #f5f8f7; border-radius: 9px; padding: 10px 13px; min-width: 190px; }
 .record-header-note span, .record-header-note strong { display: block; }
 .record-header-note span { font-size: 8px; color: var(--muted); text-transform: uppercase; letter-spacing: .7px; }

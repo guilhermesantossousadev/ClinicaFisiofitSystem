@@ -105,6 +105,12 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
       CLASS_CAPACITY_REACHED: [409, "Esta aula já atingiu a capacidade máxima."],
       PATIENT_SCHEDULE_CONFLICT: [409, "O paciente possui outro compromisso neste horário."],
       PATIENT_NOT_FOUND: [404, "Paciente não encontrado."],
+      PATIENT_NOT_IN_OCCURRENCE_ROSTER: [409, "Este paciente não faz parte da chamada desta aula."],
+      OCCURRENCE_PARTICIPANT_NOT_FOUND: [409, "Participante da aula não encontrado."],
+      ATTENDANCE_CORRECTION_FORBIDDEN: [403, "Somente gestão pode corrigir uma chamada já registrada."],
+      ATTENDANCE_CORRECTION_REASON_REQUIRED: [422, "Informe o motivo da correção (mínimo de 3 caracteres)."],
+      INVALID_ATTENDANCE_STATUS: [422, "Estado de presença inválido."],
+      FORBIDDEN: [403, "Você não tem permissão para esta chamada."],
       INVALID_OCCURRENCE_STATE_TRANSITION: [409, "Esta aula não pode ser cancelada no estado atual."],
     };
     for (const [code, [httpStatus, detail]] of Object.entries(stableErrors)) {
@@ -359,6 +365,26 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     return ok(context, { occurrence: { ...occurrence, classes: asOne(occurrence.classes), services: asOne(occurrence.services), rooms: asOne(occurrence.rooms), plannedProfessional: asOne(occurrence.planned_professional), actualProfessional: asOne(occurrence.actual_professional) }, participants, occupancy: participants.length });
   }
   app.get("/class-occurrences/:id", requireRoles(["admin", "manager", "reception", "professional"]), async (context: any) => getOccurrenceDetail(context, z.string().uuid().parse(context.req.param("id"))));
+  app.get("/class-occurrences/:id/attendance", requireRoles(["admin", "manager", "reception", "professional"]), async (context: any) => {
+    const id = z.string().uuid().parse(context.req.param("id"));
+    const { data, error } = await context.get("db").rpc("get_class_occurrence_attendance", { p_occurrence_id: id });
+    if (error) return classScheduleDatabaseResult(context, data, error);
+    return ok(context, { items: data ?? [] });
+  });
+  app.put("/class-occurrences/:id/attendance/:patientId", requireRoles(["admin", "manager", "reception", "professional"]), async (context: any) => {
+    const id = z.string().uuid().parse(context.req.param("id"));
+    const patientId = z.string().uuid().parse(context.req.param("patientId"));
+    const input = z.object({ status: z.enum(["PRESENT", "LATE", "ABSENT_JUSTIFIED", "ABSENT_UNJUSTIFIED", "CANCELLED_IN_ADVANCE", "CANCELLED_LATE"]), reason: z.string().trim().min(3).max(500).optional() }).strict().parse(await context.req.json());
+    const db = context.get("db"); const clinicId = context.get("profile").clinic_id;
+    const { data: target, error: targetError } = await db.from("class_occurrences").select("unit_id").eq("id", id).eq("clinic_id", clinicId).maybeSingle();
+    if (targetError) return databaseResult(context, null, targetError); if (!target) return fail(context, 404, "CLASS_OCCURRENCE_NOT_FOUND", "Aula não encontrada.");
+    const scopeError = await validateRelatedResourceScope(context, { unit_id: target.unit_id, patient_id: patientId });
+    if (scopeError) return scopeError;
+    const { data, error } = await db.rpc("record_class_occurrence_attendance", { p_occurrence_id: id, p_patient_id: patientId, p_status: input.status, p_reason: input.reason ?? null });
+    if (error) return classScheduleDatabaseResult(context, data, error);
+    if (data?.status === "recorded" || data?.status === "corrected") await audit(context, `attendance.${data.status}`, "attendance", data.attendanceId, target.unit_id, { occurrenceId: id, patientId, attendanceStatus: input.status });
+    return ok(context, data);
+  });
   app.get("/class-occurrences/:id/available-participants", requireRoles(["admin", "manager", "reception"]), async (context: any) => {
     const id = z.string().uuid().parse(context.req.param("id")); const rawSearch = z.string().trim().min(2).max(80).parse(context.req.query("search") ?? "");
     const search = rawSearch.replace(/[%_,()]/g, "").trim();

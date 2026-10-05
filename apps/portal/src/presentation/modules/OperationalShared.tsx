@@ -112,8 +112,15 @@ export function useResources(paths: string[]) {
     const sessionGeneration = getPortalSessionGeneration();
     setLoading(true);
     setError("");
+    setData(operationalResourceCache.get(cacheKey) ?? {});
     try {
-      const responses = await Promise.allSettled(paths.map((path) => api<any>(path)));
+      const responses = await Promise.allSettled(paths.map(async (path) => {
+        const response = await api<any>(path);
+        if (sessionGeneration === getPortalSessionGeneration() && currentRequest === requestVersion.current) {
+          setData((current) => ({ ...current, [path]: response.data }));
+        }
+        return response;
+      }));
       const nextData = Object.fromEntries(
         paths.flatMap((path, index) => {
           const response = responses[index];
