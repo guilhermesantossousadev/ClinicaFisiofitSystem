@@ -1,5 +1,5 @@
 import { MonthlyPayments } from "./MonthlyPayments";
-import { FormEvent, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { buildPlanControlRows, renewalCopy, type PlanControlRow } from "../../application/portal/planControl";
 import { buildAvailablePaymentPlans } from "../../application/portal/paymentPlans";
@@ -20,6 +20,10 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
   const { data, loading, error, reload } = useResources(paths);
   const patients = data["/patients?page=1&pageSize=100"]?.items ?? [];
   const [notice, setNotice] = useState("");
+  const sectionFromPath = () => window.location.pathname.includes("/matriculas/historico") ? "history" : window.location.pathname.includes("/matriculas/gestao") ? "management" : "control";
+  const [section, setSection] = useState<"control" | "management" | "history">(sectionFromPath);
+  const navigateSection = (next: "control" | "management" | "history") => { window.history.pushState({}, "", `/sistema/matriculas/${next === "management" ? "gestao" : next === "history" ? "historico" : "controle"}`); setSection(next); };
+  useEffect(() => { const sync = () => setSection(sectionFromPath()); window.addEventListener("popstate", sync); return () => window.removeEventListener("popstate", sync); }, []);
   const [paymentMonth, setPaymentMonth] = useState(() => dateKey(new Date()).slice(0, 7));
   const [selectedPatient, setSelectedPatient] = useState<Row>();
   const [selectedEnrollmentGroup, setSelectedEnrollmentGroup] = useState(agendaContext?.groupSlotId ?? "");
@@ -258,13 +262,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
   const attentionPlans = activeControlRows.filter((row) => row.renewalState === "expired" || ["overdue", "partial"].includes(row.paymentState)).length;
   return (
     <div className="content">
-      <div className="page-title">
-        <div>
-          <p className="eyebrow">PLANOS E COBRANÇAS</p>
-          <h1>Matrículas</h1>
-          <p>Planos mensais, pacotes, avulsos e vínculo com turma semanal.</p>
-        </div>
-      </div>
+      <header className="enrollment-module-header"><div><p className="eyebrow">PACIENTES / MATRÍCULAS</p><h1>Controle de Planos</h1><p>Financeiro mensal e gestão das matrículas dos pacientes.</p></div><nav className="enrollment-module-nav" aria-label="Áreas de matrículas">{([['control', 'Controle de Planos'], ['management', 'Matrículas'], ['history', 'Histórico']] as const).map(([value, label]) => <button type="button" key={value} className={section === value ? "active" : ""} aria-current={section === value ? "page" : undefined} onClick={() => navigateSection(value)}>{label}</button>)}</nav></header>
       {notice && (
         <div className="toast">
           <span>✓</span>
@@ -272,7 +270,9 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
         </div>
       )}
       <ModuleState loading={loading} error={error} retry={reload} />
-      {canViewCharges && <MonthlyPayments data={data} month={paymentMonth} onMonth={(month) => { setPaymentMonth(month); clearPaymentPatient(); }} canEdit={canReceivePayments} reload={reload} onNotice={setNotice} />}
+      {section === "control" && canViewCharges && <MonthlyPayments data={data} month={paymentMonth} onMonth={(month) => { setPaymentMonth(month); clearPaymentPatient(); }} canEdit={canReceivePayments} reload={reload} onNotice={setNotice} onRegisterPayment={(row) => { setSelectedPaymentPatientId(row.patientId); setSelectedPaymentChargeId(row.chargeId); setPaymentAmount((row.balanceCents / 100).toFixed(2)); requestAnimationFrame(() => document.getElementById("payment-registration")?.scrollIntoView({ behavior: "smooth", block: "start" })); }} />}
+      {section === "history" && <EnrollmentHistoryPanel rows={controlRows} charges={data["/charges"] ?? []} payments={data["/payments"] ?? []} />}
+      {section === "management" && <>
       <div className="metrics">
         <MetricLite label="Pacientes com plano" value={activeControlRows.length} />
         <MetricLite label="Pagamentos em dia" value={paidPlans} />
@@ -356,7 +356,8 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
         </DrawerForm>
         )}
       </div>}
-      {canReceivePayments && <form className="card modal-form payment-registration-card" onSubmit={pay}>
+      </>}
+      {section === "control" && canReceivePayments && <form id="payment-registration" className="card modal-form payment-registration-card" onSubmit={pay}>
         <div className="payment-registration-heading">
           <div>
             <p className="eyebrow">RECEBIMENTO</p>
@@ -406,7 +407,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
         </div>
         <button className="btn primary payment-submit" disabled={!selectedPaymentChargeId || receivingPayment}>{receivingPayment ? "Registrando…" : "Confirmar recebimento"}</button>
       </form>}
-      {canManagePlans && (
+      {section === "management" && canManagePlans && (
       <EditableOperationalTable
         title="Planos"
         resource="plans"
@@ -429,7 +430,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
         onNotice={setNotice}
       />
       )}
-      <ActiveEnrollmentsTable
+      {section === "management" && <ActiveEnrollmentsTable
         rows={filteredEnrollmentRows}
         total={enrollmentRows.length}
         search={activeEnrollmentSearch}
@@ -439,8 +440,8 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
         canRollback={canRollback}
         canViewFinancials={canViewCharges}
         onRollback={rollbackEnrollment}
-      />
-      {canViewCharges && <OperationalTable
+      />}
+      {section === "history" && canViewCharges && <OperationalTable
         title="Cobranças"
         rows={data["/charges"] ?? []}
         fields={[
@@ -453,6 +454,16 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
       />}
     </div>
   );
+}
+
+function EnrollmentHistoryPanel({ rows, charges, payments }: { rows: PlanControlRow[]; charges: Row[]; payments: Row[] }) {
+  const [search, setSearch] = useState("");
+  const [patientId, setPatientId] = useState("");
+  const matchingRows = rows.filter((row) => !search.trim() || `${row.patientName} ${row.planName}`.toLocaleLowerCase("pt-BR").includes(search.trim().toLocaleLowerCase("pt-BR")));
+  const selected = patientId ? matchingRows.find((row) => row.id === patientId) : matchingRows[0];
+  const historyCharges = selected ? charges.filter((charge) => charge.enrollment_id === selected.id && !charge.deleted_at) : [];
+  const historyPayments = selected ? payments.filter((payment) => historyCharges.some((charge) => charge.id === payment.charge_id) && !payment.deleted_at) : [];
+  return <section className="enrollment-history card" aria-labelledby="enrollment-history-title"><div className="table-toolbar"><div><p className="eyebrow">CONSULTA</p><h2 id="enrollment-history-title">Histórico de matrículas</h2><p>Use os eventos já registrados para entender planos, cobranças e recebimentos.</p></div><TextField label="Buscar paciente ou plano" type="search" placeholder="Buscar paciente ou plano..." value={search} onChange={(event) => { setSearch(event.target.value); setPatientId(""); }} /></div><div className="history-layout"><div className="history-patients" aria-label="Pacientes encontrados">{matchingRows.map((row) => <button type="button" key={row.id} className={selected?.id === row.id ? "active" : ""} onClick={() => setPatientId(row.id)}><strong>{row.patientName}</strong><span>{row.planName}</span></button>)}{!matchingRows.length && <p>Nenhuma matrícula encontrada.</p>}</div><div className="history-events">{selected ? <><h3>{selected.patientName}</h3><p className="history-plan">{selected.planName}</p><article><strong>Matrícula</strong><span>Início: {dateLabel(selected.startsAt)} · Renovação: {dateLabel(selected.renewsAt)}</span></article>{historyCharges.map((charge) => <article key={charge.id}><strong>Cobrança</strong><span>{String(charge.description ?? "Cobrança do plano")} · {brl(Number(charge.amount_cents ?? 0))} · {String(charge.status ?? "")}</span></article>)}{historyPayments.map((payment) => <article key={payment.id}><strong>Recebimento</strong><span>{brl(Number(payment.amount_cents ?? 0))} · {dateLabel(String(payment.paid_at ?? ""), true)} · {String(payment.method ?? "")}</span></article>)}{!historyCharges.length && <p className="history-empty">Não há cobranças registradas para esta matrícula.</p>}</> : <p>Selecione um paciente para consultar o histórico disponível.</p>}</div></div></section>;
 }
 
 type ActiveEnrollmentRow = {

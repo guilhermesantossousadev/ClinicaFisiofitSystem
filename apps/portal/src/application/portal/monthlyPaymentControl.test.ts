@@ -30,4 +30,10 @@ describe("controle mensal de pagamentos", () => {
     });
     expect(rows[0]).toMatchObject({ state: "paid", chargeId: "charge-quarter", balanceCents: 0 });
   });
+
+  it("mantém pago somente durante a cobertura semestral", () => {
+    const charges = [{ id: "charge-semester", enrollment_id: "enrollment-1", amount_cents: 120000, paid_cents: 120000, status: "paid", due_at: "2026-09-05", coverage_from: "2026-09-01", coverage_to: "2027-02-28" }];
+    expect(buildMonthlyPaymentRows({ ...base, month: "2027-02", charges })[0]).toMatchObject({ state: "paid", chargeId: "charge-semester" });
+    expect(buildMonthlyPaymentRows({ ...base, month: "2027-03", charges })[0]).toMatchObject({ state: "unbilled", chargeId: "" });
+  });
 });

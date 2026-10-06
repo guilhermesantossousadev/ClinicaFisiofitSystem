@@ -92,6 +92,7 @@ export default function FisiofitApp() {
   const { signOut, user } = useAuth();
   const storagePrefix = `fisiofit:portal:${user?.id ?? "preview"}`;
   const [view, setView] = useState<View>(() => {
+    if (window.location.pathname.includes("/matriculas/")) return "Matrículas";
     const saved = storedValue(`${storagePrefix}:view`);
     return isView(saved) ? saved : "Painel";
   });
