@@ -1,46 +1,59 @@
-import { type FormEvent, useState } from "react";
+import { useMemo, useState } from "react";
+import { buildMonthlyPaymentRows, type MonthlyPaymentRow } from "../../application/portal/monthlyPaymentControl";
 import { api } from "../../infrastructure/http/api";
 import { SelectField, TextField } from "../components/FormPrimitives";
-import { type Row, brl, cents, dateKey, messageOf, value } from "./OperationalShared";
+import { type Row, brl, dateKey, messageOf } from "./OperationalShared";
+
+type PaymentFilter = "all" | "paid" | "open" | "unbilled";
+
+function coverageEnd(month: string, durationDays: number) {
+  const start = new Date(`${month}-01T12:00:00`);
+  start.setDate(start.getDate() + Math.max(durationDays, 1) - 1);
+  return dateKey(start);
+}
+
+function stateLabel(state: MonthlyPaymentRow["state"]) {
+  return ({ paid: "Pago", partial: "Pagamento parcial", overdue: "Atrasado", pending: "Aguardando pagamento", unbilled: "Sem cobrança", cancelled: "Cancelada" } as const)[state];
+}
 
 export function MonthlyPayments({ data, month, onMonth, canEdit, reload, onNotice }: { data: Record<string, Row[]>; month: string; onMonth: (month: string) => void; canEdit: boolean; reload: () => Promise<void>; onNotice: (text: string) => void }) {
-  const [saving, setSaving] = useState(false);
-  const [enrollmentId, setEnrollmentId] = useState("");
+  const [savingEnrollmentId, setSavingEnrollmentId] = useState("");
+  const [filter, setFilter] = useState<PaymentFilter>("all");
+  const [search, setSearch] = useState("");
   const enrollments: Row[] = data["/enrollments"] ?? [];
   const plans: Row[] = data["/plans"] ?? [];
   const patients: Row[] = (data["/patients?page=1&pageSize=100"] as unknown as { items?: Row[] })?.items ?? [];
   const charges: Row[] = data["/charges"] ?? [];
-  const payments: Row[] = data["/payments"] ?? [];
-  const selected = enrollments.find((row) => row.id === enrollmentId);
-  const plan = plans.find((row) => row.id === selected?.plan_id);
-  const months = Number(plan?.duration_days) === 90 ? 3 : Number(plan?.duration_days) === 180 ? 6 : 1;
-  const end = new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)) - 1 + months, 0, 12);
-  async function create(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!selected || saving) return;
-    const form = new FormData(event.currentTarget);
-    setSaving(true);
+  const rows = useMemo(() => buildMonthlyPaymentRows({ month, enrollments, patients, plans, charges }), [month, enrollments, patients, plans, charges]);
+  const filteredRows = rows.filter((row) => {
+    const matchesSearch = !search.trim() || `${row.patientName} ${row.planName}`.toLocaleLowerCase("pt-BR").includes(search.trim().toLocaleLowerCase("pt-BR"));
+    const matchesFilter = filter === "all" || (filter === "paid" && row.state === "paid") || (filter === "open" && ["pending", "partial", "overdue"].includes(row.state)) || (filter === "unbilled" && row.state === "unbilled");
+    return matchesSearch && matchesFilter;
+  });
+  const paidCount = rows.filter((row) => row.state === "paid").length;
+  const pendingCount = rows.filter((row) => ["pending", "partial", "overdue"].includes(row.state)).length;
+  const unbilledCount = rows.filter((row) => row.state === "unbilled").length;
+
+  async function createCharge(row: MonthlyPaymentRow) {
+    if (savingEnrollmentId) return;
+    const enrollment = enrollments.find((item) => item.id === row.enrollmentId);
+    const plan = plans.find((item) => item.id === enrollment?.plan_id);
+    setSavingEnrollmentId(row.enrollmentId);
     try {
-      await api("/charges", { method: "POST", body: JSON.stringify({ patient_id: selected.patient_id, enrollment_id: selected.id, unit_id: selected.unit_id, description: `${plan?.name ?? "Plano"} · ${month}`, amount_cents: cents(value(form, "amount")), due_at: value(form, "due_at"), coverage_from: `${month}-01`, coverage_to: dateKey(end) }) });
-      await reload(); onNotice("Cobrança criada. Selecione o paciente no recebimento para registrar o pagamento.");
-    } catch (error) { onNotice(messageOf(error)); } finally { setSaving(false); }
+      await api("/charges", { method: "POST", body: JSON.stringify({ patient_id: row.patientId, enrollment_id: row.enrollmentId, unit_id: row.unitId, description: `${row.planName} · ${month}`, amount_cents: row.amountCents, due_at: row.dueAt, coverage_from: `${month}-01`, coverage_to: coverageEnd(month, Number(plan?.duration_days ?? 30)) }) });
+      await reload();
+      onNotice("Cobrança do período criada. Agora registre o recebimento abaixo.");
+    } catch (error) { onNotice(messageOf(error)); } finally { setSavingEnrollmentId(""); }
   }
-  const rows = charges.filter((charge) => !charge.deleted_at && (charge.coverage_from ? String(charge.coverage_from).slice(0, 7) <= month && String(charge.coverage_to).slice(0, 7) >= month : String(charge.due_at).slice(0, 7) === month));
-  return <section className="card">
-    <h2>Pagamentos por mês</h2>
-    <TextField label="Mês de referência" type="month" value={month} onChange={(event) => { if (event.target.value) onMonth(event.target.value); }} />
-    <p>Selecione qualquer mês, inclusive passado. O valor de planos trimestrais e semestrais corresponde ao período completo.</p>
-    <div style={{ overflowX: "auto" }}><table><thead><tr><th scope="col">Paciente</th><th scope="col">Plano / período coberto</th><th scope="col">Valor total</th><th scope="col">Recebido</th><th scope="col">Saldo</th><th scope="col">Datas dos pagamentos</th></tr></thead><tbody>
-      {rows.map((charge) => <tr key={charge.id}><td>{patients.find((row) => row.id === charge.patient_id)?.name ?? "Paciente"}</td><td>{charge.description}<br />{charge.coverage_from ? `${charge.coverage_from} a ${charge.coverage_to}` : "Período não informado (registro antigo)"}</td><td>{brl(charge.amount_cents)}</td><td>{brl(charge.paid_cents)}</td><td>{charge.status === "cancelled" ? "Cancelada" : brl(charge.amount_cents - charge.paid_cents)}</td><td>{payments.filter((row) => row.charge_id === charge.id && !row.reversed_at).map((row) => `${new Date(row.paid_at).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })} · ${brl(row.amount_cents)}`).join("; ") || "Sem recebimento"}</td></tr>)}
+
+  return <section className="card table-card" aria-labelledby="monthly-payments-title">
+    <div className="table-toolbar"><div><p className="eyebrow">CONTROLE RECORRENTE</p><h2 id="monthly-payments-title">Pagamentos por período</h2><p>Escolha o mês para conferir cada matrícula. O pagamento só fica como pago após registrar o recebimento.</p></div>
+      <div className="plan-control-filters"><TextField label="Mês de referência" type="month" value={month} onChange={(event) => event.target.value && onMonth(event.target.value)} /><TextField label="Buscar" type="search" placeholder="Paciente ou plano" value={search} onChange={(event) => setSearch(event.target.value)} /><SelectField label="Pagamento" value={filter} onChange={(event) => setFilter(event.target.value as PaymentFilter)}><option value="all">Todos</option><option value="paid">Pagos</option><option value="open">Não pagos / em aberto</option><option value="unbilled">Sem cobrança lançada</option></SelectField></div>
+    </div>
+    <div className="plan-control-result" role="status" aria-live="polite">{paidCount} pagos · {pendingCount} em aberto · {unbilledCount} sem cobrança · exibindo {filteredRows.length} de {rows.length}</div>
+    <div style={{ overflowX: "auto" }}><table><thead><tr><th scope="col">Paciente</th><th scope="col">Plano / período</th><th scope="col">Vencimento</th><th scope="col">Situação</th><th scope="col">Valor</th><th scope="col">Ação</th></tr></thead><tbody>
+      {filteredRows.map((row) => <tr key={row.enrollmentId}><td>{row.patientName}</td><td>{row.planName}<br /><small>{row.coverageFrom} a {row.coverageTo || "a definir"}</small></td><td>{new Date(`${row.dueAt}T12:00:00`).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}</td><td><span className={`plan-status payment-status-${row.state}`}>{stateLabel(row.state)}</span></td><td>{row.state === "cancelled" ? "—" : `${brl(row.paidCents)} de ${brl(row.amountCents)}`}</td><td>{row.state === "unbilled" && canEdit ? <button type="button" className="btn secondary" disabled={Boolean(savingEnrollmentId)} onClick={() => void createCharge(row)}>{savingEnrollmentId === row.enrollmentId ? "Criando…" : "Lançar cobrança"}</button> : row.state === "paid" ? "Recebido" : row.state === "cancelled" ? "—" : "Use Registrar pagamento"}</td></tr>)}
     </tbody></table></div>
-    {!rows.length && <p>Nenhuma cobrança para este mês.</p>}
-    {canEdit && <form onSubmit={create}>
-      <h3>Lançar cobrança do período</h3>
-      <SelectField label="Matrícula" value={enrollmentId} onChange={(event) => setEnrollmentId(event.target.value)} required><option value="">Selecione</option>{enrollments.filter((row) => row.status === "active").map((row) => <option key={row.id} value={row.id}>{patients.find((patient) => patient.id === row.patient_id)?.name ?? "Paciente"} · {plans.find((plan) => plan.id === row.plan_id)?.name}</option>)}</SelectField>
-      <p>Período: {month}-01 a {dateKey(end)} ({months} meses).</p>
-      <TextField key={`${enrollmentId}-${month}`} name="amount" label="Valor do período" type="number" min="0.01" step="0.01" defaultValue={plan ? (Math.max(1, Number(plan.price_cents) - Number(selected?.discount_cents ?? 0) + Number(selected?.surcharge_cents ?? 0)) / 100).toFixed(2) : ""} required />
-      <TextField key={month} name="due_at" label="Vencimento" type="date" defaultValue={`${month}-01`} required />
-      <button className="btn primary" disabled={saving || !selected}>{saving ? "Salvando…" : "Criar cobrança"}</button>
-    </form>}
+    {!filteredRows.length && <div className="empty-state">Nenhuma matrícula corresponde ao mês, à busca ou ao filtro.</div>}
   </section>;
 }
