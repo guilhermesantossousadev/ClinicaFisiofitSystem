@@ -6,7 +6,7 @@ import { buildAvailablePaymentPlans } from "../../application/portal/paymentPlan
 import { SelectField, TextField } from "../components/FormPrimitives";
 import { type AgendaEnrollmentContext, Row, PLAN_PERIODS, PlanPeriod, WeeklyFrequency, messageOf, value, cents, brl, planTotalCents, groupSlotLabel, useDialogFocus, useResources, PlanSelect, PatientPicker, DrawerForm, ModuleState, MetricLite, EditableOperationalTable, OperationalTable, dateKey, localDateAtNoonIso } from "./OperationalShared";
 
-export function OperationalEnrollments({ agendaContext, onClearAgendaContext, openEnrollment = false, units = [], selectedUnitId = "", onUnitChange = () => undefined, canEdit = true, canManagePlans = true, canDeletePlans = true, canViewCharges = true, canManageChargeStatus = true, canViewPayments = true, canReceivePayments = true, canRollback = true }: { agendaContext?: AgendaEnrollmentContext; onClearAgendaContext?: () => void; openEnrollment?: boolean; units?: Array<{ id: string; name: string }>; selectedUnitId?: string; onUnitChange?: (unitId: string) => void; canEdit?: boolean; canManagePlans?: boolean; canDeletePlans?: boolean; canViewCharges?: boolean; canManageChargeStatus?: boolean; canViewPayments?: boolean; canReceivePayments?: boolean; canRollback?: boolean }) {
+export function OperationalEnrollments({ agendaContext, onClearAgendaContext, openEnrollment = false, units = [], selectedUnitId = "", onUnitChange = () => undefined, canEdit = true, canManagePlans = true, canDeletePlans = true, canViewCharges = true, canViewPayments = true, canReceivePayments = true, canRollback = true }: { agendaContext?: AgendaEnrollmentContext; onClearAgendaContext?: () => void; openEnrollment?: boolean; units?: Array<{ id: string; name: string }>; selectedUnitId?: string; onUnitChange?: (unitId: string) => void; canEdit?: boolean; canManagePlans?: boolean; canDeletePlans?: boolean; canViewCharges?: boolean; canViewPayments?: boolean; canReceivePayments?: boolean; canRollback?: boolean }) {
   const paths = [
     "/plans",
     "/enrollments",
@@ -36,7 +36,6 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
   const paymentPending = useRef(false);
   const paymentAttempt = useRef<{ payload: string; key: string }>();
   const [receivingPayment, setReceivingPayment] = useState(false);
-  const [savingPaymentId, setSavingPaymentId] = useState("");
   const [selectedPaymentChargeId, setSelectedPaymentChargeId] = useState("");
   const [selectedPaymentPatientId, setSelectedPaymentPatientId] = useState("");
   const [paymentPatientPickerVersion, setPaymentPatientPickerVersion] = useState(0);
@@ -167,22 +166,6 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
       setSavingControlRow(false);
     }
   }
-  async function updatePaymentStatus(row: PlanControlRow, status: string) {
-    if (!row.chargeId || savingPaymentId) return;
-    setSavingPaymentId(row.chargeId);
-    try {
-      await api(`/charges/${row.chargeId}/status`, {
-        method: "PATCH",
-        body: JSON.stringify({ status }),
-      });
-      await reload();
-      setNotice("Situação do pagamento atualizada.");
-    } catch (error) {
-      setNotice(messageOf(error));
-    } finally {
-      setSavingPaymentId("");
-    }
-  }
   const enrollmentRows: ActiveEnrollmentRow[] = (data["/enrollments"] ?? [])
     .filter((row: Row) => row.status === "active" && !row.deleted_at)
     .map((row: Row) => {
@@ -265,10 +248,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
       const matchesFilter = controlFilter === "all"
         || (controlFilter === "due-soon" && row.renewalState === "due-soon")
         || (controlFilter === "expired" && row.renewalState === "expired")
-        || (controlFilter === "paid" && row.paymentState === "paid")
-        || (controlFilter === "cancelled" && row.paymentState === "cancelled")
-        || (controlFilter === "overdue" && row.paymentState === "overdue")
-        || (controlFilter === "pending" && ["pending", "partial", "uncharged"].includes(row.paymentState));
+        || (controlFilter === "active" && row.enrollmentStatus === "active");
       return matchesSearch && matchesFilter;
     });
   }, [controlFilter, controlRows, controlSearch]);
@@ -292,6 +272,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
         </div>
       )}
       <ModuleState loading={loading} error={error} retry={reload} />
+      {canViewCharges && <MonthlyPayments data={data} month={paymentMonth} onMonth={(month) => { setPaymentMonth(month); clearPaymentPatient(); }} canEdit={canReceivePayments} reload={reload} onNotice={setNotice} />}
       <div className="metrics">
         <MetricLite label="Pacientes com plano" value={activeControlRows.length} />
         <MetricLite label="Pagamentos em dia" value={paidPlans} />
@@ -308,10 +289,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
         units={units}
         selectedUnitId={selectedUnitId}
         onUnitChange={onUnitChange}
-          savingPaymentId={savingPaymentId}
-          onPaymentStatusChange={updatePaymentStatus}
           onEdit={canEdit ? setEditingControlRow : undefined}
-          canManageChargeStatus={canManageChargeStatus}
       />
       {editingControlRow && (
         <EditControlledPlanDialog
@@ -378,7 +356,6 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
         </DrawerForm>
         )}
       </div>}
-      {canViewCharges && <MonthlyPayments data={data} month={paymentMonth} onMonth={(month) => { setPaymentMonth(month); clearPaymentPatient(); }} canEdit={canReceivePayments} reload={reload} onNotice={setNotice} />}
       {canReceivePayments && <form className="card modal-form payment-registration-card" onSubmit={pay}>
         <div className="payment-registration-heading">
           <div>
@@ -623,10 +600,7 @@ function PlanControlTable({
   units,
   selectedUnitId,
   onUnitChange,
-  savingPaymentId,
-  onPaymentStatusChange,
   onEdit,
-  canManageChargeStatus,
 }: {
   rows: PlanControlRow[];
   total: number;
@@ -637,18 +611,15 @@ function PlanControlTable({
   units: Array<{ id: string; name: string }>;
   selectedUnitId: string;
   onUnitChange: (unitId: string) => void;
-  savingPaymentId: string;
-  onPaymentStatusChange: (row: PlanControlRow, status: string) => void | Promise<void>;
   onEdit?: (row: PlanControlRow) => void;
-  canManageChargeStatus: boolean;
 }) {
   return (
     <section className="card table-card plan-control-table" aria-labelledby="plan-control-title">
       <div className="table-toolbar plan-control-toolbar">
         <div>
-          <p className="eyebrow">ACOMPANHAMENTO</p>
-          <h2 id="plan-control-title">Controle de planos dos pacientes</h2>
-          <p>Veja rapidamente quem contratou, quem pagou e quanto falta para renovar.</p>
+          <p className="eyebrow">GESTÃO DA MATRÍCULA</p>
+          <h2 id="plan-control-title">Renovações e dados dos planos</h2>
+          <p>Edite o plano, acompanhe sessões e antecipe renovações. O pagamento do período fica no controle acima.</p>
         </div>
         <div className="plan-control-filters">
           <TextField fieldClassName="plan-control-filter-field plan-control-search-field" label="Buscar" type="search" placeholder="Paciente ou plano" value={search} onChange={(event) => onSearch(event.target.value)} />
@@ -656,10 +627,7 @@ function PlanControlTable({
             <option value="all">Todos</option>
             <option value="due-soon">Renovam em até 7 dias</option>
             <option value="expired">Planos vencidos</option>
-            <option value="paid">Pagamentos em dia</option>
-            <option value="cancelled">Pagamentos cancelados</option>
-            <option value="overdue">Pagamentos atrasados</option>
-            <option value="pending">Aguardando pagamento</option>
+            <option value="active">Matrículas ativas</option>
           </SelectField>
           <SelectField fieldClassName="plan-control-filter-field" label="Clínica" value={selectedUnitId} onChange={(event) => onUnitChange(event.target.value)}>
             <option value="">Todas as clínicas</option>
@@ -671,7 +639,7 @@ function PlanControlTable({
         Exibindo {rows.length} de {total} {total === 1 ? "plano" : "planos"}
       </div>
       <div className="plan-control-head" aria-hidden="true">
-        <span>Paciente</span><span>Plano</span><span>Pagamento</span><span>Último pagamento</span><span>Renovação</span><span>Ações</span>
+        <span>Paciente</span><span>Plano</span><span>Histórico</span><span>Último pagamento</span><span>Renovação</span><span>Ações</span>
       </div>
       {rows.map((row) => (
         <div className="plan-control-row" key={row.id}>
@@ -683,25 +651,9 @@ function PlanControlTable({
             <strong>{row.planName}</strong>
             <small>{row.sessionsIncluded == null ? `${row.sessionsUsed} sessões usadas` : `${row.sessionsUsed} de ${row.sessionsIncluded} sessões usadas`} · {enrollmentStatusLabel(row.enrollmentStatus)}</small>
           </div>
-          <div className="plan-control-cell" data-label="Pagamento">
-            <SelectField
-              fieldClassName={`payment-status-field payment-status-${row.paymentState}`}
-              label={`Pagamento de ${row.patientName}`}
-              labelHidden
-              value={row.paymentState}
-              disabled={!canManageChargeStatus || !row.chargeId || savingPaymentId === row.chargeId}
-              onChange={(event) => void onPaymentStatusChange(row, event.target.value)}
-            >
-              {row.paymentState === "uncharged" && <option value="uncharged" disabled>Sem cobrança</option>}
-              {row.paymentState === "partial" && <option value="partial" disabled>Pago parcialmente</option>}
-              <option value="paid">Pago</option>
-              <option value="cancelled">Cancelado</option>
-              <option value="overdue">Atrasado</option>
-              <option value="pending">Aguardando pagamento</option>
-            </SelectField>
-            <small>{row.paymentState === "paid" && row.paidCents < row.amountCents
-              ? "Marcado como pago; recebimento financeiro ainda não lançado"
-              : row.amountCents ? `${brl(row.paidCents)} de ${brl(row.amountCents)}` : "Nenhum valor lançado"}</small>
+          <div className="plan-control-cell" data-label="Histórico">
+            <span className={`plan-status plan-status-${row.paymentState}`}>{({ paid: "Quitado", partial: "Parcial", overdue: "Atrasado", pending: "Em aberto", cancelled: "Cancelado", uncharged: "Sem cobrança" } as Record<string, string>)[row.paymentState]}</span>
+            <small>{row.amountCents ? `${brl(row.paidCents)} de ${brl(row.amountCents)} no histórico` : "Nenhum valor lançado"}</small>
           </div>
           <div className="plan-control-cell" data-label="Último pagamento">
             <strong>{dateLabel(row.lastPaidAt, true)}</strong>
