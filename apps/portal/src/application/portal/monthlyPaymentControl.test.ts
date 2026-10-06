@@ -13,6 +13,41 @@ describe("controle mensal de pagamentos", () => {
     expect(rows).toEqual([expect.objectContaining({ patientName: "Ana", state: "unbilled", amountCents: 20000, dueAt: "2026-09-05" })]);
   });
 
+  it("usa o preço do catálogo completo quando a matrícula traz apenas o resumo do plano", () => {
+    const rows = buildMonthlyPaymentRows({
+      ...base,
+      month: "2026-10",
+      enrollments: [{ ...base.enrollments[0], plan: { id: "plan-1", name: "Mensal", duration_days: 30 } }],
+      charges: [],
+    });
+    expect(rows[0]).toMatchObject({ state: "unbilled", amountCents: 20000, coverageFrom: "2026-10-01", coverageTo: "2026-10-31" });
+  });
+
+  it("não representa preço ausente como zero", () => {
+    const rows = buildMonthlyPaymentRows({ ...base, plans: [{ id: "plan-1", name: "Mensal" }], charges: [], month: "2026-09" });
+    expect(rows[0]).toMatchObject({ state: "unbilled", amountCents: null, balanceCents: 0 });
+  });
+
+  it("preserva o valor comercial e a cobertura trimestral, sem multiplicar o preço", () => {
+    const rows = buildMonthlyPaymentRows({
+      ...base,
+      month: "2026-10",
+      plans: [{ id: "plan-1", name: "Trimestral · 2x por semana", price_cents: 90000, duration_days: 90 }],
+      charges: [],
+    });
+    expect(rows[0]).toMatchObject({ amountCents: 90000, coverageFrom: "2026-10-01", coverageTo: "2026-12-31" });
+  });
+
+  it("preserva o valor comercial e a cobertura semestral", () => {
+    const rows = buildMonthlyPaymentRows({
+      ...base,
+      month: "2026-10",
+      plans: [{ id: "plan-1", name: "Semestral · 2x por semana", price_cents: 170000, duration_days: 180 }],
+      charges: [],
+    });
+    expect(rows[0]).toMatchObject({ amountCents: 170000, coverageTo: "2027-03-31" });
+  });
+
   it("não usa uma quitação antiga como pagamento do período atual", () => {
     const rows = buildMonthlyPaymentRows({
       ...base,

@@ -566,7 +566,8 @@ app.post("/enrollments", requireRoles(["admin", "manager", "reception", "finance
     status: "active",
   }).select().single();
   if (error || !data) return databaseResult(context, null, error);
-  const chargeAmount = Math.max(plan.price_cents - input.discount_cents + input.surcharge_cents, 1);
+  const chargeAmount = plan.price_cents - input.discount_cents + input.surcharge_cents;
+  if (chargeAmount <= 0) return fail(context, 400, "ENROLLMENT_PRICE_UNAVAILABLE", "Não foi possível determinar um valor positivo para esta matrícula. Revise o plano e os ajustes comerciais.");
   const { error: chargeError } = await db.from("charges").insert({
     clinic_id: context.get("profile").clinic_id,
     patient_id: input.patient_id,
@@ -576,7 +577,7 @@ app.post("/enrollments", requireRoles(["admin", "manager", "reception", "finance
     amount_cents: chargeAmount,
     due_at: firstDueDate(input.starts_at, input.due_day),
     coverage_from: input.starts_at,
-    coverage_to: input.ends_at ?? new Date(new Date(`${input.starts_at}T12:00:00Z`).getTime() + (Number(plan.duration_days ?? 30) - 1) * 86400000).toISOString().slice(0, 10),
+    coverage_to: input.ends_at ?? coverageEndForPlan(input.starts_at, Number(plan.duration_days ?? 30)),
     status: "pending",
   });
   if (chargeError) {
@@ -645,7 +646,7 @@ app.post("/charges", requireRoles(["admin", "manager", "finance"]), async (conte
     enrollment_id: z.string().uuid().optional(),
     unit_id: z.string().uuid(),
     description: z.string().trim().min(3).max(200),
-    amount_cents: z.number().int().positive(),
+    amount_cents: z.number().int().positive().optional(),
     due_at: z.string().date(),
     coverage_from: z.string().date(),
     coverage_to: z.string().date(),
@@ -655,11 +656,21 @@ app.post("/charges", requireRoles(["admin", "manager", "finance"]), async (conte
   if (input.coverage_to < input.coverage_from) return fail(context, 400, "INVALID_PERIOD", "O fim do período deve ser posterior ao início.");
   const scopeError = await validateRelatedResourceScope(context, input);
   if (scopeError) return scopeError;
+  let amountCents = input.amount_cents;
   if (input.enrollment_id) {
-    const { data: enrollment } = await context.get("db").from("enrollments").select("id,patient_id,unit_id").eq("id", input.enrollment_id).eq("clinic_id", context.get("profile").clinic_id).eq("patient_id", input.patient_id).eq("unit_id", input.unit_id).eq("status", "active").is("deleted_at", null).maybeSingle();
+    const db = context.get("db");
+    const clinicId = context.get("profile").clinic_id;
+    const { data: enrollment } = await db.from("enrollments").select("id,patient_id,unit_id,plan_id,discount_cents,surcharge_cents").eq("id", input.enrollment_id).eq("clinic_id", clinicId).eq("patient_id", input.patient_id).eq("unit_id", input.unit_id).eq("status", "active").is("deleted_at", null).maybeSingle();
     if (!enrollment) return fail(context, 400, "INVALID_ENROLLMENT", "A matrícula não pertence ao paciente e à unidade informados.");
+    const { data: plan, error: planError } = await db.from("plans").select("price_cents").eq("id", enrollment.plan_id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle();
+    if (planError) return databaseResult(context, null, planError);
+    if (!plan) return fail(context, 400, "ENROLLMENT_PRICE_UNAVAILABLE", "Não foi possível determinar o valor desta matrícula. Revise o plano e o valor contratado antes de criar a cobrança.");
+    amountCents = Number(plan.price_cents) - Number(enrollment.discount_cents ?? 0) + Number(enrollment.surcharge_cents ?? 0);
+    if (!Number.isInteger(amountCents) || amountCents <= 0) return fail(context, 400, "ENROLLMENT_PRICE_UNAVAILABLE", "Não foi possível determinar um valor positivo para esta matrícula. Revise o plano e os ajustes comerciais.");
   }
-  return createClinicResource(context, "charges", { ...input, status: "pending" }, "charge.created", input.unit_id);
+  if (!amountCents) return fail(context, 422, "CHARGE_AMOUNT_REQUIRED", "Informe um valor positivo para a cobrança.");
+  const { amount_cents: _submittedAmount, ...charge } = input;
+  return createClinicResource(context, "charges", { ...charge, amount_cents: amountCents, status: "pending" }, "charge.created", input.unit_id);
 });
 
 app.patch("/charges/:id/status", requireRoles(["admin", "manager", "finance"]), async (context) => {
@@ -1043,6 +1054,14 @@ function positiveInt(value: string | undefined, fallback: number) {
 
 function escapeLike(value: string) {
   return value.replace(/[%_]/g, "\\$&");
+}
+
+function coverageEndForPlan(startsAt: string, durationDays: number) {
+  // Plan durations are catalogued as commercial monthly periods (30/90/180),
+  // so preserve calendar-month coverage rather than shortening Feb/31-day months.
+  const [year, month] = startsAt.split("-").map(Number);
+  const months = Math.max(1, Math.round(durationDays / 30));
+  return new Date(Date.UTC(year, month - 1 + months, 0)).toISOString().slice(0, 10);
 }
 
 function firstDueDate(startsAt: string, dueDay?: number) {

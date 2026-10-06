@@ -9,7 +9,8 @@ export type MonthlyPaymentRow = {
   planName: string;
   unitId: string;
   dueAt: string;
-  amountCents: number;
+  /** Null means the enrollment has no determinable commercial amount. */
+  amountCents: number | null;
   paidCents: number;
   balanceCents: number;
   chargeId: string;
@@ -22,6 +23,12 @@ function monthBounds(month: string) {
   const [year, monthNumber] = month.split("-").map(Number);
   const lastDay = new Date(year, monthNumber, 0).getDate();
   return { from: `${month}-01`, to: `${month}-${String(lastDay).padStart(2, "0")}` };
+}
+
+function plannedCoverageEnd(month: string, durationDays: unknown) {
+  const months = Math.max(1, Math.round(Number(durationDays ?? 30) / 30));
+  const start = new Date(`${month}-01T12:00:00`);
+  return new Date(start.getFullYear(), start.getMonth() + months, 0).toISOString().slice(0, 10);
 }
 
 function matchesMonth(charge: MonthlyPaymentSourceRow, month: string) {
@@ -55,16 +62,24 @@ export function buildMonthlyPaymentRows({
       const enrollmentId = String(enrollment.id);
       const patientId = String(enrollment.patient_id ?? "");
       const patient = (enrollment.patient as MonthlyPaymentSourceRow | null) ?? patientById.get(patientId) ?? {};
-      const plan = (enrollment.plan as MonthlyPaymentSourceRow | null) ?? planById.get(String(enrollment.plan_id)) ?? {};
+      // /enrollments deliberately embeds a compact plan (name/duration only).  The
+      // catalogue response is the only source here that carries price_cents.
+      const plan = planById.get(String(enrollment.plan_id)) ?? (enrollment.plan as MonthlyPaymentSourceRow | null) ?? {};
       const matchingCharges = charges.filter((charge) => !charge.deleted_at && String(charge.enrollment_id) === enrollmentId && matchesMonth(charge, month));
       const charge = [...matchingCharges].sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? ""))).at(0);
-      const amountCents = Number(charge?.amount_cents ?? Math.max(0, Number(plan.price_cents ?? 0) - Number(enrollment.discount_cents ?? 0) + Number(enrollment.surcharge_cents ?? 0)));
+      const cataloguePrice = plan.price_cents;
+      const expectedAmount = cataloguePrice === null || cataloguePrice === undefined || !Number.isFinite(Number(cataloguePrice))
+        ? null
+        : Number(cataloguePrice) - Number(enrollment.discount_cents ?? 0) + Number(enrollment.surcharge_cents ?? 0);
+      // A persisted charge is a financial snapshot and always takes precedence.
+      // Do not turn an unknown or invalid expected amount into zero.
+      const amountCents = charge ? Number(charge.amount_cents) : expectedAmount === null || expectedAmount < 0 ? null : expectedAmount;
       const paidCents = Number(charge?.paid_cents ?? 0);
-      const balanceCents = Math.max(amountCents - paidCents, 0);
+      const balanceCents = amountCents === null ? 0 : Math.max(amountCents - paidCents, 0);
       const status = String(charge?.status ?? "");
       const state: MonthlyPaymentState = !charge ? "unbilled"
         : status === "cancelled" ? "cancelled"
-          : paidCents >= amountCents || status === "paid" ? "paid"
+          : (amountCents !== null && paidCents >= amountCents) || status === "paid" ? "paid"
             : status === "overdue" ? "overdue"
               : paidCents > 0 || status === "partial" ? "partial" : "pending";
 
@@ -80,7 +95,7 @@ export function buildMonthlyPaymentRows({
         balanceCents,
         chargeId: String(charge?.id ?? ""),
         coverageFrom: String(charge?.coverage_from ?? `${month}-01`),
-        coverageTo: String(charge?.coverage_to ?? ""),
+        coverageTo: String(charge?.coverage_to ?? plannedCoverageEnd(month, plan.duration_days)),
         state,
       };
     })

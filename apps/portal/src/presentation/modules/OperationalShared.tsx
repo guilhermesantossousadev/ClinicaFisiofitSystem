@@ -75,9 +75,7 @@ export function statusLabel(value: unknown) {
 }
 
 export function planTotalCents(plan: Row) {
-  const monthlyPrice = Number(plan.price_cents ?? 0);
-  const months = Math.max(1, Math.round(Number(plan.duration_days ?? 30) / 30));
-  return monthlyPrice * months;
+  return Number(plan.price_cents ?? 0);
 }
 
 export function isoLocal(raw: string) {
