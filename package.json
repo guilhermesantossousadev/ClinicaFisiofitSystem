@@ -13,7 +13,7 @@
     "build": "npm run build:site && npm run build:portal && node scripts/assemble-hostinger.mjs",
     "build:site": "npm run build -w @fisiofit/site",
     "build:portal": "npm run build -w @fisiofit/portal",
-    "test": "npm run test --workspaces --if-present && node --test tests/platform.test.mjs",
+    "test": "npm run test --workspaces --if-present && node --test tests/*.test.mjs",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "supabase:start": "supabase start",
