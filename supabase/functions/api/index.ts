@@ -1,3 +1,4 @@
+import { patientSchema } from "./patient-schema.ts";
 import { Hono } from "npm:hono@4.7.2";
 import { cors } from "npm:hono@4.7.2/cors";
 import { createClient, type User } from "npm:@supabase/supabase-js@2.49.1";
@@ -126,18 +127,6 @@ app.use("*", async (context, next) => {
   context.set("profile", profile as Variables["profile"]);
   context.set("db", db);
   await next();
-});
-
-const patientSchema = z.object({
-  primary_unit_id: z.string().uuid(),
-  name: z.string().trim().min(3).max(160),
-  cpf: z.string().trim().min(11).max(14).optional(),
-  birth_date: z.string().date().optional(),
-  phone: z.string().max(20).optional(),
-  email: z.string().email().optional(),
-  address: z.record(z.string()).optional(),
-  tax_data: z.record(z.unknown()).optional(),
-  notes: z.string().max(4000).optional(),
 });
 
 const appointmentFields = z.object({
@@ -538,54 +527,23 @@ app.patch("/plans/:id", requireRoles(["admin", "manager", "finance"]), async (co
   return updateClinicResource(context, "plans", id, input, "plan.updated");
 });
 
+const enrollmentCreateSchema = z.object({
+  patient_id: z.string().uuid("Selecione um paciente válido."),
+  plan_id: z.string().uuid("Selecione um plano válido."),
+  unit_id: z.string().uuid("Selecione uma unidade válida."),
+  group_slot_id: z.string().uuid().optional(),
+  starts_at: z.string().date("Informe uma data inicial válida."),
+  ends_at: z.string().date().optional(),
+  due_day: z.number().int().min(1).max(31).optional(),
+  discount_cents: z.number().int().nonnegative().default(0),
+  surcharge_cents: z.number().int().nonnegative().default(0),
+});
 app.post("/enrollments", requireRoles(["admin", "manager", "reception", "finance"]), async (context) => {
-  const input = z.object({
-    patient_id: z.string().uuid(),
-    plan_id: z.string().uuid(),
-    unit_id: z.string().uuid(),
-    starts_at: z.string().date(),
-    ends_at: z.string().date().optional(),
-    due_day: z.number().int().min(1).max(31).optional(),
-    discount_cents: z.number().int().nonnegative().default(0),
-    surcharge_cents: z.number().int().nonnegative().default(0),
-  }).parse(await context.req.json());
-  const db = context.get("db");
-  const scopeError = await validateRelatedResourceScope(context, input);
-  if (scopeError) return scopeError;
-  const clinicId = context.get("profile").clinic_id;
-  const { data: plan, error: planError } = await db.from("plans").select("id,name,price_cents,active,duration_days")
-    .eq("id", input.plan_id).eq("clinic_id", clinicId).is("deleted_at", null).single();
-  if (planError || !plan) return databaseResult(context, null, planError);
-  if (!plan.active) return fail(context, 400, "PLAN_INACTIVE", "O plano selecionado está inativo.");
-  if (input.ends_at && input.ends_at < input.starts_at) return fail(context, 400, "INVALID_PERIOD", "A data final não pode ser anterior à inicial.");
-  const { data: existing } = await db.from("enrollments").select("*").eq("clinic_id", clinicId).eq("patient_id", input.patient_id).eq("plan_id", input.plan_id).eq("unit_id", input.unit_id).eq("status", "active").is("deleted_at", null).maybeSingle();
-  if (existing) return ok(context, existing);
-  const { data, error } = await db.from("enrollments").insert({
-    ...input,
-    clinic_id: clinicId,
-    status: "active",
-  }).select().single();
-  if (error || !data) return databaseResult(context, null, error);
-  const chargeAmount = plan.price_cents - input.discount_cents + input.surcharge_cents;
-  if (chargeAmount <= 0) return fail(context, 400, "ENROLLMENT_PRICE_UNAVAILABLE", "Não foi possível determinar um valor positivo para esta matrícula. Revise o plano e os ajustes comerciais.");
-  const { error: chargeError } = await db.from("charges").insert({
-    clinic_id: context.get("profile").clinic_id,
-    patient_id: input.patient_id,
-    enrollment_id: data.id,
-    unit_id: input.unit_id,
-    description: `Matrícula — ${plan.name}`,
-    amount_cents: chargeAmount,
-    due_at: firstDueDate(input.starts_at, input.due_day),
-    coverage_from: input.starts_at,
-    coverage_to: input.ends_at ?? coverageEndForPlan(input.starts_at, Number(plan.duration_days ?? 30)),
-    status: "pending",
+  const input = enrollmentCreateSchema.parse(await context.req.json());
+  const { data, error } = await context.get("db").rpc("save_enrollment", {
+    p_input: input, p_request_id: context.get("requestId"),
   });
-  if (chargeError) {
-    await db.from("enrollments").update({ status: "cancelled", deleted_at: new Date().toISOString() }).eq("id", data.id).eq("clinic_id", clinicId);
-    return databaseResult(context, null, chargeError);
-  }
-  await audit(context, "enrollment.created", "enrollment", data.id, input.unit_id);
-  return ok(context, data, 201);
+  return databaseResult(context, data, error, 201);
 });
 
 app.patch("/enrollments/:id", requireRoles(["admin", "manager", "reception", "finance"]), async (context) => {
@@ -599,37 +557,9 @@ app.patch("/enrollments/:id", requireRoles(["admin", "manager", "reception", "fi
   }).refine((value) => Object.keys(value).length > 0, {
     message: "Informe ao menos um dado para atualizar.",
   }).parse(await context.req.json());
-  const db = context.get("db");
-  const clinicId = context.get("profile").clinic_id;
-  const { data: current, error: currentError } = await db.from("enrollments")
-    .select("id,unit_id,starts_at,ends_at")
-    .eq("id", id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle();
-  if (currentError) return databaseResult(context, null, currentError);
-  if (!current) return fail(context, 404, "ENROLLMENT_NOT_FOUND", "Matrícula não encontrada.");
-  if (!(await hasUnitAccess(context, current.unit_id))) {
-    return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
-  }
-  if (input.plan_id) {
-    const { data: plan, error: planError } = await db.from("plans")
-      .select("id,name,price_cents,active,duration_days")
-      .eq("id", input.plan_id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle();
-    if (planError) return databaseResult(context, null, planError);
-    if (!plan) return fail(context, 404, "PLAN_NOT_FOUND", "Plano não encontrado.");
-    if (!plan.active) return fail(context, 400, "PLAN_INACTIVE", "O plano selecionado está inativo.");
-  }
-  const startsAt = input.starts_at ?? current.starts_at;
-  const endsAt = input.ends_at === undefined ? current.ends_at : input.ends_at;
-  if (endsAt && endsAt < startsAt) {
-    return fail(context, 400, "INVALID_PERIOD", "A data de renovação não pode ser anterior à data inicial.");
-  }
-  const { data, error } = await db.from("enrollments")
-    .update({ ...input, updated_at: new Date().toISOString() })
-    .eq("id", id).eq("clinic_id", clinicId).is("deleted_at", null).select().single();
-  if (!error && data) {
-    await audit(context, "enrollment.updated", "enrollment", id, current.unit_id, {
-      changed_fields: Object.keys(input),
-    });
-  }
+  const { data, error } = await context.get("db").rpc("save_enrollment", {
+    p_input: input, p_request_id: context.get("requestId"), p_id: id,
+  });
   return databaseResult(context, data, error);
 });
 
@@ -952,6 +882,28 @@ function databaseResult(context: any, data: unknown, error: any, status = 200) {
   if (error) {
     console.error(JSON.stringify({ requestId: context.get("requestId"), code: error.code, message: error.message }));
     if (String(error.message).includes("GROUP_CAPACITY_REACHED")) return fail(context, 409, "GROUP_CAPACITY_REACHED", "A turma está lotada em uma das datas do período escolhido. Ajuste o período do vínculo.");
+    const enrollmentErrors: Record<string, [number, string]> = {
+      FORBIDDEN: [403, "Seu perfil não possui permissão para alterar matrículas."],
+      UNIT_FORBIDDEN: [403, "Seu perfil não possui acesso a esta unidade."],
+      AGENDA_FORBIDDEN: [403, "Seu perfil não pode vincular turmas. Crie a matrícula sem turma ou solicite acesso à Agenda."],
+      PATIENT_NOT_FOUND: [404, "Paciente não encontrado ou inativo."],
+      PLAN_NOT_FOUND: [404, "Plano não encontrado."],
+      PLAN_INACTIVE: [400, "O plano selecionado está inativo."],
+      GROUP_NOT_FOUND: [400, "A turma está inativa ou não pertence à unidade selecionada."],
+      GROUP_HAS_OTHER_ENROLLMENT: [409, "O paciente já possui outro plano vinculado a esta turma."],
+      INVALID_ENROLLMENT_INPUT: [400, "Informe somente os campos permitidos da matrícula."],
+      INVALID_PERIOD: [400, "A data final não pode ser anterior à inicial."],
+      INVALID_SESSION_COUNT: [400, "As sessões utilizadas devem estar entre zero e o total do plano selecionado."],
+      INVALID_ENROLLMENT_ADJUSTMENTS: [400, "Revise o vencimento e os ajustes da matrícula."],
+      ENROLLMENT_PRICE_UNAVAILABLE: [400, "O valor da matrícula deve ser positivo. Revise o preço do plano e o desconto."],
+      ENROLLMENT_NOT_FOUND: [404, "Matrícula não encontrada."],
+      ENROLLMENT_ALREADY_ACTIVE: [409, "O paciente já possui este plano ativo nesta unidade. Edite a matrícula existente ou finalize-a antes de renovar."],
+      ENROLLMENT_CANCELLED: [409, "Uma matrícula cancelada não pode ser editada."],
+      ENROLLMENT_HAS_PAYMENTS: [409, "Esta matrícula possui pagamentos. Preserve o histórico e crie uma nova matrícula para alterar plano ou período."],
+      ENROLLMENT_MULTIPLE_CHARGES: [409, "Esta matrícula possui várias cobranças. Solicite à gestão o ajuste financeiro antes de alterar o plano ou período."],
+    };
+    const known = enrollmentErrors[String(error.message)];
+    if (known) return fail(context, known[0], String(error.message), known[1]);
     const conflict = error.code === "23505";
     return fail(context, conflict ? 409 : 400, conflict ? "DUPLICATE" : "DATABASE_ERROR", conflict ? "Este registro já existe." : "Não foi possível salvar os dados.");
   }
@@ -1062,13 +1014,6 @@ function coverageEndForPlan(startsAt: string, durationDays: number) {
   const [year, month] = startsAt.split("-").map(Number);
   const months = Math.max(1, Math.round(durationDays / 30));
   return new Date(Date.UTC(year, month - 1 + months, 0)).toISOString().slice(0, 10);
-}
-
-function firstDueDate(startsAt: string, dueDay?: number) {
-  if (!dueDay) return startsAt;
-  const [year, month] = startsAt.split("-").map(Number);
-  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  return `${year}-${String(month).padStart(2, "0")}-${String(Math.min(dueDay, lastDay)).padStart(2, "0")}`;
 }
 
 function normalizeAnnual(rows: any[], year: number) {
@@ -1274,6 +1219,9 @@ const openApiDocument = {
   servers: [{ url: "/functions/v1/api/v1" }],
   paths: {
     "/patients": { get: { summary: "Lista pacientes" }, post: { summary: "Cadastra paciente" } },
+    "/patients/{id}": { patch: { summary: "Edita dados cadastrais; null apaga campos opcionais" } },
+    "/enrollments": { post: { summary: "Salva matrícula, cobrança e turma opcional em uma transação" } },
+    "/enrollments/{id}": { patch: { summary: "Edita matrícula e cobrança não paga atomicamente" } },
     "/appointments": { get: { summary: "Lista agenda" }, post: { summary: "Cria agendamento com conflito validado" } },
     "/attendance/daily": { get: { summary: "Lista pacientes das turmas para a chamada diária" } },
     "/attendance": { post: { summary: "Registra presença ou falta e controla reposição" } },

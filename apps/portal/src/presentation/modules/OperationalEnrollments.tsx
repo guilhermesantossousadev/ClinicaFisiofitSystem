@@ -50,7 +50,8 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
 
   async function createPlan(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     try {
       await api("/plans", {
         method: "POST",
@@ -63,7 +64,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
           active: true,
         }),
       });
-      (event.target as HTMLFormElement).reset();
+      formElement.reset();
       setPlanPeriod("monthly");
       setWeeklyFrequency(2);
       await reload();
@@ -74,30 +75,22 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
   }
   async function enroll(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const patientId = value(form, "patient_id");
     const planId = value(form, "plan_id");
     try {
-      const existing = (data["/enrollments"] ?? []).find((row: Row) => row.patient_id === patientId && row.plan_id === planId && row.status !== "cancelled" && row.status !== "reversed" && !row.deleted_at);
-      const response = existing ? { data: existing } : await api<Row>("/enrollments", {
+      await api<Row>("/enrollments", {
         method: "POST",
-        body: JSON.stringify({ patient_id: patientId, plan_id: planId, unit_id: value(form, "unit_id"), starts_at: value(form, "starts_at"), ends_at: value(form, "ends_at") || undefined, due_day: Number(value(form, "due_day")), discount_cents: cents(value(form, "discount") || "0"), surcharge_cents: 0 }),
+        body: JSON.stringify({ patient_id: patientId, plan_id: planId, unit_id: value(form, "unit_id"), group_slot_id: value(form, "group_slot_id") || undefined, starts_at: value(form, "starts_at"), ends_at: value(form, "ends_at") || undefined, due_day: Number(value(form, "due_day")), discount_cents: cents(value(form, "discount") || "0"), surcharge_cents: 0 }),
       });
-      const group = value(form, "group_slot_id");
-      if (group && response.data)
-          await api(`/group-slots/${group}/members`, {
-            method: "POST",
-            body: JSON.stringify({ enrollment_id: response.data.id, patient_id: patientId, starts_at: value(form, "starts_at"), ends_at: value(form, "ends_at") || undefined }),
-          });
-      (event.target as HTMLFormElement).reset();
+      formElement.reset();
       setSelectedPatient(undefined);
       setSelectedEnrollmentGroup("");
       setSelectedEnrollmentUnit("");
       setPatientPickerVersion((version) => version + 1);
       await reload();
-      setNotice(existing
-        ? group ? "Paciente já matriculado; turma atualizada." : "Paciente já possui esta matrícula ativa."
-        : group ? "Matrícula criada e paciente vinculado à turma escolhida." : "Matrícula criada.");
+      setNotice("Matrícula salva com sucesso.");
     } catch (e) {
       setNotice(messageOf(e));
     }
@@ -148,7 +141,8 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
   async function updateControlledPlan(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!editingControlRow || savingControlRow) return;
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     setSavingControlRow(true);
     try {
       await api(`/enrollments/${editingControlRow.id}`, {
@@ -156,7 +150,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
         body: JSON.stringify({
           plan_id: value(form, "plan_id"),
           starts_at: value(form, "starts_at"),
-          ends_at: value(form, "ends_at"),
+          ends_at: value(form, "ends_at") || null,
           sessions_used: Number(value(form, "sessions_used")),
           status: value(form, "status"),
         }),
@@ -289,13 +283,15 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
         units={units}
         selectedUnitId={selectedUnitId}
         onUnitChange={onUnitChange}
-          onEdit={canEdit ? setEditingControlRow : undefined}
+          onEdit={canEdit ? (row) => { setNotice(""); setEditingControlRow(row); } : undefined}
       />
       {editingControlRow && (
         <EditControlledPlanDialog
           row={editingControlRow}
-          plans={(data["/plans"] ?? []).filter((plan: Row) => plan.active !== false)}
+          plans={(data["/plans"] ?? []).filter((plan: Row) => plan.active !== false || plan.id === editingControlRow.planId)}
           saving={savingControlRow}
+          notice={notice}
+          endsAt={(data["/enrollments"] ?? []).find((row: Row) => row.id === editingControlRow.id)?.ends_at ?? ""}
           onClose={() => setEditingControlRow(null)}
           onSubmit={updateControlledPlan}
         />
@@ -304,6 +300,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
         {canManagePlans && (
         <DrawerForm title="Novo plano" onSubmit={createPlan}>
           <h2>Novo plano</h2>
+          {notice && <p role="status">{notice}</p>}
           <div className="form-row">
             <SelectField
                 label="Período"
@@ -337,6 +334,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
         {canEdit && (
         <DrawerForm title="Nova matrícula" onSubmit={enroll} openInitially={openEnrollment || Boolean(agendaContext)} onClose={onClearAgendaContext}>
           <h2>Nova matrícula</h2>
+          {notice && <p role="status">{notice}</p>}
           <div className="form-row">
             <PatientPicker key={patientPickerVersion} name="patient_id" label="Paciente" rows={patients} onSelect={setSelectedPatient} />
             <PlanSelect rows={data["/plans"] ?? []} />
@@ -351,7 +349,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
             <div className="form-row">
               <TextField id="enrollment-due-day" name="due_day" label="Dia do vencimento" type="number" min="1" max="31" required />
           </div>
-          <TextField id="enrollment-discount" name="discount" label="Desconto" type="number" step=".01" defaultValue="0" />
+          <TextField id="enrollment-discount" name="discount" label="Desconto" type="number" min="0" step=".01" defaultValue="0" />
           <button className="btn primary">Matricular</button>
         </DrawerForm>
         )}
@@ -692,18 +690,24 @@ function EditControlledPlanDialog({
   row,
   plans,
   saving,
+  notice,
+  endsAt,
   onClose,
   onSubmit,
 }: {
   row: PlanControlRow;
   plans: Row[];
   saving: boolean;
+  notice: string;
+  endsAt: string;
   onClose: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void | Promise<void>;
 }) {
   const titleId = `edit-controlled-plan-${row.id}`;
   const [dirty, setDirty] = useState(false);
+  const [startsAt, setStartsAt] = useState(row.startsAt);
   const requestClose = () => {
+    if (saving) return;
     if (dirty && !window.confirm("Descartar as alterações deste plano?")) return;
     onClose();
   };
@@ -722,15 +726,16 @@ function EditControlledPlanDialog({
           <button type="button" className="dialog-close" aria-label="Fechar edição do plano" onClick={requestClose} disabled={saving} autoFocus>×</button>
         </div>
         <form className="modal-form controlled-plan-form" onSubmit={(event) => void onSubmit(event)} onInput={() => setDirty(true)} aria-busy={saving}>
-          <SelectField name="plan_id" label="Plano" defaultValue={row.planId} required hint="Somente os planos ativos usados pela clínica aparecem aqui.">
+          {notice && <p role="status">{notice}</p>}
+          <SelectField name="plan_id" label="Plano" defaultValue={row.planId} required hint="Escolha um plano ativo ou mantenha o plano atual.">
             {plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} · {brl(Number(plan.price_cents ?? 0))}</option>)}
           </SelectField>
           <div className="form-row">
-            <TextField name="starts_at" label="Início do plano" type="date" defaultValue={row.startsAt} required />
-            <TextField name="ends_at" label="Data de renovação" type="date" min={row.startsAt} defaultValue={row.renewsAt} required />
+            <TextField name="starts_at" label="Início do plano" type="date" value={startsAt} onChange={(event) => setStartsAt(event.target.value)} required />
+            <TextField name="ends_at" label="Data de renovação" type="date" min={startsAt} defaultValue={endsAt} />
           </div>
           <div className="form-row">
-            <TextField name="sessions_used" label="Sessões utilizadas" type="number" min="0" max={row.sessionsIncluded ?? undefined} defaultValue={row.sessionsUsed} required hint={row.sessionsIncluded == null ? "Quantidade já utilizada pelo paciente." : `O plano inclui ${row.sessionsIncluded} sessões.`} />
+            <TextField name="sessions_used" label="Sessões utilizadas" type="number" min="0" defaultValue={row.sessionsUsed} required hint={row.sessionsIncluded == null ? "Quantidade já utilizada pelo paciente." : `O plano inclui ${row.sessionsIncluded} sessões.`} />
             <SelectField name="status" label="Situação do plano" defaultValue={row.enrollmentStatus} required>
               <option value="active">Ativo</option>
               <option value="paused">Pausado</option>

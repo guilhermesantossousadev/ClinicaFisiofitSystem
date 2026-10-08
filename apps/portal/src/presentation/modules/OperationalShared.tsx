@@ -587,6 +587,7 @@ export type EditField = {
   required?: boolean;
   min?: number;
   max?: number;
+  minLength?: number;
   maxLength?: number;
   step?: string;
   value?: (row: Row) => unknown;
@@ -636,6 +637,7 @@ export function EditableOperationalTable({
 }) {
   const [editing, setEditing] = useState<Row | null>(null);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const editDialogRef = useRef<HTMLElement>(null);
   const editTriggerRef = useRef<HTMLButtonElement | null>(null);
   const editDirtyRef = useRef(false);
@@ -683,7 +685,8 @@ export function EditableOperationalTable({
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!editing) return;
+    if (!editing || savingRef.current) return;
+    setSaveError("");
     savingRef.current = true;
     setSaving(true);
     try {
@@ -701,6 +704,7 @@ export function EditableOperationalTable({
       setEditing(null);
       onNotice(`${title.replace(/s$/, "")} atualizado com sucesso.`);
     } catch (error) {
+      setSaveError(messageOf(error));
       onNotice(messageOf(error));
     } finally {
       savingRef.current = false;
@@ -758,6 +762,7 @@ export function EditableOperationalTable({
               {canEdit && <button type="button" onClick={(event) => {
                 editTriggerRef.current = event.currentTarget;
                 editDirtyRef.current = false;
+                setSaveError("");
                 setEditing(row);
               }}>Editar</button>}
               {canEdit && showToggle && <button
@@ -793,6 +798,7 @@ export function EditableOperationalTable({
               <button type="button" className="dialog-close" aria-label="Fechar edição" onClick={() => closeEditing()} disabled={saving}>×</button>
             </div>
             <form className="modal-form" onSubmit={save} onInput={() => { editDirtyRef.current = true; }} aria-busy={saving}>
+              {saveError && <p className="form-field-error" role="alert">{saveError}</p>}
               {editFields.map((field) => (
                 field.type === "select" ? <SelectField key={field.name} name={field.name} label={field.label} required={field.required} defaultValue={String(field.value ? field.value(editing) ?? "" : editing[field.name] ?? "")}>
                     <option value="">Selecione</option>
@@ -812,6 +818,7 @@ export function EditableOperationalTable({
                     required={field.required}
                     min={field.min}
                     max={field.max}
+                    minLength={field.minLength}
                     maxLength={field.maxLength}
                     step={field.step}
                     defaultValue={String(field.value ? field.value(editing) ?? "" : editing[field.name] ?? "")}

@@ -82,6 +82,7 @@ export function registerPacientesRoutes(app: any, dependencies: any) {
       ...input,
       clinic_id: context.get("profile").clinic_id,
     }).select().single();
+    if (error?.code === "23505") return fail(context, 409, "PATIENT_DUPLICATE", "Já existe um paciente com este CPF nesta clínica.");
     if (!error && data) await audit(context, "patient.created", "patient", data.id, data.primary_unit_id);
     return databaseResult(context, data, error, 201);
   });
@@ -89,9 +90,11 @@ export function registerPacientesRoutes(app: any, dependencies: any) {
   app.patch("/patients/:id", requireRoles(["admin", "manager", "reception"]), async (context: any) => {
     const id = z.string().uuid().parse(context.req.param("id"));
     const input = patientSchema.partial().extend({ active: z.boolean().optional() }).parse(await context.req.json());
-    const { data: currentPatient } = await context.get("db").from("patients").select("primary_unit_id")
+    const { data: currentPatient, error: currentError } = await context.get("db").from("patients").select("primary_unit_id")
       .eq("id", id).eq("clinic_id", context.get("profile").clinic_id).is("deleted_at", null).maybeSingle();
-    if (!currentPatient || !(await hasUnitAccess(context, currentPatient.primary_unit_id))) {
+    if (currentError) return databaseResult(context, null, currentError);
+    if (!currentPatient) return fail(context, 404, "PATIENT_NOT_FOUND", "Paciente não encontrado.");
+    if (!(await hasUnitAccess(context, currentPatient.primary_unit_id))) {
       return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso à unidade atual deste paciente.");
     }
     if (input.primary_unit_id && !(await hasUnitAccess(context, input.primary_unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
@@ -100,15 +103,18 @@ export function registerPacientesRoutes(app: any, dependencies: any) {
       updated_at: new Date().toISOString(),
     }).eq("id", id).eq("clinic_id", context.get("profile").clinic_id).is("deleted_at", null)
       .select().single();
+    if (error?.code === "23505") return fail(context, 409, "PATIENT_DUPLICATE", "Já existe um paciente com este CPF nesta clínica.");
     if (!error && data) await audit(context, "patient.updated", "patient", id, data.primary_unit_id);
     return databaseResult(context, data, error);
   });
   
   app.delete("/patients/:id", requireRoles(["admin", "manager", "reception"]), async (context: any) => {
     const id = z.string().uuid().parse(context.req.param("id"));
-    const { data: currentPatient } = await context.get("db").from("patients").select("primary_unit_id")
+    const { data: currentPatient, error: currentError } = await context.get("db").from("patients").select("primary_unit_id")
       .eq("id", id).eq("clinic_id", context.get("profile").clinic_id).is("deleted_at", null).maybeSingle();
-    if (!currentPatient || !(await hasUnitAccess(context, currentPatient.primary_unit_id))) {
+    if (currentError) return databaseResult(context, null, currentError);
+    if (!currentPatient) return fail(context, 404, "PATIENT_NOT_FOUND", "Paciente não encontrado.");
+    if (!(await hasUnitAccess(context, currentPatient.primary_unit_id))) {
       return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso à unidade deste paciente.");
     }
     const { data: activeEnrollment, error: enrollmentError } = await context.get("db").from("enrollments").select("id")
