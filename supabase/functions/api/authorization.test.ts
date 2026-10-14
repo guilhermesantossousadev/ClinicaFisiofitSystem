@@ -1,4 +1,4 @@
-import { defaultPermissionsForRole, moduleForPath, type PermissionModule, type Role } from "./authorization.ts";
+import { defaultPermissionsForRole, moduleForPath, moduleForRolePath, type PermissionModule, type Role } from "./authorization.ts";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -40,6 +40,15 @@ Deno.test("recepção pode concluir o fluxo operacional de matrícula", () => {
 Deno.test("rotas clínicas e financeiras são associadas ao módulo correto", () => {
   assert(moduleForPath("/api/v1/clinical-records") === "records", "prontuário deve exigir records");
   assert(moduleForPath("/api/v1/financial-entries") === "finance", "lançamento deve exigir finance");
+  assert(moduleForPath("/api/v1/charges", "POST") === "finance", "criação de cobrança exige finance");
+  assert(moduleForPath("/api/v1/charges/123/amount", "PATCH") === "finance", "correção mantém finance para outros papéis");
+  assert(moduleForPath("/api/v1/enrollments/123/contract-amount", "PATCH") === "finance", "contrato mantém finance para outros papéis");
+  assert(moduleForRolePath("/api/v1/charges/123/amount", "PATCH", "reception") === null, "recepção usa RPC dedicada para corrigir cobrança");
+  assert(moduleForRolePath("/api/v1/enrollments/123/contract-amount", "PATCH", "reception") === null, "recepção usa RPC dedicada para contrato");
+  assert(moduleForRolePath("/api/v1/charges", "GET", "reception") === "enrollments", "recepção lê cobranças somente com enrollments.view");
+  assert(moduleForRolePath("/api/v1/charges", "POST", "reception") === "finance", "recepção não cria cobrança geral");
+  assert(moduleForRolePath("/api/v1/commissions", "POST", "reception") === "finance", "recepção não opera comissões");
+  assert(moduleForRolePath("/api/v1/charges/123/status", "PATCH", "reception") === "enrollments", "outras mutações continuam protegidas");
   assert(moduleForPath("/api/v1/attendance/daily") === "agenda", "chamada diária deve exigir agenda");
   assert(moduleForPath("/api/v1/classes") === "agenda", "turmas devem exigir agenda");
   assert(moduleForPath("/api/v1/class-occurrences/123/participants", "POST") === "agenda", "mutações de participantes devem exigir edição da agenda");

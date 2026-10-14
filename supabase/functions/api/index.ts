@@ -3,7 +3,7 @@ import { Hono } from "npm:hono@4.7.2";
 import { cors } from "npm:hono@4.7.2/cors";
 import { createClient, type User } from "npm:@supabase/supabase-js@2.49.1";
 import { z } from "npm:zod@3.24.2";
-import { defaultPermissionsForRole, moduleForPath, type PermissionModule, type Role } from "./authorization.ts";
+import { defaultPermissionsForRole, moduleForRolePath, type PermissionModule, type Role } from "./authorization.ts";
 import { registerUsuariosRoutes } from "./routes/usuarios.ts";
 import { registerPrivacidadeRoutes } from "./routes/privacidade.ts";
 import { registerPacientesRoutes } from "./routes/pacientes.ts";
@@ -354,12 +354,15 @@ app.get("/enrollments", requireRoles(["admin", "manager", "reception", "finance"
   const patientIds = [...new Set(enrollments.map((item) => item.patient_id))];
   const planIds = [...new Set(enrollments.map((item) => item.plan_id))];
   const [patientsResult, plansResult] = await Promise.all([
-    context.get("db").from("patients").select("id,name,phone").eq("clinic_id", clinicId).in("id", patientIds).is("deleted_at", null),
+    context.get("profile").role === "finance"
+      ? context.get("db").rpc("financial_enrollment_patient_summaries", { p_patient_ids: patientIds })
+      : context.get("db").from("patients").select("id,name,phone").eq("clinic_id", clinicId).in("id", patientIds).is("deleted_at", null),
     context.get("db").from("plans").select("id,name,duration_days,sessions_included").eq("clinic_id", clinicId).in("id", planIds),
   ]);
   const relatedError = patientsResult.error ?? plansResult.error;
   if (relatedError) return databaseResult(context, null, relatedError);
-  const patientById = new Map((patientsResult.data ?? []).map((item) => [item.id, item]));
+  const patientSummaries = (patientsResult.data ?? []) as Array<{ id: string; name: string; phone?: string | null }>;
+  const patientById = new Map(patientSummaries.map((item) => [item.id, item]));
   const planById = new Map((plansResult.data ?? []).map((item) => [item.id, item]));
   return databaseResult(context, enrollments.map((enrollment) => ({
     ...enrollment,
@@ -367,7 +370,7 @@ app.get("/enrollments", requireRoles(["admin", "manager", "reception", "finance"
     plan: planById.get(enrollment.plan_id) ?? null,
   })), null);
 });
-app.get("/charges", requireRoles(["admin", "manager", "finance"]), listResource("charges", "due_at", false));
+app.get("/charges", requireRoles(["admin", "manager", "reception", "finance"]), listResource("charges", "due_at", false));
 app.get("/payments", requireRoles(["admin", "manager", "finance"]), listResource("payments", "paid_at", false));
 app.get("/commissions", requireRoles(["admin", "manager", "finance"]), listResource("commissions", "created_at", false));
 app.get("/fiscal-documents", requireRoles(["admin", "manager", "finance"]), listResource("fiscal_documents", "created_at", false));
@@ -563,6 +566,26 @@ app.patch("/enrollments/:id", requireRoles(["admin", "manager", "reception", "fi
   return databaseResult(context, data, error);
 });
 
+app.patch("/enrollments/:id/contract-amount", requireRoles(["admin", "manager", "reception", "finance"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const input = z.object({
+    expected_amount_cents: z.number().int().positive().nullable(),
+    amount_cents: z.number().int().positive(),
+    effective_from: z.string().date().refine((value) => value.endsWith("-01"), "A vigência deve iniciar no primeiro dia do mês."),
+    reason: z.string().trim().min(10).max(1000),
+  }).parse(await context.req.json());
+  const db = context.get("db");
+  const { data, error } = await db.rpc("set_enrollment_contract_amount", {
+    p_enrollment_id: id,
+    p_expected_amount_cents: input.expected_amount_cents,
+    p_amount_cents: input.amount_cents,
+    p_effective_from: input.effective_from,
+    p_reason: input.reason,
+    p_request_id: context.get("requestId"),
+  });
+  return databaseResult(context, data, error);
+});
+
 app.post("/enrollments/:id/rollback", requireRoles(["admin", "manager", "finance"]), async (context) => {
   const id = z.string().uuid().parse(context.req.param("id"));
   const input = z.object({ reason: z.string().trim().min(10).max(1000) }).parse(await context.req.json());
@@ -584,20 +607,27 @@ app.post("/charges", requireRoles(["admin", "manager", "finance"]), async (conte
     installment_count: z.number().int().positive().optional(),
   }).parse(await context.req.json());
   if (input.coverage_to < input.coverage_from) return fail(context, 400, "INVALID_PERIOD", "O fim do período deve ser posterior ao início.");
-  const scopeError = await validateRelatedResourceScope(context, input);
+  const scopeError = await validateRelatedResourceScope(context, input, { financialCharge: true });
   if (scopeError) return scopeError;
-  let amountCents = input.amount_cents;
   if (input.enrollment_id) {
     const db = context.get("db");
-    const clinicId = context.get("profile").clinic_id;
-    const { data: enrollment } = await db.from("enrollments").select("id,patient_id,unit_id,plan_id,discount_cents,surcharge_cents").eq("id", input.enrollment_id).eq("clinic_id", clinicId).eq("patient_id", input.patient_id).eq("unit_id", input.unit_id).eq("status", "active").is("deleted_at", null).maybeSingle();
-    if (!enrollment) return fail(context, 400, "INVALID_ENROLLMENT", "A matrícula não pertence ao paciente e à unidade informados.");
-    const { data: plan, error: planError } = await db.from("plans").select("price_cents").eq("id", enrollment.plan_id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle();
-    if (planError) return databaseResult(context, null, planError);
-    if (!plan) return fail(context, 400, "ENROLLMENT_PRICE_UNAVAILABLE", "Não foi possível determinar o valor desta matrícula. Revise o plano e o valor contratado antes de criar a cobrança.");
-    amountCents = Number(plan.price_cents) - Number(enrollment.discount_cents ?? 0) + Number(enrollment.surcharge_cents ?? 0);
-    if (!Number.isInteger(amountCents) || amountCents <= 0) return fail(context, 400, "ENROLLMENT_PRICE_UNAVAILABLE", "Não foi possível determinar um valor positivo para esta matrícula. Revise o plano e os ajustes comerciais.");
+    if (context.get("profile").role === "finance") {
+      const { data, error } = await db.rpc("can_create_financial_charge", {
+        target_patient: input.patient_id,
+        target_unit: input.unit_id,
+        target_enrollment: input.enrollment_id,
+      });
+      if (error) return fail(context, 400, "RELATED_RESOURCE_VALIDATION_FAILED", "Não foi possível validar os dados relacionados.");
+      if (data !== true) return fail(context, 400, "INVALID_PATIENT_SCOPE", "O paciente não pertence à clínica e unidade selecionadas.");
+    }
+    const { amount_cents: _submittedAmount, ...chargeInput } = input;
+    const { data, error } = await db.rpc("create_enrollment_charge", {
+      p_input: chargeInput,
+      p_request_id: context.get("requestId"),
+    });
+    return databaseResult(context, data, error, 201);
   }
+  const amountCents = input.amount_cents;
   if (!amountCents) return fail(context, 422, "CHARGE_AMOUNT_REQUIRED", "Informe um valor positivo para a cobrança.");
   const { amount_cents: _submittedAmount, ...charge } = input;
   return createClinicResource(context, "charges", { ...charge, amount_cents: amountCents, status: "pending" }, "charge.created", input.unit_id);
@@ -608,24 +638,55 @@ app.patch("/charges/:id/status", requireRoles(["admin", "manager", "finance"]), 
   const input = z.object({
     status: z.enum(["paid", "cancelled", "overdue", "pending"]),
   }).parse(await context.req.json());
-  const db = context.get("db");
-  const clinicId = context.get("profile").clinic_id;
-  const { data: current, error: currentError } = await db.from("charges")
-    .select("id,unit_id,status")
-    .eq("id", id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle();
-  if (currentError) return databaseResult(context, null, currentError);
-  if (!current) return fail(context, 404, "CHARGE_NOT_FOUND", "Cobrança não encontrada.");
-  if (!(await hasUnitAccess(context, current.unit_id))) {
-    return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
+  if (input.status === "paid") {
+    return fail(context, 409, "STATUS_MANAGED_BY_PAYMENT", "Registre o recebimento pelo fluxo financeiro para quitar esta cobrança.");
   }
-  const { data, error } = await db.from("charges")
-    .update({ status: input.status, updated_at: new Date().toISOString() })
-    .eq("id", id).eq("clinic_id", clinicId).is("deleted_at", null).select().single();
-  if (!error && data) {
-    await audit(context, "charge.status_updated", "charge", id, current.unit_id, {
-      previous_status: current.status,
-      status: input.status,
-    });
+  const { data, error } = await context.get("db").rpc("update_unpaid_charge_status", {
+    p_charge_id: id,
+    p_status: input.status,
+    p_request_id: context.get("requestId"),
+  });
+  if (error) {
+    const reason = String(error.message ?? "");
+    if (reason.includes("CHARGE_NOT_FOUND")) return fail(context, 404, "CHARGE_NOT_FOUND", "Cobrança não encontrada.");
+    if (reason.includes("UNIT_FORBIDDEN")) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso à unidade desta cobrança.");
+    if (reason.includes("CHARGE_HAS_PAYMENTS")) return fail(context, 409, "CHARGE_HAS_PAYMENTS", "Uma cobrança com recebimento deve ser corrigida pelo fluxo de estorno.");
+    if (reason.includes("STATUS_MANAGED_BY_PAYMENT")) return fail(context, 409, "STATUS_MANAGED_BY_PAYMENT", "O status de pagamento é controlado pelos fluxos de recebimento e estorno.");
+    if (reason.includes("FORBIDDEN")) return fail(context, 403, "MODULE_FORBIDDEN", "Seu usuário precisa de permissão para visualizar e editar matrículas.");
+  }
+  return databaseResult(context, data, error);
+});
+
+app.patch("/charges/:id/amount", requireRoles(["admin", "manager", "reception", "finance"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const input = z.object({
+    expected_amount_cents: z.number().int().positive(),
+    amount_cents: z.number().int().positive(),
+    reason: z.string().trim().min(10).max(1000),
+  }).parse(await context.req.json());
+  if (input.amount_cents === input.expected_amount_cents) {
+    return fail(context, 400, "CHARGE_AMOUNT_UNCHANGED", "Informe um valor diferente do atual.");
+  }
+  if (context.get("profile").role !== "admin" && context.get("profile").role !== "reception") {
+    const { data: permission, error: permissionError } = await context.get("db").from("profile_permissions")
+      .select("can_edit").eq("profile_id", context.get("user").id).eq("module", "finance").maybeSingle();
+    if (permissionError) return databaseResult(context, null, permissionError);
+    if (!permission?.can_edit) return fail(context, 403, "MODULE_FORBIDDEN", "Seu usuário não tem permissão financeira para editar cobranças.");
+  }
+  const { data, error } = await context.get("db").rpc("correct_unpaid_charge_amount", {
+    p_charge_id: id,
+    p_expected_amount_cents: input.expected_amount_cents,
+    p_amount_cents: input.amount_cents,
+    p_reason: input.reason,
+    p_request_id: context.get("requestId"),
+  });
+  if (error) {
+    const reason = String(error.message ?? "");
+    if (reason.includes("CHARGE_HAS_PAYMENTS")) return fail(context, 409, "CHARGE_HAS_PAYMENTS", "Esta cobrança possui recebimentos vinculados. Use um fluxo de ajuste financeiro.");
+    if (reason.includes("CHARGE_AMOUNT_CONFLICT")) return fail(context, 409, "CHARGE_AMOUNT_CONFLICT", "O valor foi alterado por outra pessoa. Atualize a tela e confira o valor atual.");
+    if (reason.includes("CHARGE_NOT_EDITABLE")) return fail(context, 409, "CHARGE_NOT_EDITABLE", "Esta cobrança não está disponível para edição de valor.");
+    if (reason.includes("UNIT_FORBIDDEN")) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso à unidade desta cobrança.");
+    if (reason.includes("FORBIDDEN")) return fail(context, 403, "MODULE_FORBIDDEN", "Seu usuário não tem permissão financeira para editar cobranças.");
   }
   return databaseResult(context, data, error);
 });
@@ -751,6 +812,7 @@ type RelatedResourceIds = {
 async function validateRelatedResourceScope(
   context: Parameters<typeof ok>[0],
   ids: RelatedResourceIds,
+  options: { financialCharge?: boolean } = {},
 ) {
   const db = context.get("db");
   const clinicId = context.get("profile").clinic_id;
@@ -759,11 +821,34 @@ async function validateRelatedResourceScope(
     return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
   }
 
-  const [unit, patient, professional, professionalUnit, room, service, appointment, enrollment, groupSlot] = await Promise.all([
+  if (options.financialCharge && ids.patient_id && context.get("profile").role === "finance") {
+    const { data, error } = await db.rpc("can_create_financial_charge", {
+      target_patient: ids.patient_id,
+      target_unit: ids.unit_id,
+      target_enrollment: ids.enrollment_id ?? null,
+    });
+    if (error) return fail(context, 400, "RELATED_RESOURCE_VALIDATION_FAILED", "Não foi possível validar os dados relacionados.");
+    if (data !== true) return fail(context, 400, "INVALID_PATIENT_SCOPE", "O paciente não pertence à clínica e unidade selecionadas.");
+  }
+
+  // Finance staff may reference an eligible patient for a charge without
+  // receiving the broader patient-read permission used by clinical routes.
+  if (!(options.financialCharge && ids.patient_id && context.get("profile").role === "finance")) {
+    const [patient, enrollment] = await Promise.all([
+      ids.patient_id
+        ? db.from("patients").select("id,primary_unit_id").eq("id", ids.patient_id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+      ids.enrollment_id
+        ? db.from("enrollments").select("id,unit_id,patient_id").eq("id", ids.enrollment_id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+    ]);
+    if (patient.error || enrollment.error) return fail(context, 400, "RELATED_RESOURCE_VALIDATION_FAILED", "Não foi possível validar os dados relacionados.");
+    if (ids.patient_id && (!patient.data || patient.data.primary_unit_id !== ids.unit_id)) return fail(context, 400, "INVALID_PATIENT_SCOPE", "O paciente não pertence à clínica e unidade selecionadas.");
+    if (ids.enrollment_id && (!enrollment.data || enrollment.data.unit_id !== ids.unit_id || (ids.patient_id && enrollment.data.patient_id !== ids.patient_id))) return fail(context, 400, "INVALID_ENROLLMENT_SCOPE", "A matrícula não corresponde à clínica, unidade e paciente informados.");
+  }
+
+  const [unit, professional, professionalUnit, room, service, appointment, groupSlot] = await Promise.all([
     db.from("units").select("id").eq("id", ids.unit_id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle(),
-    ids.patient_id
-      ? db.from("patients").select("id,primary_unit_id").eq("id", ids.patient_id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle()
-      : Promise.resolve({ data: null, error: null }),
     ids.professional_id
       ? db.from("professionals").select("id").eq("id", ids.professional_id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
@@ -779,23 +864,17 @@ async function validateRelatedResourceScope(
     ids.appointment_id
       ? db.from("appointments").select("id,unit_id,patient_id,professional_id").eq("id", ids.appointment_id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
-    ids.enrollment_id
-      ? db.from("enrollments").select("id,unit_id,patient_id").eq("id", ids.enrollment_id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle()
-      : Promise.resolve({ data: null, error: null }),
     ids.group_slot_id
       ? db.from("group_slots").select("id,unit_id,room_id,professional_id,service_id").eq("id", ids.group_slot_id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
   ]);
 
-  const lookupFailed = [unit, patient, professional, professionalUnit, room, service, appointment, enrollment, groupSlot]
+  const lookupFailed = [unit, professional, professionalUnit, room, service, appointment, groupSlot]
     .some((result) => result.error);
   if (lookupFailed) {
     return fail(context, 400, "RELATED_RESOURCE_VALIDATION_FAILED", "Não foi possível validar os dados relacionados.");
   }
   if (!unit.data) return fail(context, 400, "INVALID_UNIT", "A unidade selecionada não pertence à clínica.");
-  if (ids.patient_id && (!patient.data || patient.data.primary_unit_id !== ids.unit_id)) {
-    return fail(context, 400, "INVALID_PATIENT_SCOPE", "O paciente não pertence à clínica e unidade selecionadas.");
-  }
   if (ids.professional_id && (!professional.data || !professionalUnit.data)) {
     return fail(context, 400, "INVALID_PROFESSIONAL_SCOPE", "O profissional não pertence à clínica e unidade selecionadas.");
   }
@@ -810,11 +889,6 @@ async function validateRelatedResourceScope(
     || (ids.patient_id && appointment.data.patient_id !== ids.patient_id)
     || (ids.professional_id && appointment.data.professional_id !== ids.professional_id))) {
     return fail(context, 400, "INVALID_APPOINTMENT_SCOPE", "O atendimento não corresponde à clínica, unidade, paciente e profissional informados.");
-  }
-  if (ids.enrollment_id && (!enrollment.data
-    || enrollment.data.unit_id !== ids.unit_id
-    || (ids.patient_id && enrollment.data.patient_id !== ids.patient_id))) {
-    return fail(context, 400, "INVALID_ENROLLMENT_SCOPE", "A matrícula não corresponde à clínica, unidade e paciente informados.");
   }
   if (ids.group_slot_id && (!groupSlot.data
     || groupSlot.data.unit_id !== ids.unit_id
@@ -843,7 +917,7 @@ function requireRoles(roles: Role[]) {
     if (!roles.includes(context.get("profile").role)) {
       return fail(context, 403, "FORBIDDEN", "Seu perfil não possui permissão para esta operação.");
     }
-    const module = moduleForPath(context.req.path, context.req.method);
+    const module = moduleForRolePath(context.req.path, context.req.method, context.get("profile").role);
     if (module && context.get("profile").role !== "admin") {
       const { data, error } = await context.get("db").from("profile_permissions").select("can_view,can_edit").eq("profile_id", context.get("user").id).eq("module", module).maybeSingle();
       const allowed = !error && Boolean(data) && (context.req.method === "GET" ? data.can_view : data.can_edit);

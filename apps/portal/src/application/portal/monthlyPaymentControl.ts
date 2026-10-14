@@ -7,6 +7,7 @@ export type MonthlyPaymentRow = {
   patientId: string;
   patientName: string;
   planName: string;
+  planKind: string;
   unitId: string;
   dueAt: string;
   /** Null means the enrollment has no determinable commercial amount. */
@@ -17,6 +18,9 @@ export type MonthlyPaymentRow = {
   coverageFrom: string;
   coverageTo: string;
   state: MonthlyPaymentState;
+  contractAmountCents: number | null;
+  contractFinalAmountCents: number | null;
+  contractEffectiveFrom: string;
 };
 
 function monthBounds(month: string) {
@@ -58,6 +62,7 @@ export function buildMonthlyPaymentRows({
   return enrollments
     .filter((enrollment) => enrollment.status === "active" && !enrollment.deleted_at)
     .filter((enrollment) => !enrollment.starts_at || String(enrollment.starts_at).slice(0, 7) <= month)
+    .filter((enrollment) => !enrollment.ends_at || String(enrollment.ends_at) >= monthBounds(month).from)
     .map((enrollment) => {
       const enrollmentId = String(enrollment.id);
       const patientId = String(enrollment.patient_id ?? "");
@@ -68,9 +73,13 @@ export function buildMonthlyPaymentRows({
       const matchingCharges = charges.filter((charge) => !charge.deleted_at && String(charge.enrollment_id) === enrollmentId && matchesMonth(charge, month));
       const charge = [...matchingCharges].sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? ""))).at(0);
       const cataloguePrice = plan.price_cents;
-      const expectedAmount = cataloguePrice === null || cataloguePrice === undefined || !Number.isFinite(Number(cataloguePrice))
+      const effectiveFrom = String(enrollment.contract_effective_from ?? "");
+      const recurringPrice = effectiveFrom && month >= effectiveFrom.slice(0, 7)
+        ? enrollment.contract_amount_cents
+        : cataloguePrice;
+      const expectedAmount = recurringPrice === null || recurringPrice === undefined || !Number.isFinite(Number(recurringPrice))
         ? null
-        : Number(cataloguePrice) - Number(enrollment.discount_cents ?? 0) + Number(enrollment.surcharge_cents ?? 0);
+        : Number(recurringPrice) - Number(enrollment.discount_cents ?? 0) + Number(enrollment.surcharge_cents ?? 0);
       // A persisted charge is a financial snapshot and always takes precedence.
       // Do not turn an unknown or invalid expected amount into zero.
       const amountCents = charge ? Number(charge.amount_cents) : expectedAmount === null || expectedAmount < 0 ? null : expectedAmount;
@@ -83,20 +92,31 @@ export function buildMonthlyPaymentRows({
             : status === "overdue" ? "overdue"
               : paidCents > 0 || status === "partial" ? "partial" : "pending";
 
+      const enrollmentStart = String(enrollment.starts_at ?? `${month}-01`);
+      const enrollmentEnd = String(enrollment.ends_at ?? plannedCoverageEnd(month, plan.duration_days));
+      const plannedFrom = `${month}-01` < enrollmentStart ? enrollmentStart : `${month}-01`;
+      const plannedTo = plannedCoverageEnd(month, plan.duration_days) > enrollmentEnd ? enrollmentEnd : plannedCoverageEnd(month, plan.duration_days);
+
       return {
         enrollmentId,
         patientId,
         patientName: String(patient.name ?? "Paciente não encontrado"),
         planName: String(plan.name ?? "Plano não encontrado"),
+        planKind: String(plan.kind ?? ""),
         unitId: String(enrollment.unit_id ?? ""),
         dueAt: String(charge?.due_at ?? `${month}-${String(Math.min(Math.max(Number(enrollment.due_day ?? 1), 1), 28)).padStart(2, "0")}`),
         amountCents,
         paidCents,
         balanceCents,
         chargeId: String(charge?.id ?? ""),
-        coverageFrom: String(charge?.coverage_from ?? `${month}-01`),
-        coverageTo: String(charge?.coverage_to ?? plannedCoverageEnd(month, plan.duration_days)),
+        coverageFrom: String(charge?.coverage_from ?? plannedFrom),
+        coverageTo: String(charge?.coverage_to ?? plannedTo),
         state,
+        contractAmountCents: enrollment.contract_amount_cents === null || enrollment.contract_amount_cents === undefined ? null : Number(enrollment.contract_amount_cents),
+        contractFinalAmountCents: enrollment.contract_amount_cents === null || enrollment.contract_amount_cents === undefined
+          ? null
+          : Number(enrollment.contract_amount_cents) - Number(enrollment.discount_cents ?? 0) + Number(enrollment.surcharge_cents ?? 0),
+        contractEffectiveFrom: String(enrollment.contract_effective_from ?? ""),
       };
     })
     .sort((a, b) => a.patientName.localeCompare(b.patientName, "pt-BR"));

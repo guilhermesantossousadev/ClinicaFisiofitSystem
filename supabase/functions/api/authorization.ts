@@ -20,6 +20,9 @@ export function defaultPermissionsForRole(role: Role): Array<{ module: Permissio
 
 export function moduleForPath(path: string, method = "GET"): PermissionModule | null {
   const normalizedPath = path.replace(/^\/api\/v1(?=\/|$)/, "");
+  if (method === "POST" && normalizedPath === "/charges") return "finance";
+  if (method === "PATCH" && /^\/charges\/[^/]+\/amount$/.test(normalizedPath)) return "finance";
+  if (method === "PATCH" && /^\/enrollments\/[^/]+\/contract-amount$/.test(normalizedPath)) return "finance";
   const match = normalizedPath.match(/^\/([^/]+)/)?.[1];
   if (method === "GET" && match && ["units", "rooms", "professionals", "services"].includes(match)) return null;
   const map: Record<string, PermissionModule> = {
@@ -30,4 +33,17 @@ export function moduleForPath(path: string, method = "GET"): PermissionModule | 
     professionals: "settings", services: "settings", privacy: "privacy", audit: "privacy",
   };
   return match ? map[match] ?? null : null;
+}
+
+
+// Reception may use only these two domain RPCs; internal SQL authorization
+// still requires enrollment view scope. Other finance routes keep their gate.
+export function moduleForRolePath(path: string, method: string, role: Role): PermissionModule | null {
+  const normalizedPath = path.replace(/^\/api\/v1(?=\/|$)/, "");
+  if (role === "reception" && method === "GET" && normalizedPath === "/charges") return "enrollments";
+  if (role === "reception" && method === "PATCH" && (
+    /^\/charges\/[^/]+\/amount$/.test(normalizedPath)
+    || /^\/enrollments\/[^/]+\/contract-amount$/.test(normalizedPath)
+  )) return null;
+  return moduleForPath(path, method);
 }

@@ -23,9 +23,26 @@ describe("controle mensal de pagamentos", () => {
     expect(rows[0]).toMatchObject({ state: "unbilled", amountCents: 20000, coverageFrom: "2026-10-01", coverageTo: "2026-10-31" });
   });
 
+  it("usa o valor base individual desde a vigência contratual e preserva desconto e adicional", () => {
+    const enrollment = { ...base.enrollments[0], contract_amount_cents: 22000, contract_effective_from: "2026-10-01", discount_cents: 2000, surcharge_cents: 500 };
+    expect(buildMonthlyPaymentRows({ ...base, enrollments: [enrollment], charges: [], month: "2026-09" })[0].amountCents).toBe(18500);
+    expect(buildMonthlyPaymentRows({ ...base, enrollments: [enrollment], charges: [], month: "2026-10" })[0].amountCents).toBe(20500);
+  });
+
   it("não representa preço ausente como zero", () => {
     const rows = buildMonthlyPaymentRows({ ...base, plans: [{ id: "plan-1", name: "Mensal" }], charges: [], month: "2026-09" });
     expect(rows[0]).toMatchObject({ state: "unbilled", amountCents: null, balanceCents: 0 });
+  });
+
+  it("limita a cobertura exibida à vigência da matrícula", () => {
+    const rows = buildMonthlyPaymentRows({
+      ...base,
+      month: "2026-09",
+      enrollments: [{ ...base.enrollments[0], starts_at: "2026-09-10", ends_at: "2026-09-20" }],
+      charges: [],
+    });
+    expect(rows[0]).toMatchObject({ coverageFrom: "2026-09-10", coverageTo: "2026-09-20" });
+    expect(buildMonthlyPaymentRows({ ...base, month: "2026-10", enrollments: [{ ...base.enrollments[0], ends_at: "2026-09-30" }], charges: [] })).toEqual([]);
   });
 
   it("preserva o valor comercial e a cobertura trimestral, sem multiplicar o preço", () => {
@@ -64,6 +81,24 @@ describe("controle mensal de pagamentos", () => {
       charges: [{ id: "charge-quarter", enrollment_id: "enrollment-1", amount_cents: 60000, paid_cents: 60000, status: "paid", due_at: "2026-08-05", coverage_from: "2026-08-01", coverage_to: "2026-10-31" }],
     });
     expect(rows[0]).toMatchObject({ state: "paid", chargeId: "charge-quarter", balanceCents: 0 });
+  });
+
+  it("usa o valor persistido corrigido para totais e saldo, sem alterar outra matrícula ou mês", () => {
+    const rows = buildMonthlyPaymentRows({
+      month: "2026-09",
+      enrollments: [
+        ...base.enrollments,
+        { id: "enrollment-2", patient_id: "patient-2", plan_id: "plan-1", unit_id: "unit-1", starts_at: "2026-08-01", due_day: 5, status: "active" },
+      ],
+      patients: [...base.patients, { id: "patient-2", name: "Bia" }],
+      plans: base.plans,
+      charges: [
+        { id: "corrected-charge", enrollment_id: "enrollment-1", amount_cents: 12500, paid_cents: 0, status: "pending", due_at: "2026-09-05", coverage_from: "2026-09-01", coverage_to: "2026-09-30" },
+        { id: "next-month", enrollment_id: "enrollment-1", amount_cents: 20000, paid_cents: 0, status: "pending", due_at: "2026-10-05", coverage_from: "2026-10-01", coverage_to: "2026-10-31" },
+      ],
+    });
+    expect(rows.find((row) => row.enrollmentId === "enrollment-1")).toMatchObject({ chargeId: "corrected-charge", amountCents: 12500, balanceCents: 12500 });
+    expect(rows.find((row) => row.enrollmentId === "enrollment-2")).toMatchObject({ state: "unbilled", amountCents: 20000 });
   });
 
   it("mantém pago somente durante a cobertura semestral", () => {
