@@ -744,3 +744,15 @@ Base Financeiro + Planos: `72cd07de72c4d2bdb9c23b581b1a7926ae093503`; workflow H
 A única migration incremental do candidato é `202610150008_operational_stabilization.sql`. Não altera registros históricos por backfill. A reconciliação é uma ação de dados separada: dois vínculos válidos ausentes e dois encerramentos futuros; um vínculo legado com paciente excluído continua separado para decisão humana. A política de reposição só concede créditos quando explicitamente configurada; indefinição encaminha para revisão, sem prazo inventado. Pagamentos e o trabalho financeiro anterior são preservados; exclusões de recebimentos e alterações diretas de acumuladores são proibidas. Regras de arquivos são verificadas também no Storage, além dos metadados.
 
 Publicação e mutações em produção dependem de autorização final. Não há aprovação operacional de produção antes do smoke após banco → reconciliação autorizada → API → frontend. Integrações externas não exercitadas permanecem explicitamente sem homologação.
+
+
+## Correção sintética de cadastro — 15/10/2026
+
+**Implementado e validado somente em ambiente sintético:** migration
+`202610150009_patient_returning_rls.sql`, para a interação entre INSERT RETURNING
+e a policy restritiva SELECT de pacientes. Preserva os critérios anteriores de
+clínica, unidade, perfil, permissão e vínculos; não altera API nem frontend V2.2.
+Metadados remotos confirmaram a mesma incompatibilidade estrutural na produção,
+sem teste de escrita ou incidente real afirmado. Aplicação remota e publicação
+continuam sem autorização. Evidências, testes e proposta reversível em
+[patient returning RLS](docs/PATIENT-RETURNING-RLS-2026-10-15.md).
