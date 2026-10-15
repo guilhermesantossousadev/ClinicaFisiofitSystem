@@ -1,0 +1,31 @@
+1..26
+ok 1 - financial patient scope function exists
+ok 2 - scope function is SECURITY DEFINER
+ok 3 - authenticated may invoke scope function
+ok 4 - anon cannot invoke scope function
+ok 5 - authenticated has only required profile column grants
+ok 6 - anon has no profile read grant
+ok 7 - authenticated has required permission column grants
+ok 8 - anon has no permission read grant
+ok 9 - authenticated can query charges subject to RLS
+ok 10 - anon cannot query charges
+ok 11 - authenticated patient SELECT is mediated by RLS
+ok 12 - unneeded profile column remains ungranted
+f8100000-0000-4000-8000-000000000001
+ok 13 - profile RLS exposes only caller profile
+ok 14 - permission RLS exposes only caller permissions
+ok 15 - charge select scoped to assigned unit
+ok 16 - finance cannot directly read patient rows
+ok 17 - authorized finance can validate eligible same-unit patient
+ok 18 - patient in another unit rejected
+ok 19 - patient from another clinic rejected
+ok 20 - invalid enrollment rejected
+f8100000-0000-4000-8000-000000000002
+ok 21 - finance without edit permission rejected
+ok 22 - finance read permission allows same-unit charges
+f8100000-0000-4000-8000-000000000003
+ok 23 - finance without enrollment view cannot read charges
+ok 24 - unassigned unit rejected
+f8100000-0000-4000-8000-000000000004
+ok 25 - foreign clinic sees only its own unit charges
+ok 26 - cross-clinic patient and unit rejected

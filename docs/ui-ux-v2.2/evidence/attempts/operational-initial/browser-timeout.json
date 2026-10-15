@@ -1,0 +1,245 @@
+{
+  "label": "real calendar",
+  "snapshot": {
+    "focus": {
+      "tag": "BODY",
+      "id": "",
+      "type": null
+    },
+    "options": []
+  },
+  "network": [
+    {
+      "path": "/functions/v1/api/v1/me",
+      "status": 204
+    },
+    {
+      "path": "/functions/v1/api/v1/me",
+      "status": 204
+    },
+    {
+      "path": "/functions/v1/api/v1/me",
+      "status": 200
+    },
+    {
+      "path": "/functions/v1/api/v1/me",
+      "status": 200
+    },
+    {
+      "path": "/functions/v1/api/v1/me",
+      "status": 200
+    },
+    {
+      "path": "/functions/v1/api/v1/units",
+      "status": 204
+    },
+    {
+      "path": "/functions/v1/api/v1/dashboard",
+      "status": 204
+    },
+    {
+      "path": "/functions/v1/api/v1/patients",
+      "status": 204
+    },
+    {
+      "path": "/functions/v1/api/v1/me",
+      "status": 200
+    },
+    {
+      "path": "/functions/v1/api/v1/units",
+      "status": 200
+    },
+    {
+      "path": "/functions/v1/api/v1/units",
+      "status": 200
+    },
+    {
+      "path": "/functions/v1/api/v1/patients",
+      "status": 200
+    },
+    {
+      "path": "/functions/v1/api/v1/dashboard",
+      "status": 200
+    },
+    {
+      "path": "/functions/v1/api/v1/notifications",
+      "status": 204
+    },
+    {
+      "path": "/functions/v1/api/v1/notifications",
+      "status": 204
+    },
+    {
+      "path": "/functions/v1/api/v1/notifications",
+      "status": 200
+    },
+    {
+      "path": "/functions/v1/api/v1/notifications",
+      "status": 200
+    },
+    {
+      "path": "/functions/v1/api/v1/professionals",
+      "status": 204
+    },
+    {
+      "path": "/functions/v1/api/v1/appointments",
+      "status": 204
+    },
+    {
+      "path": "/functions/v1/api/v1/services",
+      "status": 204
+    },
+    {
+      "path": "/functions/v1/api/v1/professionals",
+      "status": 204
+    },
+    {
+      "path": "/functions/v1/api/v1/rooms",
+      "status": 204
+    },
+    {
+      "path": "/functions/v1/api/v1/group-slots",
+      "status": 204
+    },
+    {
+      "path": "/functions/v1/api/v1/group-slot-memberships",
+      "status": 204
+    },
+    {
+      "path": "/functions/v1/api/v1/enrollments",
+      "status": 204
+    },
+    {
+      "path": "/functions/v1/api/v1/professionals",
+      "status": 204
+    },
+    {
+      "path": "/functions/v1/api/v1/appointments",
+      "status": 204
+    },
+    {
+      "path": "/functions/v1/api/v1/professionals",
+      "status": 204
+    },
+    {
+      "path": "/functions/v1/api/v1/services",
+      "status": 204
+    },
+    {
+      "path": "/functions/v1/api/v1/rooms",
+      "status": 204
+    },
+    {
+      "path": "/functions/v1/api/v1/group-slots",
+      "status": 204
+    },
+    {
+      "path": "/functions/v1/api/v1/group-slot-memberships",
+      "status": 204
+    },
+    {
+      "path": "/functions/v1/api/v1/enrollments",
+      "status": 204
+    },
+    {
+      "path": "/functions/v1/api/v1/patients",
+      "status": 200
+    },
+    {
+      "path": "/functions/v1/api/v1/dashboard",
+      "status": 200
+    },
+    {
+      "path": "/functions/v1/api/v1/units",
+      "status": 200
+    },
+    {
+      "path": "/functions/v1/api/v1/professionals",
+      "status": 200
+    },
+    {
+      "path": "/functions/v1/api/v1/appointments",
+      "status": 200
+    },
+    {
+      "path": "/functions/v1/api/v1/services",
+      "status": 200
+    },
+    {
+      "path": "/functions/v1/api/v1/rooms",
+      "status": 200
+    },
+    {
+      "path": "/functions/v1/api/v1/group-slots",
+      "status": 200
+    },
+    {
+      "path": "/functions/v1/api/v1/enrollments",
+      "status": 200
+    },
+    {
+      "path": "/functions/v1/api/v1/units",
+      "status": 200
+    },
+    {
+      "path": "/functions/v1/api/v1/group-slot-memberships",
+      "status": 200
+    },
+    {
+      "path": "/functions/v1/api/v1/professionals",
+      "status": 200
+    },
+    {
+      "path": "/functions/v1/api/v1/rooms",
+      "status": 200
+    },
+    {
+      "path": "/functions/v1/api/v1/services",
+      "status": 200
+    },
+    {
+      "path": "/functions/v1/api/v1/appointments",
+      "status": 200
+    },
+    {
+      "path": "/functions/v1/api/v1/group-slots",
+      "status": 200
+    },
+    {
+      "path": "/functions/v1/api/v1/units",
+      "status": 200
+    },
+    {
+      "path": "/functions/v1/api/v1/enrollments",
+      "status": 200
+    },
+    {
+      "path": "/functions/v1/api/v1/professionals",
+      "status": 200
+    },
+    {
+      "path": "/functions/v1/api/v1/patients",
+      "status": 200
+    },
+    {
+      "path": "/functions/v1/api/v1/dashboard",
+      "status": 200
+    },
+    {
+      "path": "/functions/v1/api/v1/group-slot-memberships",
+      "status": 200
+    },
+    {
+      "path": "/functions/v1/api/v1/units",
+      "status": 200
+    },
+    {
+      "path": "/functions/v1/api/v1/professionals",
+      "status": 200
+    },
+    {
+      "path": "/functions/v1/api/v1/patients",
+      "status": 200
+    }
+  ]
+}

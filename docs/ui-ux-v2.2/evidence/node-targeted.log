@@ -1,0 +1,232 @@
+✔ gera site e portal no pacote único da Hostinger (5.646833ms)
+✔ mantém API, banco e integrações versionados (3.011709ms)
+✔ attendance por occurrence preserva roster, grava sob demanda e mantém correções (0.688334ms)
+✔ mantém context.md como fonte única da verdade e não restaura o legado (0.941167ms)
+✔ salva avaliações e apresenta os campos clínicos corretos (0.525416ms)
+✔ mantém turmas distintas por dias dentro dos horários fixos (0.70025ms)
+✔ permite à administração, gestão e recepção gerenciar a grade de horários (0.64025ms)
+✔ mantém todos os recursos da agenda coerentes com a unidade selecionada (0.812125ms)
+✔ não oferece backfill em massa no portal operacional (0.26625ms)
+✔ suporta frequência semanal por membership sem inventar dias no legado (0.943584ms)
+✔ detalha e altera somente a ClassOccurrence sem tocar no schedule ou no legado (0.635125ms)
+✔ confirma cancelamento da occurrence em diálogo do portal (0.363292ms)
+✔ opera participantes apenas na occurrence, preservando membership e a trilha (0.674125ms)
+✔ aplica a política crítica de conflitos de appointments no servidor (0.380291ms)
+✔ mantém a persistência nova de turma aditiva e historicamente segura (0.794625ms)
+✔ materializa occurrences de schedule com janela, timezone e idempotência (0.304042ms)
+✔ expõe a API mínima versionada de Class e ClassSchedule sem tocar o legado (0.600375ms)
+✔ expõe projection semanal read-only combinando occurrences e appointments (0.520875ms)
+✖ agenda semanal usa a projection consolidada sem compor cards pelo legado (2.307ms)
+✔ backfill operacional de group slots é idempotente, limitado e não altera legado (1.152084ms)
+✔ reconcilia referências opcionais apenas no adaptador de backfill legado (0.478917ms)
+✔ expõe backfill legado somente por rota administrativa autenticada e user-scoped (0.431333ms)
+✔ mantém o fluxo de matrícula da recepção funcional e sem expor o financeiro (0.651333ms)
+✔ protege recuperação administrativa e consentimento de cookies (1.019167ms)
+✔ mantém autenticação por e-mail e senha sem segundo fator (0.636625ms)
+✔ isola consultas operacionais por clínica (1.192708ms)
+✔ preserva a área atual do portal entre recarregamentos (0.233417ms)
+✔ mantém modularização, acessibilidade, SEO e build seguro (0.451875ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 27
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 113.165958
+
+✖ failing tests:
+
+test at tests/platform.test.mjs:411:1
+✖ agenda semanal usa a projection consolidada sem compor cards pelo legado (2.307ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /sourceType === "CLASS_OCCURRENCE"/. Input:
+  
+  "import { confirmAction, requestText } from '../components/Decisions';\n" +
+    'import { Notice } from "@fisiofit/design-system/react";\n' +
+    'import { useDialogFocus } from "@fisiofit/design-system/react";\n' +
+    "import { OperationalCalendar } from '../calendar/OperationalCalendar';\n" +
+    "import { OccurrenceDetailsPanel } from '../calendar/OccurrenceDetailsPanel';\n" +
+    "import { type CalendarItem, calendarWeek } from '../calendar/calendarModel';\n" +
+    'import { AgendaExceptions } from "./AgendaExceptions";\n' +
+    'import { FormEvent, type FormEventHandler, type ReactNode, useEffect, useMemo, useState } from "react";\n' +
+    'import { api } from "../../infrastructure/http/api";\n' +
+    'import type { Role } from "../../domain/portal";\n' +
+    'import { agendaCapabilities, agendaResourcePaths, patientsAvailableForGroup, professionalsForUnit, resourcesForUnit } from "../../application/portal/agendaResources";\n' +
+    'import { createOccurrenceCancellation } from "../../application/portal/occurrenceCancellation";\n' +
+    'import { occurrenceAttendanceSummary } from "../../application/portal/occurrenceAttendance";\n' +
+    'import type { EffectiveOccurrenceParticipant } from "@fisiofit/contracts";\n' +
+    'import { CheckboxField, FormSection, SelectField, TextareaField, TextField, WeekdayCheckboxGroup } from "../components/FormPrimitives";\n' +
+    'import { type AgendaEnrollmentContext, Row, Unit, messageOf, value, isoLocal, localDateTime, dateKey, weekdaysLabel, useResources, Select, PatientPicker, DrawerForm, ModuleState, EditableOperationalTable } from "./OperationalShared";\n' +
+    '\n' +
+    'const FIXED_GROUP_TIMES = Array.from({ length: 15 }, (_, index) => `${String(index + 6).padStart(2, "0")}:00`);\n' +
+    '\n' +
+    'type Notice = { type: "success" | "error" | "warning" | "info"; message: string };\n' +
+    'type GroupConflict = { message: string; group?: { name?: string; weekdays?: number[]; startsAt?: string; startsOn?: string | null; endsOn?: string | null } };\n' +
+    'type OccurrenceDetail = { occurrence: any; participants: EffectiveOccurrenceParticipant[]; occupancy: number };\n' +
+    'type AvailableOccurrencePatient = { id: string; name: string; active: boolean };\n' +
+    'type AttendanceStatus = "PRESENT" | "LATE" | "ABSENT_JUSTIFIED" | "ABSENT_UNJUSTIFIED" | "CANCELLED_IN_ADVANCE" | "CANCELLED_LATE";\n' +
+    'type OccurrenceAttendance = { patient_id: string; patient_name: string; patient_active: boolean; source_type: string; attendance_id: string | null; attendance_status: AttendanceStatus | null; recorded_at: string | null; correction_count: number; notes?: string | null; version?: number | null; history?: Array<{ before_status: string; after_status: string; reason: string; created_at: string }> };\n' +
+    'const ATTENDANCE_STATUSES: { value: AttendanceStatus; label: string }[] = [\n' +
+    '  { value: "PRESENT", label: "Presente" }, { value: "LATE", label: "Atrasado" },\n' +
+    '  { value: "ABSENT_JUSTIFIED", label: "Falta justificada" }, { value: "ABSENT_UNJUSTIFIED", label: "Falta" },\n' +
+    '  { value: "CANCELLED_IN_ADVANCE", label: "Cancelado antecipadamente" }, { value: "CANCELLED_LATE", label: "Cancelado tardiamente" },\n' +
+    '];\n' +
+    '\n' +
+    'const APPOINTMENT_STATUS: Record<string, string> = {\n' +
+    '  scheduled: "Agendado",\n' +
+    '  confirmed: "Confirmado",\n' +
+    '  attending: "Em atendimento",\n' +
+    '  completed: "Concluído",\n' +
+    '  missed: "Falta",\n' +
+    '  cancelled: "Cancelado",\n' +
+    '  blocked: "Horário bloqueado",\n' +
+    '};\n' +
+    'const CALENDAR_STATUS: Record<string, string> = { ...APPOINTMENT_STATUS, planned: "Planejada", in_progress: "Em andamento" };\n' +
+    'const CLASS_WEEKDAY_BY_LEGACY_DAY: Record<number, string> = { 0: "sunday", 1: "monday", 2: "tuesday", 3: "wednesday", 4: "thursday", 5: "friday", 6: "saturday" };\n' +
+    'const LEGACY_DAY_BY_CLASS_WEEKDAY: Record<string, number> = Object.fromEntries(Object.entries(CLASS_WEEKDAY_BY_LEGACY_DAY).map(([day, weekday]) => [weekday, Number(day)]));\n' +
+    '\n' +
+    'function clinicToday() {\n' +
+    '  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());\n' +
+    '}\n' +
+    '\n' +
+    'function appointmentTime(raw: unknown) {\n' +
+    '  return new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" }).format(new Date(String(raw)));\n' +
+    '}\n' +
+    '\n' +
+    'function clinicDateKey(raw: unknown) {\n' +
+    '  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(String(raw)));\n' +
+    '}\n' +
+    '\n' +
+    'function errorDetails(error: unknown) {\n' +
+    '  return (error as { apiError?: { code?: string; details?: { conflictingGroup?: GroupConflict["group"] } } })?.apiError;\n' +
+    '}\n' +
+    '\n' +
+    'function conflictFrom(error: unknown): GroupConflict | null {\n' +
+    '  const apiError = errorDetails(error);\n' +
+    '  if (apiError?.code !== "GROUP_SLOT_CONFLICT") return null;\n' +
+    '  return {\n' +
+    '    message: "Já existe outra turma nesta unidade para o mesmo dia e horário. Escolha outro dia, horário ou ajuste o período de vigência.",\n' +
+    '    group: apiError.details?.conflictingGroup,\n' +
+    '  };\n' +
+    '}\n' +
+    '\n' +
+    'function shiftDate(raw: string, days: number) {\n' +
+    '  const date = new Date(`${raw}T12:00:00`);\n' +
+    '  date.setDate(date.getDate() + days);\n' +
+    '  return dateKey(date);\n' +
+    '}\n' +
+    '\n' +
+    'function addMinutesToLocalDateTime(raw: string, minutes: number) {\n' +
+    '  if (!raw || !Number.isFinite(minutes) || minutes <= 0) return "";\n' +
+    '  const date = new Date(raw);\n' +
+    '  date.setMinutes(date.getMinutes() + minutes);\n' +
+    '  return localDateTime(date.toISOString());\n' +
+    '}\n' +
+    '\n' +
+    'function GroupConflictAlert({ conflict }: { conflict: GroupConflict }) {\n' +
+    '  const group = conflict.group;\n' +
+    '  return <div className="group-conflict-alert" role="alert" id="group-slot-conflict">\n' +
+    '    <span aria-hidden="true">!</span>\n' +
+    '    <div>\n' +
+    '      <strong>Horário indisponível</strong>\n' +
+    '      <p>{conflict.message}</p>\n' +
+    '      {group && <small>Conflito com: {group.name ?? "turma existente"}{group.weekdays?.length ? ` · ${weekdaysLabel(group.weekdays)}` : ""}{group.startsAt ? ` · ${group.startsAt}` : ""}{group.startsOn ? ` · de ${group.startsOn}` : ""}{group.endsOn ? ` até ${group.endsOn}` : ""}</small>}\n' +
+    '    </div>\n' +
+    '  </div>;\n' +
+    '}\n' +
+    '\n' +
+    'function AgendaDialog({ children, labelId, onClose, className = "" }: { children: ReactNode; labelId: string; onClose: () => void; className?: string }) {\n' +
+    '  const dialogRef = useDialogFocus(true, onClose);\n' +
+    '  return <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>\n' +
+    '    <section ref={dialogRef} className={`modal ${className}`.trim()} role="dialog" aria-modal="true" aria-labelledby={labelId} tabIndex={-1}>\n' +
+    '      {children}\n' +
+    '    </section>\n' +
+    '  </div>;\n' +
+    '}\n' +
+    '\n' +
+    'function GroupMemberForm({\n' +
+    '  slotName,\n' +
+    '  availablePatients,\n' +
+    '  selectedDate,\n' +
+    '  slotWeekdays,\n' +
+    '  onSubmit,\n' +
+    '}: {\n' +
+    '  slotName: string;\n' +
+    '  availablePatients: Row[];\n' +
+    '  allowedPatientIds: string[];\n' +
+    '  selectedDate: string;\n' +
+    '  slotWeekdays: number[];\n' +
+    '  full: boolean;\n' +
+    '  onSubmit: FormEventHandler<HTMLFormElement>;\n' +
+    '}) {\n' +
+    '  const helperText = "Busque qualquer paciente autorizado pelo nome, telefone ou CPF. O plano pode ser cadastrado depois.";\n' +
+    '  return (\n' +
+    '    <form className="group-member-form" onSubmit={onSubmit} aria-label={`Adicionar paciente à turma ${slotName}`}>\n' +
+    '      <FormSection legend="Adicionar paciente à turma">\n' +
+    '        <p className="form-instructions"><strong>Dias da turma:</strong> {weekdaysLabel(slotWeekdays)}. Escolha os dias em que este paciente participará.</p>\n' +
+    '        <WeekdayCheckboxGroup name="weekdays" label="Dias em que o paciente vem" defaultValue={slotWeekdays.map(String)} availableValues={slotWeekdays.map(String)} maxSelections={slotWeekdays.length} required />\n' +
+    '        <div className="form-row">\n' +
+    '          <PatientPicker\n' +
+    '            name="patient_id"\n' +
+    '            label="Paciente"\n' +
+    '            rows={availablePatients}\n' +
+    '            required\n' +
+    '            id="group-member-enrollment"\n' +
+    '            crossUnit\n' +
+    '          />\n' +
+    '          <TextField\n' +
+    '            name="starts_at"\n' +
+    '            label="Início do vínculo"\n' +
+    '            type="date"\n' +
+    '            defaultValue={selectedDate}\n' +
+    '            required\n' +
+    '            hint="A partir de qual data o paciente participa desta turma."\n' +
+    '          />\n' +
+    '        </div>\n' +
+    '        <div className="group-member-form-actions">\n' +
+    '          <button className="btn primary group-members-add">Adicionar paciente</button>\n' +
+    '          <p className="form-instructions" role="status">{helperText}</p>\n' +
+    '        </div>\n' +
+    '      </FormSection>\n' +
+    '    </form>\n' +
+    '  );\n' +
+    '}\n' +
+    '\n' +
+    'export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnrollment, canEdit = true, role = "admin" }: { onOpenPatients?: () => void; onOpenEnrollment?: (context: AgendaEnrollmentContext) => void; canEdit?: boolean; role?: Role }) {\n' +
+    '  const { canManageAppointments, canManageGroups } = agendaCapabilities(role, canEdit);\n' +
+    '  const canRecordAttendance = canEdit && ["admin", "manager", "reception", "professional"].includes(role);\n' +
+    '  const [fromDate, setFromDate] = useState(() =>\n' +
+    '    clinicToday(),\n' +
+    '  );\n' +
+    '  const range = useMemo(() => {\n' +
+    '    const days = calendarWeek(fromDate);\n' +
+    '    const to = shiftDate(days[6], 1);\n' +
+    '    return { from: new Date(`${days[0]}T00:00:00-03:00`).toISOString(), to: new Date(`${to}T00:00:00-03:00`).toISOString() };\n' +
+    '  }, [fromDate]);\n' +
+    '  const paths = agendaResourcePaths(`/appointments?from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`, role);\n' +
+    '  const { data, loading, error, reload } = useResources(paths);\n' +
+    '  const appointments: Row[] = data[paths[0]] ?? [];\n' +
+    '  const patients: Row[] = data["/patients?page=1&pageSize=100"]?.items ?? [];\n' +
+    '  const groupMembers: Row[] = data["/group-slot-memberships"] ?? [];\n' +
+    '  const [notice, setNotice] = useState<Notice | null>(null);\n' +
+    '  const [createGroupConflict, setCreateGroupConflict] = useState<GroupConflict | null>(null);\n' +
+    '  const [createBulkGroupConflict, setCreateBulkGroupConflict] = useState<GroupConflict | null>(null);\n' +
+    '  const [editGroupConflict, setEditGroupConflict] = useState<GroupConflict | null>(null);\n' +
+    '  const [creatingBlock, setCreatingBlock] = useState(false);\n' +
+    '  const [newAppointmentServiceId, setNewAppointmentServiceId] = useState("");\n' +
+    '  const [newAppointmentStart, setNewAppointmentStart] = useState("");\n' +
+    '  const [newAppointmentEnd, setNewAppointmentEnd] = useState("");\n' +
+    '  const [calendarAppointment, setCalendarAppointment] = useState<Row | null | undefined>(undefined);\n' +
+    '  const [savingGroup, setSavingGroup] = useState(false);\n' +
+    '  const [calendarMode'... 87279 more characters
+  
+      at TestContext.<anonymous> (file:///private/tmp/fisiofit-ui-ux-v2.2-20261015/tests/platform.test.mjs:420:10)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'import { confirmAction, requestText } from \'../components/Decisions\';\nimport { Notice } from "@fisiofit/design-system/react";\nimport { useDialogFocus } from "@fisiofit/design-system/react";\nimport { OperationalCalendar } from \'../calendar/OperationalCalendar\';\nimport { OccurrenceDetailsPanel } from \'../calendar/OccurrenceDetailsPanel\';\nimport { type CalendarItem, calendarWeek } from \'../calendar/calendarModel\';\nimport { AgendaExceptions } from "./AgendaExceptions";\nimport { FormEvent, type FormEventHandler, type ReactNode, useEffect, useMemo, useState } from "react";\nimport { api } from "../../infrastructure/http/api";\nimport type { Role } from "../../domain/portal";\nimport { agendaCapabilities, agendaResourcePaths, patientsAvailableForGroup, professionalsForUnit, resourcesForUnit } from "../../application/portal/agendaResources";\nimport { createOccurrenceCancellation } from "../../application/portal/occurrenceCancellation";\nimport { occurrenceAttendanceSummary } from "../../application/portal/occurrenceAttendance";\nimport type { EffectiveOccurrenceParticipant } from "@fisiofit/contracts";\nimport { CheckboxField, FormSection, SelectField, TextareaField, TextField, WeekdayCheckboxGroup } from "../components/FormPrimitives";\nimport { type AgendaEnrollmentContext, Row, Unit, messageOf, value, isoLocal, localDateTime, dateKey, weekdaysLabel, useResources, Select, PatientPicker, DrawerForm, ModuleState, EditableOperationalTable } from "./OperationalShared";\n\nconst FIXED_GROUP_TIMES = Array.from({ length: 15 }, (_, index) => `${String(index + 6).padStart(2, "0")}:00`);\n\ntype Notice = { type: "success" | "error" | "warning" | "info"; message: string };\ntype GroupConflict = { message: string; group?: { name?: string; weekdays?: number[]; startsAt?: string; startsOn?: string | null; endsOn?: string | null } };\ntype OccurrenceDetail = { occurrence: any; participants: EffectiveOccurrenceParticipant[]; occupancy: number };\ntype AvailableOccurrencePatient = { id: string; name: string; active: boolean };\ntype AttendanceStatus = "PRESENT" | "LATE" | "ABSENT_JUSTIFIED" | "ABSENT_UNJUSTIFIED" | "CANCELLED_IN_ADVANCE" | "CANCELLED_LATE";\ntype OccurrenceAttendance = { patient_id: string; patient_name: string; patient_active: boolean; source_type: string; attendance_id: string | null; attendance_status: AttendanceStatus | null; recorded_at: string | null; correction_count: number; notes?: string | null; version?: number | null; history?: Array<{ before_status: string; after_status: string; reason: string; created_at: string }> };\nconst ATTENDANCE_STATUSES: { value: AttendanceStatus; label: string }[] = [\n  { value: "PRESENT", label: "Presente" }, { value: "LATE", label: "Atrasado" },\n  { value: "ABSENT_JUSTIFIED", label: "Falta justificada" }, { value: "ABSENT_UNJUSTIFIED", label: "Falta" },\n  { value: "CANCELLED_IN_ADVANCE", label: "Cancelado antecipadamente" }, { value: "CANCELLED_LATE", label: "Cancelado tardiamente" },\n];\n\nconst APPOINTMENT_STATUS: Record<string, string> = {\n  scheduled: "Agendado",\n  confirmed: "Confirmado",\n  attending: "Em atendimento",\n  completed: "Concluído",\n  missed: "Falta",\n  cancelled: "Cancelado",\n  blocked: "Horário bloqueado",\n};\nconst CALENDAR_STATUS: Record<string, string> = { ...APPOINTMENT_STATUS, planned: "Planejada", in_progress: "Em andamento" };\nconst CLASS_WEEKDAY_BY_LEGACY_DAY: Record<number, string> = { 0: "sunday", 1: "monday", 2: "tuesday", 3: "wednesday", 4: "thursday", 5: "friday", 6: "saturday" };\nconst LEGACY_DAY_BY_CLASS_WEEKDAY: Record<string, number> = Object.fromEntries(Object.entries(CLASS_WEEKDAY_BY_LEGACY_DAY).map(([day, weekday]) => [weekday, Number(day)]));\n\nfunction clinicToday() {\n  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());\n}\n\nfunction appointmentTime(raw: unknown) {\n  return new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" }).format(new Date(String(raw)));\n}\n\nfunction clinicDateKey(raw: unknown) {\n  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(String(raw)));\n}\n\nfunction errorDetails(error: unknown) {\n  return (error as { apiError?: { code?: string; details?: { conflictingGroup?: GroupConflict["group"] } } })?.apiError;\n}\n\nfunction conflictFrom(error: unknown): GroupConflict | null {\n  const apiError = errorDetails(error);\n  if (apiError?.code !== "GROUP_SLOT_CONFLICT") return null;\n  return {\n    message: "Já existe outra turma nesta unidade para o mesmo dia e horário. Escolha outro dia, horário ou ajuste o período de vigência.",\n    group: apiError.details?.conflictingGroup,\n  };\n}\n\nfunction shiftDate(raw: string, days: number) {\n  const date = new Date(`${raw}T12:00:00`);\n  date.setDate(date.getDate() + days);\n  return dateKey(date);\n}\n\nfunction addMinutesToLocalDateTime(raw: string, minutes: number) {\n  if (!raw || !Number.isFinite(minutes) || minutes <= 0) return "";\n  const date = new Date(raw);\n  date.setMinutes(date.getMinutes() + minutes);\n  return localDateTime(date.toISOString());\n}\n\nfunction GroupConflictAlert({ conflict }: { conflict: GroupConflict }) {\n  const group = conflict.group;\n  return <div className="group-conflict-alert" role="alert" id="group-slot-conflict">\n    <span aria-hidden="true">!</span>\n    <div>\n      <strong>Horário indisponível</strong>\n      <p>{conflict.message}</p>\n      {group && <small>Conflito com: {group.name ?? "turma existente"}{group.weekdays?.length ? ` · ${weekdaysLabel(group.weekdays)}` : ""}{group.startsAt ? ` · ${group.startsAt}` : ""}{group.startsOn ? ` · de ${group.startsOn}` : ""}{group.endsOn ? ` até ${group.endsOn}` : ""}</small>}\n    </div>\n  </div>;\n}\n\nfunction AgendaDialog({ children, labelId, onClose, className = "" }: { children: ReactNode; labelId: string; onClose: () => void; className?: string }) {\n  const dialogRef = useDialogFocus(true, onClose);\n  return <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>\n    <section ref={dialogRef} className={`modal ${className}`.trim()} role="dialog" aria-modal="true" aria-labelledby={labelId} tabIndex={-1}>\n      {children}\n    </section>\n  </div>;\n}\n\nfunction GroupMemberForm({\n  slotName,\n  availablePatients,\n  selectedDate,\n  slotWeekdays,\n  onSubmit,\n}: {\n  slotName: string;\n  availablePatients: Row[];\n  allowedPatientIds: string[];\n  selectedDate: string;\n  slotWeekdays: number[];\n  full: boolean;\n  onSubmit: FormEventHandler<HTMLFormElement>;\n}) {\n  const helperText = "Busque qualquer paciente autorizado pelo nome, telefone ou CPF. O plano pode ser cadastrado depois.";\n  return (\n    <form className="group-member-form" onSubmit={onSubmit} aria-label={`Adicionar paciente à turma ${slotName}`}>\n      <FormSection legend="Adicionar paciente à turma">\n        <p className="form-instructions"><strong>Dias da turma:</strong> {weekdaysLabel(slotWeekdays)}. Escolha os dias em que este paciente participará.</p>\n        <WeekdayCheckboxGroup name="weekdays" label="Dias em que o paciente vem" defaultValue={slotWeekdays.map(String)} availableValues={slotWeekdays.map(String)} maxSelections={slotWeekdays.length} required />\n        <div className="form-row">\n          <PatientPicker\n            name="patient_id"\n            label="Paciente"\n            rows={availablePatients}\n            required\n            id="group-member-enrollment"\n            crossUnit\n          />\n          <TextField\n            name="starts_at"\n            label="Início do vínculo"\n            type="date"\n            defaultValue={selectedDate}\n            required\n            hint="A partir de qual data o paciente participa desta turma."\n          />\n        </div>\n        <div className="group-member-form-actions">\n          <button className="btn primary group-members-add">Adicionar paciente</button>\n          <p className="form-instructions" role="status">{helperText}</p>\n        </div>\n      </FormSection>\n    </form>\n  );\n}\n\nexport function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnrollment, canEdit = true, role = "admin" }: { onOpenPatients?: () => void; onOpenEnrollment?: (context: AgendaEnrollmentContext) => void; canEdit?: boolean; role?: Role }) {\n  const { canManageAppointments, canManageGroups } = agendaCapabilities(role, canEdit);\n  const canRecordAttendance = canEdit && ["admin", "manager", "reception", "professional"].includes(role);\n  const [fromDate, setFromDate] = useState(() =>\n    clinicToday(),\n  );\n  const range = useMemo(() => {\n    const days = calendarWeek(fromDate);\n    const to = shiftDate(days[6], 1);\n    return { from: new Date(`${days[0]}T00:00:00-03:00`).toISOString(), to: new Date(`${to}T00:00:00-03:00`).toISOString() };\n  }, [fromDate]);\n  const paths = agendaResourcePaths(`/appointments?from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`, role);\n  const { data, loading, error, reload } = useResources(paths);\n  const appointments: Row[] = data[paths[0]] ?? [];\n  const patients: Row[] = data["/patients?page=1&pageSize=100"]?.items ?? [];\n  const groupMembers: Row[] = data["/group-slot-memberships"] ?? [];\n  const [notice, setNotice] = useState<Notice | null>(null);\n  const [createGroupConflict, setCreateGroupConflict] = useState<GroupConflict | null>(null);\n  const [createBulkGroupConflict, setCreateBulkGroupConflict] = useState<GroupConflict | null>(null);\n  const [editGroupConflict, setEditGroupConflict] = useState<GroupConflict | null>(null);\n  const [creatingBlock, setCreatingBlock] = useState(false);\n  const [newAppointmentServiceId, setNewAppointmentServiceId] = useState("");\n  const [newAppointmentStart, setNewAppointmentStart] = useState("");\n  const [newAppointmentEnd, setNewAppointmentEnd] = useState("");\n  const [calendarAppointment, setCalendarAppointment] = useState<Row | null | undefined>(undefined);\n  const [savingGroup, setSavingGroup] = useState(false);\n  const [calendarMode'... 87279 more characters,
+    expected: /sourceType === "CLASS_OCCURRENCE"/,
+    operator: 'match',
+    diff: 'simple'
+  }

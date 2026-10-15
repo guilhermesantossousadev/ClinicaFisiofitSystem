@@ -1,6 +1,9 @@
 import { confirmAction, requestText } from '../components/Decisions';
 import { Notice } from "@fisiofit/design-system/react";
 import { useDialogFocus } from "@fisiofit/design-system/react";
+import { OperationalCalendar } from '../calendar/OperationalCalendar';
+import { OccurrenceDetailsPanel } from '../calendar/OccurrenceDetailsPanel';
+import { type CalendarItem, calendarWeek } from '../calendar/calendarModel';
 import { AgendaExceptions } from "./AgendaExceptions";
 import { FormEvent, type FormEventHandler, type ReactNode, useEffect, useMemo, useState } from "react";
 import { api } from "../../infrastructure/http/api";
@@ -16,13 +19,6 @@ const FIXED_GROUP_TIMES = Array.from({ length: 15 }, (_, index) => `${String(ind
 
 type Notice = { type: "success" | "error" | "warning" | "info"; message: string };
 type GroupConflict = { message: string; group?: { name?: string; weekdays?: number[]; startsAt?: string; startsOn?: string | null; endsOn?: string | null } };
-type CalendarItem = {
-  id: string; sourceType: "CLASS_OCCURRENCE" | "APPOINTMENT"; sourceId: string; unitId: string;
-  startAt: string; endAt: string; status: string; title: string;
-  professional?: Row | null; plannedProfessional?: Row | null; actualProfessional?: Row | null;
-  patient?: Row | null; class?: Row | null; service?: Row | null; room?: Row | null;
-  occupancy?: number | null; capacity?: number | null;
-};
 type OccurrenceDetail = { occurrence: any; participants: EffectiveOccurrenceParticipant[]; occupancy: number };
 type AvailableOccurrencePatient = { id: string; name: string; active: boolean };
 type AttendanceStatus = "PRESENT" | "LATE" | "ABSENT_JUSTIFIED" | "ABSENT_UNJUSTIFIED" | "CANCELLED_IN_ADVANCE" | "CANCELLED_LATE";
@@ -155,16 +151,14 @@ function GroupMemberForm({
 
 export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnrollment, canEdit = true, role = "admin" }: { onOpenPatients?: () => void; onOpenEnrollment?: (context: AgendaEnrollmentContext) => void; canEdit?: boolean; role?: Role }) {
   const { canManageAppointments, canManageGroups } = agendaCapabilities(role, canEdit);
+  const canRecordAttendance = canEdit && ["admin", "manager", "reception", "professional"].includes(role);
   const [fromDate, setFromDate] = useState(() =>
     clinicToday(),
   );
   const range = useMemo(() => {
-    const selected = new Date(`${fromDate}T12:00:00`);
-    const start = new Date(selected);
-    start.setDate(selected.getDate() - selected.getDay());
-    const end = new Date(start);
-    end.setDate(start.getDate() + 7);
-    return { from: new Date(`${dateKey(start)}T00:00:00-03:00`).toISOString(), to: new Date(`${dateKey(end)}T00:00:00-03:00`).toISOString() };
+    const days = calendarWeek(fromDate);
+    const to = shiftDate(days[6], 1);
+    return { from: new Date(`${days[0]}T00:00:00-03:00`).toISOString(), to: new Date(`${to}T00:00:00-03:00`).toISOString() };
   }, [fromDate]);
   const paths = agendaResourcePaths(`/appointments?from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`, role);
   const { data, loading, error, reload } = useResources(paths);
@@ -181,7 +175,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
   const [newAppointmentEnd, setNewAppointmentEnd] = useState("");
   const [calendarAppointment, setCalendarAppointment] = useState<Row | null | undefined>(undefined);
   const [savingGroup, setSavingGroup] = useState(false);
-  const [calendarMode, setCalendarMode] = useState<"week" | "day">("week");
+  const [calendarMode, setCalendarMode] = useState<"week" | "day">(() => window.matchMedia("(max-width: 600px)").matches ? "day" : "week");
   const [selectedUnitId, setSelectedUnitId] = useState(() => window.localStorage.getItem("fisiofit:selected-unit") ?? "");
   const [newGroupUnitId, setNewGroupUnitId] = useState(() => window.localStorage.getItem("fisiofit:selected-unit") ?? "");
   const [newBulkGroupUnitId, setNewBulkGroupUnitId] = useState(() => window.localStorage.getItem("fisiofit:selected-unit") ?? "");
@@ -197,6 +191,9 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
   const [canonicalMembers, setCanonicalMembers] = useState<Row[]>([]);
   const [selectedOccurrence, setSelectedOccurrence] = useState<CalendarItem | null>(null);
   const [occurrenceDetail, setOccurrenceDetail] = useState<OccurrenceDetail | null>(null);
+  const [occurrenceError, setOccurrenceError] = useState("");
+  const [occurrenceRetry, setOccurrenceRetry] = useState(0);
+  const [detailSection, setDetailSection] = useState<'summary' | 'participants'>('summary');
   const [occurrenceLoading, setOccurrenceLoading] = useState(false);
   const [occurrenceEditing, setOccurrenceEditing] = useState(false);
   const [occurrenceSaving, setOccurrenceSaving] = useState(false);
@@ -254,10 +251,10 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
   }
   useEffect(() => {
     if (!selectedOccurrence) { setOccurrenceDetail(null); setOccurrenceEditing(false); return; }
-    let active = true; setOccurrenceDetail(null); setOccurrenceLoading(true);
-    void api<OccurrenceDetail>(`/class-occurrences/${selectedOccurrence.sourceId}`).then((result) => { if (active) setOccurrenceDetail(result.data ?? null); }).catch((actionError) => { if (active) failure(actionError); }).finally(() => { if (active) setOccurrenceLoading(false); });
+    let active = true; setOccurrenceDetail(null); setOccurrenceLoading(true); setOccurrenceError(""); setAttendanceOpen(false); setDetailSection("summary");
+    void api<OccurrenceDetail>(`/class-occurrences/${selectedOccurrence.sourceId}`).then((result) => { if (active) setOccurrenceDetail(result.data ?? null); }).catch((actionError) => { if (active) setOccurrenceError(messageOf(actionError).replace(/^Erro:\s*/, "")); }).finally(() => { if (active) setOccurrenceLoading(false); });
     return () => { active = false; };
-  }, [selectedOccurrence?.sourceId]);
+  }, [selectedOccurrence?.sourceId, occurrenceRetry]);
   // The unit in this form can differ from the global unit selector. Fetch its
   // patients explicitly so a valid patient never disappears from the picker.
   const appointmentPatientsPath = newAppointmentUnitId
@@ -295,7 +292,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
   const markAllPresentDraft = () => setAttendanceDraft(Object.fromEntries(attendanceRows.map((row) => [row.patient_id, "PRESENT" as const])));
   const saveOccurrenceAttendance = async (row: OccurrenceAttendance) => {
     const status = attendanceDraft[row.patient_id];
-    if (!selectedOccurrence || !status || attendanceSavingPatient) return;
+    if (!canRecordAttendance || !selectedOccurrence || !status || attendanceSavingPatient) return;
     const correcting = Boolean(row.attendance_id && (status !== row.attendance_status || attendanceNotes[row.patient_id] !== (row.notes ?? "")));
     if (correcting && attendanceReason.trim().length < 3) return;
     setAttendanceSavingPatient(row.patient_id); setAttendanceError("");
@@ -361,6 +358,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
   useEffect(() => {
     const onUnitChanged = (event: Event) => {
       const nextUnitId = (event as CustomEvent<string>).detail ?? window.localStorage.getItem("fisiofit:selected-unit") ?? "";
+      setSelectedOccurrence(null); setAttendanceOpen(false); setCalendarAppointment(undefined);
       setSelectedUnitId(nextUnitId);
       setNewGroupUnitId(nextUnitId);
       setNewBulkGroupUnitId(nextUnitId);
@@ -370,21 +368,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
     return () => window.removeEventListener("fisiofit:unit-changed", onUnitChanged);
   }, []);
 
-  const calendarDays = useMemo(() => {
-    const selected = new Date(`${fromDate}T00:00:00`);
-    const start = new Date(selected);
-    start.setDate(selected.getDate() - selected.getDay());
-    return Array.from({ length: 7 }, (_, index) => {
-      const day = new Date(start);
-      day.setDate(start.getDate() + index);
-      return day;
-    });
-  }, [fromDate]);
-  const weekLabel = (() => {
-    const start = calendarDays[0];
-    const end = calendarDays[6];
-    return `${new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short" }).format(start)} – ${new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", year: "numeric" }).format(end)}`.replaceAll(".", "");
-  })();
+  const calendarDays = useMemo(() => calendarWeek(fromDate).map(day => new Date(`${day}T12:00:00`)), [fromDate]);
   const fixedSlots: Row[] = data["/group-slots"] ?? [];
   const units: Unit[] = data["/units"] ?? [];
   const professionals: Row[] = data["/professionals"] ?? [];
@@ -410,22 +394,13 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
     const endsOn = slot.ends_on ? String(slot.ends_on).slice(0, 10) : "9999-12-31";
     return !slot.deleted_at && slot.unit_id === unitId && currentDate >= startsOn && currentDate <= endsOn && (slot.weekdays ?? []).includes(day.getDay()) && slot.active !== false;
   }).sort((a, b) => String(a.starts_at).localeCompare(String(b.starts_at)) || String(a.name).localeCompare(String(b.name), "pt-BR"));
-  const calendarItemsForDay = (day: Date) => calendarItems.filter((item) => clinicDateKey(item.startAt) === dateKey(day));
-  const renderCalendarItem = (item: CalendarItem, compact = false) => {
-    const isOccurrence = item.sourceType === "CLASS_OCCURRENCE";
-    const status = isOccurrence && item.status === "cancelled" ? "Cancelada" : CALENDAR_STATUS[item.status] ?? item.status;
-    const capacity = item.capacity == null ? null : item.occupancy == null ? `Capacidade: ${item.capacity}` : `${item.occupancy}/${item.capacity} ocupadas`;
-    const onClick = () => isOccurrence
-      ? setSelectedOccurrence(item)
-      : openCalendarAppointment({
-        id: item.sourceId, unit_id: item.unitId, patient_id: item.patient?.id, professional_id: item.professional?.id,
-        service_id: item.service?.id, room_id: item.room?.id, starts_at: item.startAt, ends_at: item.endAt, status: item.status,
-        patients: item.patient, professionals: item.professional, services: item.service, rooms: item.room,
-      });
-    return <button type="button" className={`month-calendar-item ${isOccurrence ? "group-item" : "appointment-item"} status-${item.status ?? "scheduled"}`} key={`${item.sourceType}-${item.id}`} onClick={onClick} aria-label={`${item.title}, ${appointmentTime(item.startAt)} a ${appointmentTime(item.endAt)}, ${status}, abrir detalhes`}>
-      <strong>{appointmentTime(item.startAt)}–{appointmentTime(item.endAt)} · {item.title}</strong>
-      <small><span className="appointment-status-label">{status}</span><span>{item.professional?.name ?? "Profissional não informado"}</span>{!compact && <><span>{item.service?.name ?? (isOccurrence ? "Turma" : "Atendimento")}{item.room?.name ? ` · ${item.room.name}` : ""}</span>{capacity && <span>{capacity}</span>}</>}</small>
-    </button>;
+  const openCalendarItem = (item: CalendarItem) => {
+    if (item.sourceType === 'CLASS_OCCURRENCE') { setAttendanceOpen(false); setSelectedOccurrence(item); return; }
+    openCalendarAppointment({
+      id: item.sourceId, unit_id: item.unitId, patient_id: item.patient?.id, professional_id: item.professional?.id,
+      service_id: item.service?.id, room_id: item.room?.id, starts_at: item.startAt, ends_at: item.endAt, status: item.status,
+      patients: item.patient, professionals: item.professional, services: item.service, rooms: item.room,
+    });
   };
 
   async function createGroup(event: FormEvent<HTMLFormElement>) {
@@ -695,7 +670,6 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
     setCalendarAppointment(appointment);
   }
 
-  const displayDays = calendarMode === "day" ? calendarDays.filter(day => dateKey(day) === fromDate) : calendarDays;
   return (
     <div className="content">
       <div className="page-title">
@@ -708,80 +682,32 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
         </div>
       </div>
       {notice && <Notice message={notice.message} tone={notice.type} onDismiss={() => setNotice(null)} />}
-      {canManageGroups && <AgendaExceptions onChanged={reloadAgenda} />}
       <ModuleState loading={loading} error={error} retry={reload} />
-      <section className="card fixed-calendar month-calendar" aria-label="Calendário semanal de horários fixos">
-        <div className="table-toolbar fixed-calendar-toolbar">
-          <div><p className="eyebrow">CALENDÁRIO SEMANAL</p><h2>Horários por unidade</h2></div>
-          <div className="fixed-calendar-toolbar-actions"><div className="segmented" aria-label="Visualização da agenda"><button type="button" aria-pressed={calendarMode === "day"} className={calendarMode === "day" ? "selected" : ""} onClick={() => setCalendarMode("day")}>Dia</button><button type="button" aria-pressed={calendarMode === "week"} className={calendarMode === "week" ? "selected" : ""} onClick={() => setCalendarMode("week")}>Semana</button></div>
-            <span>{visibleUnits[0]?.name ?? "Selecione uma unidade"}</span>
-            <div className="calendar-month-controls" aria-label="Navegação do calendário">
-              <button type="button" className="btn secondary" aria-label={calendarMode === "day" ? "Dia anterior" : "Semana anterior"} onClick={() => setFromDate(shiftDate(fromDate, calendarMode === "day" ? -1 : -7))}>‹</button>
-              <strong>{calendarMode === "day" ? new Date(`${fromDate}T12:00:00`).toLocaleDateString("pt-BR", {dateStyle:"long"}) : weekLabel}</strong>
-              <button type="button" className="btn secondary" aria-label={calendarMode === "day" ? "Próximo dia" : "Próxima semana"} onClick={() => setFromDate(shiftDate(fromDate, calendarMode === "day" ? 1 : 7))}>›</button>
-              <button type="button" className="btn secondary" onClick={() => setFromDate(clinicToday())}>Hoje</button>
-            </div>
-          </div>
-        </div>
-        {visibleUnits.map((unit) => (
-          <div className="fixed-calendar-unit" key={unit.id}>
-            <div className="fixed-calendar-scroll">
-              <div className={`month-calendar-grid calendar-mode-${calendarMode}`} style={{gridTemplateColumns: `repeat(${displayDays.length}, minmax(0, 1fr))`}}>
-                {displayDays.map(day => <div className="month-calendar-weekday" key={dateKey(day)}><span>{day.toLocaleDateString("pt-BR",{weekday:"long"})}</span><small>{day.getDate()}</small></div>)}
-                {displayDays.map((day) => {
-                  const dayItems = calendarItemsForDay(day);
-                  const dayLabel = new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "numeric", month: "long" }).format(day);
-                  return <div className={`month-calendar-day${dateKey(day) === clinicToday() ? " is-today" : ""}`} key={dateKey(day)} aria-label={dayLabel}>
-                    <div className="month-calendar-items">
-                      {dayItems.map((item) => renderCalendarItem(item))}
-                      {!calendarLoading && !calendarError && !dayItems.length && <p className="agenda-mobile-empty">Nenhum item nesta data.</p>}
-                    </div>
-                  </div>;
-                })}
-              </div>
-            </div>
-            <div className="agenda-mobile-list" aria-label={`Agenda semanal de ${unit.name}`}>
-              {displayDays.map((day) => {
-                const dayItems = calendarItemsForDay(day);
-                const dayLabel = new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "2-digit", month: "short" }).format(day).replaceAll(".", "");
-                return <section className={`agenda-mobile-day${dateKey(day) === clinicToday() ? " is-today" : ""}`} key={`mobile-${dateKey(day)}`} aria-labelledby={`mobile-day-${dateKey(day)}`}>
-                  <h3 id={`mobile-day-${dateKey(day)}`}>{dayLabel}{dateKey(day) === clinicToday() ? " · Hoje" : ""}</h3>
-                  <div className="month-calendar-items">
-                    {dayItems.map((item) => renderCalendarItem(item, true))}
-                    {!calendarLoading && !calendarError && !dayItems.length && <p className="agenda-mobile-empty">Nenhum item nesta data.</p>}
-                  </div>
-                </section>;
-              })}
-            </div>
-          </div>
-        ))}
-        {!units.length && <p className="empty-state">Cadastre uma unidade para visualizar a agenda.</p>}
-        {units.length > 0 && !selectedUnitId && <p className="empty-state">Selecione uma unidade para visualizar a agenda.</p>}
-        {selectedUnitId && !visibleUnits.length && <p className="empty-state">A unidade selecionada não está disponível para este usuário.</p>}
-        {selectedUnitId && calendarLoading && <p className="empty-state" role="status">Carregando agenda…</p>}
-        {selectedUnitId && calendarError && <p className="empty-state" role="alert">Não foi possível carregar a agenda. <button type="button" className="btn secondary" onClick={() => void reloadCalendar()}>Tentar novamente</button></p>}
-        {selectedUnitId && !calendarLoading && !calendarError && !calendarItems.length && <p className="empty-state">Nenhum item na agenda nesta semana.</p>}
-      </section>
-      <section className="card" aria-label="Resumo de vagas disponíveis">
-        <h2>Horários disponíveis para oferecer aos clientes</h2>
-        <p>Vagas nas turmas da semana selecionada. Os horários fixos vão de 06:00 a 20:00.</p>
-        {visibleUnits.flatMap((unit) => calendarDays.flatMap((day) => slotsForDay(unit.id, day).map((slot) => ({ unit, day, slot, free: Math.max(0, Number(slot.capacity ?? 7) - membersForSlot(slot.id, day).length) })))).map(({ unit, day, slot, free }) => <p key={`${slot.id}-${dateKey(day)}`}><button type="button" className="btn" onClick={() => setSelectedGroupCell({ slot, day, unitName: unit.name })}>{day.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" })} · {String(slot.starts_at).slice(0, 5)} · {slot.name} · {free} vagas livres</button></p>)}
+      {visibleUnits.map(unit => <OperationalCalendar key={unit.id} unitName={unit.name} items={calendarItems.filter(item => item.unitId === unit.id)} professionals={professionalsForUnit(professionals, unit.id)} rooms={resourcesForUnit(rooms, unit.id)} date={fromDate} onDate={setFromDate} mode={calendarMode} onMode={setCalendarMode} loading={calendarLoading} error={calendarError} retry={() => void reloadCalendar()} onOpen={openCalendarItem} />)}
+      {!selectedUnitId && <p className="empty-state">Selecione uma unidade para visualizar a agenda.</p>}
+      {selectedUnitId && !loading && !visibleUnits.length && <p className="empty-state">A unidade selecionada não está disponível para este usuário.</p>}
+      {canManageGroups && <AgendaExceptions onChanged={reloadAgenda} />}
+      <details className="card" aria-label="Capacidade de referência das turmas"><summary>Turmas fixas · capacidade de referência</summary>
+        <h2>Consultar a grade recorrente</h2>
+        <p>Referência da grade fixa. Consulte a ocorrência para confirmar participantes e exceções. Capacidade informativa, sem bloqueio de lotação (RN-006).</p>
+        {visibleUnits.flatMap((unit) => calendarDays.flatMap((day) => slotsForDay(unit.id, day).map((slot) => ({ unit, day, slot, free: Math.max(0, Number(slot.capacity ?? 7) - membersForSlot(slot.id, day).length) })))).map(({ unit, day, slot, free }) => <p key={`${slot.id}-${dateKey(day)}`}><button type="button" className="btn" onClick={() => setSelectedGroupCell({ slot, day, unitName: unit.name })}>{day.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" })} · {String(slot.starts_at).slice(0, 5)} · {slot.name} · {free} lugares de referência</button></p>)}
         {!visibleUnits.length && <p>Selecione uma unidade para consultar as vagas.</p>}
-      </section>
-      {selectedOccurrence && <AgendaDialog labelId="occurrence-details-title" className="calendar-edit-modal" onClose={() => setSelectedOccurrence(null)}>
+      </details>
+      {selectedOccurrence && <OccurrenceDetailsPanel onClose={() => attendanceOpen ? setAttendanceOpen(false) : setSelectedOccurrence(null)}>
         <div className="modal-head"><div><p className="eyebrow">{attendanceOpen ? "CHAMADA DA AULA" : `TURMA · ${(occurrenceDetail?.occurrence.status ?? selectedOccurrence.status) === "cancelled" ? "Cancelada" : CALENDAR_STATUS[occurrenceDetail?.occurrence.status ?? selectedOccurrence.status] ?? (occurrenceDetail?.occurrence.status ?? selectedOccurrence.status)}`}</p><h2 id="occurrence-details-title">{attendanceOpen ? "Chamada" : occurrenceDetail?.occurrence.classes?.name ?? selectedOccurrence.title}</h2></div><button type="button" onClick={() => attendanceOpen ? setAttendanceOpen(false) : setSelectedOccurrence(null)} aria-label={attendanceOpen ? "Voltar aos detalhes" : "Fechar"}>×</button></div>
-        {occurrenceLoading || !occurrenceDetail ? <p className="empty-state" role="status">Carregando detalhes da aula…</p> : attendanceOpen ? <section className="occurrence-attendance" aria-label="Chamada da aula">
+        {!occurrenceLoading && !occurrenceError && occurrenceDetail && !occurrenceEditing && <nav className="occurrence-panel-tabs" aria-label="Seções da aula"><button type="button" aria-pressed={!attendanceOpen && detailSection === 'summary'} onClick={() => { setAttendanceOpen(false); setDetailSection('summary'); }}>Resumo</button><button type="button" aria-pressed={!attendanceOpen && detailSection === 'participants'} onClick={() => { setAttendanceOpen(false); setDetailSection('participants'); }}>Participantes ({occurrenceDetail.occupancy})</button>{["admin", "manager", "reception", "professional"].includes(role) && <button type="button" aria-pressed={attendanceOpen} onClick={() => void openOccurrenceAttendance()}>Chamada</button>}</nav>}
+        {occurrenceError ? <div role="alert"><p>Não foi possível carregar os detalhes. {occurrenceError}</p><button type="button" className="btn secondary" onClick={() => setOccurrenceRetry(n => n + 1)}>Tentar novamente</button></div> : occurrenceLoading || !occurrenceDetail ? <p className="empty-state" role="status">Carregando detalhes da aula…</p> : attendanceOpen ? <section className="occurrence-attendance" aria-label="Chamada da aula">
           <div className="occurrence-attendance-summary"><strong>{occurrenceDetail.occurrence.classes?.name ?? selectedOccurrence.title}</strong><span>{new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(occurrenceDetail.occurrence.start_at))} · {appointmentTime(occurrenceDetail.occurrence.start_at)}–{appointmentTime(occurrenceDetail.occurrence.end_at)}</span><span>{occurrenceDetail.occurrence.actualProfessional?.name ?? occurrenceDetail.occurrence.plannedProfessional?.name ?? "Profissional não informado"} · {attendanceRows.length} participantes</span>{!attendanceError && (() => { const summary = occurrenceAttendanceSummary(attendanceRows); return <span>Chamada: {summary.recorded}/{summary.expected} registrados · Presentes: {summary.present} · Faltas: {summary.absences}</span>; })()}</div>
           {occurrenceDetail.occurrence.status === "cancelled" && <p className="occurrence-attendance-cancelled" role="status">Aula cancelada. A chamada está disponível somente para consulta.</p>}
           {attendanceError && <p className="occurrence-participant-error" role="alert">{attendanceError}</p>}
           {attendanceLoading ? <p className="empty-state" role="status">Carregando chamada…</p> : attendanceError ? null : attendanceRows.length ? <>
-            {occurrenceDetail.occurrence.status !== "cancelled" && <button type="button" className="btn secondary attendance-mark-all" disabled={Boolean(attendanceSavingPatient) || !attendanceRows.length} onClick={markAllPresentDraft}>Marcar todos como presentes</button>}
-            <p className="occurrence-attendance-review">Esta ação apenas preenche a seleção. Revise cada participante e salve individualmente.</p>
+            {canRecordAttendance && occurrenceDetail.occurrence.status !== "cancelled" && <button type="button" className="btn secondary attendance-mark-all" disabled={Boolean(attendanceSavingPatient) || !attendanceRows.length} onClick={markAllPresentDraft}>Marcar todos como presentes</button>}
+            <p className="occurrence-attendance-review">{canRecordAttendance ? "A seleção não registra presença. Revise cada participante e salve individualmente." : "Chamada disponível somente para consulta."}</p>
             <ul className="occurrence-attendance-list">{attendanceRows.map((row) => {
               const status = attendanceDraft[row.patient_id] ?? "";
               const correcting = Boolean(row.attendance_id && (status !== row.attendance_status || attendanceNotes[row.patient_id] !== (row.notes ?? "")));
               const canCorrect = canEdit;
-              return <li key={row.patient_id}><div className="occurrence-attendance-person"><strong>{row.patient_name}</strong><small>{row.attendance_status ? `Registrado: ${ATTENDANCE_STATUSES.find((item) => item.value === row.attendance_status)?.label ?? row.attendance_status}` : "Sem registro"}</small></div><select aria-label={`Presença de ${row.patient_name}`} value={status} disabled={occurrenceDetail.occurrence.status === "cancelled" || Boolean(attendanceSavingPatient) || Boolean(row.attendance_id && !canCorrect)} onChange={(event) => { const next = event.target.value as AttendanceStatus | ""; setAttendanceDraft((current) => ({ ...current, [row.patient_id]: next })); if (row.attendance_id) { setAttendanceCorrectionPatient(row.patient_id); setAttendanceReason(""); } }}><option value="">Selecionar estado</option>{ATTENDANCE_STATUSES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select><label>Observações<input maxLength={2000} value={attendanceNotes[row.patient_id] ?? ""} disabled={!canEdit || Boolean(attendanceSavingPatient)} onChange={(event) => { setAttendanceNotes((current) => ({ ...current, [row.patient_id]: event.target.value })); if (row.attendance_id) setAttendanceCorrectionPatient(row.patient_id); }} /></label>{row.history?.length ? <details><summary>Histórico ({row.history.length})</summary>{row.history.map((item, index) => <p key={index}>{item.before_status} → {item.after_status} · {item.reason} · {new Date(item.created_at).toLocaleString("pt-BR")}</p>)}</details> : null}{correcting && canCorrect && attendanceCorrectionPatient === row.patient_id && <label className="attendance-correction-reason">Motivo da correção<input value={attendanceReason} maxLength={500} onChange={(event) => setAttendanceReason(event.target.value)} placeholder="Informe o motivo (mín. 3 caracteres)" /></label>}<button type="button" className="btn primary attendance-save" disabled={occurrenceDetail.occurrence.status === "cancelled" || Boolean(attendanceSavingPatient) || !status || (status === row.attendance_status && attendanceNotes[row.patient_id] === (row.notes ?? "")) || (correcting && (!canCorrect || attendanceCorrectionPatient !== row.patient_id || attendanceReason.trim().length < 3))} onClick={() => void saveOccurrenceAttendance(row)}>{attendanceSavingPatient === row.patient_id ? "Salvando…" : correcting ? "Corrigir presença" : "Registrar presença"}</button></li>;
+              return <li key={row.patient_id}><div className="occurrence-attendance-person"><strong>{row.patient_name}</strong><small>{row.attendance_status ? `Registrado: ${ATTENDANCE_STATUSES.find((item) => item.value === row.attendance_status)?.label ?? row.attendance_status}` : "Sem registro"}</small></div><select aria-label={`Presença de ${row.patient_name}`} value={status} disabled={!canRecordAttendance || occurrenceDetail.occurrence.status === "cancelled" || Boolean(attendanceSavingPatient) || Boolean(row.attendance_id && !canCorrect)} onChange={(event) => { const next = event.target.value as AttendanceStatus | ""; setAttendanceDraft((current) => ({ ...current, [row.patient_id]: next })); if (row.attendance_id) { setAttendanceCorrectionPatient(row.patient_id); setAttendanceReason(""); } }}><option value="">Selecionar estado</option>{ATTENDANCE_STATUSES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select><label>Observações<input maxLength={2000} value={attendanceNotes[row.patient_id] ?? ""} disabled={!canEdit || Boolean(attendanceSavingPatient)} onChange={(event) => { setAttendanceNotes((current) => ({ ...current, [row.patient_id]: event.target.value })); if (row.attendance_id) setAttendanceCorrectionPatient(row.patient_id); }} /></label>{row.history?.length ? <details><summary>Histórico ({row.history.length})</summary>{row.history.map((item, index) => <p key={index}>{item.before_status} → {item.after_status} · {item.reason} · {new Date(item.created_at).toLocaleString("pt-BR")}</p>)}</details> : null}{correcting && canCorrect && attendanceCorrectionPatient === row.patient_id && <label className="attendance-correction-reason">Motivo da correção<input value={attendanceReason} maxLength={500} onChange={(event) => setAttendanceReason(event.target.value)} placeholder="Informe o motivo (mín. 3 caracteres)" /></label>}{canRecordAttendance && <button type="button" className="btn primary attendance-save" disabled={occurrenceDetail.occurrence.status === "cancelled" || Boolean(attendanceSavingPatient) || !status || (status === row.attendance_status && attendanceNotes[row.patient_id] === (row.notes ?? "")) || (correcting && (!canCorrect || attendanceCorrectionPatient !== row.patient_id || attendanceReason.trim().length < 3))} onClick={() => void saveOccurrenceAttendance(row)}>{attendanceSavingPatient === row.patient_id ? "Salvando…" : correcting ? "Corrigir presença" : "Registrar presença"}</button>}</li>;
             })}</ul>
           </> : <p className="empty-state">Nenhum participante previsto para esta aula.</p>}
           <div className="modal-actions"><button type="button" className="btn secondary" onClick={() => setAttendanceOpen(false)}>Voltar aos detalhes</button></div>
@@ -791,15 +717,17 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
           <SelectField name="actual_professional_id" label="Profissional nesta aula" defaultValue={occurrenceDetail.occurrence.actual_professional_id ?? ""}><option value="">Manter profissional planejado</option>{professionals.filter((p) => p.active !== false).map((professional) => <option key={String(professional.id)} value={String(professional.id)}>{String(professional.name)}</option>)}</SelectField>
           <SelectField name="room_id" label="Sala" defaultValue={occurrenceDetail.occurrence.room_id ?? ""}><option value="">Não informada</option>{resourcesForUnit(rooms, selectedOccurrence.unitId).map((room) => <option key={String(room.id)} value={String(room.id)}>{String(room.name)}</option>)}</SelectField>
           <div className="modal-actions"><button type="button" className="btn secondary" onClick={() => setOccurrenceEditing(false)}>Voltar</button><button className="btn primary" disabled={occurrenceSaving}>{occurrenceSaving ? "Salvando…" : "Salvar somente esta aula"}</button></div>
-        </form> : <div className="appointment-readonly-details occurrence-details"><dl>
+        </form> : <div className="appointment-readonly-details occurrence-details"><dl hidden={detailSection !== "summary"}>
+          <div><dt>Unidade</dt><dd>{occurrenceDetail.occurrence.units?.name ?? units.find(unit => unit.id === selectedOccurrence.unitId)?.name ?? "Não informada"}</dd></div>
           <div><dt>Data e horário</dt><dd>{new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(occurrenceDetail.occurrence.start_at))} – {appointmentTime(occurrenceDetail.occurrence.end_at)}</dd></div>
+          {occurrenceDetail.occurrence.exception_date && occurrenceDetail.occurrence.exception_date !== occurrenceDetail.occurrence.local_date && <div><dt>Aula remarcada</dt><dd>Origem: {new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short' }).format(new Date(`${occurrenceDetail.occurrence.local_date}T12:00:00`))}. Alteração somente nesta ocorrência.</dd></div>}
           <div><dt>Status</dt><dd>{occurrenceDetail.occurrence.status === "cancelled" ? "Cancelada" : CALENDAR_STATUS[occurrenceDetail.occurrence.status] ?? occurrenceDetail.occurrence.status}</dd></div>
           <div><dt>Profissional planejado</dt><dd>{occurrenceDetail.occurrence.plannedProfessional?.name ?? "Não informado"}</dd></div>
           {occurrenceDetail.occurrence.actualProfessional && <div><dt>Profissional nesta aula</dt><dd>{occurrenceDetail.occurrence.actualProfessional.name}</dd></div>}
-          <div><dt>Capacidade</dt><dd>{occurrenceDetail.occupancy}/{occurrenceDetail.occurrence.effective_capacity}</dd></div><div><dt>Sala</dt><dd>{occurrenceDetail.occurrence.rooms?.name ?? "Não informada"}</dd></div><div><dt>Serviço</dt><dd>{occurrenceDetail.occurrence.services?.name ?? "Não informado"}</dd></div>
-        </dl><section className="occurrence-participants" aria-labelledby="occurrence-participants-title"><div className="occurrence-participants-heading"><div><h3 id="occurrence-participants-title">Participantes desta aula</h3><p>{occurrenceDetail.occupancy}/{occurrenceDetail.occurrence.effective_capacity} ocupados</p></div>{canManageGroups && occurrenceDetail.occurrence.status === "planned" && <button type="button" className="btn secondary" onClick={() => { setParticipantMutationError(""); setAddingOccurrenceParticipant(true); }}>+ Adicionar paciente</button>}</div>{occurrenceDetail.participants.length ? <ul>{occurrenceDetail.participants.map((participant) => <li key={participant.patient.id}><span>{participant.patient.name}<small>{participant.source === "MANUAL" ? "Adicionado nesta aula" : participant.source === "MAKEUP" ? "Reposição nesta aula" : participant.patient.active ? "Ativo" : "Inativo"}</small></span>{canManageGroups && occurrenceDetail.occurrence.status === "planned" && <button type="button" className="btn secondary occurrence-participant-remove" onClick={() => { setParticipantMutationError(""); setRemovingParticipant(participant); }}>Remover desta aula</button>}</li>)}</ul> : <p className="empty-state">Nenhum aluno previsto para esta aula.</p>}</section>
-        <div className="modal-actions">{canManageGroups && occurrenceDetail.occurrence.status === "cancelled" && String(occurrenceDetail.occurrence.cancellation_reason ?? "").startsWith("holiday") && <button type="button" className="btn secondary" onClick={async () => { const reason = await requestText("Justificativa para funcionar neste feriado:"); if (!reason || reason.trim().length < 3) return; try { await api(`/class-occurrences/${selectedOccurrence.sourceId}/reopen`, { method: "POST", body: JSON.stringify({ reason }) }); await refreshOccurrence(selectedOccurrence.sourceId); success("Funcionamento excepcional autorizado nesta aula."); } catch (e) { failure(e); } }}>Autorizar funcionamento neste feriado</button>}{canManageGroups && occurrenceDetail.occurrence.status === "planned" && <><button type="button" className="btn secondary" onClick={() => setOccurrenceEditing(true)}>Alterar somente esta aula</button><button type="button" className="btn secondary action-delete" onClick={() => { setOccurrenceCancelError(""); setConfirmOccurrenceCancellation(true); }}>Cancelar esta aula</button></>}{canEdit && ["admin", "manager", "reception", "professional"].includes(role) && <button type="button" className="btn secondary" onClick={() => void openOccurrenceAttendance()}>Abrir chamada</button>}<button type="button" className="btn primary" onClick={() => setSelectedOccurrence(null)}>Fechar</button></div></div>}
-      </AgendaDialog>}
+          <div><dt>Participantes / capacidade informativa</dt><dd>{occurrenceDetail.occupancy}/{occurrenceDetail.occurrence.effective_capacity}</dd></div><div><dt>Sala</dt><dd>{occurrenceDetail.occurrence.rooms?.name ?? "Não informada"}</dd></div><div><dt>Serviço</dt><dd>{occurrenceDetail.occurrence.services?.name ?? "Não informado"}</dd></div>
+        </dl><section hidden={detailSection !== "participants"} className="occurrence-participants" aria-labelledby="occurrence-participants-title"><div className="occurrence-participants-heading"><div><h3 id="occurrence-participants-title">Participantes desta aula</h3><p>{occurrenceDetail.occupancy}/{occurrenceDetail.occurrence.effective_capacity} ocupados</p></div>{canManageGroups && occurrenceDetail.occurrence.status === "planned" && <button type="button" className="btn secondary" onClick={() => { setParticipantMutationError(""); setAddingOccurrenceParticipant(true); }}>+ Adicionar paciente</button>}</div>{occurrenceDetail.participants.length ? <ul>{occurrenceDetail.participants.map((participant) => <li key={participant.patient.id}><span>{participant.patient.name}<small>{participant.source === "MANUAL" ? "Adicionado nesta aula" : participant.source === "MAKEUP" ? "Reposição nesta aula" : participant.patient.active ? "Ativo" : "Inativo"}</small></span>{canManageGroups && occurrenceDetail.occurrence.status === "planned" && <button type="button" className="btn secondary occurrence-participant-remove" onClick={() => { setParticipantMutationError(""); setRemovingParticipant(participant); }}>Remover desta aula</button>}</li>)}</ul> : <p className="empty-state">Nenhum aluno previsto para esta aula.</p>}</section>
+        <div className="modal-actions">{canManageGroups && occurrenceDetail.occurrence.status === "cancelled" && String(occurrenceDetail.occurrence.cancellation_reason ?? "").startsWith("holiday") && <button type="button" className="btn secondary" onClick={async () => { const reason = await requestText("Justificativa para funcionar neste feriado:"); if (!reason || reason.trim().length < 3) return; try { await api(`/class-occurrences/${selectedOccurrence.sourceId}/reopen`, { method: "POST", body: JSON.stringify({ reason }) }); await refreshOccurrence(selectedOccurrence.sourceId); success("Funcionamento excepcional autorizado nesta aula."); } catch (e) { failure(e); } }}>Autorizar funcionamento neste feriado</button>}{canManageGroups && occurrenceDetail.occurrence.status === "planned" && <><button type="button" className="btn secondary" onClick={() => setOccurrenceEditing(true)}>Alterar somente esta aula</button><button type="button" className="btn secondary action-delete" onClick={() => { setOccurrenceCancelError(""); setConfirmOccurrenceCancellation(true); }}>Cancelar esta aula</button></>}{["admin", "manager", "reception", "professional"].includes(role) && <button type="button" className="btn secondary" onClick={() => void openOccurrenceAttendance()}>Abrir chamada</button>}<button type="button" className="btn primary" onClick={() => setSelectedOccurrence(null)}>Fechar</button></div></div>}
+      </OccurrenceDetailsPanel>}
       {selectedOccurrence && occurrenceDetail && addingOccurrenceParticipant && <AgendaDialog labelId="add-occurrence-participant-title" className="calendar-edit-modal occurrence-participant-dialog" onClose={() => { if (!addingPatientId) { setAddingOccurrenceParticipant(false); setParticipantSearch(""); setParticipantMutationError(""); } }}>
         <div className="modal-head"><div><p className="eyebrow">AÇÃO PONTUAL</p><h2 id="add-occurrence-participant-title">Adicionar paciente</h2></div><button type="button" disabled={Boolean(addingPatientId)} onClick={() => setAddingOccurrenceParticipant(false)} aria-label="Fechar busca">×</button></div>
         <div className="occurrence-participant-dialog-body"><p className="form-instructions">{occurrenceDetail.occupancy}/{occurrenceDetail.occurrence.effective_capacity} ocupados · capacidade de referência, sem limite obrigatório. A inclusão vale somente para esta aula.</p><label className="occurrence-patient-search">Buscar paciente<input type="search" autoFocus minLength={2} value={participantSearch} onChange={(event) => { setParticipantSearch(event.target.value); setParticipantMutationError(""); }} placeholder="Digite ao menos 2 letras do nome" autoComplete="off" aria-controls="occurrence-patient-results" /></label>

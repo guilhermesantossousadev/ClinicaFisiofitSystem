@@ -1,0 +1,32 @@
+{
+  "apiDigest": {
+    "before": "4a45cc47bf4231f4ea21161e11d13a9bc03635ca7960cc9dea7084645475aac0",
+    "after": "4a45cc47bf4231f4ea21161e11d13a9bc03635ca7960cc9dea7084645475aac0",
+    "equal": true
+  },
+  "migrationsDigest": {
+    "before": "1abb71cac3ca01d5a4f4a2db792be5c396d859ae2b7f6ca4d3b473909692b982",
+    "after": "1abb71cac3ca01d5a4f4a2db792be5c396d859ae2b7f6ca4d3b473909692b982",
+    "equal": true
+  },
+  "fixturesDigest": {
+    "before": "dbe5e5324e2019ae711b46e23aca5f061011bffb920e074ae46ff70d81b4e75a",
+    "after": "dbe5e5324e2019ae711b46e23aca5f061011bffb920e074ae46ff70d81b4e75a",
+    "equal": true
+  },
+  "database-functions": {
+    "before": "01828c28091ca06372ac773383976a39",
+    "after": "01828c28091ca06372ac773383976a39",
+    "equal": true
+  },
+  "database-columns": {
+    "before": "bcce7a9e437a6b550b7721dc9ed29bfe",
+    "after": "bcce7a9e437a6b550b7721dc9ed29bfe",
+    "equal": true
+  },
+  "database-version": {
+    "before": "17.6",
+    "after": "17.6",
+    "equal": true
+  }
+}

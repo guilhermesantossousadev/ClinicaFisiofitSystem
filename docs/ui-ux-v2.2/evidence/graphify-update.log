@@ -1,0 +1,10 @@
+Re-extracting code files in . (no LLM needed)...
+  AST extraction: 100/360 uncached files (27%) [8 workers]
+  AST extraction: 200/360 uncached files (55%) [8 workers]
+  AST extraction: 300/360 uncached files (83%) [8 workers]
+  AST extraction: 360/360 uncached files (100%) [8 workers]
+  warning: 63 .sql file(s) contributed nothing to the graph because a dependency is missing: tree_sitter_sql not installed. Install it with: pip install "graphifyy[sql]" (#1745)
+[graphify watch] Rebuilt: 2480 nodes, 3488 edges, 180 communities
+[graphify watch] graph.json, graph.html and GRAPH_REPORT.md updated in graphify-out
+Code graph updated. For doc/paper/image changes run /graphify --update in your AI assistant.
+Tip: set GEMINI_API_KEY or GOOGLE_API_KEY to use Gemini for semantic extraction.

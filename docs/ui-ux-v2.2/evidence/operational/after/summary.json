@@ -1,0 +1,82 @@
+{
+  "passed": true,
+  "scope": "operational",
+  "results": [
+    {
+      "name": "repository-baseline-replay",
+      "passed": true
+    },
+    {
+      "name": "migration-existing-data-preservation",
+      "passed": true
+    },
+    {
+      "name": "202610150008_operational_stabilization.sql",
+      "passed": true
+    },
+    {
+      "name": "authorization.test.sql",
+      "passed": true,
+      "assertions": 39
+    },
+    {
+      "name": "correct_unpaid_charge_amount.test.sql",
+      "passed": true,
+      "assertions": 17
+    },
+    {
+      "name": "database.test.sql",
+      "passed": true,
+      "assertions": 19
+    },
+    {
+      "name": "enrollment_contract_amount.test.sql",
+      "passed": true,
+      "assertions": 23
+    },
+    {
+      "name": "financial_api_permissions.test.sql",
+      "passed": true,
+      "assertions": 26
+    },
+    {
+      "name": "financial_charge_status.test.sql",
+      "passed": true,
+      "assertions": 26
+    },
+    {
+      "name": "financial_enrollment_read_permissions.test.sql",
+      "passed": true,
+      "assertions": 30
+    },
+    {
+      "name": "financial_plans_release.test.sql",
+      "passed": true,
+      "assertions": 53
+    },
+    {
+      "name": "financial_reception_permissions.test.sql",
+      "passed": true,
+      "assertions": 17
+    },
+    {
+      "name": "operational_stabilization.test.sql",
+      "passed": true,
+      "assertions": 86
+    },
+    {
+      "name": "patient_enrollment_saving.test.sql",
+      "passed": true,
+      "assertions": 31
+    },
+    {
+      "name": "guarded-reconciliation-synthetic",
+      "passed": true
+    },
+    {
+      "name": "authenticated-http",
+      "passed": true,
+      "requests": 44
+    }
+  ]
+}

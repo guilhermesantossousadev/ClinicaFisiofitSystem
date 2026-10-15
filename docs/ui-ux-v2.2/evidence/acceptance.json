@@ -1,0 +1,21 @@
+{
+  "status": "READY_FOR_REVIEW",
+  "base": "62936e604370170593e344a2cf466cf32efddc5a",
+  "sourceDigest": "53976a8f55bf53d97bd7a0d48f9a4f765e01660c64231a699a5eb3642ee52200",
+  "checks": {
+    "visualBefore": true,
+    "visualAfter": true,
+    "exactCandidate": true,
+    "exactBaseline": true,
+    "operationalBefore": true,
+    "operationalAfter": true,
+    "backendPreserved": true
+  },
+  "shots": {
+    "before": 28,
+    "after": 39
+  },
+  "visualAssertions": 73,
+  "published": false,
+  "synthetic": true
+}

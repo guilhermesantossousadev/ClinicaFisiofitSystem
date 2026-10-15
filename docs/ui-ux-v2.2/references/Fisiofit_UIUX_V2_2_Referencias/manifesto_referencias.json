@@ -1,0 +1,180 @@
+{
+  "project": "Fisiofit UI/UX V2.2",
+  "type": "Pacote de referencias, nao copia de telas",
+  "downloaded_external_screenshots": false,
+  "remote_references": [
+    {
+      "id": "R01",
+      "product": "Jane App",
+      "cat": "Jane / Calendário",
+      "title": "Jane — agenda semanal, pacientes e profissionais",
+      "url": "https://d9mjucb3c44w0.cloudfront.net/schedule_53993a28b1.webp",
+      "source": "https://jane.app/guide/working-with-the-schedule",
+      "take": "Grade horária, cartões temporais coloridos, profissionais selecionáveis, Hoje/Dia/Semana, navegação temporal.",
+      "fisio": "Prioridade máxima. Adaptar à ocorrência Class, turmas recorrentes, profissionais, sala e roster.",
+      "caution": "Não copiar marca, paleta ou dados; Jane mostra consultas individuais, Fisiofit tem grupos recorrentes."
+    },
+    {
+      "id": "R02",
+      "product": "Jane App",
+      "cat": "Jane / Calendário",
+      "title": "Jane — agenda do balcão e organização lateral",
+      "url": "https://i.vimeocdn.com/video/762739315-d3438e80729f97954ebbb1a9a0eedbcd131741feea8d498bfe420c4e23c74f30-d?f=webp",
+      "source": "https://jane.app/guide/chapter-3-payments",
+      "take": "Lista lateral de profissionais, horários proporcionais, estados por bloco, barra de navegação.",
+      "fisio": "Filtro de unidade/profissional e detalhe contextual, preservando escala horária de sessões."
+    },
+    {
+      "id": "R03",
+      "product": "Fresha",
+      "cat": "Clínica / Calendário",
+      "title": "Fresha — calendário por profissional",
+      "url": "https://pb-hji-production.s3.eu-west-2.amazonaws.com/2022/03/Fresha-Calendar-768x472.jpg",
+      "source": "https://hji.co.uk/fresha-launches-new-deposits-feature",
+      "take": "Colunas por pessoa, distribuição de blocos em grade, duração perceptível, data e navegação.",
+      "fisio": "Usar para visão dia/múltiplos profissionais, não confundir horário vazio com disponibilidade real."
+    },
+    {
+      "id": "R04",
+      "product": "Cliniko",
+      "cat": "Clínica / Calendário",
+      "title": "Cliniko — agenda e diálogo de criação",
+      "url": "https://cdn.sanity.io/images/3rd8yckx/production/8e6fd09cf20ad0cef7fad1340195af3c6771874a-2149x1600.jpg?auto=format&fit=crop&q=85&w=537",
+      "source": "https://www.cliniko.com/blog/news/redesigning-the-appointment/",
+      "take": "Mini calendário, filtros de profissional e formulário contextual com campos essenciais.",
+      "fisio": "Inspirar nova turma/sessão quando backend suportar, distinguindo alteração pontual e permanente."
+    },
+    {
+      "id": "R05",
+      "product": "Cliniko",
+      "cat": "Clínica / Calendário",
+      "title": "Cliniko — grade semanal e seleção de profissionais",
+      "url": "https://images.ctfassets.net/q2vojxd7ywwe/BcCYEKWSbZaob1Q3fa3cm/69fb4ca75d362ba5d95b49a9cb0a1330/cliniko-review-appointments.png?fm=jpg&q=85&w=1300",
+      "source": "https://www.medesk.net/en/blog/cliniko-review/",
+      "take": "Horas na lateral, semana por colunas, profissionais selecionáveis e calendário auxiliar.",
+      "fisio": "Adotar organização de filtros apenas; contraste e densidade devem seguir Design System V2.1."
+    },
+    {
+      "id": "R06",
+      "product": "Zenamu",
+      "cat": "Pilates / Turmas",
+      "title": "Zenamu — semana de turmas de pilates",
+      "url": "https://zenamu.com/img/zenamuExamples/en/crop/example-studio-3.webp",
+      "source": "https://zenamu.com/",
+      "take": "Blocos repetidos na semana, aulas coletivas, horário e identificação do tipo de atividade.",
+      "fisio": "Referência específica para turmas recorrentes, sem copiar fluxo de agendamento público."
+    },
+    {
+      "id": "R07",
+      "product": "Mindbody / Loop",
+      "cat": "Pilates / Turmas",
+      "title": "Mindbody/Loop — lista operacional de aulas",
+      "url": "https://gdm-catalog-fmapi-prod.imgix.net/ProductScreenshot/6ff47f20-ce10-4c95-9bc0-db79a3d2a6c8.jpeg",
+      "source": "https://www.mindbodyonline.com/business/fitness/pilates-software",
+      "take": "Grade/lista de aulas, turmas por dia, filtros de unidade, instrutores e horários.",
+      "fisio": "Oferecer modo lista complementar para recepção/chamada, sem substituir calendário gráfico."
+    },
+    {
+      "id": "R08",
+      "product": "Linear",
+      "cat": "Produtividade / Filtros",
+      "title": "Linear — lista, agrupamento e filtros ativos",
+      "url": "https://cdn.sanity.io/images/ornj730p/production/675ca503dce0d6041131ee6cdfc40c99f7563d60-2160x1327.png?auto=format&dpr=2&q=95&w=1440",
+      "source": "https://linear.app/docs/filters",
+      "take": "Filtro aplicado visível, agrupamento, densidade informacional controlada.",
+      "fisio": "Ações rápidas e chips para unidade, profissional, tipo e status. Não copiar tema escuro."
+    },
+    {
+      "id": "R09",
+      "product": "Linear",
+      "cat": "Produtividade / Filtros",
+      "title": "Linear — menu de filtro contextual",
+      "url": "https://cdn.sanity.io/images/ornj730p/production/f2f4e2653379d8211c581e5a946d037b7c4cfd8e-848x405.png?auto=format&dpr=2&q=95&w=1440",
+      "source": "https://linear.app/docs/filters",
+      "take": "Filtro único fácil de descobrir, opções próximas da tarefa.",
+      "fisio": "Usar só filtros com semântica e dados confiáveis."
+    },
+    {
+      "id": "R10",
+      "product": "Shopify Polaris",
+      "cat": "Componentes / Tabelas",
+      "title": "Shopify Polaris — tabelas, abas e cabeçalhos",
+      "url": "https://polaris-react.shopify.com/_next/image?q=75&url=%2Fimages%2Fcomponents%2Ftables%2Findex-table.png&w=3840",
+      "source": "https://polaris-react.shopify.com/components/tables",
+      "take": "Cabeçalhos, abas de status, seleção, controles visíveis e densidade legível.",
+      "fisio": "Aplicar em pacientes, matrículas e planos, aproveitando componentes V2.1."
+    },
+    {
+      "id": "R11",
+      "product": "Shopify Polaris",
+      "cat": "Componentes / Tabelas",
+      "title": "Polaris — densidade de dados e estados",
+      "url": "https://polaris-react.shopify.com/images/design/layout/layout-density-05-high-density-action-do%402x.png",
+      "source": "https://polaris-react.shopify.com/design/layout/density",
+      "take": "Tabelas compactas com alinhamentos consistentes e badges semânticos.",
+      "fisio": "Evitar textos minúsculos: legibilidade antes de máxima compactação."
+    },
+    {
+      "id": "R12",
+      "product": "Shopify Engineering",
+      "cat": "Componentes / Formulários",
+      "title": "Shopify — validação de formulário",
+      "url": "https://cdn.shopify.com/s/files/1/0779/4361/files/AddProductErrorMessage.png?format=jpg&quality=90&v=1663168801",
+      "source": "https://shopify.engineering/managing-react-form-state-using-react-form-library",
+      "take": "Label visível, erro junto ao input, controle de submissão.",
+      "fisio": "Validar sem apagar entrada; incorporar padrões V2.1, evitar mensagens genéricas."
+    },
+    {
+      "id": "R13",
+      "product": "Stripe",
+      "cat": "Financeiro / Informação",
+      "title": "Stripe — dashboard financeiro",
+      "url": "https://storage.ghost.io/c/2d/17/2d1720de-b48e-4729-8941-6f1d1300a8cc/content/images/size/w2400/2021/07/stripe-dashboard.png",
+      "source": "https://ghost.org/resources/subscription-business-metrics/",
+      "take": "Separação de números, contexto, períodos e gráficos compactos.",
+      "fisio": "Separar cobrança, valor recebido e saldo; nunca confundir financeiro com frequência."
+    },
+    {
+      "id": "R14",
+      "product": "Stripe",
+      "cat": "Financeiro / Informação",
+      "title": "Stripe — pagamentos em tabela",
+      "url": "https://thedigitalmerchant.com/wp-content/uploads/2023/06/stripe-payments.jpg",
+      "source": "https://thedigitalmerchant.com/stripe-vs-chargebee/",
+      "take": "Linhas, valores alinhados, tipos de operação e navegação para detalhes.",
+      "fisio": "Clareza das ações e períodos; nenhum dado financeiro real de terceiros."
+    },
+    {
+      "id": "R15",
+      "product": "Notion",
+      "cat": "Contexto / Painel lateral",
+      "title": "Notion — Side Peek e lista ao fundo",
+      "url": "https://www.mikeschweitzer.com/posts/what-is-notion/assets/SidePeek.png",
+      "source": "https://www.mikeschweitzer.com/posts/what-is-notion/",
+      "take": "Abrir detalhes preservando a lista original e o contexto de navegação.",
+      "fisio": "Abrir turma, paciente ou matrícula em drawer, mantendo filtros e scroll."
+    },
+    {
+      "id": "R16",
+      "product": "Notion",
+      "cat": "Contexto / Painel lateral",
+      "title": "Notion — detalhe de registro",
+      "url": "https://www.notion.com/_next/image?q=75&url=https%3A%2F%2Fimages.ctfassets.net%2Fspoqsaf9291f%2F5ocQvarEF5eVAnubGwqKy7%2F646911f4ccecd1ac5b3d4785a14ebecf%2FCustomize_database_page.png&w=2048",
+      "source": "https://www.notion.com/help/intro-to-databases",
+      "take": "Propriedades visíveis, hierarquia de informação e abertura de registro.",
+      "fisio": "Painel de detalhes da ocorrência, participantes, chamada e histórico."
+    }
+  ],
+  "offline_study_visuals": [
+    "01_JANE_INSPIRACAO_AGENDA_DIA.png",
+    "02_JANE_INSPIRACAO_AGENDA_SEMANA.png",
+    "03_JANE_INSPIRACAO_PAINEL_TURMA.png",
+    "04_LINEAR_JANE_FILTROS_AGENDA.png",
+    "05_MINDBODY_JANE_FLUXO_CHAMADA.png",
+    "06_NOTION_AIRTABLE_PACIENTES_DETALHE.png",
+    "07_STRIPE_FINANCEIRO_CLAREZA.png",
+    "08_JANE_AGENDA_RESPONSIVA.png",
+    "09_SHOPIFY_GOVUK_FORMULARIOS.png",
+    "10_JANE_PREFERENCIAS_AGENDA.png"
+  ]
+}

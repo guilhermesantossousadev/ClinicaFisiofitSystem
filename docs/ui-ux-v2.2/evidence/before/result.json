@@ -1,0 +1,1428 @@
+{
+  "sourceDigest": "19ec04d58cf512fe0ffa9929a2329e3338a949404e3a3afdfb133b72ccbaf508",
+  "phase": "before",
+  "synthetic": true,
+  "backendPersistenceTest": false,
+  "shots": [
+    {
+      "name": "week-1440",
+      "width": 1440,
+      "path": "before/week-1440.png",
+      "viewport": {
+        "innerWidth": 1440,
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "bodyWidth": 1440
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [],
+      "smallText": 0,
+      "unlabelled": 0
+    },
+    {
+      "name": "week-1280",
+      "width": 1280,
+      "path": "before/week-1280.png",
+      "viewport": {
+        "innerWidth": 1280,
+        "scrollWidth": 1280,
+        "clientWidth": 1280,
+        "bodyWidth": 1280
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [],
+      "smallText": 0,
+      "unlabelled": 0
+    },
+    {
+      "name": "week-768",
+      "width": 768,
+      "path": "before/week-768.png",
+      "viewport": {
+        "innerWidth": 768,
+        "scrollWidth": 768,
+        "clientWidth": 768,
+        "bodyWidth": 768
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [],
+      "smallText": 0,
+      "unlabelled": 0
+    },
+    {
+      "name": "week-390",
+      "width": 390,
+      "path": "before/week-390.png",
+      "viewport": {
+        "innerWidth": 390,
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "bodyWidth": 390
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [],
+      "smallText": 0,
+      "unlabelled": 0
+    },
+    {
+      "name": "day-multiple-professionals-1440",
+      "width": 1440,
+      "path": "before/day-multiple-professionals-1440.png",
+      "viewport": {
+        "innerWidth": 1440,
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "bodyWidth": 1440
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [],
+      "smallText": 0,
+      "unlabelled": 0
+    },
+    {
+      "name": "day-multiple-professionals-1280",
+      "width": 1280,
+      "path": "before/day-multiple-professionals-1280.png",
+      "viewport": {
+        "innerWidth": 1280,
+        "scrollWidth": 1280,
+        "clientWidth": 1280,
+        "bodyWidth": 1280
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [],
+      "smallText": 0,
+      "unlabelled": 0
+    },
+    {
+      "name": "day-multiple-professionals-768",
+      "width": 768,
+      "path": "before/day-multiple-professionals-768.png",
+      "viewport": {
+        "innerWidth": 768,
+        "scrollWidth": 768,
+        "clientWidth": 768,
+        "bodyWidth": 768
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [],
+      "smallText": 0,
+      "unlabelled": 0
+    },
+    {
+      "name": "day-multiple-professionals-390",
+      "width": 390,
+      "path": "before/day-multiple-professionals-390.png",
+      "viewport": {
+        "innerWidth": 390,
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "bodyWidth": 390
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [],
+      "smallText": 0,
+      "unlabelled": 0
+    },
+    {
+      "name": "details-1440",
+      "width": 1440,
+      "path": "before/details-1440.png",
+      "viewport": {
+        "innerWidth": 1440,
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "bodyWidth": 1440
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [
+        {
+          "name": "Pilates · equilíbrio",
+          "contained": true
+        }
+      ],
+      "smallText": 0,
+      "unlabelled": 0
+    },
+    {
+      "name": "details-1280",
+      "width": 1280,
+      "path": "before/details-1280.png",
+      "viewport": {
+        "innerWidth": 1280,
+        "scrollWidth": 1280,
+        "clientWidth": 1280,
+        "bodyWidth": 1280
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [
+        {
+          "name": "Pilates · equilíbrio",
+          "contained": true
+        }
+      ],
+      "smallText": 0,
+      "unlabelled": 0
+    },
+    {
+      "name": "details-768",
+      "width": 768,
+      "path": "before/details-768.png",
+      "viewport": {
+        "innerWidth": 768,
+        "scrollWidth": 768,
+        "clientWidth": 768,
+        "bodyWidth": 768
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [
+        {
+          "name": "Pilates · equilíbrio",
+          "contained": true
+        }
+      ],
+      "smallText": 0,
+      "unlabelled": 0
+    },
+    {
+      "name": "details-390",
+      "width": 390,
+      "path": "before/details-390.png",
+      "viewport": {
+        "innerWidth": 390,
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "bodyWidth": 390
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [
+        {
+          "name": "Pilates · equilíbrio",
+          "contained": true
+        }
+      ],
+      "smallText": 0,
+      "unlabelled": 0
+    },
+    {
+      "name": "participants-1440",
+      "width": 1440,
+      "path": "before/participants-1440.png",
+      "viewport": {
+        "innerWidth": 1440,
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "bodyWidth": 1440
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [
+        {
+          "name": "Pilates · equilíbrio",
+          "contained": true
+        }
+      ],
+      "smallText": 0,
+      "unlabelled": 0
+    },
+    {
+      "name": "participants-1280",
+      "width": 1280,
+      "path": "before/participants-1280.png",
+      "viewport": {
+        "innerWidth": 1280,
+        "scrollWidth": 1280,
+        "clientWidth": 1280,
+        "bodyWidth": 1280
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [
+        {
+          "name": "Pilates · equilíbrio",
+          "contained": true
+        }
+      ],
+      "smallText": 0,
+      "unlabelled": 0
+    },
+    {
+      "name": "participants-768",
+      "width": 768,
+      "path": "before/participants-768.png",
+      "viewport": {
+        "innerWidth": 768,
+        "scrollWidth": 768,
+        "clientWidth": 768,
+        "bodyWidth": 768
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [
+        {
+          "name": "Pilates · equilíbrio",
+          "contained": true
+        }
+      ],
+      "smallText": 0,
+      "unlabelled": 0
+    },
+    {
+      "name": "participants-390",
+      "width": 390,
+      "path": "before/participants-390.png",
+      "viewport": {
+        "innerWidth": 390,
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "bodyWidth": 390
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [
+        {
+          "name": "Pilates · equilíbrio",
+          "contained": true
+        }
+      ],
+      "smallText": 0,
+      "unlabelled": 0
+    },
+    {
+      "name": "attendance-1440",
+      "width": 1440,
+      "path": "before/attendance-1440.png",
+      "viewport": {
+        "innerWidth": 1440,
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "bodyWidth": 1440
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [
+        {
+          "name": "Chamada",
+          "contained": true
+        }
+      ],
+      "smallText": 0,
+      "unlabelled": 0
+    },
+    {
+      "name": "attendance-1280",
+      "width": 1280,
+      "path": "before/attendance-1280.png",
+      "viewport": {
+        "innerWidth": 1280,
+        "scrollWidth": 1280,
+        "clientWidth": 1280,
+        "bodyWidth": 1280
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [
+        {
+          "name": "Chamada",
+          "contained": true
+        }
+      ],
+      "smallText": 0,
+      "unlabelled": 0
+    },
+    {
+      "name": "attendance-768",
+      "width": 768,
+      "path": "before/attendance-768.png",
+      "viewport": {
+        "innerWidth": 768,
+        "scrollWidth": 768,
+        "clientWidth": 768,
+        "bodyWidth": 768
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [
+        {
+          "name": "Chamada",
+          "contained": true
+        }
+      ],
+      "smallText": 0,
+      "unlabelled": 0
+    },
+    {
+      "name": "attendance-390",
+      "width": 390,
+      "path": "before/attendance-390.png",
+      "viewport": {
+        "innerWidth": 390,
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "bodyWidth": 390
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [
+        {
+          "name": "Chamada",
+          "contained": true
+        }
+      ],
+      "smallText": 0,
+      "unlabelled": 0
+    },
+    {
+      "name": "empty-1440",
+      "width": 1440,
+      "path": "before/empty-1440.png",
+      "viewport": {
+        "innerWidth": 1440,
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "bodyWidth": 1440
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [],
+      "smallText": 0,
+      "unlabelled": 0
+    },
+    {
+      "name": "empty-1280",
+      "width": 1280,
+      "path": "before/empty-1280.png",
+      "viewport": {
+        "innerWidth": 1280,
+        "scrollWidth": 1280,
+        "clientWidth": 1280,
+        "bodyWidth": 1280
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [],
+      "smallText": 0,
+      "unlabelled": 0
+    },
+    {
+      "name": "empty-768",
+      "width": 768,
+      "path": "before/empty-768.png",
+      "viewport": {
+        "innerWidth": 768,
+        "scrollWidth": 768,
+        "clientWidth": 768,
+        "bodyWidth": 768
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [],
+      "smallText": 0,
+      "unlabelled": 0
+    },
+    {
+      "name": "empty-390",
+      "width": 390,
+      "path": "before/empty-390.png",
+      "viewport": {
+        "innerWidth": 390,
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "bodyWidth": 390
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [],
+      "smallText": 0,
+      "unlabelled": 0
+    },
+    {
+      "name": "error-1440",
+      "width": 1440,
+      "path": "before/error-1440.png",
+      "viewport": {
+        "innerWidth": 1440,
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "bodyWidth": 1440
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [],
+      "smallText": 0,
+      "unlabelled": 0
+    },
+    {
+      "name": "error-1280",
+      "width": 1280,
+      "path": "before/error-1280.png",
+      "viewport": {
+        "innerWidth": 1280,
+        "scrollWidth": 1280,
+        "clientWidth": 1280,
+        "bodyWidth": 1280
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [],
+      "smallText": 0,
+      "unlabelled": 0
+    },
+    {
+      "name": "error-768",
+      "width": 768,
+      "path": "before/error-768.png",
+      "viewport": {
+        "innerWidth": 768,
+        "scrollWidth": 768,
+        "clientWidth": 768,
+        "bodyWidth": 768
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [],
+      "smallText": 0,
+      "unlabelled": 0
+    },
+    {
+      "name": "error-390",
+      "width": 390,
+      "path": "before/error-390.png",
+      "viewport": {
+        "innerWidth": 390,
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "bodyWidth": 390
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [],
+      "smallText": 0,
+      "unlabelled": 0
+    }
+  ],
+  "checks": [
+    {
+      "name": "Opening attendance never records a presence",
+      "passed": true
+    },
+    {
+      "name": "Consultation, navigation, filtering, roster and attendance reads send no operational mutation",
+      "passed": true
+    },
+    {
+      "name": "No uncaught JavaScript exception",
+      "passed": true,
+      "errors": []
+    }
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/appointments",
+      "query": "?from=2026-10-11T03%3A00%3A00.000Z&to=2026-10-18T03%3A00%3A00.000Z&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/group-slots",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/units",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/group-slot-memberships",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/services",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/enrollments",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/professionals",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/calendar-items",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001&from=2026-10-11T03%3A00%3A00.000Z&to=2026-10-18T03%3A00%3A00.000Z"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/me",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/appointments",
+      "query": "?from=2026-10-11T03%3A00%3A00.000Z&to=2026-10-18T03%3A00%3A00.000Z&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/group-slots",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/units",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/rooms",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/services",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/enrollments",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/group-slot-memberships",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/professionals",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/calendar-items",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001&from=2026-10-11T03%3A00%3A00.000Z&to=2026-10-18T03%3A00%3A00.000Z"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/me",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/appointments",
+      "query": "?from=2026-10-11T03%3A00%3A00.000Z&to=2026-10-18T03%3A00%3A00.000Z&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/group-slots",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/units",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/rooms",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/enrollments",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/services",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/group-slot-memberships",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/professionals",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/calendar-items",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001&from=2026-10-11T03%3A00%3A00.000Z&to=2026-10-18T03%3A00%3A00.000Z"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/appointments",
+      "query": "?from=2026-10-11T03%3A00%3A00.000Z&to=2026-10-18T03%3A00%3A00.000Z&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/group-slots",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/units",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/professionals",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/rooms",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/enrollments",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/group-slot-memberships",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/services",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/calendar-items",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001&from=2026-10-11T03%3A00%3A00.000Z&to=2026-10-18T03%3A00%3A00.000Z"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/units",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/rooms",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/professionals",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/units",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/professionals",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/units",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/units",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/notifications",
+      "query": "?channel=internal&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/notifications",
+      "query": "?channel=internal&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/class-occurrences/class-3",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/class-occurrences/class-3/attendance",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/appointments",
+      "query": "?from=2026-10-11T03%3A00%3A00.000Z&to=2026-10-18T03%3A00%3A00.000Z&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/units",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/professionals",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/services",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/rooms",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/group-slot-memberships",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/group-slots",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/enrollments",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/calendar-items",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001&from=2026-10-11T03%3A00%3A00.000Z&to=2026-10-18T03%3A00%3A00.000Z"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/appointments",
+      "query": "?from=2026-10-11T03%3A00%3A00.000Z&to=2026-10-18T03%3A00%3A00.000Z&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/units",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/professionals",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/rooms",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/services",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/group-slots",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/group-slot-memberships",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/enrollments",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/calendar-items",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001&from=2026-10-11T03%3A00%3A00.000Z&to=2026-10-18T03%3A00%3A00.000Z"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/me",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/appointments",
+      "query": "?from=2026-10-11T03%3A00%3A00.000Z&to=2026-10-18T03%3A00%3A00.000Z&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/units",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/professionals",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/group-slots",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/rooms",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/services",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/enrollments",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/group-slot-memberships",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/calendar-items",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001&from=2026-10-11T03%3A00%3A00.000Z&to=2026-10-18T03%3A00%3A00.000Z"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/appointments",
+      "query": "?from=2026-10-11T03%3A00%3A00.000Z&to=2026-10-18T03%3A00%3A00.000Z&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/units",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/services",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/professionals",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/rooms",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/calendar-items",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001&from=2026-10-11T03%3A00%3A00.000Z&to=2026-10-18T03%3A00%3A00.000Z"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/group-slots",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/group-slot-memberships",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/enrollments",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/me",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/units",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/professionals",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/professionals",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/units",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/units",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/units",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/notifications",
+      "query": "?channel=internal&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/notifications",
+      "query": "?channel=internal&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/appointments",
+      "query": "?from=2026-10-11T03%3A00%3A00.000Z&to=2026-10-18T03%3A00%3A00.000Z&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/units",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/professionals",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/services",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/rooms",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/group-slots",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/group-slot-memberships",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/enrollments",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/calendar-items",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001&from=2026-10-11T03%3A00%3A00.000Z&to=2026-10-18T03%3A00%3A00.000Z"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/me",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/appointments",
+      "query": "?from=2026-10-11T03%3A00%3A00.000Z&to=2026-10-18T03%3A00%3A00.000Z&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/rooms",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/units",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/professionals",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/services",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/group-slots",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/group-slot-memberships",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/enrollments",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/calendar-items",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001&from=2026-10-11T03%3A00%3A00.000Z&to=2026-10-18T03%3A00%3A00.000Z"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/me",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/appointments",
+      "query": "?from=2026-10-11T03%3A00%3A00.000Z&to=2026-10-18T03%3A00%3A00.000Z&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/units",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/rooms",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/group-slots",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/professionals",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/services",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/group-slot-memberships",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/enrollments",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/calendar-items",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001&from=2026-10-11T03%3A00%3A00.000Z&to=2026-10-18T03%3A00%3A00.000Z"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/appointments",
+      "query": "?from=2026-10-11T03%3A00%3A00.000Z&to=2026-10-18T03%3A00%3A00.000Z&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/units",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/rooms",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/professionals",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/group-slots",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/services",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/group-slot-memberships",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/enrollments",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/professionals",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/calendar-items",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001&from=2026-10-11T03%3A00%3A00.000Z&to=2026-10-18T03%3A00%3A00.000Z"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/units",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/professionals",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/units",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/units",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/units",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/notifications",
+      "query": "?channel=internal&unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001"
+    },
+    {
+      "method": "GET",
+      "path": "/functions/v1/api/v1/notifications",
+      "query": "?channel=internal&unitId=f2000000-0000-4000-8000-000000000001"
+    }
+  ]
+}

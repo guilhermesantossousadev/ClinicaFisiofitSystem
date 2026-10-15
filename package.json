@@ -22,7 +22,8 @@
     "supabase:test": "supabase test db",
     "admin:set-password": "node scripts/set-admin-password.mjs",
     "homologate:ui-v2": "node scripts/homologate-ui-v2.mjs",
-    "homologate:ui-v21": "node scripts/homologate-ui-v21.mjs"
+    "homologate:ui-v21": "node scripts/homologate-ui-v21.mjs",
+    "homologate:ui-v22": "node scripts/homologate-ui-v22.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

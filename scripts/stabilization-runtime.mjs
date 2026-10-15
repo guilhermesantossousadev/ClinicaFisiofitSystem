@@ -154,7 +154,7 @@ export async function runtimeAcceptance({database,psql,output,browser=true}) {
   const template=await request(A,'POST','/record-templates',{name:'Synthetic template',kind:'evolution',schema:{}},201);
   await request(A,'DELETE',`/record-templates/${template.id}`,undefined,200);assert(sql(`select active from public.record_templates where id='${template.id}'`)==='f','Template soft delete failed');
   const dashboard=await request(A,'GET',`/dashboard?unitId=${id(20)}`);assert(dashboard.appointments.some(x=>x.id===occurrence.id),'Dashboard omits Class occurrence');
-  if(browser) {const {browserAcceptance}=await import('./stabilization-browser.mjs');await browserAcceptance({proxyOrigin,anonKey:runtimeEnv.SUPABASE_ANON_KEY,account:A,financeAccount:F,output,children,sql,fixture:{unit:id(20),unitB:id(21),professionalB:id(41),patientA:id(30),patientB:id(31),recordA:recordA.id,recordB:recordB.id}});}
+  if(browser) {const {browserAcceptance}=await import('./stabilization-browser.mjs');await browserAcceptance({proxyOrigin,anonKey:runtimeEnv.SUPABASE_ANON_KEY,account:A,financeAccount:F,output,children,sql,calendarAccounts:process.env.FISIOFIT_TEST_CALENDAR==='1'?{reception:R,professional:P}:undefined,fixture:{unit:id(20),unitB:id(21),professionalB:id(41),patientA:id(30),patientB:id(31),recordA:recordA.id,recordB:recordB.id}});}
   const result={passed:true,requests:events.length,events,actualStorageBytesVerified:true,concurrentPaymentIdempotency:true,database:'disposable repository-migration schema',browser};
   writeFileSync(resolve(output,'http-result.json'),JSON.stringify(result,null,2)+'\n');console.log(`HTTP acceptance PASS (${events.length} requests; actual Auth/RLS/Storage, synthetic data).`);return result;
  } finally {

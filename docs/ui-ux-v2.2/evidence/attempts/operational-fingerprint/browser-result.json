@@ -1,0 +1,9 @@
+{
+  "passed": false,
+  "checks": [
+    "Real synthetic Auth login",
+    "Dashboard shows persisted Class lesson"
+  ],
+  "error": "Error: Command failed: docker exec -i supabase_db_secfinfinalb14 psql -X -qAt -U supabase_admin -d stabilization_76203 -v ON_ERROR_STOP=1\nERROR:  relation \"public.attendance_corrections\" does not exist\nLINE 1: ...::text,'' order by row_to_json(t)::text),'') from public.att...\n                                                             ^\n",
+  "failedApiResponses": []
+}

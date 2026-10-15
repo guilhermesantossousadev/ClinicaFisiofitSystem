@@ -1,0 +1,27 @@
+1..23
+ok 1 - RPC de condição contratual instalada
+ok 2 - RPC usa SECURITY DEFINER
+ok 3 - authenticated executa RPC com validação interna
+ok 4 - anon não executa RPC
+ok 5 - PUBLIC não executa RPC
+ok 6 - RPC de cobrança vinculada instalada
+ok 7 - RPC de criação usa SECURITY DEFINER
+ok 8 - criação de cobrança e edição recorrente serializam pela matrícula
+ok 9 - authenticated pode chamar criação com validação interna
+ok 10 - anon não pode criar cobrança pela RPC
+f3000000-0000-4000-8000-000000000001
+ok 11 - finance configura mensalidade individual futura
+ok 12 - valor-base individual persiste em centavos preservando ajustes
+ok 13 - preço global do plano não muda
+ok 14 - auditoria distingue valor-base de mensalidade final e registra a vigência
+ok 15 - criação transacional lê contrato vigente
+ok 16 - mensalidade líquida configurada persiste após desconto e adicional
+ok 17 - mesma cobertura não duplica cobrança
+ok 18 - cobrança futura já corrigida permite alinhar a recorrência
+ok 19 - cobrança futura impede trocar contrato silenciosamente
+f3000000-0000-4000-8000-000000000002
+ok 20 - finance sem edição não altera valor recorrente
+f3000000-0000-4000-8000-000000000001
+ok 21 - vigência exige primeiro dia do mês
+ok 22 - falha de auditoria reverte atualização contratual
+ok 23 - rollback da auditoria mantém o valor anterior

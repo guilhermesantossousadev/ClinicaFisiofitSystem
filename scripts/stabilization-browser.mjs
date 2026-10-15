@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import { writeFileSync, mkdirSync, rmSync, createWriteStream } from 'node:fs';
 import { resolve } from 'node:path';
 import { createServer } from 'node:net';
-export async function browserAcceptance({proxyOrigin,anonKey,account,financeAccount,output,children,sql,fixture}) {
+export async function browserAcceptance({proxyOrigin,anonKey,account,financeAccount,output,children,sql,fixture,calendarAccounts}) {
  const pause=ms=>new Promise(r=>setTimeout(r,ms));
  const origin='http://127.0.0.1:57435', debug='http://127.0.0.1:57433';
  // A previous server must never be mistaken for this candidate.
@@ -14,7 +14,7 @@ export async function browserAcceptance({proxyOrigin,anonKey,account,financeAcco
  const vite=spawn(process.execPath,[resolve(uiRoot,'node_modules/vite/bin/vite.js'),'--host','127.0.0.1','--port','57435','--strictPort'],{cwd:resolve(uiRoot,'apps/portal'),env:{...process.env,VITE_SUPABASE_URL:proxyOrigin,VITE_SUPABASE_ANON_KEY:anonKey},stdio:['ignore','pipe','pipe']});children.push(vite);
  const viteLog=createWriteStream(resolve(output,'browser-vite.log'));vite.stdout.pipe(viteLog);vite.stderr.pipe(viteLog);
  const chrome=spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',['--headless=new','--no-first-run','--no-default-browser-check','--disable-extensions','--remote-debugging-address=127.0.0.1','--remote-debugging-port=57433',`--user-data-dir=${profile}`,'about:blank'],{stdio:['ignore','ignore','ignore']});children.push(chrome);
- let socket;const checks=[],network=[];
+ let socket;const checks=[],network=[];let auditStage='existing acceptance';const requestStages=new Map(),inFlight=new Set();
  try {
   let targets;
   for(let n=0;n<300;n++){if(vite.exitCode!==null)throw new Error('Candidate UI server exited; inspect browser-vite.log');try{targets=await(await fetch(debug+'/json/list')).json();if(targets.some(t=>t.type==='page')&&(await fetch(origin+'/sistema/')).ok)break;}catch{}await pause(100);}
@@ -22,7 +22,7 @@ export async function browserAcceptance({proxyOrigin,anonKey,account,financeAcco
   socket=new WebSocket(targets.find(t=>t.type==='page').webSocketDebuggerUrl);
   await new Promise((ok,fail)=>{socket.addEventListener('open',ok,{once:true});socket.addEventListener('error',fail,{once:true});});
   let sequence=0;const pending=new Map();
-  socket.addEventListener('message',e=>{const m=JSON.parse(e.data);if(m.id){const p=pending.get(m.id);if(p){pending.delete(m.id);m.error?p.reject(new Error(m.error.message)):p.resolve(m.result);}}else if(m.method==='Network.responseReceived'&&m.params.response.url.includes('/functions/v1/'))network.push({path:new URL(m.params.response.url).pathname,status:m.params.response.status});});
+  socket.addEventListener('message',e=>{const m=JSON.parse(e.data);if(m.id){const p=pending.get(m.id);if(p){pending.delete(m.id);m.error?p.reject(new Error(m.error.message)):p.resolve(m.result);}}else if(m.method==='Network.requestWillBeSent'&&m.params.request.url.includes('/functions/v1/')){requestStages.set(m.params.requestId,auditStage);inFlight.add(m.params.requestId);}else if(['Network.loadingFinished','Network.loadingFailed'].includes(m.method)){inFlight.delete(m.params.requestId);}else if(m.method==='Network.responseReceived'&&m.params.response.url.includes('/functions/v1/'))network.push({path:new URL(m.params.response.url).pathname,status:m.params.response.status,startedStage:requestStages.get(m.params.requestId),responseStage:auditStage});});
   const send=(method,params={})=>new Promise((resolve,reject)=>{const id=++sequence;pending.set(id,{resolve,reject});socket.send(JSON.stringify({id,method,params}));});
   const evaluate=async(expression)=>{const r=await send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw new Error('Browser DOM evaluation failed: '+(r.exceptionDetails.exception?.description??r.exceptionDetails.text));return r.result?.value;};
   const wait=async(expression,label)=>{for(let n=0;n<300;n++){if(await evaluate(expression))return;await pause(100);}const snapshot=await evaluate(`({picker:document.querySelector('.record-selector')?.innerText,value:document.querySelector('.record-selector input[role=combobox]')?.value,expanded:document.querySelector('.record-selector input[role=combobox]')?.getAttribute('aria-expanded'),busy:document.querySelector('.record-selector input[role=combobox]')?.getAttribute('aria-busy'),focus:{tag:document.activeElement?.tagName,id:document.activeElement?.id,type:document.activeElement?.getAttribute('type')},options:[...document.querySelectorAll('.record-selector [role=option]')].map(e=>e.innerText)})`);writeFileSync(resolve(output,'browser-timeout.json'),JSON.stringify({label,snapshot,network},null,2)+'\n');const frame=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});writeFileSync(resolve(output,'browser-timeout.png'),Buffer.from(frame.data,'base64'));throw new Error('Browser assertion timed out: '+label);};
@@ -37,6 +37,7 @@ export async function browserAcceptance({proxyOrigin,anonKey,account,financeAcco
   await wait("Boolean(document.querySelector('.workspace'))",'authenticated portal');checks.push('Real synthetic Auth login');
   await fill('select[aria-label="Selecionar unidade ativa"]',fixture.unit);
   await wait("document.body.innerText.includes('Synthetic operating class')",'Class lesson on dashboard');checks.push('Dashboard shows persisted Class lesson');await shot('browser-dashboard');
+  if(calendarAccounts) { const {calendarAcceptance}=await import('./ui-v22/operational-calendar.mjs'); await calendarAcceptance({evaluate,wait,fill,clickText,send,shot,sql,fixture,accounts:calendarAccounts,admin:account,checks,setStage:value=>{auditStage=value;},idle:async()=>{for(let n=0;n<100;n++){if(!inFlight.size){await pause(350);if(!inFlight.size)return;}await pause(100);}throw Error('Requests did not settle before synthetic account switch');}}); }
   // Search after the first 100 patients through the rendered global search.
   await fill('.global-search input','Synthetic search 110');
   await wait("document.querySelector('.global-search') && document.body.innerText.includes('Synthetic search 110')",'global search after first 100');checks.push('Search reaches patient 110 through server');await fill('.global-search input','');

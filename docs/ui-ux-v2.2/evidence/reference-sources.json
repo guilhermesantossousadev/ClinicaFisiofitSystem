@@ -1,0 +1,85 @@
+[
+  {
+    "id": "R01",
+    "ok": true,
+    "source": "https://jane.app/guide/working-with-the-schedule"
+  },
+  {
+    "id": "R02",
+    "ok": true,
+    "source": "https://jane.app/guide/chapter-3-payments"
+  },
+  {
+    "id": "R03",
+    "ok": true,
+    "source": "https://hji.co.uk/fresha-launches-new-deposits-feature"
+  },
+  {
+    "id": "R04",
+    "ok": true,
+    "source": "https://www.cliniko.com/blog/news/redesigning-the-appointment/"
+  },
+  {
+    "id": "R05",
+    "ok": true,
+    "source": "https://www.medesk.net/en/blog/cliniko-review/"
+  },
+  {
+    "id": "R06",
+    "ok": true,
+    "source": "https://zenamu.com/"
+  },
+  {
+    "id": "R07",
+    "ok": true,
+    "source": "https://www.mindbodyonline.com/business/fitness/pilates-software"
+  },
+  {
+    "id": "R08",
+    "ok": true,
+    "source": "https://linear.app/docs/filters"
+  },
+  {
+    "id": "R09",
+    "ok": true,
+    "source": "https://linear.app/docs/filters"
+  },
+  {
+    "id": "R10",
+    "ok": false,
+    "error": "<urlopen error [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1082)>",
+    "source": "https://polaris-react.shopify.com/components/tables"
+  },
+  {
+    "id": "R11",
+    "ok": false,
+    "error": "<urlopen error [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1082)>",
+    "source": "https://polaris-react.shopify.com/design/layout/density"
+  },
+  {
+    "id": "R12",
+    "ok": true,
+    "source": "https://shopify.engineering/managing-react-form-state-using-react-form-library"
+  },
+  {
+    "id": "R13",
+    "ok": true,
+    "source": "https://ghost.org/resources/subscription-business-metrics/"
+  },
+  {
+    "id": "R14",
+    "ok": false,
+    "error": "HTTP Error 403: Forbidden",
+    "source": "https://thedigitalmerchant.com/stripe-vs-chargebee/"
+  },
+  {
+    "id": "R15",
+    "ok": true,
+    "source": "https://www.mikeschweitzer.com/posts/what-is-notion/"
+  },
+  {
+    "id": "R16",
+    "ok": true,
+    "source": "https://www.notion.com/help/intro-to-databases"
+  }
+]

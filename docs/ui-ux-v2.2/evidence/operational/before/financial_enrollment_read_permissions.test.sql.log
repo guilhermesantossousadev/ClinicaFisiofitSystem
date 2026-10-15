@@ -1,0 +1,36 @@
+1..30
+ok 1 - authenticated can select enrollments under RLS
+ok 2 - existing authenticated patient routes retain table SELECT
+ok 3 - finance has no direct patient-summary RLS policy
+ok 4 - authenticated can call the scoped financial summary RPC
+ok 5 - authenticated can query plans subject to RLS
+ok 6 - unit-scope validation columns are granted
+f9100000-0000-4000-8000-000000000001
+ok 7 - finance with enrollments.view sees assigned-unit enrollments
+ok 8 - finance cannot query patients directly
+ok 9 - finance RPC returns one same-unit enrollment-linked summary
+ok 10 - finance RPC exposes only the patient name
+ok 11 - finance reads same-clinic plans
+ok 12 - finance sees only assigned unit metadata
+ok 13 - finance cannot read patient clinical/demographic fields directly
+f9100000-0000-4000-8000-000000000002
+ok 14 - finance without enrollments.view cannot read enrollments
+ok 15 - finance without enrollments.view cannot read plans
+ok 16 - finance without enrollments.view cannot read patients directly
+ok 17 - finance without enrollments.view cannot call patient summary RPC
+f9100000-0000-4000-8000-000000000003
+ok 18 - finance sees only enrollment assigned to its unit
+ok 19 - finance cannot query patients in another unit directly
+ok 20 - finance RPC returns only its assigned-unit patient summary
+ok 21 - finance RPC denies a patient in another unit
+ok 22 - finance sees only its assigned unit
+f9100000-0000-4000-8000-000000000004
+ok 23 - foreign clinic sees its own enrollment only
+ok 24 - finance cannot query foreign-clinic patients directly
+ok 25 - finance RPC returns only its own clinic patient summary
+ok 26 - finance RPC denies a patient in another clinic
+ok 27 - foreign clinic sees its own plan only
+ok 28 - foreign clinic sees only its own assigned unit
+f9100000-0000-4000-8000-000000000005
+ok 29 - reception retains its existing patient row access
+ok 30 - reception retains its existing permitted patient columns

@@ -1,0 +1,101 @@
+Graph: graphify-out/graph.json (2366 nodes) | Traversal: BFS depth=2 | Start: ['ClassOccurrence', 'RosterMembership'] | 39 nodes found
+
+[i] Complete answer over budget: all 39 nodes and 58 edges shown (~3986 tokens vs the requested ~2000-token budget). Edges are never dropped once every node fits, so this is already the full answer — raising --budget further will not shrink it. Narrow with context_filter=['call'] or use get_node for a specific symbol to reduce size instead.
+
+NODE ClassOccurrence [src=docs/02-domain/agenda-calendar-contracts.md loc=L39 community=AGENDA-002 — Contratos canônicos de Scheduling e Pilates]
+NODE RosterMembership [src=packages/contracts/src/occurrenceRoster.ts loc=L1 community=contracts/src/index.ts]
+NODE contracts/src/index.ts [src=packages/contracts/src/index.ts loc=L1 community=contracts/src/index.ts]
+NODE occurrenceRoster.test.ts [src=apps/portal/src/application/portal/occurrenceRoster.test.ts loc=L1 community=contracts/src/index.ts]
+NODE occurrenceRoster.ts [src=packages/contracts/src/occurrenceRoster.ts loc=L1 community=contracts/src/index.ts]
+NODE Pilates [src=docs/02-domain/agenda-calendar-contracts.md loc=L31 community=AGENDA-002 — Contratos canônicos de Scheduling e Pilates]
+NODE OperationalAgenda.tsx [src=apps/portal/src/presentation/modules/OperationalAgenda.tsx loc=L1 community=OperationalAgenda.tsx]
+NODE api.ts [src=apps/portal/src/infrastructure/http/api.ts loc=L1 community=FormPrimitives.tsx]
+NODE contracts.test.ts [src=apps/portal/src/application/portal/contracts.test.ts loc=L1 community=contracts/src/index.ts]
+NODE vitest [src=apps/portal/package.json loc=L30 community=vitest]
+NODE AGENDA-002 — Contratos canônicos de Scheduling e Pilates [src=docs/02-domain/agenda-calendar-contracts.md loc=L1 community=AGENDA-002 — Contratos canônicos de Scheduling e Pilates]
+NODE effectiveOccurrenceRoster() [src=packages/contracts/src/occurrenceRoster.ts loc=L31 community=contracts/src/index.ts]
+NODE patient() [src=apps/portal/src/application/portal/occurrenceRoster.test.ts loc=L5 community=contracts/src/index.ts]
+NODE PrivacyPage.tsx [src=apps/site/src/presentation/pages/PrivacyPage.tsx loc=L1 community=contracts/src/index.ts]
+NODE EffectiveOccurrenceParticipant [src=packages/contracts/src/occurrenceRoster.ts loc=L19 community=contracts/src/index.ts]
+NODE PersistedOccurrenceParticipant [src=packages/contracts/src/occurrenceRoster.ts loc=L10 community=contracts/src/index.ts]
+NODE membership() [src=apps/portal/src/application/portal/occurrenceRoster.test.ts loc=L6 community=contracts/src/index.ts]
+NODE participant() [src=apps/portal/src/application/portal/occurrenceRoster.test.ts loc=L9 community=contracts/src/index.ts]
+NODE ApiEnvelope [src=packages/contracts/src/index.ts loc=L7 community=contracts/src/index.ts]
+NODE ApiError [src=packages/contracts/src/index.ts loc=L6 community=contracts/src/index.ts]
+NODE appointmentInputSchema [src=packages/contracts/src/index.ts loc=L67 community=contracts/src/index.ts]
+NODE dataSubjectRequestInputSchema [src=packages/contracts/src/index.ts loc=L115 community=contracts/src/index.ts]
+NODE groupSlotInputSchema [src=packages/contracts/src/index.ts loc=L87 community=contracts/src/index.ts]
+NODE Paginated [src=packages/contracts/src/index.ts loc=L13 community=contracts/src/index.ts]
+NODE paymentInputSchema [src=packages/contracts/src/index.ts loc=L99 community=contracts/src/index.ts]
+NODE PUBLIC_PRIVACY_POLICY [src=packages/contracts/src/index.ts loc=L19 community=contracts/src/index.ts]
+NODE weekdayForDate() [src=packages/contracts/src/occurrenceRoster.ts loc=L29 community=contracts/src/index.ts]
+NODE Class e ClassSchedule [src=docs/02-domain/agenda-calendar-contracts.md loc=L33 community=AGENDA-002 — Contratos canônicos de Scheduling e Pilates]
+NODE Membership, roster e attendance [src=docs/02-domain/agenda-calendar-contracts.md loc=L47 community=AGENDA-002 — Contratos canônicos de Scheduling e Pilates]
+NODE clinicalRecordInputSchema [src=packages/contracts/src/index.ts loc=L106 community=contracts/src/index.ts]
+NODE DataSubjectRequestKind [src=packages/contracts/src/index.ts loc=L14 community=contracts/src/index.ts]
+NODE DataSubjectRequestStatus [src=packages/contracts/src/index.ts loc=L15 community=contracts/src/index.ts]
+NODE isoDateSchema [src=packages/contracts/src/index.ts loc=L54 community=contracts/src/index.ts]
+NODE moneySchema [src=packages/contracts/src/index.ts loc=L53 community=contracts/src/index.ts]
+NODE OwnerProtectedErrorCode [src=packages/contracts/src/index.ts loc=L17 community=contracts/src/index.ts]
+NODE patientInputSchema [src=packages/contracts/src/index.ts loc=L56 community=contracts/src/index.ts]
+NODE PrivacyIncidentSeverity [src=packages/contracts/src/index.ts loc=L16 community=contracts/src/index.ts]
+NODE Role [src=packages/contracts/src/index.ts loc=L5 community=contracts/src/index.ts]
+NODE uuidSchema [src=packages/contracts/src/index.ts loc=L52 community=contracts/src/index.ts]
+EDGE Pilates --contains [EXTRACTED]--> ClassOccurrence at=docs/02-domain/agenda-calendar-contracts.md:L39
+EDGE occurrenceRoster.test.ts --imports [EXTRACTED context=import]--> RosterMembership at=apps/portal/src/application/portal/occurrenceRoster.test.ts:L3
+EDGE contracts/src/index.ts --re_exports [EXTRACTED context=re-export]--> RosterMembership at=packages/contracts/src/index.ts:L3
+EDGE occurrenceRoster.ts --contains [EXTRACTED]--> RosterMembership at=packages/contracts/src/occurrenceRoster.ts:L1
+EDGE AGENDA-002 — Contratos canônicos de Scheduling e Pilates --contains [EXTRACTED]--> Pilates at=docs/02-domain/agenda-calendar-contracts.md:L31
+EDGE Pilates --contains [EXTRACTED]--> Class e ClassSchedule at=docs/02-domain/agenda-calendar-contracts.md:L33
+EDGE Pilates --contains [EXTRACTED]--> Membership, roster e attendance at=docs/02-domain/agenda-calendar-contracts.md:L47
+EDGE occurrenceRoster.test.ts --imports [EXTRACTED context=import]--> effectiveOccurrenceRoster() at=apps/portal/src/application/portal/occurrenceRoster.test.ts:L2
+EDGE occurrenceRoster.test.ts --imports [EXTRACTED context=import]--> PersistedOccurrenceParticipant at=apps/portal/src/application/portal/occurrenceRoster.test.ts:L3
+EDGE occurrenceRoster.test.ts --imports_from [EXTRACTED context=import]--> vitest at=apps/portal/src/application/portal/occurrenceRoster.test.ts:L1
+EDGE occurrenceRoster.test.ts --contains [EXTRACTED]--> patient() at=apps/portal/src/application/portal/occurrenceRoster.test.ts:L5
+EDGE occurrenceRoster.test.ts --contains [EXTRACTED]--> membership() at=apps/portal/src/application/portal/occurrenceRoster.test.ts:L6
+EDGE occurrenceRoster.test.ts --contains [EXTRACTED]--> participant() at=apps/portal/src/application/portal/occurrenceRoster.test.ts:L9
+EDGE occurrenceRoster.ts --contains [EXTRACTED]--> PersistedOccurrenceParticipant at=packages/contracts/src/occurrenceRoster.ts:L10
+EDGE occurrenceRoster.ts --contains [EXTRACTED]--> EffectiveOccurrenceParticipant at=packages/contracts/src/occurrenceRoster.ts:L19
+EDGE occurrenceRoster.ts --contains [EXTRACTED]--> weekdayForDate() at=packages/contracts/src/occurrenceRoster.ts:L29
+EDGE occurrenceRoster.ts --contains [EXTRACTED]--> effectiveOccurrenceRoster() at=packages/contracts/src/occurrenceRoster.ts:L31
+EDGE contracts.test.ts --imports_from [EXTRACTED context=import]--> contracts/src/index.ts at=apps/portal/src/application/portal/contracts.test.ts:L2
+EDGE api.ts --imports_from [EXTRACTED context=import]--> contracts/src/index.ts at=apps/portal/src/infrastructure/http/api.ts:L1
+EDGE OperationalAgenda.tsx --imports_from [EXTRACTED context=import]--> contracts/src/index.ts at=apps/portal/src/presentation/modules/OperationalAgenda.tsx:L11
+EDGE PrivacyPage.tsx --imports_from [EXTRACTED context=import]--> contracts/src/index.ts at=apps/site/src/presentation/pages/PrivacyPage.tsx:L1
+EDGE contracts/src/index.ts --re_exports [EXTRACTED context=re-export]--> effectiveOccurrenceRoster() at=packages/contracts/src/index.ts:L2
+EDGE contracts/src/index.ts --re_exports [EXTRACTED context=re-export]--> EffectiveOccurrenceParticipant at=packages/contracts/src/index.ts:L3
+EDGE contracts/src/index.ts --re_exports [EXTRACTED context=re-export]--> PersistedOccurrenceParticipant at=packages/contracts/src/index.ts:L3
+EDGE contracts/src/index.ts --contains [EXTRACTED]--> clinicalRecordInputSchema at=packages/contracts/src/index.ts:L106
+EDGE contracts/src/index.ts --contains [EXTRACTED]--> dataSubjectRequestInputSchema at=packages/contracts/src/index.ts:L115
+EDGE contracts/src/index.ts --contains [EXTRACTED]--> Paginated at=packages/contracts/src/index.ts:L13
+EDGE contracts/src/index.ts --contains [EXTRACTED]--> DataSubjectRequestKind at=packages/contracts/src/index.ts:L14
+EDGE contracts/src/index.ts --contains [EXTRACTED]--> DataSubjectRequestStatus at=packages/contracts/src/index.ts:L15
+EDGE contracts/src/index.ts --contains [EXTRACTED]--> PrivacyIncidentSeverity at=packages/contracts/src/index.ts:L16
+EDGE contracts/src/index.ts --contains [EXTRACTED]--> OwnerProtectedErrorCode at=packages/contracts/src/index.ts:L17
+EDGE contracts/src/index.ts --contains [EXTRACTED]--> PUBLIC_PRIVACY_POLICY at=packages/contracts/src/index.ts:L19
+EDGE contracts/src/index.ts --contains [EXTRACTED]--> Role at=packages/contracts/src/index.ts:L5
+EDGE contracts/src/index.ts --contains [EXTRACTED]--> uuidSchema at=packages/contracts/src/index.ts:L52
+EDGE contracts/src/index.ts --contains [EXTRACTED]--> moneySchema at=packages/contracts/src/index.ts:L53
+EDGE contracts/src/index.ts --contains [EXTRACTED]--> isoDateSchema at=packages/contracts/src/index.ts:L54
+EDGE contracts/src/index.ts --contains [EXTRACTED]--> patientInputSchema at=packages/contracts/src/index.ts:L56
+EDGE contracts/src/index.ts --contains [EXTRACTED]--> ApiError at=packages/contracts/src/index.ts:L6
+EDGE contracts/src/index.ts --contains [EXTRACTED]--> appointmentInputSchema at=packages/contracts/src/index.ts:L67
+EDGE contracts/src/index.ts --contains [EXTRACTED]--> ApiEnvelope at=packages/contracts/src/index.ts:L7
+EDGE contracts/src/index.ts --contains [EXTRACTED]--> groupSlotInputSchema at=packages/contracts/src/index.ts:L87
+EDGE contracts/src/index.ts --contains [EXTRACTED]--> paymentInputSchema at=packages/contracts/src/index.ts:L99
+EDGE contracts.test.ts --imports [EXTRACTED context=import]--> appointmentInputSchema at=apps/portal/src/application/portal/contracts.test.ts:L2
+EDGE contracts.test.ts --imports [EXTRACTED context=import]--> dataSubjectRequestInputSchema at=apps/portal/src/application/portal/contracts.test.ts:L2
+EDGE contracts.test.ts --imports [EXTRACTED context=import]--> groupSlotInputSchema at=apps/portal/src/application/portal/contracts.test.ts:L2
+EDGE contracts.test.ts --imports [EXTRACTED context=import]--> paymentInputSchema at=apps/portal/src/application/portal/contracts.test.ts:L2
+EDGE contracts.test.ts --imports_from [EXTRACTED context=import]--> vitest at=apps/portal/src/application/portal/contracts.test.ts:L1
+EDGE occurrenceRoster.test.ts --imports_from [EXTRACTED context=import]--> contracts/src/index.ts at=apps/portal/src/application/portal/occurrenceRoster.test.ts:L3
+EDGE membership() --calls [EXTRACTED context=call]--> patient() at=apps/portal/src/application/portal/occurrenceRoster.test.ts:L7
+EDGE participant() --calls [EXTRACTED context=call]--> patient() at=apps/portal/src/application/portal/occurrenceRoster.test.ts:L10
+EDGE api.ts --imports [EXTRACTED context=import]--> ApiEnvelope at=apps/portal/src/infrastructure/http/api.ts:L1
+EDGE api.ts --imports [EXTRACTED context=import]--> ApiError at=apps/portal/src/infrastructure/http/api.ts:L1
+EDGE api.ts --imports [EXTRACTED context=import]--> Paginated at=apps/portal/src/infrastructure/http/api.ts:L1
+EDGE OperationalAgenda.tsx --imports_from [EXTRACTED context=import]--> api.ts at=apps/portal/src/presentation/modules/OperationalAgenda.tsx:L6
+EDGE OperationalAgenda.tsx --imports [EXTRACTED context=import]--> EffectiveOccurrenceParticipant at=apps/portal/src/presentation/modules/OperationalAgenda.tsx:L11
+EDGE PrivacyPage.tsx --imports [EXTRACTED context=import]--> PUBLIC_PRIVACY_POLICY at=apps/site/src/presentation/pages/PrivacyPage.tsx:L1
+EDGE contracts/src/index.ts --re_exports [EXTRACTED context=export]--> occurrenceRoster.ts at=packages/contracts/src/index.ts:L2
+EDGE effectiveOccurrenceRoster() --calls [EXTRACTED context=call]--> weekdayForDate() at=packages/contracts/src/occurrenceRoster.ts:L37

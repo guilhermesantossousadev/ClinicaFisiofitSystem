@@ -190,7 +190,8 @@ test("mantém todos os recursos da agenda coerentes com a unidade selecionada", 
   assert.match(agenda, /Cancelar agendamento/);
   assert.match(agenda, /<Notice message=\{notice\.message\} tone=\{notice\.type\}/);
   assert.match(agenda, /GroupConflictAlert/);
-  assert.match(agenda, /agenda-mobile-list/);
+  const calendar = await readFile(new URL("../apps/portal/src/presentation/calendar/OperationalCalendar.tsx", import.meta.url), "utf8");
+  assert.match(calendar, /calendar-chronological/);
   assert.match(agenda, /canManageGroups/);
   assert.match(shared, /unitId \? `&unitId=/);
   assert.match(administration, /name: "unitIds", label: "Unidades em que atende", type: "checkbox-group"/);
@@ -412,15 +413,21 @@ test("agenda semanal usa a projection consolidada sem compor cards pelo legado",
   assert.match(agenda, /\/calendar-items\?unitId=/);
   assert.match(agenda, /calendarPath \? \[calendarPath\] : \[\]/);
   assert.match(agenda, /Selecione uma unidade para visualizar a agenda\./);
-  assert.match(agenda, /calendarItemsForDay/);
-  assert.match(agenda, /sourceType === "CLASS_OCCURRENCE"/);
-  assert.match(agenda, /occupancy == null \? `Capacidade: \$\{item\.capacity\}`/);
-  assert.match(agenda, /setFromDate\(shiftDate\(fromDate, calendarMode === "day" \? -1 : -7\)\)/);
-  assert.match(agenda, /setFromDate\(clinicToday\(\)\)/);
+  const calendar = await readFile(new URL("../apps/portal/src/presentation/calendar/OperationalCalendar.tsx", import.meta.url), "utf8");
+  const model = await readFile(new URL("../apps/portal/src/presentation/calendar/calendarModel.ts", import.meta.url), "utf8");
+  assert.match(calendar, /segmentsForDay\(filtered/);
+  assert.match(model, /item.startAt/);
+  assert.match(agenda, /sourceType === ['"]CLASS_OCCURRENCE['"]/);
+  assert.match(agenda, /Participantes \/ capacidade informativa/);
+  assert.match(calendar, /onDate\(shiftCalendarDate\(date, mode === 'day' \? -1 : -7\)\)/);
+  assert.match(calendar, /onDate\(calendarDate\(new Date\(\)\)\)/);
   assert.match(agenda, /calendarLoading/);
   assert.match(agenda, /calendarError/);
   assert.match(agenda, /reloadCalendar/);
-  const calendarSection = agenda.slice(agenda.indexOf('<section className="card fixed-calendar'), agenda.indexOf('<section className="card" aria-label="Resumo de vagas disponíveis">'));
+  const calendarSection = agenda.slice(agenda.indexOf('{visibleUnits.map(unit => <OperationalCalendar'), agenda.indexOf('{canManageGroups && <AgendaExceptions'));
+  assert.ok(calendarSection.length > 0, "projection-only calendar section must exist");
+  assert.match(calendarSection, /calendarItems.filter\(item => item.unitId === unit.id\)/);
+  assert.doesNotMatch(calendar, /api\(|fetch\(/);
   assert.doesNotMatch(calendarSection, /appointments\.filter|slotsForDay\(/);
 });
 

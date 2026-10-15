@@ -1,0 +1,750 @@
+{
+  "error": "Error: Object reference chain is too long",
+  "errors": [],
+  "shots": [
+    {
+      "name": "week-1440",
+      "width": 1440,
+      "path": "after/week-1440.png",
+      "viewport": {
+        "innerWidth": 1440,
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "bodyWidth": 1440
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [],
+      "smallText": 0,
+      "unlabelled": 0,
+      "accessibility": {
+        "violations": [
+          {
+            "id": "aria-prohibited-attr",
+            "impact": "serious",
+            "help": "Elements must only use permitted ARIA attributes",
+            "nodes": [
+              {
+                "target": [
+                  ".calendar-now"
+                ],
+                "summary": "Fix all of the following:\n  aria-label attribute cannot be used on \"div\" elements with no valid role attribute."
+              }
+            ]
+          }
+        ],
+        "passes": 32,
+        "incomplete": [
+          "aria-prohibited-attr",
+          "aria-valid-attr-value",
+          "color-contrast"
+        ]
+      }
+    },
+    {
+      "name": "week-1280",
+      "width": 1280,
+      "path": "after/week-1280.png",
+      "viewport": {
+        "innerWidth": 1280,
+        "scrollWidth": 1280,
+        "clientWidth": 1280,
+        "bodyWidth": 1280
+      },
+      "overflow": false,
+      "overflowElements": [
+        {
+          "tag": "DIV",
+          "cls": "calendar-time-grid",
+          "right": 1321,
+          "width": 864
+        },
+        {
+          "tag": "DIV",
+          "cls": "calendar-column-heading",
+          "right": 1321,
+          "width": 160
+        },
+        {
+          "tag": "STRONG",
+          "cls": "",
+          "right": 1311,
+          "width": 139
+        },
+        {
+          "tag": "SPAN",
+          "cls": "",
+          "right": 1311,
+          "width": 139
+        },
+        {
+          "tag": "DIV",
+          "cls": "calendar-time-column",
+          "right": 1321,
+          "width": 160
+        },
+        {
+          "tag": "BUTTON",
+          "cls": "calendar-event is-class status-planned is-compact",
+          "right": 1318,
+          "width": 153
+        },
+        {
+          "tag": "SPAN",
+          "cls": "calendar-event-time",
+          "right": 1309,
+          "width": 132
+        },
+        {
+          "tag": "STRONG",
+          "cls": "",
+          "right": 1309,
+          "width": 132
+        },
+        {
+          "tag": "SPAN",
+          "cls": "calendar-event-meta",
+          "right": 1309,
+          "width": 132
+        },
+        {
+          "tag": "BUTTON",
+          "cls": "calendar-event is-class status-planned",
+          "right": 1318,
+          "width": 73.5
+        },
+        {
+          "tag": "SPAN",
+          "cls": "calendar-event-time",
+          "right": 1309,
+          "width": 52.5
+        },
+        {
+          "tag": "SPAN",
+          "cls": "",
+          "right": 1311.21875,
+          "width": 54.71875
+        }
+      ],
+      "dialogs": [],
+      "smallText": 0,
+      "unlabelled": 0,
+      "accessibility": {
+        "violations": [
+          {
+            "id": "aria-prohibited-attr",
+            "impact": "serious",
+            "help": "Elements must only use permitted ARIA attributes",
+            "nodes": [
+              {
+                "target": [
+                  ".calendar-now"
+                ],
+                "summary": "Fix all of the following:\n  aria-label attribute cannot be used on \"div\" elements with no valid role attribute."
+              }
+            ]
+          }
+        ],
+        "passes": 32,
+        "incomplete": [
+          "aria-prohibited-attr",
+          "aria-valid-attr-value",
+          "color-contrast"
+        ]
+      }
+    },
+    {
+      "name": "week-768",
+      "width": 768,
+      "path": "after/week-768.png",
+      "viewport": {
+        "innerWidth": 768,
+        "scrollWidth": 768,
+        "clientWidth": 768,
+        "bodyWidth": 768
+      },
+      "overflow": false,
+      "overflowElements": [
+        {
+          "tag": "DIV",
+          "cls": "calendar-time-grid",
+          "right": 969,
+          "width": 864
+        },
+        {
+          "tag": "DIV",
+          "cls": "calendar-column-heading is-today",
+          "right": 809,
+          "width": 160
+        },
+        {
+          "tag": "STRONG",
+          "cls": "",
+          "right": 799,
+          "width": 139
+        },
+        {
+          "tag": "SPAN",
+          "cls": "",
+          "right": 799,
+          "width": 139
+        },
+        {
+          "tag": "DIV",
+          "cls": "calendar-column-heading",
+          "right": 969,
+          "width": 160
+        },
+        {
+          "tag": "STRONG",
+          "cls": "",
+          "right": 959,
+          "width": 139
+        },
+        {
+          "tag": "SPAN",
+          "cls": "",
+          "right": 959,
+          "width": 139
+        },
+        {
+          "tag": "DIV",
+          "cls": "calendar-time-column",
+          "right": 809,
+          "width": 160
+        },
+        {
+          "tag": "BUTTON",
+          "cls": "calendar-event is-class status-planned is-compact",
+          "right": 806,
+          "width": 153
+        },
+        {
+          "tag": "SPAN",
+          "cls": "calendar-event-time",
+          "right": 797,
+          "width": 132
+        },
+        {
+          "tag": "STRONG",
+          "cls": "",
+          "right": 797,
+          "width": 132
+        },
+        {
+          "tag": "SPAN",
+          "cls": "calendar-event-meta",
+          "right": 797,
+          "width": 132
+        }
+      ],
+      "dialogs": [],
+      "smallText": 0,
+      "unlabelled": 0,
+      "accessibility": {
+        "violations": [
+          {
+            "id": "aria-prohibited-attr",
+            "impact": "serious",
+            "help": "Elements must only use permitted ARIA attributes",
+            "nodes": [
+              {
+                "target": [
+                  ".calendar-now"
+                ],
+                "summary": "Fix all of the following:\n  aria-label attribute cannot be used on \"div\" elements with no valid role attribute."
+              }
+            ]
+          }
+        ],
+        "passes": 32,
+        "incomplete": [
+          "aria-prohibited-attr",
+          "aria-valid-attr-value",
+          "color-contrast"
+        ]
+      }
+    },
+    {
+      "name": "week-390",
+      "width": 390,
+      "path": "after/week-390.png",
+      "viewport": {
+        "innerWidth": 390,
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "bodyWidth": 390
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [],
+      "smallText": 0,
+      "unlabelled": 0,
+      "accessibility": {
+        "violations": [],
+        "passes": 32,
+        "incomplete": [
+          "aria-prohibited-attr",
+          "aria-valid-attr-value",
+          "color-contrast"
+        ]
+      }
+    },
+    {
+      "name": "day-multiple-professionals-1440",
+      "width": 1440,
+      "path": "after/day-multiple-professionals-1440.png",
+      "viewport": {
+        "innerWidth": 1440,
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "bodyWidth": 1440
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [],
+      "smallText": 0,
+      "unlabelled": 0,
+      "accessibility": {
+        "violations": [
+          {
+            "id": "aria-prohibited-attr",
+            "impact": "serious",
+            "help": "Elements must only use permitted ARIA attributes",
+            "nodes": [
+              {
+                "target": [
+                  ".calendar-time-column:nth-child(6) > .calendar-now[aria-label=\"Agora, 10:30\"]"
+                ],
+                "summary": "Fix all of the following:\n  aria-label attribute cannot be used on \"div\" elements with no valid role attribute."
+              },
+              {
+                "target": [
+                  ".calendar-time-column:nth-child(7) > .calendar-now[aria-label=\"Agora, 10:30\"]"
+                ],
+                "summary": "Fix all of the following:\n  aria-label attribute cannot be used on \"div\" elements with no valid role attribute."
+              },
+              {
+                "target": [
+                  ".calendar-time-column:nth-child(8) > .calendar-now[aria-label=\"Agora, 10:30\"]"
+                ],
+                "summary": "Fix all of the following:\n  aria-label attribute cannot be used on \"div\" elements with no valid role attribute."
+              }
+            ]
+          }
+        ],
+        "passes": 32,
+        "incomplete": [
+          "aria-prohibited-attr",
+          "aria-valid-attr-value",
+          "color-contrast"
+        ]
+      }
+    },
+    {
+      "name": "day-multiple-professionals-1280",
+      "width": 1280,
+      "path": "after/day-multiple-professionals-1280.png",
+      "viewport": {
+        "innerWidth": 1280,
+        "scrollWidth": 1280,
+        "clientWidth": 1280,
+        "bodyWidth": 1280
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [],
+      "smallText": 0,
+      "unlabelled": 0,
+      "accessibility": {
+        "violations": [
+          {
+            "id": "aria-prohibited-attr",
+            "impact": "serious",
+            "help": "Elements must only use permitted ARIA attributes",
+            "nodes": [
+              {
+                "target": [
+                  ".calendar-time-column:nth-child(6) > .calendar-now[aria-label=\"Agora, 10:30\"]"
+                ],
+                "summary": "Fix all of the following:\n  aria-label attribute cannot be used on \"div\" elements with no valid role attribute."
+              },
+              {
+                "target": [
+                  ".calendar-time-column:nth-child(7) > .calendar-now[aria-label=\"Agora, 10:30\"]"
+                ],
+                "summary": "Fix all of the following:\n  aria-label attribute cannot be used on \"div\" elements with no valid role attribute."
+              },
+              {
+                "target": [
+                  ".calendar-time-column:nth-child(8) > .calendar-now[aria-label=\"Agora, 10:30\"]"
+                ],
+                "summary": "Fix all of the following:\n  aria-label attribute cannot be used on \"div\" elements with no valid role attribute."
+              }
+            ]
+          }
+        ],
+        "passes": 32,
+        "incomplete": [
+          "aria-prohibited-attr",
+          "aria-valid-attr-value",
+          "color-contrast"
+        ]
+      }
+    },
+    {
+      "name": "day-multiple-professionals-768",
+      "width": 768,
+      "path": "after/day-multiple-professionals-768.png",
+      "viewport": {
+        "innerWidth": 768,
+        "scrollWidth": 768,
+        "clientWidth": 768,
+        "bodyWidth": 768
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [],
+      "smallText": 0,
+      "unlabelled": 0,
+      "accessibility": {
+        "violations": [
+          {
+            "id": "aria-prohibited-attr",
+            "impact": "serious",
+            "help": "Elements must only use permitted ARIA attributes",
+            "nodes": [
+              {
+                "target": [
+                  ".calendar-time-column:nth-child(6) > .calendar-now[aria-label=\"Agora, 10:30\"]"
+                ],
+                "summary": "Fix all of the following:\n  aria-label attribute cannot be used on \"div\" elements with no valid role attribute."
+              },
+              {
+                "target": [
+                  ".calendar-time-column:nth-child(7) > .calendar-now[aria-label=\"Agora, 10:30\"]"
+                ],
+                "summary": "Fix all of the following:\n  aria-label attribute cannot be used on \"div\" elements with no valid role attribute."
+              },
+              {
+                "target": [
+                  ".calendar-time-column:nth-child(8) > .calendar-now[aria-label=\"Agora, 10:30\"]"
+                ],
+                "summary": "Fix all of the following:\n  aria-label attribute cannot be used on \"div\" elements with no valid role attribute."
+              }
+            ]
+          }
+        ],
+        "passes": 32,
+        "incomplete": [
+          "aria-prohibited-attr",
+          "aria-valid-attr-value",
+          "color-contrast"
+        ]
+      }
+    },
+    {
+      "name": "day-multiple-professionals-390",
+      "width": 390,
+      "path": "after/day-multiple-professionals-390.png",
+      "viewport": {
+        "innerWidth": 390,
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "bodyWidth": 390
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [],
+      "smallText": 0,
+      "unlabelled": 0,
+      "accessibility": {
+        "violations": [],
+        "passes": 32,
+        "incomplete": [
+          "aria-prohibited-attr",
+          "aria-valid-attr-value",
+          "color-contrast"
+        ]
+      }
+    },
+    {
+      "name": "no-professionals-1440",
+      "width": 1440,
+      "path": "after/no-professionals-1440.png",
+      "viewport": {
+        "innerWidth": 1440,
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "bodyWidth": 1440
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [],
+      "smallText": 0,
+      "unlabelled": 0,
+      "accessibility": {
+        "violations": [],
+        "passes": 32,
+        "incomplete": [
+          "aria-prohibited-attr",
+          "aria-valid-attr-value",
+          "color-contrast"
+        ]
+      }
+    },
+    {
+      "name": "day-single-professional-1440",
+      "width": 1440,
+      "path": "after/day-single-professional-1440.png",
+      "viewport": {
+        "innerWidth": 1440,
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "bodyWidth": 1440
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [],
+      "smallText": 0,
+      "unlabelled": 0,
+      "accessibility": {
+        "violations": [
+          {
+            "id": "aria-prohibited-attr",
+            "impact": "serious",
+            "help": "Elements must only use permitted ARIA attributes",
+            "nodes": [
+              {
+                "target": [
+                  ".calendar-now"
+                ],
+                "summary": "Fix all of the following:\n  aria-label attribute cannot be used on \"div\" elements with no valid role attribute."
+              }
+            ]
+          }
+        ],
+        "passes": 32,
+        "incomplete": [
+          "aria-prohibited-attr",
+          "aria-valid-attr-value",
+          "color-contrast"
+        ]
+      }
+    },
+    {
+      "name": "day-single-professional-1280",
+      "width": 1280,
+      "path": "after/day-single-professional-1280.png",
+      "viewport": {
+        "innerWidth": 1280,
+        "scrollWidth": 1280,
+        "clientWidth": 1280,
+        "bodyWidth": 1280
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [],
+      "smallText": 0,
+      "unlabelled": 0,
+      "accessibility": {
+        "violations": [
+          {
+            "id": "aria-prohibited-attr",
+            "impact": "serious",
+            "help": "Elements must only use permitted ARIA attributes",
+            "nodes": [
+              {
+                "target": [
+                  ".calendar-now"
+                ],
+                "summary": "Fix all of the following:\n  aria-label attribute cannot be used on \"div\" elements with no valid role attribute."
+              }
+            ]
+          }
+        ],
+        "passes": 32,
+        "incomplete": [
+          "aria-prohibited-attr",
+          "aria-valid-attr-value",
+          "color-contrast"
+        ]
+      }
+    },
+    {
+      "name": "day-single-professional-768",
+      "width": 768,
+      "path": "after/day-single-professional-768.png",
+      "viewport": {
+        "innerWidth": 768,
+        "scrollWidth": 768,
+        "clientWidth": 768,
+        "bodyWidth": 768
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [],
+      "smallText": 0,
+      "unlabelled": 0,
+      "accessibility": {
+        "violations": [
+          {
+            "id": "aria-prohibited-attr",
+            "impact": "serious",
+            "help": "Elements must only use permitted ARIA attributes",
+            "nodes": [
+              {
+                "target": [
+                  ".calendar-now"
+                ],
+                "summary": "Fix all of the following:\n  aria-label attribute cannot be used on \"div\" elements with no valid role attribute."
+              }
+            ]
+          }
+        ],
+        "passes": 32,
+        "incomplete": [
+          "aria-prohibited-attr",
+          "aria-valid-attr-value",
+          "color-contrast"
+        ]
+      }
+    },
+    {
+      "name": "day-single-professional-390",
+      "width": 390,
+      "path": "after/day-single-professional-390.png",
+      "viewport": {
+        "innerWidth": 390,
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "bodyWidth": 390
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [],
+      "smallText": 0,
+      "unlabelled": 0,
+      "accessibility": {
+        "violations": [],
+        "passes": 32,
+        "incomplete": [
+          "aria-prohibited-attr",
+          "aria-valid-attr-value",
+          "color-contrast"
+        ]
+      }
+    },
+    {
+      "name": "rooms-1440",
+      "width": 1440,
+      "path": "after/rooms-1440.png",
+      "viewport": {
+        "innerWidth": 1440,
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "bodyWidth": 1440
+      },
+      "overflow": false,
+      "overflowElements": [],
+      "dialogs": [],
+      "smallText": 0,
+      "unlabelled": 0,
+      "accessibility": {
+        "violations": [
+          {
+            "id": "aria-prohibited-attr",
+            "impact": "serious",
+            "help": "Elements must only use permitted ARIA attributes",
+            "nodes": [
+              {
+                "target": [
+                  ".calendar-time-column:nth-child(5) > .calendar-now[aria-label=\"Agora, 10:30\"]"
+                ],
+                "summary": "Fix all of the following:\n  aria-label attribute cannot be used on \"div\" elements with no valid role attribute."
+              },
+              {
+                "target": [
+                  ".calendar-time-column:nth-child(6) > .calendar-now[aria-label=\"Agora, 10:30\"]"
+                ],
+                "summary": "Fix all of the following:\n  aria-label attribute cannot be used on \"div\" elements with no valid role attribute."
+              }
+            ]
+          }
+        ],
+        "passes": 32,
+        "incomplete": [
+          "aria-prohibited-attr",
+          "aria-valid-attr-value",
+          "color-contrast"
+        ]
+      }
+    }
+  ],
+  "checks": [
+    {
+      "name": "Daily columns represent three professionals",
+      "passed": true
+    },
+    {
+      "name": "True-minute positioning preserves 50-minute duration",
+      "passed": true
+    },
+    {
+      "name": "Early and late exceptions expand the time axis",
+      "passed": true
+    },
+    {
+      "name": "Simultaneous sessions have separate horizontal lanes",
+      "passed": true
+    },
+    {
+      "name": "Substitution has text and is in the effective professional column",
+      "passed": true
+    },
+    {
+      "name": "Cancelled session has a textual state",
+      "passed": true
+    },
+    {
+      "name": "No selection is distinct from an empty schedule",
+      "passed": true
+    },
+    {
+      "name": "Single professional filter works",
+      "passed": true
+    },
+    {
+      "name": "Status filtering only shows matching sessions",
+      "passed": true
+    },
+    {
+      "name": "Zoom changes presentation without changing session instants",
+      "passed": true
+    },
+    {
+      "name": "Room columns use existing room data",
+      "passed": true
+    },
+    {
+      "name": "Operational week begins Monday with five default columns",
+      "passed": true
+    },
+    {
+      "name": "Weekends can be explicitly displayed",
+      "passed": true
+    },
+    {
+      "name": "Changing mode and filters does not refetch the same period",
+      "passed": true
+    },
+    {
+      "name": "Quick date selection changes visible daily date",
+      "passed": true
+    },
+    {
+      "name": "Previous day returns to selected operational date",
+      "passed": true
+    }
+  ]
+}

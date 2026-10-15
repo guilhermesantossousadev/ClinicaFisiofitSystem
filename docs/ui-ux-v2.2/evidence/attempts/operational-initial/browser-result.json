@@ -1,0 +1,9 @@
+{
+  "passed": false,
+  "checks": [
+    "Real synthetic Auth login",
+    "Dashboard shows persisted Class lesson"
+  ],
+  "error": "Error: Browser assertion timed out: real calendar",
+  "failedApiResponses": []
+}

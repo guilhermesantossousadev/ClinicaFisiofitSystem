@@ -1,0 +1,20 @@
+1..17
+ok 1 - RPC de correção é instalada
+ok 2 - RPC usa SECURITY DEFINER com escopo explícito
+ok 3 - authenticated pode executar a RPC validada internamente
+ok 4 - anon não pode executar a RPC
+ok 5 - PUBLIC não recebeu EXECUTE
+ok 6 - RPC serializa edição e recebimento pelo lock da cobrança
+f2000000-0000-4000-8000-000000000001
+ok 7 - R$ 46,00 fictícios podem ser corrigidos para R$ 220,00
+ok 8 - 22000 centavos ficam persistidos
+ok 9 - auditoria inclui usuário, valor anterior/novo e justificativa
+ok 10 - recebimento sem acumulador conciliado impede edição
+ok 11 - valor anterior protege contra edição concorrente/obsoleta
+ok 12 - justificativa é obrigatória
+ok 13 - outra paciente permanece inalterada
+ok 14 - cobrança do próximo mês permanece inalterada
+ok 15 - falha ao auditar reverte toda a edição
+ok 16 - falha na auditoria preserva o valor anterior
+f2000000-0000-4000-8000-000000000002
+ok 17 - finance sem can_edit não pode alterar
