@@ -77,7 +77,7 @@ select throws_ok($$select public.correct_unpaid_charge_amount('fa100000-0000-400
 reset role;
 select set_config('request.jwt.claim.sub','fa100000-0000-4000-8000-000000000005',true);
 set local role authenticated;
-select throws_ok($$select public.correct_unpaid_charge_amount('fa100000-0000-4000-8000-000000000060',22000,23000,'Reception from other clinic',gen_random_uuid())$$,'P0001','CHARGE_NOT_EDITABLE','reception from another clinic cannot see target charge');
+select throws_ok($$select public.correct_unpaid_charge_amount('fa100000-0000-4000-8000-000000000060',22000,23000,'Reception from other clinic',gen_random_uuid())$$,'P0001','CHARGE_NOT_FOUND','reception from another clinic cannot see target charge');
 reset role;
 select set_config('request.jwt.claim.sub','fa100000-0000-4000-8000-000000000003',true);
 set local role authenticated;

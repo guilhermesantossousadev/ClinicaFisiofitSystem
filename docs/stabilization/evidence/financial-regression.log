@@ -1,0 +1,10 @@
+typecheck: PASS
+lint: PASS
+frontend-directed: PASS
+api-directed: PASS
+migration007-and-sql: PASS (53 assertions)
+http-directed: PASS
+build: PASS
+publication-ci-tests: PASS
+diff-check: PASS
+Release acceptance PASS. Evidence: /private/tmp/fisiofit-stabilization-evidence/financial

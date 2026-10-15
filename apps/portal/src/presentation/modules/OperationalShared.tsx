@@ -97,6 +97,23 @@ export function localDateAtNoonIso(raw: string) {
   return new Date(`${raw}T12:00:00`).toISOString();
 }
 
+const pagedResources = new Set(["/enrollments", "/charges", "/payments", "/enrollment-price-terms", "/commissions", "/closings", "/fiscal-documents", "/audit"]);
+const unitResources = new Set([...pagedResources, "/financial-entries", "/reports/annual", "/reports/monthly"]);
+async function operationalResource(path: string, unit: string) {
+  const url = new URL(path, "https://local.invalid");
+  if (unit && unitResources.has(url.pathname) && !url.searchParams.has("unitId")) url.searchParams.set("unitId", unit);
+  const response = await api<any>(url.pathname + url.search);
+  if (!pagedResources.has(url.pathname) || url.searchParams.has("page") || !Array.isArray(response.data)) return response;
+  const items = [...response.data];
+  for (let page = 2; response.data?.length === 500;) {
+    url.searchParams.set("page", String(page++));
+    const next = await api<any[]>(url.pathname + url.search);
+    items.push(...(next.data ?? []));
+    if ((next.data?.length ?? 0) < 500) break;
+  }
+  return { ...response, data: items };
+}
+
 export function useResources(paths: string[]) {
   const key = paths.join("|");
   const selectedUnit = typeof window === "undefined" ? "" : window.localStorage.getItem("fisiofit:selected-unit") ?? "";
@@ -105,15 +122,17 @@ export function useResources(paths: string[]) {
   const [loading, setLoading] = useState(() => !operationalResourceCache.has(cacheKey));
   const [error, setError] = useState("");
   const requestVersion = useRef(0);
+  const dataScope = useRef(cacheKey);
   const reload = useCallback(async () => {
     const currentRequest = ++requestVersion.current;
     const sessionGeneration = getPortalSessionGeneration();
     setLoading(true);
     setError("");
+    dataScope.current = cacheKey;
     setData(operationalResourceCache.get(cacheKey) ?? {});
     try {
       const responses = await Promise.allSettled(paths.map(async (path) => {
-        const response = await api<any>(path);
+        const response = await operationalResource(path, selectedUnit);
         if (sessionGeneration === getPortalSessionGeneration() && currentRequest === requestVersion.current) {
           setData((current) => ({ ...current, [path]: response.data }));
         }
@@ -145,7 +164,7 @@ export function useResources(paths: string[]) {
       window.removeEventListener("fisiofit:unit-changed", onUnitChanged);
     };
   }, [reload]);
-  return { data, loading, error, reload };
+  return { data: dataScope.current === cacheKey ? data : (operationalResourceCache.get(cacheKey) ?? {}), loading: dataScope.current !== cacheKey || loading, error: dataScope.current === cacheKey ? error : "", reload };
 }
 
 export function useDialogFocus(open: boolean, onClose: () => void, canClose = true) {
@@ -271,6 +290,8 @@ export function PatientPicker({
   id,
   allowedIds,
   unitId,
+  crossUnit = false,
+  remoteSearch = true,
 }: {
   name?: string;
   rows: Row[];
@@ -283,6 +304,8 @@ export function PatientPicker({
   id?: string;
   allowedIds?: string[];
   unitId?: string;
+  crossUnit?: boolean;
+  remoteSearch?: boolean;
 }) {
   const generatedId = useId();
   const fieldId = id ?? `${name}-${generatedId.replaceAll(":", "")}`;
@@ -297,19 +320,26 @@ export function PatientPicker({
   useEffect(() => {
     const search = query.trim();
     if (search.length < 2) return;
+    if (!remoteSearch) {
+      const term = search.toLocaleLowerCase("pt-BR");
+      setOptions(rows.filter((row) => String(row.name ?? "").toLocaleLowerCase("pt-BR").includes(term) && (!allowedIds || allowedIds.includes(row.id))));
+      return;
+    }
+    let active = true;
     const timer = window.setTimeout(() => {
       const unitFilter = unitId ? `&unitId=${encodeURIComponent(unitId)}` : "";
-      void api<{ items: Row[] }>(`/patients?page=1&pageSize=100&search=${encodeURIComponent(search)}${unitFilter}`)
+      void api<{ items: Row[] }>(`/patients?page=1&pageSize=100&search=${encodeURIComponent(search)}${unitFilter}`, { scopeUnit: !crossUnit })
         .then((response) => {
+          if (!active) return;
           const results = response.data?.items ?? [];
           if (!allowedIds) return setOptions(results);
           const allowedIdSet = new Set(allowedIds);
           setOptions(results.filter((row) => allowedIdSet.has(row.id)));
         })
-        .catch(() => setOptions(rows.filter((row) => String(row.name ?? "").toLocaleLowerCase("pt-BR").includes(search.toLocaleLowerCase("pt-BR")))));
+        .catch(() => { if (active) setOptions([]); });
     }, 220);
-    return () => window.clearTimeout(timer);
-  }, [allowedIds, query, rows, unitId]);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [allowedIds, query, rows, unitId, crossUnit, remoteSearch]);
   const choose = (patient: Row) => {
     setSelectedId(patient.id);
     setQuery(patient.name ?? "Paciente");

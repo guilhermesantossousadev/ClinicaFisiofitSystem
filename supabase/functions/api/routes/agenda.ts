@@ -1,19 +1,22 @@
 import { z } from "npm:zod@3.24.2";
-import { effectiveOccurrenceRoster } from "../../../../packages/contracts/src/occurrenceRoster.ts";
+
+const CLASS_DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
 export function registerAgendaRoutes(app: any, dependencies: any) {
   const { appointmentFields, appointmentSchema, requireRoles, ok, fail, databaseResult, validateRelatedResourceScope, hasUnitAccess, audit, professionalForUser, isOwnProfessional, getAuthorizedAppointment } = dependencies;
   app.post("/admin/agenda/backfill-legacy", requireRoles(["admin"]), async (context: any) => {
-    const { data, error } = await context.get("db").rpc("backfill_active_group_slots_to_classes");
-    if (!error) await audit(context, "agenda.legacy_backfill.executed", "agenda_backfill", null, null, {
-      groupSlotsActive: data?.[0]?.group_slots_active ?? null,
-      classesCreated: data?.[0]?.classes_created ?? null,
-      failures: data?.[0]?.failures ?? null,
-      ignored: data?.[0]?.ignored ?? null,
-    });
-    return databaseResult(context, data, error);
+    return fail(context, 409, "LEGACY_RECONCILIATION_REQUIRED", "A migração em massa exige reconciliação prévia de referências e autorização específica.");
   });
 
+  async function readAll(query: any) {
+    const rows: any[] = [];
+    for (let page = 0; ; page += 1) {
+      const { data, error } = await query.range(page * 500, page * 500 + 499);
+      if (error) return { data: null, error };
+      rows.push(...(data ?? []));
+      if ((data?.length ?? 0) < 500) return { data: rows, error: null };
+    }
+  }
   async function validateActiveProfessional(context: any, professionalId: string, unitId: string) {
     const db = context.get("db");
     const clinicId = context.get("profile").clinic_id;
@@ -111,7 +114,6 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
       ATTENDANCE_CORRECTION_REASON_REQUIRED: [422, "Informe o motivo da correção (mínimo de 3 caracteres)."],
       INVALID_ATTENDANCE_STATUS: [422, "Estado de presença inválido."],
       FORBIDDEN: [403, "Você não tem permissão para esta chamada."],
-      INVALID_OCCURRENCE_STATE_TRANSITION: [409, "Esta aula não pode ser cancelada no estado atual."],
     };
     for (const [code, [httpStatus, detail]] of Object.entries(stableErrors)) {
       if (message.includes(code)) return fail(context, httpStatus, code, detail);
@@ -247,7 +249,7 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     const { data: schedule, error: scheduleError } = await db.from("class_schedules").select("weekdays").eq("class_id", classId).eq("clinic_id", context.get("profile").clinic_id).lte("effective_from", input.effectiveFrom).or(`effective_to.is.null,effective_to.gt.${input.effectiveFrom}`).order("effective_from", { ascending: false }).limit(1).maybeSingle();
     if (scheduleError || !schedule) return fail(context, 422, "CLASS_SCHEDULE_NOT_FOUND", "Não há schedule vigente para a data da matrícula.");
     if (new Set(input.weekdays).size !== input.weekdays.length || !input.weekdays.every((day) => schedule.weekdays.includes(day))) return fail(context, 422, "INVALID_MEMBERSHIP_WEEKDAYS", "Os dias do paciente devem pertencer à grade da turma.");
-    const { data, error } = await db.from("class_memberships").insert({ clinic_id: context.get("profile").clinic_id, class_id: classId, patient_id: input.patientId, enrollment_id: input.enrollmentId ?? null, effective_from: input.effectiveFrom, effective_to: input.effectiveTo ?? null, weekdays: input.weekdays, created_by: context.get("user").id }).select().single();
+    const { data, error } = await db.rpc("save_operational_membership", {p_group_id:classId,p_patient_id:input.patientId,p_from:input.effectiveFrom,p_to:input.effectiveTo??null,p_weekdays:input.weekdays,p_enrollment_id:input.enrollmentId??null});
     if (!error && data) await audit(context, "class.membership_created", "class_membership", data.id, targetClass.unit_id);
     return databaseResult(context, data ? { ...data, effectiveWeekdays: data.weekdays } : data, error, 201);
   });
@@ -263,9 +265,10 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     const { data: schedule, error: scheduleError } = await db.from("class_schedules").select("weekdays").eq("class_id", membership.class_id).eq("clinic_id", context.get("profile").clinic_id).lte("effective_from", membership.effective_from).or(`effective_to.is.null,effective_to.gt.${membership.effective_from}`).order("effective_from", { ascending: false }).limit(1).maybeSingle();
     if (scheduleError || !schedule) return fail(context, 422, "CLASS_SCHEDULE_NOT_FOUND", "Não há schedule vigente para esta matrícula.");
     if (new Set(input.weekdays).size !== input.weekdays.length || !input.weekdays.every((day) => schedule.weekdays.includes(day))) return fail(context, 422, "INVALID_MEMBERSHIP_WEEKDAYS", "Os dias do paciente devem pertencer à grade da turma.");
-    const { data, error } = await db.from("class_memberships").update({ weekdays: input.weekdays }).eq("id", membershipId).eq("clinic_id", context.get("profile").clinic_id).select().single();
-    if (!error && data) await audit(context, "class.membership_weekdays_updated", "class_membership", data.id, targetClass.unit_id);
-    return databaseResult(context, data ? { ...data, effectiveWeekdays: data.weekdays } : data, error);
+    const { data: member, error: memberError } = await db.from("class_memberships").select("patient_id,enrollment_id,effective_to").eq("id", membershipId).single();
+    if (memberError) return databaseResult(context, null, memberError);
+    const { data, error } = await db.rpc("save_operational_membership", { p_group_id: membership.class_id, p_patient_id: member.patient_id, p_from: new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date()), p_to: member.effective_to, p_weekdays: input.weekdays, p_enrollment_id: member.enrollment_id, p_id: membershipId });
+    return classScheduleDatabaseResult(context, data ? { ...data, effectiveWeekdays: data.weekdays } : data, error);
   });
 
   app.get("/calendar-items", requireRoles(["admin", "manager", "reception", "professional"]), async (context: any) => {
@@ -287,10 +290,12 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     const effectiveProfessionalId = ownProfessionalId ?? query.professionalId;
     const scopeError = await validateRelatedResourceScope(context, {
       unit_id: query.unitId, professional_id: effectiveProfessionalId, patient_id: query.patientId,
-    });
+    }, { agendaRead: true, substitution: true, crossUnitPatient: true });
     if (scopeError) return scopeError;
     const db = context.get("db");
     const clinicId = context.get("profile").clinic_id;
+    const materialized = await db.rpc("ensure_calendar_window", { p_unit_id: query.unitId, p_from: query.from.slice(0, 10), p_to: query.to.slice(0, 10) });
+    if (materialized.error) return classScheduleDatabaseResult(context, null, materialized.error);
     const occurrenceSelect = "id,class_id,class_schedule_id,local_date,unit_id,service_id,start_at,end_at,status,planned_professional_id,actual_professional_id,effective_capacity,room_id,classes(id,name),services(id,name),rooms(id,name),planned_professional:professionals!class_occurrences_planned_professional_id_fkey(id,name),actual_professional:professionals!class_occurrences_actual_professional_id_fkey(id,name)";
     let occurrencesQuery = db.from("class_occurrences").select(occurrenceSelect)
       .eq("clinic_id", clinicId).eq("unit_id", query.unitId).lt("start_at", query.to).gt("end_at", query.from);
@@ -301,24 +306,21 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     if (effectiveProfessionalId) appointmentsQuery = appointmentsQuery.eq("professional_id", effectiveProfessionalId);
     if (query.patientId) appointmentsQuery = appointmentsQuery.eq("patient_id", query.patientId);
     const [occurrencesResult, appointmentsResult] = await Promise.all([
-      query.type === "APPOINTMENT" ? Promise.resolve({ data: [], error: null }) : occurrencesQuery,
-      query.type === "CLASS_OCCURRENCE" ? Promise.resolve({ data: [], error: null }) : appointmentsQuery,
+      query.type === "APPOINTMENT" ? Promise.resolve({ data: [], error: null }) : readAll(occurrencesQuery.order("id")),
+      query.type === "CLASS_OCCURRENCE" ? Promise.resolve({ data: [], error: null }) : readAll(appointmentsQuery.order("id")),
     ]);
     if (occurrencesResult.error) return databaseResult(context, null, occurrencesResult.error);
     if (appointmentsResult.error) return databaseResult(context, null, appointmentsResult.error);
     const occurrenceRows = occurrencesResult.data ?? [];
-    const classIds = [...new Set(occurrenceRows.map((occurrence: any) => occurrence.class_id))];
-    const scheduleIds = [...new Set(occurrenceRows.map((occurrence: any) => occurrence.class_schedule_id))];
-    const occurrenceIds = occurrenceRows.map((occurrence: any) => occurrence.id);
-    const [{ data: memberships, error: membershipsError }, { data: occurrenceSchedules, error: schedulesError }, { data: participantRows, error: participantsError }] = await Promise.all([
-      classIds.length ? db.from("class_memberships").select("id,class_id,patient_id,effective_from,effective_to,weekdays,patients(id,name,active,deleted_at)").eq("clinic_id", clinicId).in("class_id", classIds) : Promise.resolve({ data: [], error: null }),
-      scheduleIds.length ? db.from("class_schedules").select("id,weekdays").eq("clinic_id", clinicId).in("id", scheduleIds) : Promise.resolve({ data: [], error: null }),
-      occurrenceIds.length ? db.from("occurrence_participants").select("id,class_occurrence_id,patient_id,source_type,source_id,status,patients(id,name,active,deleted_at)").eq("clinic_id", clinicId).in("class_occurrence_id", occurrenceIds) : Promise.resolve({ data: [], error: null }),
-    ]);
-    if (membershipsError || schedulesError || participantsError) return databaseResult(context, null, membershipsError ?? schedulesError ?? participantsError);
-    const scheduleWeekdays = new Map((occurrenceSchedules ?? []).map((schedule: any) => [schedule.id, schedule.weekdays]));
+    const occurrenceIds = occurrenceRows.map((o: any) => o.id);
+    const rosterByOccurrence = new Map<string, string[]>();
+    for (let offset = 0; offset < occurrenceIds.length; offset += 1000) {
+      const { data: rosters, error: rosterError } = await db.rpc("calendar_occurrence_rosters", { p_ids: occurrenceIds.slice(offset, offset + 1000) });
+      if (rosterError) return databaseResult(context, null, rosterError);
+      for (const roster of rosters ?? []) rosterByOccurrence.set(roster.occurrence_id, roster.patient_ids ?? []);
+    }
     const asOne = (value: any) => Array.isArray(value) ? value[0] ?? null : value ?? null;
-    const occurrenceItems = occurrenceRows.map((occurrence: any) => {
+    const occurrenceItems = occurrenceRows.filter((o: any) => !query.patientId || rosterByOccurrence.get(o.id)?.includes(query.patientId)).map((occurrence: any) => {
       const actualProfessional = asOne(occurrence.actual_professional);
       const plannedProfessional = asOne(occurrence.planned_professional);
       const classInfo = asOne(occurrence.classes);
@@ -328,9 +330,7 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
         professional: actualProfessional ?? plannedProfessional,
         plannedProfessional, actualProfessional,
         patient: null, class: classInfo, service: asOne(occurrence.services), room: asOne(occurrence.rooms),
-        occupancy: effectiveOccurrenceRoster(occurrence.local_date, scheduleWeekdays.get(occurrence.class_schedule_id) ?? [],
-          (memberships ?? []).filter((membership: any) => membership.class_id === occurrence.class_id).map((membership: any) => ({ ...membership, patient: asOne(membership.patients) })),
-          (participantRows ?? []).filter((participant: any) => participant.class_occurrence_id === occurrence.id).map((participant: any) => ({ ...participant, patient: asOne(participant.patients) }))).length,
+        occupancy: rosterByOccurrence.get(occurrence.id)?.length ?? 0,
         capacity: occurrence.effective_capacity,
       };
     });
@@ -347,40 +347,34 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     return ok(context, { items });
   });
 
-  const occurrenceActionSchema = z.object({ startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/), endTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/), actualProfessionalId: z.string().uuid().nullable(), roomId: z.string().uuid().nullable() }).strict();
+  const occurrenceActionSchema = z.object({ date: z.string().date(), reason: z.string().trim().min(3).max(1000), startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/), endTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/), actualProfessionalId: z.string().uuid().nullable(), roomId: z.string().uuid().nullable() }).strict();
   async function getOccurrenceDetail(context: any, occurrenceId: string) {
     const db = context.get("db"); const clinicId = context.get("profile").clinic_id;
-    const { data: occurrence, error } = await db.from("class_occurrences").select("id,class_id,class_schedule_id,local_date,local_start_time,local_end_time,start_at,end_at,status,effective_capacity,room_id,planned_professional_id,actual_professional_id,classes(id,name),services(id,name),rooms(id,name),planned_professional:professionals!class_occurrences_planned_professional_id_fkey(id,name),actual_professional:professionals!class_occurrences_actual_professional_id_fkey(id,name)").eq("id", occurrenceId).eq("clinic_id", clinicId).maybeSingle();
+    const { data: occurrence, error } = await db.from("class_occurrences").select("id,class_id,class_schedule_id,local_date,calendar_date,exception_date,cancellation_reason,local_start_time,local_end_time,start_at,end_at,status,effective_capacity,room_id,planned_professional_id,actual_professional_id,classes(id,name),services(id,name),rooms(id,name),planned_professional:professionals!class_occurrences_planned_professional_id_fkey(id,name),actual_professional:professionals!class_occurrences_actual_professional_id_fkey(id,name)").eq("id", occurrenceId).eq("clinic_id", clinicId).maybeSingle();
     if (error) return databaseResult(context, null, error); if (!occurrence) return fail(context, 404, "CLASS_OCCURRENCE_NOT_FOUND", "Aula não encontrada.");
-    const [{ data: schedule, error: scheduleError }, { data: memberships, error: membershipsError }, { data: participantRows, error: participantsError }] = await Promise.all([
-      db.from("class_schedules").select("weekdays").eq("id", occurrence.class_schedule_id).eq("clinic_id", clinicId).maybeSingle(),
-      db.from("class_memberships").select("id,patient_id,effective_from,effective_to,weekdays,patients(id,name,active,deleted_at)").eq("class_id", occurrence.class_id).eq("clinic_id", clinicId),
-      db.from("occurrence_participants").select("id,patient_id,source_type,source_id,status,patients(id,name,active,deleted_at)").eq("class_occurrence_id", occurrenceId).eq("clinic_id", clinicId),
-    ]);
-    if (scheduleError || membershipsError || participantsError) return databaseResult(context, null, scheduleError ?? membershipsError ?? participantsError);
+    const { data: roster, error: rosterError } = await db.rpc("get_occurrence_attendance_details", { p_occurrence_id: occurrenceId });
+    if (rosterError) return classScheduleDatabaseResult(context, null, rosterError);
     const asOne = (item: any) => Array.isArray(item) ? item[0] ?? null : item ?? null;
-    const participants = effectiveOccurrenceRoster(occurrence.local_date, schedule?.weekdays ?? [],
-      (memberships ?? []).map((membership: any) => ({ ...membership, patient: asOne(membership.patients) })),
-      (participantRows ?? []).map((participant: any) => ({ ...participant, patient: asOne(participant.patients) })));
+    const participants = (roster ?? []).map((row: any) => ({ patient: { id: row.patient_id, name: row.patient_name, active: row.patient_active }, source: row.source_type === "makeup_reservation" ? "MAKEUP" : row.source_type === "membership" ? "MEMBERSHIP" : "MANUAL" }));
     return ok(context, { occurrence: { ...occurrence, classes: asOne(occurrence.classes), services: asOne(occurrence.services), rooms: asOne(occurrence.rooms), plannedProfessional: asOne(occurrence.planned_professional), actualProfessional: asOne(occurrence.actual_professional) }, participants, occupancy: participants.length });
   }
   app.get("/class-occurrences/:id", requireRoles(["admin", "manager", "reception", "professional"]), async (context: any) => getOccurrenceDetail(context, z.string().uuid().parse(context.req.param("id"))));
   app.get("/class-occurrences/:id/attendance", requireRoles(["admin", "manager", "reception", "professional"]), async (context: any) => {
     const id = z.string().uuid().parse(context.req.param("id"));
-    const { data, error } = await context.get("db").rpc("get_class_occurrence_attendance", { p_occurrence_id: id });
+    const { data, error } = await context.get("db").rpc("get_occurrence_attendance_details", { p_occurrence_id: id });
     if (error) return classScheduleDatabaseResult(context, data, error);
     return ok(context, { items: data ?? [] });
   });
   app.put("/class-occurrences/:id/attendance/:patientId", requireRoles(["admin", "manager", "reception", "professional"]), async (context: any) => {
     const id = z.string().uuid().parse(context.req.param("id"));
     const patientId = z.string().uuid().parse(context.req.param("patientId"));
-    const input = z.object({ status: z.enum(["PRESENT", "LATE", "ABSENT_JUSTIFIED", "ABSENT_UNJUSTIFIED", "CANCELLED_IN_ADVANCE", "CANCELLED_LATE"]), reason: z.string().trim().min(3).max(500).optional() }).strict().parse(await context.req.json());
+    const input = z.object({ status: z.enum(["PRESENT", "LATE", "ABSENT_JUSTIFIED", "ABSENT_UNJUSTIFIED", "CANCELLED_IN_ADVANCE", "CANCELLED_LATE"]), reason: z.string().trim().min(3).max(500).optional(), expectedVersion: z.number().int().positive().nullable().optional(), notes: z.string().max(2000).nullable().optional() }).strict().parse(await context.req.json());
     const db = context.get("db"); const clinicId = context.get("profile").clinic_id;
     const { data: target, error: targetError } = await db.from("class_occurrences").select("unit_id").eq("id", id).eq("clinic_id", clinicId).maybeSingle();
     if (targetError) return databaseResult(context, null, targetError); if (!target) return fail(context, 404, "CLASS_OCCURRENCE_NOT_FOUND", "Aula não encontrada.");
-    const scopeError = await validateRelatedResourceScope(context, { unit_id: target.unit_id, patient_id: patientId });
+    const scopeError = context.get("profile").role === "professional" ? null : await validateRelatedResourceScope(context, { unit_id: target.unit_id, patient_id: patientId }, { crossUnitPatient: true });
     if (scopeError) return scopeError;
-    const { data, error } = await db.rpc("record_class_occurrence_attendance", { p_occurrence_id: id, p_patient_id: patientId, p_status: input.status, p_reason: input.reason ?? null });
+    const { data, error } = await db.rpc("save_occurrence_attendance", { p_occurrence_id: id, p_patient_id: patientId, p_status: input.status, p_reason: input.reason ?? null, p_expected_version: input.expectedVersion ?? null, p_notes: input.notes ?? null });
     if (error) return classScheduleDatabaseResult(context, data, error);
     if (data?.status === "recorded" || data?.status === "corrected") await audit(context, `attendance.${data.status}`, "attendance", data.attendanceId, target.unit_id, { occurrenceId: id, patientId, attendanceStatus: input.status });
     return ok(context, data);
@@ -399,7 +393,7 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     const { data: rosterRows, error: rosterError } = await db.rpc("effective_occurrence_patient_ids", { p_occurrence_id: id });
     if (rosterError) return databaseResult(context, null, rosterError);
     const currentIds = new Set((rosterRows ?? []).map((participant: any) => participant.patient_id));
-    const { data, error: patientError } = await db.from("patients").select("id,name,active").eq("clinic_id", clinicId).eq("primary_unit_id", occurrence.unit_id).is("deleted_at", null).ilike("name", `%${search}%`).order("name").limit(20);
+    const { data, error: patientError } = await db.from("patients").select("id,name,active").eq("clinic_id", clinicId).is("deleted_at", null).ilike("name", `%${search}%`).order("name").limit(20);
     if (patientError) return databaseResult(context, null, patientError);
     return ok(context, { items: (data ?? []).filter((patient: any) => !currentIds.has(patient.id)).map(({ id: patientId, name, active }: any) => ({ id: patientId, name, active })) });
   });
@@ -408,7 +402,7 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     const db = context.get("db"); const clinicId = context.get("profile").clinic_id;
     const { data: target, error: targetError } = await db.from("class_occurrences").select("unit_id").eq("id", id).eq("clinic_id", clinicId).maybeSingle();
     if (targetError) return databaseResult(context, null, targetError); if (!target) return fail(context, 404, "CLASS_OCCURRENCE_NOT_FOUND", "Aula não encontrada.");
-    const scopeError = await validateRelatedResourceScope(context, { unit_id: target.unit_id, patient_id: input.patientId });
+    const scopeError = await validateRelatedResourceScope(context, { unit_id: target.unit_id, patient_id: input.patientId }, { crossUnitPatient: true });
     if (scopeError) return scopeError;
     const { data, error } = await db.rpc("add_occurrence_participant", { p_occurrence_id: id, p_patient_id: input.patientId });
     if (error) return classScheduleDatabaseResult(context, data, error);
@@ -420,7 +414,7 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     const db = context.get("db"); const clinicId = context.get("profile").clinic_id;
     const { data: target, error: targetError } = await db.from("class_occurrences").select("unit_id").eq("id", id).eq("clinic_id", clinicId).maybeSingle();
     if (targetError) return databaseResult(context, null, targetError); if (!target) return fail(context, 404, "CLASS_OCCURRENCE_NOT_FOUND", "Aula não encontrada.");
-    const scopeError = await validateRelatedResourceScope(context, { unit_id: target.unit_id, patient_id: patientId });
+    const scopeError = context.get("profile").role === "professional" ? null : await validateRelatedResourceScope(context, { unit_id: target.unit_id, patient_id: patientId }, { crossUnitPatient: true });
     if (scopeError) return scopeError;
     const { data, error } = await db.rpc("remove_occurrence_participant", { p_occurrence_id: id, p_patient_id: patientId });
     if (error) return classScheduleDatabaseResult(context, data, error);
@@ -432,136 +426,61 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     if (input.startTime >= input.endTime) return fail(context, 422, "INVALID_TIME_RANGE", "O horário de início deve ser anterior ao horário final.");
     const { data: target, error: targetError } = await context.get("db").from("class_occurrences").select("unit_id").eq("id", id).eq("clinic_id", context.get("profile").clinic_id).maybeSingle();
     if (targetError) return databaseResult(context, null, targetError); if (!target) return fail(context, 404, "CLASS_OCCURRENCE_NOT_FOUND", "Aula não encontrada.");
-    const scopeError = await validateRelatedResourceScope(context, { unit_id: target.unit_id, professional_id: input.actualProfessionalId ?? undefined, room_id: input.roomId ?? undefined });
+    const scopeError = await validateRelatedResourceScope(context, { unit_id: target.unit_id, professional_id: input.actualProfessionalId ?? undefined, room_id: input.roomId ?? undefined }, { substitution: true });
     if (scopeError) return scopeError;
-    const { data, error } = await context.get("db").rpc("update_class_occurrence", { p_occurrence_id: id, p_start_time: input.startTime, p_end_time: input.endTime, p_actual_professional_id: input.actualProfessionalId, p_room_id: input.roomId });
+    const { data, error } = await context.get("db").rpc("reschedule_class_occurrence", { p_id: id, p_date: input.date, p_start: input.startTime, p_end: input.endTime, p_professional: input.actualProfessionalId, p_room: input.roomId, p_reason: input.reason });
     if (error) return classScheduleDatabaseResult(context, data, error); await audit(context, "class_occurrence.updated", "class_occurrence", id, data.unit_id, { changedFields: ["startTime", "endTime", "actualProfessionalId", "roomId"] }); return ok(context, data);
+  });
+  app.post("/class-occurrences/:id/reopen", requireRoles(["admin", "manager", "reception"]), async (context: any) => {
+    const id=z.string().uuid().parse(context.req.param("id")); const input=z.object({reason:z.string().trim().min(3).max(1000)}).parse(await context.req.json());
+    const {data,error}=await context.get("db").rpc("reopen_holiday_occurrence", {p_id:id,p_reason:input.reason});
+    return databaseResult(context,data,error);
   });
   app.post("/class-occurrences/:id/cancel", requireRoles(["admin", "manager", "reception"]), async (context: any) => {
     const id = z.string().uuid().parse(context.req.param("id")); const { data, error } = await context.get("db").rpc("cancel_class_occurrence", { p_occurrence_id: id });
     if (error) return classScheduleDatabaseResult(context, data, error); await audit(context, "class_occurrence.cancelled", "class_occurrence", id, data.unit_id); return ok(context, data);
   });
   app.get("/attendance/daily", requireRoles(["admin", "manager", "reception", "professional"]), async (context: any) => {
-    const classDate = z.string().date().parse(context.req.query("date"));
-    const weekday = new Date(`${classDate}T12:00:00Z`).getUTCDay();
-    const unitId = context.req.query("unitId");
+    const day = z.string().date().parse(context.req.query("date"));
+    const unitId = z.string().uuid().parse(context.req.query("unitId"));
+    if ((await context.get("db").rpc("can_view_agenda_unit", { target_unit: unitId })).data !== true) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
     const db = context.get("db");
-    const clinicId = context.get("profile").clinic_id;
-    let slotsQuery = db.from("group_slots")
-      .select("id,unit_id,professional_id,service_id,room_id,name,starts_at,duration_minutes,capacity,units(name),professionals(name),services(name),rooms(name)")
-      .eq("clinic_id", clinicId).eq("active", true).contains("weekdays", [weekday]).is("deleted_at", null)
-      .or(`starts_on.is.null,starts_on.lte.${classDate}`).or(`ends_on.is.null,ends_on.gte.${classDate}`);
-    if (unitId) {
-      const parsedUnitId = z.string().uuid().parse(unitId);
-      if (!(await hasUnitAccess(context, parsedUnitId))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
-      slotsQuery = slotsQuery.eq("unit_id", parsedUnitId);
-    }
+    const nextDay = new Date(Date.parse(day) + 86400000).toISOString().slice(0, 10);
+    const { error: generationError } = await db.rpc("ensure_calendar_window", { p_unit_id: unitId, p_from: day, p_to: nextDay });
+    if (generationError) return classScheduleDatabaseResult(context, null, generationError);
+    let query = db.from("class_occurrences").select("*,units(name),classes(name),professionals!class_occurrences_planned_professional_id_fkey(name),actual_professional:professionals!class_occurrences_actual_professional_id_fkey(name)").eq("clinic_id", context.get("profile").clinic_id).eq("unit_id", unitId).eq("calendar_date", day).neq("status", "cancelled").order("start_at");
     if (context.get("profile").role === "professional") {
-      const professionalId = await professionalForUser(context);
-      if (!professionalId) return fail(context, 403, "PROFESSIONAL_NOT_LINKED", "Seu usuário não está vinculado a um profissional.");
-      slotsQuery = slotsQuery.eq("professional_id", professionalId);
+      const own = await professionalForUser(context);
+      if (!own) return fail(context, 403, "PROFESSIONAL_NOT_LINKED", "Vincule seu usuário a um profissional.");
+      query = query.or(`actual_professional_id.eq.${own},and(actual_professional_id.is.null,planned_professional_id.eq.${own})`);
     }
-    const { data: slots, error: slotsError } = await slotsQuery.order("starts_at");
-    if (slotsError) return databaseResult(context, null, slotsError);
-    const slotIds = (slots ?? []).map((slot: any) => slot.id);
-    if (!slotIds.length) {
-      let pendingQuery = db.from("class_attendances")
-        .select("id,class_date,patient_id,group_slot_id,makeup_status,patients(name),group_slots(name,starts_at)")
-        .eq("clinic_id", clinicId).eq("status", "absent").eq("makeup_status", "pending")
-        .order("class_date", { ascending: true }).limit(500);
-      if (unitId) pendingQuery = pendingQuery.eq("unit_id", unitId);
-      const { data: makeups, error: makeupsError } = await pendingQuery;
-      return makeupsError ? databaseResult(context, null, makeupsError) : ok(context, { slots: [], makeups: makeups ?? [] });
-    }
-    let makeupsQuery = db.from("class_attendances")
-      .select("id,class_date,patient_id,group_slot_id,makeup_status,patients(name),group_slots(name,starts_at)")
-      .eq("clinic_id", clinicId).eq("status", "absent").eq("makeup_status", "pending")
-      .order("class_date", { ascending: true }).limit(500);
-    if (unitId) makeupsQuery = makeupsQuery.eq("unit_id", unitId);
-    const [{ data: memberships, error: membershipsError }, { data: attendances, error: attendanceError }, { data: makeups, error: makeupsError }] = await Promise.all([
-      db.from("group_slot_memberships")
-        .select("id,group_slot_id,enrollment_id,patient_id,patients(name,phone)")
-        .eq("clinic_id", clinicId).in("group_slot_id", slotIds).eq("status", "active")
-        .lte("starts_at", classDate).or(`ends_at.is.null,ends_at.gte.${classDate}`).is("deleted_at", null).order("created_at"),
-      db.from("class_attendances").select("id,membership_id,status,makeup_status,updated_at")
-        .eq("clinic_id", clinicId).eq("class_date", classDate).in("group_slot_id", slotIds),
-      makeupsQuery,
-    ]);
-    const error = membershipsError ?? attendanceError ?? makeupsError;
+    const { data: occurrences, error } = await query;
     if (error) return databaseResult(context, null, error);
-    const attendanceByMembership = new Map((attendances ?? []).map((item: any) => [item.membership_id, item]));
-    return ok(context, {
-      slots: (slots ?? []).map((slot: any) => ({
-        ...slot,
-        members: (memberships ?? []).filter((member: any) => member.group_slot_id === slot.id).map((member: any) => ({
-          ...member,
-          attendance: attendanceByMembership.get(member.id) ?? null,
-        })),
-      })),
-      makeups: makeups ?? [],
-    });
-  });
-
-  app.post("/attendance", requireRoles(["admin", "manager", "reception", "professional"]), async (context: any) => {
-    const input = z.object({
-      membership_id: z.string().uuid(),
-      class_date: z.string().date(),
-      status: z.enum(["present", "absent"]),
-    }).parse(await context.req.json());
-    const weekday = new Date(`${input.class_date}T12:00:00Z`).getUTCDay();
-    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
-    if (input.class_date > today) return fail(context, 422, "FUTURE_ATTENDANCE", "A chamada só pode ser registrada no dia da aula ou depois dela.");
-    const db = context.get("db");
-    const clinicId = context.get("profile").clinic_id;
-    const { data: membership, error: membershipError } = await db.from("group_slot_memberships")
-      .select("id,group_slot_id,enrollment_id,patient_id,weekdays,starts_at,ends_at,group_slots(unit_id,professional_id,weekdays,starts_on,ends_on)")
-      .eq("id", input.membership_id).eq("clinic_id", clinicId).eq("status", "active").is("deleted_at", null).single();
-    if (membershipError || !membership) return databaseResult(context, null, membershipError);
-    const slot = Array.isArray(membership.group_slots) ? membership.group_slots[0] : membership.group_slots;
-    const effectiveWeekdays = membership.weekdays ?? slot?.weekdays ?? [];
-    const validDate = effectiveWeekdays.includes(weekday)
-      && input.class_date >= membership.starts_at && (!membership.ends_at || input.class_date <= membership.ends_at)
-      && (!slot.starts_on || input.class_date >= slot.starts_on) && (!slot.ends_on || input.class_date <= slot.ends_on);
-    if (!validDate) return fail(context, 422, "INVALID_CLASS_DATE", "O paciente não pertence a este horário na data selecionada.");
-    if (!(await hasUnitAccess(context, slot.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
-    if (context.get("profile").role === "professional" && !(await isOwnProfessional(context, slot.professional_id))) {
-      return fail(context, 403, "PROFESSIONAL_FORBIDDEN", "Você só pode registrar a chamada das suas próprias turmas.");
+    const slots = [];
+    for (const occurrence of occurrences ?? []) {
+      const { data: roster, error: rosterError } = await db.rpc("get_occurrence_attendance_details", { p_occurrence_id: occurrence.id });
+      if (rosterError) return classScheduleDatabaseResult(context, null, rosterError);
+      slots.push({ ...occurrence, name: occurrence.classes?.name ?? "Turma", starts_at: occurrence.local_start_time, professionals: occurrence.actual_professional ?? occurrence.professionals,
+        members: (roster ?? []).map((row: any) => ({ id: row.patient_id, occurrence_id: occurrence.id, patient_id: row.patient_id, patients: { name: row.patient_name }, attendance: row.attendance_id ? { id: row.attendance_id, status: row.attendance_status === "PRESENT" || row.attendance_status === "LATE" ? "present" : "absent", occurrence_status: row.attendance_status, version: row.version, notes: row.notes, history: row.history } : null })) });
     }
-    const payload = {
-      clinic_id: clinicId,
-      unit_id: slot.unit_id,
-      group_slot_id: membership.group_slot_id,
-      membership_id: membership.id,
-      enrollment_id: membership.enrollment_id,
-      patient_id: membership.patient_id,
-      class_date: input.class_date,
-      status: input.status,
-      makeup_status: input.status === "absent" ? "pending" : "not_required",
-      makeup_completed_at: null,
-      recorded_by: context.get("user").id,
-      updated_at: new Date().toISOString(),
-    };
-    const { data, error } = await db.from("class_attendances").upsert(payload, { onConflict: "membership_id,class_date" }).select().single();
-    if (!error && data) await audit(context, `attendance.${input.status}`, "class_attendance", data.id, slot.unit_id, { classDate: input.class_date, patientId: membership.patient_id });
+    const { data: makeups, error: makeupError } = await db.from("class_attendances").select("id,class_date,patient_id,group_slot_id,makeup_status,patients(name),group_slots(name,starts_at)").eq("clinic_id", context.get("profile").clinic_id).eq("unit_id", unitId).eq("status", "absent").eq("makeup_status", "pending").order("class_date").limit(500);
+    return databaseResult(context, { slots, makeups: makeups ?? [] }, makeupError);
+  });
+  app.post("/attendance", requireRoles(["admin", "manager", "reception", "professional"]), (context: any) => fail(context, 409, "USE_OCCURRENCE_ATTENDANCE", "Abra a aula na Chamada diária para registrar ou corrigir a presença com histórico."));
+  app.patch("/attendance/:id/makeup", requireRoles(["admin", "manager", "reception"]), (context: any) => fail(context, 409, "USE_MAKEUP_BOOKING", "Use Reposições e créditos para reservar ou encerrar a reposição com justificativa."));
+  app.get("/makeup-credits", requireRoles(["admin", "manager", "reception", "professional"]), async (context: any) => {
+    const { data, error } = await context.get("db").rpc("makeup_credits");
     return databaseResult(context, data, error);
   });
-
-  app.patch("/attendance/:id/makeup", requireRoles(["admin", "manager", "reception", "professional"]), async (context: any) => {
+  app.post("/makeup-credits/:id", requireRoles(["admin", "manager", "reception"]), async (context: any) => {
     const id = z.string().uuid().parse(context.req.param("id"));
-    const input = z.object({ status: z.enum(["completed", "waived"]) }).parse(await context.req.json());
-    const db = context.get("db");
-    const clinicId = context.get("profile").clinic_id;
-    const { data: current, error: currentError } = await db.from("class_attendances").select("id,unit_id,group_slot_id")
-      .eq("id", id).eq("clinic_id", clinicId).eq("status", "absent").eq("makeup_status", "pending").single();
-    if (currentError || !current) return databaseResult(context, null, currentError);
-    if (!(await hasUnitAccess(context, current.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
-    const { data, error } = await db.from("class_attendances").update({
-      makeup_status: input.status,
-      makeup_completed_at: input.status === "completed" ? new Date().toISOString() : null,
-      recorded_by: context.get("user").id,
-      updated_at: new Date().toISOString(),
-    }).eq("id", id).eq("clinic_id", clinicId).select().single();
-    if (!error && data) await audit(context, `attendance.makeup_${input.status}`, "class_attendance", id, current.unit_id);
+    const input = z.object({ action: z.enum(["reserve", "return", "forfeit", "approve"]), legacy: z.boolean().default(false), occurrenceId: z.string().uuid().nullable().optional(), reason: z.string().trim().min(3).max(1000).nullable().optional() }).strict().parse(await context.req.json());
+    const { data, error } = await context.get("db").rpc("manage_makeup_credit", { p_credit: id, p_action: input.action, p_occurrence: input.occurrenceId ?? null, p_reason: input.reason ?? null, p_legacy: input.legacy });
+    return databaseResult(context, data, error);
+  });
+  app.post("/agenda-exceptions", requireRoles(["admin", "manager", "reception"]), async (context: any) => {
+    const input = z.object({ kind: z.enum(["holiday", "leave"]), unitId: z.string().uuid(), professionalId: z.string().uuid().nullable(), from: z.string().datetime({ offset: true }), to: z.string().datetime({ offset: true }), reason: z.string().trim().min(3).max(1000) }).strict().parse(await context.req.json());
+    const { data, error } = await context.get("db").rpc("save_agenda_exception", { p_kind: input.kind, p_unit_id: input.unitId, p_professional_id: input.professionalId, p_from: input.from, p_to: input.to, p_reason: input.reason });
     return databaseResult(context, data, error);
   });
   app.get("/appointments", requireRoles(["admin", "manager", "reception", "professional"]), async (context: any) => {
@@ -613,7 +532,6 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     if (conflictError) return databaseResult(context, null, conflictError);
     if (conflict?.professional_conflict) return fail(context, 409, "PROFESSIONAL_SCHEDULE_CONFLICT", "O profissional já possui compromisso nesse horário.");
     if (conflict?.patient_conflict) return fail(context, 409, "PATIENT_SCHEDULE_CONFLICT", "O paciente já possui compromisso nesse horário.");
-    if (conflict?.capacity_reached) return fail(context, 409, "GROUP_CAPACITY_REACHED", "A turma já atingiu a capacidade configurada.");
     const { data, error } = await db.from("appointments").insert({
       ...input,
       clinic_id: context.get("profile").clinic_id,
@@ -627,7 +545,7 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     const id = z.string().uuid().parse(context.req.param("id"));
     const input = appointmentFields.extend({
       status: z.enum(["scheduled", "confirmed", "attending", "missed", "cancelled"]).optional(),
-    }).refine((value) => value.ends_at > value.starts_at, {
+    }).refine((value: any) => value.ends_at > value.starts_at, {
       path: ["ends_at"],
       message: "O término deve ocorrer depois do início.",
     }).parse(await context.req.json());
@@ -698,7 +616,7 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
       starts_on: z.string().date().optional(),
       ends_on: z.string().date().optional(),
       duration_minutes: z.number().int().min(15).max(240),
-      capacity: z.number().int().min(3).max(7).default(7),
+      capacity: z.number().int().positive().default(7),
     }).refine((value) => !value.ends_on || Boolean(value.starts_on && value.ends_on >= value.starts_on), {
       message: "A data final da turma não pode ser anterior à data inicial.",
       path: ["ends_on"],
@@ -712,7 +630,7 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     const db = context.get("db");
     const normalizedWeekdays = [...new Set(input.weekdays)].sort();
     const { data: conflictingSlots, error: conflictError } = await db.from("group_slots").select("id,name,weekdays,starts_at,starts_on,ends_on")
-      .eq("clinic_id", context.get("profile").clinic_id).eq("unit_id", input.unit_id).eq("starts_at", input.starts_at).eq("active", true).is("deleted_at", null);
+      .eq("clinic_id", context.get("profile").clinic_id).eq("professional_id", input.professional_id).eq("starts_at", input.starts_at).eq("active", true).is("deleted_at", null);
     if (conflictError) return databaseResult(context, null, conflictError);
     const conflictingGroup = (conflictingSlots ?? []).find((slot: any) => groupPeriodsOverlap(slot, input) && (slot.weekdays ?? []).some((day: number) => normalizedWeekdays.includes(day)));
     if (conflictingGroup) {
@@ -752,7 +670,7 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
       starts_on: z.string().date().optional(),
       ends_on: z.string().date().optional(),
       duration_minutes: z.number().int().min(15).max(240),
-      capacity: z.number().int().min(3).max(7).default(7),
+      capacity: z.number().int().positive().default(7),
     }).refine((value) => value.last_time >= value.first_time, {
       message: "O horário final não pode ser anterior ao horário inicial.",
       path: ["last_time"],
@@ -786,7 +704,7 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     const clinicId = context.get("profile").clinic_id;
     const { data: conflictingSlots, error: conflictError } = await db.from("group_slots")
       .select("id,name,weekdays,starts_at,starts_on,ends_on")
-      .eq("clinic_id", clinicId).eq("unit_id", input.unit_id).in("starts_at", times).eq("active", true).is("deleted_at", null);
+      .eq("clinic_id", clinicId).eq("professional_id", input.professional_id).in("starts_at", times).eq("active", true).is("deleted_at", null);
     if (conflictError) return databaseResult(context, null, conflictError);
     const conflictingGroup = (conflictingSlots ?? []).find((slot: any) => groupPeriodsOverlap(slot, input)
       && (slot.weekdays ?? []).some((day: number) => normalizedWeekdays.includes(day)));
@@ -874,190 +792,37 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
   
   app.patch("/group-slots/:id", requireRoles(["admin", "manager", "reception"]), async (context: any) => {
     const id = z.string().uuid().parse(context.req.param("id"));
-    const input = z.object({
-      room_id: z.string().uuid().nullable().optional(),
-      professional_id: z.string().uuid().nullable().optional(),
-      service_id: z.string().uuid().nullable().optional(),
-      name: z.string().trim().min(3).max(100).optional(),
-      weekdays: z.array(z.number().int().min(1).max(5)).min(1).max(5).optional(),
-      starts_at: z.string().regex(/^(0[6-9]|1\d|20):00(?::00)?$/, "Selecione um dos horários fixos entre 06:00 e 20:00.").optional(),
-      starts_on: z.string().date().nullable().optional(),
-      ends_on: z.string().date().nullable().optional(),
-      duration_minutes: z.number().int().min(15).max(240).optional(),
-      capacity: z.number().int().min(3).max(7).optional(),
-      active: z.boolean().optional(),
-    }).strict().refine((value) => Object.keys(value).length > 0, {
-      message: "Informe ao menos um dado para atualizar.",
-    }).parse(await context.req.json());
-    const db = context.get("db");
-    const clinicId = context.get("profile").clinic_id;
-    const { data: slot, error: slotError } = await db.from("group_slots").select("id,unit_id,room_id,professional_id,service_id,name,weekdays,starts_at,starts_on,ends_on,duration_minutes,capacity,active")
-      .eq("id", id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle();
-    if (slotError) return databaseResult(context, null, slotError);
-    if (!slot) return fail(context, 404, "GROUP_SLOT_NOT_FOUND", "Horário não encontrado.");
-    if (!(await hasUnitAccess(context, slot.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
-
-    const target = {
-      ...slot,
-      ...input,
-      weekdays: input.weekdays ? [...new Set(input.weekdays)].sort() : slot.weekdays,
-      starts_on: input.starts_on === undefined ? slot.starts_on : input.starts_on,
-      ends_on: input.ends_on === undefined ? slot.ends_on : input.ends_on,
-    };
-    if (target.ends_on && (!target.starts_on || target.ends_on < target.starts_on)) {
-      return fail(context, 400, "INVALID_GROUP_PERIOD", "A data final da turma não pode ser anterior à data inicial.");
-    }
-    if (target.professional_id) {
-      const professionalError = await validateActiveProfessional(context, target.professional_id, slot.unit_id);
-      if (professionalError) return professionalError;
-    }
-    const scopeError = await validateRelatedResourceScope(context, {
-      unit_id: slot.unit_id,
-      professional_id: target.professional_id ?? undefined,
-      room_id: target.room_id ?? undefined,
-      service_id: target.service_id ?? undefined,
-    });
-    if (scopeError) return scopeError;
-    // Registros antigos podem ter horários sobrepostos. Uma edição administrativa
-    // (por exemplo, trocar o responsável) não deve ser bloqueada por esse legado;
-    // o conflito é revalidado quando a grade muda ou uma turma é reativada.
-    if (target.active && groupScheduleChanged(slot, target)) {
-      const { data: conflictingSlots, error: conflictError } = await db.from("group_slots")
-        .select("id,name,weekdays,starts_at,starts_on,ends_on")
-        .eq("clinic_id", clinicId).eq("unit_id", slot.unit_id).eq("starts_at", target.starts_at)
-        .eq("active", true).is("deleted_at", null).neq("id", id);
-      if (conflictError) return databaseResult(context, null, conflictError);
-      const conflictingGroup = (conflictingSlots ?? []).find((candidate: any) => groupPeriodsOverlap(candidate, target) && (candidate.weekdays ?? []).some((day: number) => target.weekdays.includes(day)));
-      if (conflictingGroup) {
-        return fail(context, 409, "GROUP_SLOT_CONFLICT", "Já existe outra turma nesta unidade para o mesmo dia e horário.", {
-          conflictingGroup: {
-            id: conflictingGroup.id,
-            name: conflictingGroup.name,
-            weekdays: conflictingGroup.weekdays,
-            startsAt: String(conflictingGroup.starts_at).slice(0, 5),
-            startsOn: conflictingGroup.starts_on,
-            endsOn: conflictingGroup.ends_on,
-          },
-        });
-      }
-    }
-
-    const { data, error } = await db.from("group_slots").update({
-      ...input,
-      ...(input.weekdays ? { weekdays: target.weekdays } : {}),
-      updated_at: new Date().toISOString(),
-    }).eq("id", id).eq("clinic_id", clinicId).is("deleted_at", null).select().single();
-    if (!error && data) await audit(context, "group_slot.updated", "group_slot", id, slot.unit_id, { changedFields: Object.keys(input) });
-    return databaseResult(context, data, error);
+    const input = z.object({ name: z.string().trim().min(1).max(100).optional(), service_id: z.string().uuid().nullable().optional(), professional_id: z.string().uuid().nullable().optional(), room_id: z.string().uuid().nullable().optional(), weekdays: z.array(z.number().int().min(0).max(6)).min(1).max(7).optional(), starts_at: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(?::00)?$/).optional(), duration_minutes: z.number().int().min(15).max(240).optional(), capacity: z.number().int().positive().optional(), active: z.boolean().optional(), starts_on: z.string().date().nullable().optional(), ends_on: z.string().date().nullable().optional(), effective_from: z.string().date().optional() }).strict().parse(await context.req.json());
+    const { data, error } = await context.get("db").rpc("update_operational_group", { p_group_id: id, p_input: input });
+    return classScheduleDatabaseResult(context, data, error);
   });
-  
   app.delete("/group-slots/:id", requireRoles(["admin", "manager", "reception"]), async (context: any) => {
     const id = z.string().uuid().parse(context.req.param("id"));
-    const db = context.get("db");
-    const clinicId = context.get("profile").clinic_id;
-    const { data: slot, error: slotError } = await db.from("group_slots").select("id,unit_id,name")
-      .eq("id", id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle();
-    if (slotError) return databaseResult(context, null, slotError);
-    if (!slot) return fail(context, 404, "GROUP_SLOT_NOT_FOUND", "Turma não encontrada.");
-    if (!(await hasUnitAccess(context, slot.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
-    const { data: activeMemberships, error: membershipsError } = await db.from("group_slot_memberships").select("id")
-      .eq("clinic_id", clinicId).eq("group_slot_id", id).eq("status", "active").is("deleted_at", null).limit(1);
-    if (membershipsError) return databaseResult(context, null, membershipsError);
-    if (activeMemberships?.length) return fail(context, 409, "GROUP_SLOT_HAS_MEMBERS", "Retire os pacientes da turma antes de excluí-la.");
-    const deletedAt = new Date().toISOString();
-    const { data, error } = await db.from("group_slots").update({ active: false, deleted_at: deletedAt, updated_at: deletedAt })
-      .eq("id", id).eq("clinic_id", clinicId).is("deleted_at", null).select("id,unit_id").single();
-    if (!error && data) await audit(context, "group_slot.deleted", "group_slot", id, data.unit_id);
-    return databaseResult(context, data, error);
+    const { data, error } = await context.get("db").rpc("update_operational_group", { p_group_id: id, p_input: { active: false } });
+    return classScheduleDatabaseResult(context, data, error);
   });
-  
   app.post("/group-slots/:id/members", requireRoles(["admin", "manager", "reception"]), async (context: any) => {
-    const groupSlotId = z.string().uuid().parse(context.req.param("id"));
-    const input = z.object({
-      enrollment_id: z.string().uuid().optional(),
-      patient_id: z.string().uuid(),
-      starts_at: z.string().date(),
-      ends_at: z.string().date().optional(),
-      weekdays: z.array(z.number().int().min(1).max(5)).min(1).max(5),
-    }).strict().parse(await context.req.json());
-    const db = context.get("db");
-    const clinicId = context.get("profile").clinic_id;
-    const { data: slot, error: slotError } = await db.from("group_slots").select("id,unit_id,capacity,weekdays")
-      .eq("id", groupSlotId).eq("clinic_id", clinicId).is("deleted_at", null).single();
-    if (slotError || !slot) return databaseResult(context, null, slotError);
-    if (!(await hasUnitAccess(context, slot.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
-    const { data: patient, error: patientError } = await db.from("patients").select("id")
-      .eq("id", input.patient_id).eq("clinic_id", clinicId).eq("primary_unit_id", slot.unit_id).is("deleted_at", null).maybeSingle();
-    if (patientError) return databaseResult(context, null, patientError);
-    if (!patient) return fail(context, 400, "INVALID_PATIENT", "O paciente não pertence à unidade desta turma.");
-    if (input.enrollment_id) {
-      const { data: enrollment, error: enrollmentError } = await db.from("enrollments").select("id")
-        .eq("id", input.enrollment_id).eq("clinic_id", clinicId).eq("patient_id", input.patient_id).eq("unit_id", slot.unit_id).eq("status", "active").is("deleted_at", null).maybeSingle();
-      if (enrollmentError) return databaseResult(context, null, enrollmentError);
-      if (!enrollment) return fail(context, 400, "INVALID_ENROLLMENT", "A matrícula não corresponde ao paciente e à unidade desta turma.");
-    }
-    if (input.ends_at && input.ends_at < input.starts_at) return fail(context, 400, "INVALID_PERIOD", "A data final não pode ser anterior à inicial.");
-    if (new Set(input.weekdays).size !== input.weekdays.length || !input.weekdays.every((weekday) => slot.weekdays.includes(weekday))) return fail(context, 422, "INVALID_MEMBERSHIP_WEEKDAYS", "Os dias do paciente devem pertencer à turma.");
-    const { data: existingMembership } = await db.from("group_slot_memberships").select("id").eq("clinic_id", clinicId).eq("group_slot_id", groupSlotId).eq("patient_id", input.patient_id).eq("status", "active").is("deleted_at", null).eq("starts_at", input.starts_at).maybeSingle();
-    if (existingMembership) return ok(context, existingMembership);
-    const { data, error } = await db.from("group_slot_memberships").insert({
-      ...input,
-      group_slot_id: groupSlotId,
-      clinic_id: context.get("profile").clinic_id,
-    }).select().single();
-    if (!error && data) await audit(context, "group_slot.member_added", "group_slot_membership", data.id, slot.unit_id);
-    return databaseResult(context, data, error, 201);
+    const groupId = z.string().uuid().parse(context.req.param("id"));
+    const input = z.object({ patient_id: z.string().uuid(), enrollment_id: z.string().uuid().optional(), starts_at: z.string().date(), ends_at: z.string().date().optional(), weekdays: z.array(z.number().int().min(0).max(6)).min(1).max(7) }).strict().parse(await context.req.json());
+    const { data, error } = await context.get("db").rpc("save_operational_membership", { p_group_id: groupId, p_patient_id: input.patient_id, p_from: input.starts_at, p_to: input.ends_at ? new Date(Date.parse(input.ends_at) + 86400000).toISOString().slice(0, 10) : null, p_weekdays: input.weekdays.map((day) => CLASS_DAYS[day]), p_enrollment_id: input.enrollment_id ?? null });
+    return classScheduleDatabaseResult(context, data, error, 201);
   });
-  
   app.delete("/group-slot-memberships/:id", requireRoles(["admin", "manager", "reception"]), async (context: any) => {
     const id = z.string().uuid().parse(context.req.param("id"));
-    const deletedAt = new Date().toISOString();
-    const { data, error } = await context.get("db").from("group_slot_memberships")
-      .update({ status: "cancelled", deleted_at: deletedAt, updated_at: deletedAt })
-      .eq("id", id).eq("clinic_id", context.get("profile").clinic_id).is("deleted_at", null).select("id").single();
-    if (!error && data) await audit(context, "group_slot.member_removed", "group_slot_membership", id);
-    return databaseResult(context, data, error);
+    const effectiveFrom = z.string().date().parse(context.req.query("effectiveFrom") ?? new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date()));
+    const { data, error } = await context.get("db").rpc("end_operational_membership", { p_id: id, p_effective_from: effectiveFrom });
+    return classScheduleDatabaseResult(context, data, error);
   });
-  
   app.patch("/group-slot-memberships/:id", requireRoles(["admin", "manager", "reception"]), async (context: any) => {
     const id = z.string().uuid().parse(context.req.param("id"));
-    const input = z.object({
-      group_slot_id: z.string().uuid().optional(),
-      starts_at: z.string().date(),
-      ends_at: z.string().date().optional(),
-      weekdays: z.array(z.number().int().min(1).max(5)).min(1).max(5),
-    }).strict().refine((value) => !value.ends_at || value.ends_at >= value.starts_at, {
-      message: "A data final não pode ser anterior à inicial.",
-    }).parse(await context.req.json());
+    const input = z.object({ group_slot_id: z.string().uuid().optional(), starts_at: z.string().date(), ends_at: z.string().date().optional(), weekdays: z.array(z.number().int().min(0).max(6)).min(1).max(7) }).strict().parse(await context.req.json());
     const db = context.get("db");
-    const clinicId = context.get("profile").clinic_id;
-    const { data: current, error: currentError } = await db.from("group_slot_memberships")
-      .select("id,group_slot_id,enrollment_id,patient_id")
-      .eq("id", id).eq("clinic_id", clinicId).eq("status", "active").is("deleted_at", null).single();
-    if (currentError || !current) return databaseResult(context, null, currentError);
-    const targetGroupSlotId = input.group_slot_id ?? current.group_slot_id;
-    const { data: slot, error: slotError } = await db.from("group_slots").select("weekdays,capacity,unit_id")
-      .eq("id", targetGroupSlotId).eq("clinic_id", clinicId).is("deleted_at", null).single();
-    if (slotError || !slot) return databaseResult(context, null, slotError);
-    if (!(await hasUnitAccess(context, slot.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
-    const { data: patient, error: patientError } = await db.from("patients").select("id")
-      .eq("id", current.patient_id).eq("clinic_id", clinicId).eq("primary_unit_id", slot.unit_id).is("deleted_at", null).maybeSingle();
-    if (patientError) return databaseResult(context, null, patientError);
-    if (!patient) return fail(context, 400, "INVALID_PATIENT", "A turma deve pertencer à unidade atual do paciente.");
-    if (current.enrollment_id) {
-      const { data: enrollment, error: enrollmentError } = await db.from("enrollments").select("unit_id")
-        .eq("id", current.enrollment_id).eq("clinic_id", clinicId).is("deleted_at", null).maybeSingle();
-      if (enrollmentError) return databaseResult(context, null, enrollmentError);
-      if (!enrollment || enrollment.unit_id !== slot.unit_id) return fail(context, 400, "INVALID_ENROLLMENT", "A turma deve pertencer à mesma unidade da matrícula.");
-    }
-    if (new Set(input.weekdays).size !== input.weekdays.length || !input.weekdays.every((weekday) => slot.weekdays.includes(weekday))) return fail(context, 422, "INVALID_MEMBERSHIP_WEEKDAYS", "Os dias do paciente devem pertencer à turma.");
-    const { data, error } = await db.from("group_slot_memberships")
-      .update({ ...input, updated_at: new Date().toISOString() })
-      .eq("id", id).eq("clinic_id", clinicId).eq("status", "active").is("deleted_at", null).select("id,group_slot_id,weekdays,starts_at,ends_at").single();
-    if (!error && data) await audit(context, "group_slot.member_updated", "group_slot_membership", id);
-    return databaseResult(context, data, error);
+    const { data: current, error: readError } = await db.from("class_memberships").select("id,class_id,patient_id,enrollment_id").eq("id", id).maybeSingle();
+    if (readError) return databaseResult(context, null, readError);
+    if (!current) return fail(context, 404, "CLASS_MEMBERSHIP_NOT_FOUND", "Vínculo não encontrado.");
+    const { data, error } = await db.rpc("save_operational_membership", { p_group_id: input.group_slot_id ?? current.class_id, p_patient_id: current.patient_id, p_from: input.starts_at, p_to: input.ends_at ? new Date(Date.parse(input.ends_at) + 86400000).toISOString().slice(0, 10) : null, p_weekdays: input.weekdays.map((day) => CLASS_DAYS[day]), p_enrollment_id: current.enrollment_id, p_id: id });
+    return classScheduleDatabaseResult(context, data, error);
   });
-  
   app.post("/appointments/:id/complete", requireRoles(["admin", "manager", "reception", "professional"]), async (context: any) => {
     const id = z.string().uuid().parse(context.req.param("id"));
     const currentAppointment = await getAuthorizedAppointment(context, id);

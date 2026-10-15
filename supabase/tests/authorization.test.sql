@@ -40,6 +40,7 @@ from unnest(array[
   'a0000000-0000-4000-8000-000000000005'::uuid
 ]) profile_id;
 
+insert into public.profile_permissions(profile_id,module,can_view,can_edit) select id,m,true,true from public.profiles cross join unnest(array['patients','agenda','records','finance']) m where clinic_id=(select clinic_id from public.profiles where id='a0000000-0000-4000-8000-000000000002') and id in('a0000000-0000-4000-8000-000000000002','a0000000-0000-4000-8000-000000000003','a0000000-0000-4000-8000-000000000004','a0000000-0000-4000-8000-000000000005') on conflict do nothing;
 insert into public.professionals (id, clinic_id, profile_id, name)
 select 'c0000000-0000-4000-8000-000000000001', id, 'a0000000-0000-4000-8000-000000000004', 'Professional RLS'
 from public.clinics order by created_at limit 1;
@@ -98,7 +99,7 @@ select ok(
 );
 
 select ok(
-  (select qual like '%has_unit_access%' from pg_policies where schemaname = 'public' and tablename = 'appointments' and policyname = 'appointments_select'),
+  (select (qual like '%has_unit_access%' or (qual like '%can_access_appointment%' and pg_get_functiondef('public.can_access_appointment(uuid)'::regprocedure) like '%has_unit_access%')) from pg_policies where schemaname = 'public' and tablename = 'appointments' and policyname = 'appointments_select'),
   'leitura da agenda valida unidade'
 );
 select ok(

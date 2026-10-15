@@ -8,20 +8,20 @@ import { buildAvailablePaymentPlans } from "../../application/portal/paymentPlan
 import { SelectField, TextField } from "../components/FormPrimitives";
 import { type AgendaEnrollmentContext, Row, messageOf, value, cents, brl, groupSlotLabel, useDialogFocus, useResources, PlanSelect, PatientPicker, DrawerForm, ModuleState, MetricLite, OperationalTable, dateKey, localDateAtNoonIso } from "./OperationalShared";
 
-export function OperationalEnrollments({ agendaContext, onClearAgendaContext, openEnrollment = false, units = [], selectedUnitId = "", onUnitChange = () => undefined, canEdit = true, canManagePlans = true, canViewCharges = true, canViewPayments = true, canReceivePayments = true, canCorrectChargeAmounts = false }: { agendaContext?: AgendaEnrollmentContext; onClearAgendaContext?: () => void; openEnrollment?: boolean; units?: Array<{ id: string; name: string }>; selectedUnitId?: string; onUnitChange?: (unitId: string) => void; canEdit?: boolean; canManagePlans?: boolean; canDeletePlans?: boolean; canViewCharges?: boolean; canViewPayments?: boolean; canReceivePayments?: boolean; canRollback?: boolean; canCorrectChargeAmounts?: boolean }) {
+export function OperationalEnrollments({ agendaContext, onClearAgendaContext, openEnrollment = false, units = [], selectedUnitId = "", onUnitChange = () => undefined, canEdit = true, canManagePlans = true, canViewCharges = true, canViewPayments = true, canReceivePayments = true, canCorrectChargeAmounts = false, canViewPatients = true, canViewAgenda = true }: { agendaContext?: AgendaEnrollmentContext; onClearAgendaContext?: () => void; openEnrollment?: boolean; units?: Array<{ id: string; name: string }>; selectedUnitId?: string; onUnitChange?: (unitId: string) => void; canEdit?: boolean; canManagePlans?: boolean; canDeletePlans?: boolean; canViewCharges?: boolean; canViewPayments?: boolean; canReceivePayments?: boolean; canRollback?: boolean; canCorrectChargeAmounts?: boolean; canViewPatients?: boolean; canViewAgenda?: boolean }) {
   const paths = [
     "/plans",
     "/enrollments",
     "/enrollment-price-terms",
-    "/patients?page=1&pageSize=100",
+    ...(canViewPatients ? ["/patients?page=1&pageSize=100"] : []),
     "/units",
-    "/group-slots",
+    ...(canViewAgenda ? ["/group-slots"] : []),
     "/professionals",
     ...(canViewCharges ? ["/charges"] : []),
     ...(canViewPayments ? ["/payments"] : []),
   ];
   const { data, loading, error, reload } = useResources(paths);
-  const patients = data["/patients?page=1&pageSize=100"]?.items ?? [];
+  const patients: Row[] = useMemo(() => canViewPatients ? data["/patients?page=1&pageSize=100"]?.items ?? [] : [...new Map((data["/enrollments"] ?? []).filter((row: Row) => row.patient).map((row: Row) => [row.patient.id, row.patient])).values()] as Row[], [data, canViewPatients]);
   const [notice, setNotice] = useState("");
   const sectionFromPath = () => window.location.pathname.includes("/matriculas/historico") ? "history" : window.location.pathname.includes("/matriculas/planos") ? "catalog" : window.location.pathname.includes("/matriculas/gestao") ? "management" : "control";
   const [section, setSection] = useState<"control" | "management" | "history" | "catalog">(sectionFromPath);
@@ -44,6 +44,11 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
   const [selectedPaymentPatientId, setSelectedPaymentPatientId] = useState("");
   const [paymentPatientPickerVersion, setPaymentPatientPickerVersion] = useState(0);
   const [paymentAmount, setPaymentAmount] = useState("");
+  useEffect(() => {
+    setSelectedPatient(undefined); setSelectedEnrollmentUnit(selectedUnitId); setSelectedEnrollmentGroup("");
+    setSelectedPaymentPatientId(""); setSelectedPaymentChargeId(""); setPaymentAmount("");
+    setPatientPickerVersion((version) => version + 1); setPaymentPatientPickerVersion((version) => version + 1);
+  }, [selectedUnitId]);
   async function enroll(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formElement = event.currentTarget;
@@ -181,7 +186,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
         </div>
       )}
       <ModuleState loading={loading} error={error} retry={reload} />
-      {section === "control" && canViewCharges && <MonthlyPayments onChangePlan={canEdit ? setChangingEnrollmentId : undefined} data={data} month={paymentMonth} onMonth={(month) => { setPaymentMonth(month); clearPaymentPatient(); }} canEdit={canReceivePayments} canCorrectChargeAmounts={canCorrectChargeAmounts} reload={reload} onNotice={setNotice} onRegisterPayment={(row) => { setSelectedPaymentPatientId(row.patientId); setSelectedPaymentChargeId(row.chargeId); setPaymentAmount((row.balanceCents / 100).toFixed(2)); requestAnimationFrame(() => document.getElementById("payment-registration")?.scrollIntoView({ behavior: "smooth", block: "start" })); }} />}
+      {section === "control" && canViewCharges && <MonthlyPayments onChangePlan={canEdit ? setChangingEnrollmentId : undefined} data={data} month={paymentMonth} onMonth={(month) => { setPaymentMonth(month); clearPaymentPatient(); }} canEdit={canReceivePayments} canCorrectChargeAmounts={canCorrectChargeAmounts} reload={reload} onNotice={setNotice} onRegisterPayment={(row) => { setPaymentPatientPickerVersion((version) => version + 1); setSelectedPaymentPatientId(row.patientId); setSelectedPaymentChargeId(row.chargeId); setPaymentAmount((row.balanceCents / 100).toFixed(2)); requestAnimationFrame(() => document.getElementById("payment-registration")?.scrollIntoView({ behavior: "smooth", block: "start" })); }} />}
       {section === "catalog" && canManagePlans && <PlanCatalog plans={data["/plans"] ?? []} reload={reload} onNotice={setNotice} />}
       {changingEnrollmentId && <PlanChangeDialog enrollment={(data["/enrollments"] ?? []).find((e: Row) => e.id === changingEnrollmentId)!} plans={data["/plans"] ?? []} onClose={() => setChangingEnrollmentId("")} onChanged={async () => { await reload(); setNotice("Plano trocado com auditoria. Histórico financeiro preservado."); }} />}
       {section === "history" && <EnrollmentHistoryPanel rows={controlRows} charges={data["/charges"] ?? []} payments={data["/payments"] ?? []} />}
@@ -222,7 +227,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
           <h2>Nova matrícula</h2>
           {notice && <p role="status">{notice}</p>}
           <div className="form-row">
-            <PatientPicker key={patientPickerVersion} name="patient_id" label="Paciente" rows={patients} onSelect={setSelectedPatient} />
+            <PatientPicker key={patientPickerVersion} name="patient_id" label="Paciente" rows={patients} remoteSearch={canViewPatients} onSelect={setSelectedPatient} />
             <PlanSelect rows={data["/plans"] ?? []} />
           </div>
           {selectedPatient && <div className="agenda-context-summary" role="status"><strong>Paciente selecionado</strong><span>{selectedPatient.name}{selectedPatient.phone ? ` · ${selectedPatient.phone}` : ""}{selectedPatient.cpf ? ` · CPF ${selectedPatient.cpf}` : ""}</span></div>}
@@ -257,6 +262,9 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
             name="payment_patient_id"
             label="Pessoa"
             rows={patients}
+            remoteSearch={canViewPatients}
+            defaultValue={selectedPaymentPatientId}
+            defaultLabel={patients.find((row) => row.id === selectedPaymentPatientId)?.name ?? ""}
             allowedIds={payablePatientIds}
             onSelect={selectPaymentPatient}
             onClear={clearPaymentPatient}

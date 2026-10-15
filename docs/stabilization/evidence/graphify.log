@@ -1,0 +1,2 @@
+graphify update .: PASS (AST, 181 code files; graph rebuilt: 2167 nodes, 2954 edges, 148 communities).
+Limit: 63 SQL files were skipped because optional tree_sitter_sql parser is not installed; PostgreSQL migration and SQL/RLS suites ran independently.

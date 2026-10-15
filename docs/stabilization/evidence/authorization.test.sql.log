@@ -1,0 +1,40 @@
+1..39
+ok 1 - políticas amplas baseadas somente na clínica foram removidas
+ok 2 - patients possui política de leitura restritiva
+ok 3 - appointments possui política de leitura restritiva
+ok 4 - prontuário possui política clínica
+ok 5 - financeiro possui política própria
+ok 6 - permissões possuem política administrativa
+ok 7 - profile_permissions não usa WITH CHECK true
+ok 8 - leitura da agenda valida unidade
+ok 9 - leitura de prontuário limita o profissional
+ok 10 - política financeira exige papel financeiro
+ok 11 - complete_appointment é SECURITY DEFINER
+ok 12 - register_payment é SECURITY DEFINER
+ok 13 - reverse_payment é SECURITY DEFINER
+ok 14 - rollback_import_batch é SECURITY DEFINER
+ok 15 - approve_commission é SECURITY DEFINER
+ok 16 - import_rows_transactional é SECURITY DEFINER
+ok 17 - anon não executa complete_appointment
+ok 18 - anon não executa register_payment
+ok 19 - anon não executa reverse_payment
+ok 20 - anon não executa rollback_import_batch
+ok 21 - anon não executa approve_commission
+ok 22 - anon não executa import_rows_transactional
+ok 23 - authenticated pode chamar complete_appointment sujeito à validação interna
+ok 24 - authenticated pode chamar register_payment sujeito à validação interna
+ok 25 - arquivos clínicos possuem política de leitura
+ok 26 - arquivos financeiros possuem política de leitura
+ok 27 - auditoria exige política de inserção
+ok 28 - vínculos de unidade possuem política administrativa
+ok 29 - fixtures cobrem os cinco papéis
+ok 30 - fixtures cobrem unidades distintas
+ok 31 - profissional não acessa o financeiro
+ok 32 - profissional acessa somente o próprio prontuário na unidade vinculada
+ok 33 - recepção não acessa dados de prontuário
+ok 34 - financeiro acessa lançamentos da unidade vinculada
+ok 35 - financeiro não atravessa unidades
+ok 36 - manager acessa prontuários da unidade vinculada
+ok 37 - manager não atravessa unidades
+ok 38 - admin acessa o financeiro de todas as unidades da clínica
+ok 39 - admin acessa os prontuários de todas as unidades da clínica

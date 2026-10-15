@@ -1,7 +1,7 @@
 import { z } from "npm:zod@3.24.2";
 
 export function registerImportacoesRoutes(app: any, dependencies: any) {
-  const { requireRoles, databaseResult, listResource, requireIdempotency, transactionalImportResult, requiredEnv, validateNotionInventory, prepareNotionImport, audit, fail, ok } = dependencies;
+  const { requireRoles, databaseResult, listResource, requireIdempotency, transactionalImportResult, requiredEnv, validateNotionInventory, prepareNotionImport, notionQueryAll, audit, fail, ok } = dependencies;
   app.post("/imports", requireRoles(["admin", "manager"]), async (context: any) => {
     const key = requireIdempotency(context);
     const input = z.object({
@@ -175,7 +175,7 @@ export function registerImportacoesRoutes(app: any, dependencies: any) {
     if (unitError || !unit) return fail(context, 404, "UNIT_NOT_FOUND", "A unidade de destino não foi encontrada.");
   
     const token = requiredEnv("NOTION_TOKEN");
-    const inventories: Record<string, NotionPage[]> = {};
+    const inventories: Record<string, any[]> = {};
     for (const [entityType, sourceId] of Object.entries(notionSources)) {
       inventories[entityType] = await notionQueryAll(token, sourceId);
     }
@@ -232,7 +232,7 @@ export function registerImportacoesRoutes(app: any, dependencies: any) {
       ? await db.from("patients").select("cpf").eq("clinic_id", context.get("profile").clinic_id).in("cpf", cpfs).is("deleted_at", null)
       : { data: [], error: null };
     if (existingError) return databaseResult(context, null, existingError);
-    const existingCpfs = new Set((existing ?? []).map((row) => row.cpf));
+    const existingCpfs = new Set((existing ?? []).map((row: any) => row.cpf));
     const seenCpfs = new Set<string>();
     const rejected: Array<{ row: number; reason: string }> = [];
     const accepted = input.rows.filter((row, index) => {

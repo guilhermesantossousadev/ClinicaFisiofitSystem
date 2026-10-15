@@ -36,6 +36,7 @@ insert into public.profile_permissions(profile_id,module,can_view,can_edit) valu
  ('f9100000-0000-4000-8000-000000000002','enrollments',false,false),
  ('f9100000-0000-4000-8000-000000000003','enrollments',true,false),
  ('f9100000-0000-4000-8000-000000000004','enrollments',true,false);
+insert into public.profile_permissions(profile_id,module,can_view,can_edit) values ('f9100000-0000-4000-8000-000000000005','patients',true,false);
 insert into public.patients(id,clinic_id,primary_unit_id,name,phone,birth_date,notes) values
  ('f9100000-0000-4000-8000-000000000030','f9100000-0000-4000-8000-000000000010','f9100000-0000-4000-8000-000000000020','Synthetic patient one','555-0100','2000-01-01','synthetic clinical note'),
  ('f9100000-0000-4000-8000-000000000031','f9100000-0000-4000-8000-000000000010','f9100000-0000-4000-8000-000000000021','Synthetic patient other unit','555-0101','2000-01-02','synthetic clinical note'),

@@ -16,14 +16,14 @@ function fallbackError(status: number): ApiError {
 
 export async function api<T>(
   path: string,
-  init: RequestInit & { idempotencyKey?: string } = {},
+  init: RequestInit & { idempotencyKey?: string; scopeUnit?: boolean } = {},
 ): Promise<ApiEnvelope<T>> {
   const { data } = await supabase.auth.getSession();
-  const selectedUnit = init.method?.toUpperCase() === "POST" || init.method?.toUpperCase() === "PATCH" ? "" : (() => {
+  const selectedUnit = init.scopeUnit === false ? "" : init.method?.toUpperCase() === "POST" || init.method?.toUpperCase() === "PATCH" ? "" : (() => {
     try { return window.localStorage.getItem("fisiofit:selected-unit") ?? ""; } catch { return ""; }
   })();
   const pathWithoutQuery = path.split("?", 1)[0];
-  const requestPath = selectedUnit && (init.method ?? "GET").toUpperCase() === "GET" && !path.includes("unitId=") && !["/me", "/units", "/health", "/openapi.json"].includes(pathWithoutQuery)
+  const requestPath = selectedUnit && (init.method ?? "GET").toUpperCase() === "GET" && !path.includes("unitId=") && !["/me", "/units", "/health", "/openapi.json", "/professionals", "/professional-profiles", "/services", "/rooms", "/plans", "/record-templates"].includes(pathWithoutQuery)
     ? `${path}${path.includes("?") ? "&" : "?"}unitId=${encodeURIComponent(selectedUnit)}`
     : path;
   let response: Response;

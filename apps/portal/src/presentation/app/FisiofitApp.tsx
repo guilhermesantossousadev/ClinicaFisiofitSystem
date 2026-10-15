@@ -1,3 +1,4 @@
+import { InternalNotifications } from "../modules/InternalNotifications";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { api, list } from "../../infrastructure/http/api";
 import { supabase } from "../../infrastructure/supabase/client";
@@ -47,11 +48,11 @@ function storeValue(key: string, value: string) {
 }
 
 function canViewModule(profile: Profile, module: PermissionModule) {
-  return profile.role === "admin" || !profile.profile_permissions || profile.profile_permissions.some((permission) => permission.module === module && permission.can_view);
+  return profile.role === "admin" || Boolean(profile.profile_permissions?.some((permission) => permission.module === module && permission.can_view));
 }
 
 function canEditModule(profile: Profile, module: PermissionModule) {
-  return profile.role === "admin" || !profile.profile_permissions || profile.profile_permissions.some((permission) => permission.module === module && permission.can_edit);
+  return profile.role === "admin" || Boolean(profile.profile_permissions?.some((permission) => permission.module === module && permission.can_edit));
 }
 
 function Avatar({ initials, url, className = "" }: { initials: string; url?: string; className?: string }) {
@@ -101,6 +102,7 @@ export default function FisiofitApp() {
     role: "reception",
   });
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
+  const [dashboardUnit, setDashboardUnit] = useState("");
   const [units, setUnits] = useState<Unit[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [unit, setUnit] = useState(() => storedValue(`${storagePrefix}:unit`));
@@ -153,14 +155,14 @@ export default function FisiofitApp() {
         setProfile(loadedProfile);
         const requests = [
           api<Unit[]>("/units"),
-          canViewModule(loadedProfile, "dashboard") ? api<DashboardData>("/dashboard") : Promise.resolve({ data: null }),
+          canViewModule(loadedProfile, "dashboard") ? api<DashboardData>(`/dashboard${unit ? `?unitId=${unit}` : ""}`) : Promise.resolve({ data: null }),
           ["admin", "manager", "reception", "professional"].includes(loadedProfile.role) && canViewModule(loadedProfile, "patients")
             ? list<Patient>("/patients?page=1&pageSize=100")
             : Promise.resolve({ data: null }),
         ] as const;
         const [unitResult, dashboardResult, patientResult] = await Promise.allSettled(requests);
         if (unitResult.status === "fulfilled") setUnits(unitResult.value.data ?? []);
-        if (dashboardResult.status === "fulfilled") setDashboard(dashboardResult.value.data);
+        if (dashboardResult.status === "fulfilled") { setDashboard(dashboardResult.value.data); setDashboardUnit(unit); }
         if (patientResult.status === "fulfilled") setPatients(patientResult.value.data?.items ?? []);
         const failure = [unitResult, dashboardResult, patientResult].find((result) => result.status === "rejected");
         if (failure?.status === "rejected") setError(failure.reason instanceof Error ? failure.reason.message : "Alguns dados não foram carregados.");
@@ -172,6 +174,18 @@ export default function FisiofitApp() {
     }
     void loadPortal();
   }, []);
+  useEffect(() => {
+    if (loading || !canViewModule(profile, "dashboard")) return;
+    let active = true;
+    void api<DashboardData>(`/dashboard${unit ? `?unitId=${unit}` : ""}`).then((response) => { if (active) { setDashboard(response.data); setDashboardUnit(unit); } }).catch((e) => { if (active) { setDashboard(null); setError(e instanceof Error ? e.message : "Não foi possível carregar o painel."); } });
+    return () => { active = false; };
+  }, [unit, loading, profile.role, profile.profile_permissions]);
+  useEffect(() => {
+    if (search.trim().length < 2 || !canViewModule(profile, "patients") || profile.role === "finance") return;
+    let active = true; setPatients([]);
+    const timer = window.setTimeout(() => { void list<Patient>(`/patients?page=1&pageSize=100&search=${encodeURIComponent(search.trim())}${unit ? `&unitId=${unit}` : ""}`).then((response) => { if (active) setPatients(response.data?.items ?? []); }).catch(() => { if (active) setPatients([]); }); }, 220);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [search, unit, profile.role, profile.profile_permissions]);
   const visibleNav = useMemo(
     () => nav.filter((item) => item.roles.includes(profile.role) && canViewModule(profile, navModule[item.label]!)),
     [profile.role, profile.profile_permissions],
@@ -470,6 +484,7 @@ export default function FisiofitApp() {
                 ))}
               </select></span>
             </label>
+            {!loading && ["admin", "manager", "reception", "professional"].includes(profile.role) && canViewModule(profile, "agenda") && <InternalNotifications />}
             <span className="today">
               {new Intl.DateTimeFormat("pt-BR", {
                 dateStyle: "long",
@@ -504,12 +519,12 @@ export default function FisiofitApp() {
         )}
         {view === "Meu perfil" && <ProfilePage profile={profile} email={user?.email ?? ""} avatarUrl={avatarUrl} avatarBusy={avatarBusy} avatarNotice={avatarNotice} onAvatarChange={changeAvatar} onSignOut={() => void signOut()} />}
         {view === "Painel" && (
-          <Dashboard data={dashboard} name={profile.name} setView={setView} loading={loading} />
+          <Dashboard data={dashboardUnit === unit ? dashboard : null} name={profile.name} setView={setView} loading={loading} />
         )}{" "}
         {view === "Agenda" && <OperationalAgenda role={profile.role} canEdit={canEditModule(profile, "agenda")} onOpenPatients={() => navigate("Pacientes")} onOpenEnrollment={(context) => { setAgendaContext(context); navigate("Matrículas"); }} />}{" "}
-        {view === "Chamada diária" && <OperationalDailyAttendance canEdit={canEditModule(profile, "agenda")} />}{" "}
+        {view === "Chamada diária" && <OperationalDailyAttendance canEdit={canEditModule(profile, "agenda")} canManageMakeups={["admin", "manager", "reception"].includes(profile.role)} />}{" "}
         {view === "Pacientes" && <OperationalPatients canEdit={canEditModule(profile, "patients")} canViewEnrollments={canViewModule(profile, "enrollments")} canEditEnrollments={canEditModule(profile, "enrollments")} canViewAgenda={canViewModule(profile, "agenda")} canEditAgenda={canEditModule(profile, "agenda")} canViewTimeline={["admin", "manager"].includes(profile.role)} />}{" "}
-        {view === "Matrículas" && <OperationalEnrollments agendaContext={agendaContext} onClearAgendaContext={() => setAgendaContext(undefined)} units={units} selectedUnitId={unit} onUnitChange={setUnit} canEdit={canEditModule(profile, "enrollments")} canManagePlans={canEditModule(profile, "enrollments") && ["admin", "manager", "finance"].includes(profile.role)} canDeletePlans={profile.role === "admin"} canViewCharges={["admin", "manager", "finance", "reception"].includes(profile.role) && canViewModule(profile, "enrollments")} canViewPayments={["admin", "manager", "finance"].includes(profile.role) && canViewModule(profile, "finance")} canReceivePayments={["admin", "manager", "finance"].includes(profile.role) && canEditModule(profile, "finance")} canRollback={["admin", "manager", "finance"].includes(profile.role) && canEditModule(profile, "enrollments")} canCorrectChargeAmounts={profile.role === "reception" ? canViewModule(profile, "enrollments") && canEditModule(profile, "enrollments") : ["admin", "manager", "finance"].includes(profile.role) && canEditModule(profile, "finance")} />}{" "}
+        {view === "Matrículas" && <OperationalEnrollments canViewPatients={profile.role !== "finance" && canViewModule(profile, "patients")} canViewAgenda={profile.role !== "finance" && canViewModule(profile, "agenda")} agendaContext={agendaContext} onClearAgendaContext={() => setAgendaContext(undefined)} units={units} selectedUnitId={unit} onUnitChange={setUnit} canEdit={canEditModule(profile, "enrollments")} canManagePlans={canEditModule(profile, "enrollments") && ["admin", "manager", "finance"].includes(profile.role)} canDeletePlans={profile.role === "admin"} canViewCharges={["admin", "manager", "finance", "reception"].includes(profile.role) && canViewModule(profile, "enrollments")} canViewPayments={["admin", "manager", "finance"].includes(profile.role) && canViewModule(profile, "finance")} canReceivePayments={["admin", "manager", "finance"].includes(profile.role) && canEditModule(profile, "finance")} canRollback={["admin", "manager", "finance"].includes(profile.role) && canEditModule(profile, "enrollments")} canCorrectChargeAmounts={profile.role === "reception" ? canViewModule(profile, "enrollments") && canEditModule(profile, "enrollments") : ["admin", "manager", "finance"].includes(profile.role) && canEditModule(profile, "finance")} />}{" "}
         {view === "Prontuários" && <OperationalRecords canEdit={canEditModule(profile, "records")} />}{" "}
         {view === "Financeiro" && <OperationalFinance canEdit={canEditModule(profile, "finance")} />}{" "}
         {view === "Relatórios" && <OperationalReports />}{" "}
@@ -519,7 +534,7 @@ export default function FisiofitApp() {
           </Suspense>
         )}{" "}
         {view === "Usuários" && <OperationalUsers canManageUsers={profile.role === "admin"} />}
-        {view === "Configurações" && <OperationalAdministration canEdit={["admin", "manager"].includes(profile.role) && canEditModule(profile, "settings")} canManageProfessionals={["admin", "manager", "reception", "finance"].includes(profile.role) && canViewModule(profile, "settings")} canManageUnits={profile.role === "admin"} canDelete={profile.role === "admin"} isAdmin={profile.role === "admin"} />}
+        {view === "Configurações" && <OperationalAdministration canEdit={["admin", "manager"].includes(profile.role) && canEditModule(profile, "settings")} canManageProfessionals={["admin", "manager", "reception"].includes(profile.role) && canEditModule(profile, "settings")} canManageUnits={profile.role === "admin"} canDelete={profile.role === "admin"} isAdmin={profile.role === "admin"} />}
         {view === "Privacidade" && (
           <OperationalPrivacy
             canEditPrivacy={profile.role === "admin" || Boolean(profile.profile_permissions?.some((permission) => permission.module === "privacy" && permission.can_edit))}
@@ -598,7 +613,7 @@ function Dashboard({
       {!loading && <>
       <section className="card table-card dashboard-agenda-top" aria-labelledby="dashboard-agenda-title">
         <div className="table-toolbar"><div><p className="eyebrow">PRÓXIMOS HORÁRIOS</p><h2 id="dashboard-agenda-title">Agenda de hoje</h2></div><button className="text-button" onClick={() => setView("Agenda")}>Abrir agenda →</button></div>
-        {(data?.appointments ?? []).map((item) => <div className="operational-row" key={item.id}><div><strong>{new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" }).format(new Date(item.starts_at))} · {item.patients?.name ?? "Horário bloqueado"}</strong><small>{item.services?.name ?? "Atendimento"} · {item.professionals?.name ?? "Sem profissional"} · {item.units?.name ?? "Sem unidade"}</small></div><span className="status info">{statusLabel(item.status)}</span></div>)}
+        {(data?.appointments ?? []).map((item) => <div className="operational-row" key={item.id}><div><strong>{new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" }).format(new Date(item.starts_at))} · {item.patients?.name ?? item.services?.name ?? "Horário bloqueado"}</strong><small>{item.services?.name ?? "Atendimento"} · {item.professionals?.name ?? "Sem profissional"} · {item.units?.name ?? "Sem unidade"}</small></div><span className="status info">{statusLabel(item.status)}</span></div>)}
         {!data?.appointments?.length && <div className="empty-state compact-empty"><strong>Nenhum atendimento para hoje</strong><p>A agenda está livre.</p></div>}
       </section>
       {Boolean(data?.dueCharges?.length) && <section className="dashboard-due-alert" role="status" aria-labelledby="dashboard-due-title"><div><strong id="dashboard-due-title">Vencimentos próximos</strong><span>Há cobranças com vencimento nos próximos 7 dias.</span></div><div className="dashboard-due-list">{data?.dueCharges.map((charge) => <span key={charge.id}><b>{new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" }).format(new Date(`${charge.due_at}T12:00:00`))}</b> · {charge.patients?.name ?? "Paciente"} · {brl(Math.max(Number(charge.amount_cents) - Number(charge.paid_cents), 0))}</span>)}</div></section>}

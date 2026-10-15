@@ -1,11 +1,12 @@
-import { useMemo, useState } from "react";
+import { MakeupBookings } from "./MakeupBookings";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { SelectField, TextField } from "../components/FormPrimitives";
 import { dateKey, messageOf, ModuleState, type Row, useResources } from "./OperationalShared";
 
 type AttendanceResponse = { slots: Row[]; makeups: Row[] };
 
-export function OperationalDailyAttendance({ canEdit = true }: { canEdit?: boolean }) {
+export function OperationalDailyAttendance({ canEdit = true, canManageMakeups = false }: { canEdit?: boolean; canManageMakeups?: boolean }) {
   const [selectedUnitId, setSelectedUnitId] = useState(() => window.localStorage.getItem("fisiofit:selected-unit") ?? "");
   const [selectedDate, setSelectedDate] = useState(() => dateKey(new Date()));
   const [selectedSlotId, setSelectedSlotId] = useState("");
@@ -22,6 +23,11 @@ export function OperationalDailyAttendance({ canEdit = true }: { canEdit?: boole
   const pending = members.length - present - absent;
   const isFuture = selectedDate > dateKey(new Date());
 
+  useEffect(() => {
+    const changed = (event: Event) => { setSelectedUnitId((event as CustomEvent<string>).detail ?? ""); setSelectedSlotId(""); setNotice(""); };
+    window.addEventListener("fisiofit:unit-changed", changed);
+    return () => window.removeEventListener("fisiofit:unit-changed", changed);
+  }, []);
   function moveDay(offset: number) {
     const next = new Date(`${selectedDate}T12:00:00`);
     next.setDate(next.getDate() + offset);
@@ -34,23 +40,11 @@ export function OperationalDailyAttendance({ canEdit = true }: { canEdit?: boole
     setSavingId(member.id);
     setNotice("");
     try {
-      await api("/attendance", { method: "POST", body: JSON.stringify({ membership_id: member.id, class_date: selectedDate, status }) });
+      const reason = member.attendance ? window.prompt("Motivo da correção (mínimo 3 caracteres):") : null;
+      if (member.attendance && (!reason || reason.trim().length < 3)) return;
+      await api(`/class-occurrences/${member.occurrence_id}/attendance/${member.patient_id}`, { method: "PUT", body: JSON.stringify({ status: status === "present" ? "PRESENT" : "ABSENT_UNJUSTIFIED", expectedVersion: member.attendance?.version ?? null, notes: member.attendance?.notes ?? null, ...(reason ? { reason } : {}) }) });
       await reload();
-      setNotice(`${member.patients?.name ?? "Paciente"}: ${status === "present" ? "presença registrada" : "falta registrada e reposição pendente"}.`);
-    } catch (error) {
-      setNotice(messageOf(error));
-    } finally {
-      setSavingId("");
-    }
-  }
-
-  async function finishMakeup(item: Row, status: "completed" | "waived") {
-    setSavingId(item.id);
-    setNotice("");
-    try {
-      await api(`/attendance/${item.id}/makeup`, { method: "PATCH", body: JSON.stringify({ status }) });
-      await reload();
-      setNotice(status === "completed" ? "Reposição marcada como realizada." : "Reposição dispensada.");
+      setNotice(`${member.patients?.name ?? "Paciente"}: ${status === "present" ? "presença registrada" : "falta registrada"}.`);
     } catch (error) {
       setNotice(messageOf(error));
     } finally {
@@ -95,7 +89,7 @@ export function OperationalDailyAttendance({ canEdit = true }: { canEdit?: boole
       {selectedSlot && <div className="attendance-day-heading"><h2>{formattedDate}</h2><p>Horário e equipe selecionados</p></div>}
       {selectedSlot ? <div className="attendance-slot-list"><section className="card attendance-card" key={selectedSlot.id}>
         {(() => { const slot = selectedSlot; return <>
-        <div className="card-head attendance-slot-head"><div><p className="eyebrow">{slot.units?.name ?? "UNIDADE"}</p><h2>Horário {String(slot.starts_at).slice(0, 5)}</h2><p>{slot.professionals?.name ?? "Profissional não informado"} · {slot.services?.name ?? slot.name}</p></div><strong>{slot.members?.length ?? 0}/{slot.capacity ?? 7} pacientes</strong></div>
+        <div className="card-head attendance-slot-head"><div><p className="eyebrow">{slot.units?.name ?? "UNIDADE"}</p><h2>Horário {String(slot.starts_at).slice(0, 5)}</h2><p>{slot.professionals?.name ?? "Profissional não informado"} · {slot.services?.name ?? slot.name}</p></div><strong>{slot.members?.length ?? 0} pacientes</strong></div>
         {slot.members?.length ? <div className="attendance-list">{slot.members.map((member: Row) => {
           const status = member.attendance?.status as "present" | "absent" | undefined;
           const busy = savingId === member.id;
@@ -110,10 +104,7 @@ export function OperationalDailyAttendance({ canEdit = true }: { canEdit?: boole
         })}</div> : <div className="attendance-empty"><strong>Nenhum paciente neste horário</strong></div>}
         </>; })()}
       </section></div> : <div className="card attendance-empty"><strong>{selectedUnitId ? response.slots.length ? "Selecione um horário" : "Nenhuma turma fixa nesta data" : "Selecione a unidade"}</strong><p>{selectedUnitId ? response.slots.length ? "Depois da escolha, pacientes e fisioterapeuta serão carregados automaticamente." : "Os pacientes aparecerão conforme os dias e períodos cadastrados na Agenda." : "Comece escolhendo a unidade da clínica para fazer a chamada."}</p></div>}
-      {selectedUnitId && <section className="card makeup-card" aria-labelledby="makeup-title">
-        <div className="card-head"><div><p className="eyebrow">CONTROLE DE FALTAS</p><h2 id="makeup-title">Reposições pendentes</h2><p>Uma falta permanece aqui até a reposição ser realizada ou dispensada.</p></div><span className="count">{response.makeups.length}</span></div>
-        {response.makeups.length ? <div className="makeup-list">{response.makeups.map((item) => <article className="makeup-row" key={item.id}><div><strong>{item.patients?.name ?? "Paciente"}</strong><span>Faltou em {new Intl.DateTimeFormat("pt-BR").format(new Date(`${item.class_date}T12:00:00`))} · Horário {String(item.group_slots?.starts_at ?? "").slice(0, 5)}</span></div>{canEdit && <div className="attendance-actions"><button className="btn primary" type="button" disabled={savingId === item.id} onClick={() => void finishMakeup(item, "completed")}>Reposição realizada</button><button className="btn secondary" type="button" disabled={savingId === item.id} onClick={() => void finishMakeup(item, "waived")}>Dispensar</button></div>}</article>)}</div> : <div className="attendance-empty"><strong>Nenhuma reposição pendente</strong><p>As faltas registradas aparecerão automaticamente aqui.</p></div>}
-      </section>}
+      <MakeupBookings key={selectedUnitId} canManage={canEdit && canManageMakeups} initialUnit={selectedUnitId} />
     </>}
   </div>;
 }

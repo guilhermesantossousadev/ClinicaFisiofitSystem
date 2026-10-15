@@ -1,0 +1,18 @@
+running 5 tests from ./supabase/functions/api/authorization.test.ts
+papéis sensíveis usam uma matriz de acesso fail-closed ... ok (259µs)
+todos os cinco papéis possuem configuração explícita e segura ... ok (283µs)
+recepção pode concluir o fluxo operacional de matrícula ... ok (33µs)
+rotas clínicas e financeiras são associadas ao módulo correto ... ok (245µs)
+plan changes and price terms keep enrollment permission gates ... ok (41µs)
+running 6 tests from ./supabase/functions/api/financial-errors.test.ts
+financial API error CONTRACT_HAS_FUTURE_CHARGES ... ok (175µs)
+financial API error ENROLLMENT_NOT_ACTIVE ... ok (16µs)
+financial API error CONTRACT_AMOUNT_CONFLICT ... ok (11µs)
+financial API error AMOUNT_BELOW_RECEIVED ... ok (9µs)
+financial API error PLAN_CHANGE_FUTURE_RECEIPTS ... ok (16µs)
+unknown database exceptions remain generic ... ok (18µs)
+
+ok | 11 passed | 0 failed (20ms)
+
+Check supabase/functions/api/authorization.test.ts
+Check supabase/functions/api/financial-errors.test.ts

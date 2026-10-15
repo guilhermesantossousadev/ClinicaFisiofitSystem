@@ -1,3 +1,4 @@
+import { AgendaExceptions } from "./AgendaExceptions";
 import { FormEvent, type FormEventHandler, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import type { Role } from "../../domain/portal";
@@ -22,7 +23,7 @@ type CalendarItem = {
 type OccurrenceDetail = { occurrence: any; participants: EffectiveOccurrenceParticipant[]; occupancy: number };
 type AvailableOccurrencePatient = { id: string; name: string; active: boolean };
 type AttendanceStatus = "PRESENT" | "LATE" | "ABSENT_JUSTIFIED" | "ABSENT_UNJUSTIFIED" | "CANCELLED_IN_ADVANCE" | "CANCELLED_LATE";
-type OccurrenceAttendance = { patient_id: string; patient_name: string; patient_active: boolean; source_type: string; attendance_id: string | null; attendance_status: AttendanceStatus | null; recorded_at: string | null; correction_count: number };
+type OccurrenceAttendance = { patient_id: string; patient_name: string; patient_active: boolean; source_type: string; attendance_id: string | null; attendance_status: AttendanceStatus | null; recorded_at: string | null; correction_count: number; notes?: string | null; version?: number | null; history?: Array<{ before_status: string; after_status: string; reason: string; created_at: string }> };
 const ATTENDANCE_STATUSES: { value: AttendanceStatus; label: string }[] = [
   { value: "PRESENT", label: "Presente" }, { value: "LATE", label: "Atrasado" },
   { value: "ABSENT_JUSTIFIED", label: "Falta justificada" }, { value: "ABSENT_UNJUSTIFIED", label: "Falta" },
@@ -132,10 +133,8 @@ function AgendaDialog({ children, labelId, onClose, className = "" }: { children
 function GroupMemberForm({
   slotName,
   availablePatients,
-  allowedPatientIds,
   selectedDate,
   slotWeekdays,
-  full,
   onSubmit,
 }: {
   slotName: string;
@@ -146,11 +145,7 @@ function GroupMemberForm({
   full: boolean;
   onSubmit: FormEventHandler<HTMLFormElement>;
 }) {
-  const helperText = full
-    ? "A capacidade máxima foi atingida."
-    : allowedPatientIds.length
-      ? "O plano pode ser cadastrado depois, quando o paciente fizer o pagamento."
-      : "Não há pacientes disponíveis nesta unidade para adicionar à turma.";
+  const helperText = "Busque qualquer paciente autorizado pelo nome, telefone ou CPF. O plano pode ser cadastrado depois.";
   return (
     <form className="group-member-form" onSubmit={onSubmit} aria-label={`Adicionar paciente à turma ${slotName}`}>
       <FormSection legend="Adicionar paciente à turma">
@@ -161,21 +156,21 @@ function GroupMemberForm({
             name="patient_id"
             label="Paciente"
             rows={availablePatients}
-            required={!full}
+            required
             id="group-member-enrollment"
-            allowedIds={allowedPatientIds}
+            crossUnit
           />
           <TextField
             name="starts_at"
             label="Início do vínculo"
             type="date"
             defaultValue={selectedDate}
-            required={!full}
+            required
             hint="A partir de qual data o paciente participa desta turma."
           />
         </div>
         <div className="group-member-form-actions">
-          <button className="btn primary group-members-add" disabled={full || !allowedPatientIds.length}>{full ? "Turma lotada" : "Adicionar paciente"}</button>
+          <button className="btn primary group-members-add">Adicionar paciente</button>
           <p className="form-instructions" role="status">{helperText}</p>
         </div>
       </FormSection>
@@ -247,6 +242,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
   const [attendanceSavingPatient, setAttendanceSavingPatient] = useState("");
   const [attendanceError, setAttendanceError] = useState("");
   const [attendanceReason, setAttendanceReason] = useState("");
+  const [attendanceNotes, setAttendanceNotes] = useState<Record<string, string>>({});
   const [attendanceCorrectionPatient, setAttendanceCorrectionPatient] = useState("");
   const [runOccurrenceCancellation] = useState(() => createOccurrenceCancellation({
     request: async (occurrenceId) => { await api(`/class-occurrences/${occurrenceId}/cancel`, { method: "POST" }); },
@@ -273,7 +269,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
   async function saveOccurrence(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (!selectedOccurrence) return;
     const form = new FormData(event.currentTarget); setOccurrenceSaving(true);
-    try { await api(`/class-occurrences/${selectedOccurrence.sourceId}`, { method: "PATCH", body: JSON.stringify({ startTime: value(form, "start_time"), endTime: value(form, "end_time"), actualProfessionalId: value(form, "actual_professional_id") || null, roomId: value(form, "room_id") || null }) }); success("Alteração aplicada somente a esta aula."); setOccurrenceEditing(false); await reloadAgenda(); const result = await api<OccurrenceDetail>(`/class-occurrences/${selectedOccurrence.sourceId}`); setOccurrenceDetail(result.data ?? null); } catch (actionError) { failure(actionError); } finally { setOccurrenceSaving(false); }
+    try { await api(`/class-occurrences/${selectedOccurrence.sourceId}`, { method: "PATCH", body: JSON.stringify({ date: value(form, "occurrence_date"), reason: value(form, "occurrence_reason"), startTime: value(form, "start_time"), endTime: value(form, "end_time"), actualProfessionalId: value(form, "actual_professional_id") || null, roomId: value(form, "room_id") || null }) }); success("Alteração aplicada somente a esta aula."); setOccurrenceEditing(false); await reloadAgenda(); const result = await api<OccurrenceDetail>(`/class-occurrences/${selectedOccurrence.sourceId}`); setOccurrenceDetail(result.data ?? null); } catch (actionError) { failure(actionError); } finally { setOccurrenceSaving(false); }
   }
   async function cancelOccurrence() {
     if (!selectedOccurrence || !occurrenceDetail || occurrenceCanceling) return;
@@ -282,7 +278,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
   }
   useEffect(() => {
     if (!selectedOccurrence) { setOccurrenceDetail(null); setOccurrenceEditing(false); return; }
-    let active = true; setOccurrenceLoading(true);
+    let active = true; setOccurrenceDetail(null); setOccurrenceLoading(true);
     void api<OccurrenceDetail>(`/class-occurrences/${selectedOccurrence.sourceId}`).then((result) => { if (active) setOccurrenceDetail(result.data ?? null); }).catch((actionError) => { if (active) failure(actionError); }).finally(() => { if (active) setOccurrenceLoading(false); });
     return () => { active = false; };
   }, [selectedOccurrence?.sourceId]);
@@ -310,6 +306,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
       const result = await api<{ items: OccurrenceAttendance[] }>(`/class-occurrences/${occurrenceId}/attendance`);
       const rows = result.data?.items ?? [];
       setAttendanceRows(rows);
+      setAttendanceNotes(Object.fromEntries(rows.map((row) => [row.patient_id, row.notes ?? ""])));
       setAttendanceDraft(Object.fromEntries(rows.map((row) => [row.patient_id, row.attendance_status ?? ""])));
     } catch (error) { setAttendanceError(messageOf(error).replace(/^Erro:\s*/, "")); }
     finally { setAttendanceLoading(false); }
@@ -323,12 +320,12 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
   const saveOccurrenceAttendance = async (row: OccurrenceAttendance) => {
     const status = attendanceDraft[row.patient_id];
     if (!selectedOccurrence || !status || attendanceSavingPatient) return;
-    const correcting = Boolean(row.attendance_id && status !== row.attendance_status);
-    if (correcting && (role !== "admin" && role !== "manager" || attendanceReason.trim().length < 3)) return;
+    const correcting = Boolean(row.attendance_id && (status !== row.attendance_status || attendanceNotes[row.patient_id] !== (row.notes ?? "")));
+    if (correcting && attendanceReason.trim().length < 3) return;
     setAttendanceSavingPatient(row.patient_id); setAttendanceError("");
     try {
       await api(`/class-occurrences/${selectedOccurrence.sourceId}/attendance/${row.patient_id}`, {
-        method: "PUT", body: JSON.stringify({ status, ...(correcting ? { reason: attendanceReason.trim() } : {}) }),
+        method: "PUT", body: JSON.stringify({ status, expectedVersion: row.version ?? null, notes: attendanceNotes[row.patient_id] || null, ...(correcting ? { reason: attendanceReason.trim() } : {}) }),
       });
       setAttendanceReason(""); setAttendanceCorrectionPatient("");
       await loadOccurrenceAttendance(selectedOccurrence.sourceId);
@@ -426,9 +423,12 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
     const start = String(member.starts_at ?? "").slice(0, 10);
     const end = member.ends_at ? String(member.ends_at).slice(0, 10) : "9999-12-31";
     const current = dateKey(date);
-    return current >= start && current <= end;
+    return current >= start && current <= end && (!member.weekdays || member.weekdays.includes(date.getDay()));
   });
-  const slotsForDay = (unitId: string, day: Date) => fixedSlots.filter((slot) => {
+  const slotsForDay = (unitId: string, day: Date) => fixedSlots.map((slot) => {
+    const version = (slot.schedule_versions ?? []).find((v: Row) => v.effective_from <= dateKey(day) && (!v.effective_to || dateKey(day) < v.effective_to));
+    return version ? { ...slot, starts_at: version.start_time, weekdays: version.weekdays.map((d: string) => LEGACY_DAY_BY_CLASS_WEEKDAY[d]), professional_id: version.planned_professional_id, starts_on: version.effective_from, ends_on: version.effective_to ? shiftDate(version.effective_to, -1) : null } : slot;
+  }).filter((slot) => {
     const currentDate = dateKey(day);
     const startsOn = slot.starts_on ? String(slot.starts_on).slice(0, 10) : "0000-01-01";
     const endsOn = slot.ends_on ? String(slot.ends_on).slice(0, 10) : "9999-12-31";
@@ -661,11 +661,6 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
   }
 
   async function deleteGroup(slot: Row) {
-    const activeMembers = groupMembers.filter((member) => member.group_slot_id === slot.id && member.status === "active");
-    if (activeMembers.length) {
-      failure(new Error(`Retire ${activeMembers.length === 1 ? "o paciente" : `os ${activeMembers.length} pacientes`} da turma antes de excluí-la.`));
-      return;
-    }
     if (!window.confirm(`Excluir a turma "${slot.name}"? Ela será removida da agenda, mas o histórico será preservado.`)) return;
     try {
       await api(`/group-slots/${slot.id}`, { method: "DELETE" });
@@ -694,6 +689,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
           weekdays: form.getAll("weekdays").map(Number),
           starts_at: value(form, "starts_at"),
           starts_on: value(form, "starts_on") || null,
+          effective_from: value(form, "effective_from"),
           ends_on: value(form, "ends_on") || null,
           duration_minutes: Number(value(form, "duration_minutes")),
           capacity: Number(value(form, "capacity")),
@@ -741,6 +737,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
           <button type="button" onClick={() => setNotice(null)} aria-label="Fechar mensagem">×</button>
         </div>
       )}
+      {canManageGroups && <AgendaExceptions onChanged={reloadAgenda} />}
       <ModuleState loading={loading} error={error} retry={reload} />
       <section className="card fixed-calendar month-calendar" aria-label="Calendário semanal de horários fixos">
         <div className="table-toolbar fixed-calendar-toolbar">
@@ -797,7 +794,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
       <section className="card" aria-label="Resumo de vagas disponíveis">
         <h2>Horários disponíveis para oferecer aos clientes</h2>
         <p>Vagas nas turmas da semana selecionada. Os horários fixos vão de 06:00 a 20:00.</p>
-        {visibleUnits.flatMap((unit) => calendarDays.flatMap((day) => slotsForDay(unit.id, day).map((slot) => ({ unit, day, slot, free: Math.max(0, Number(slot.capacity ?? 7) - membersForSlot(slot.id, day).length) })))).filter(({ free }) => free > 0).map(({ unit, day, slot, free }) => <p key={`${slot.id}-${dateKey(day)}`}><button type="button" className="btn" onClick={() => setSelectedGroupCell({ slot, day, unitName: unit.name })}>{day.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" })} · {String(slot.starts_at).slice(0, 5)} · {slot.name} · {free} vagas livres</button></p>)}
+        {visibleUnits.flatMap((unit) => calendarDays.flatMap((day) => slotsForDay(unit.id, day).map((slot) => ({ unit, day, slot, free: Math.max(0, Number(slot.capacity ?? 7) - membersForSlot(slot.id, day).length) })))).map(({ unit, day, slot, free }) => <p key={`${slot.id}-${dateKey(day)}`}><button type="button" className="btn" onClick={() => setSelectedGroupCell({ slot, day, unitName: unit.name })}>{day.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" })} · {String(slot.starts_at).slice(0, 5)} · {slot.name} · {free} vagas livres</button></p>)}
         {!visibleUnits.length && <p>Selecione uma unidade para consultar as vagas.</p>}
       </section>
       {selectedOccurrence && <AgendaDialog labelId="occurrence-details-title" className="calendar-edit-modal" onClose={() => setSelectedOccurrence(null)}>
@@ -811,16 +808,16 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
             <p className="occurrence-attendance-review">Esta ação apenas preenche a seleção. Revise cada participante e salve individualmente.</p>
             <ul className="occurrence-attendance-list">{attendanceRows.map((row) => {
               const status = attendanceDraft[row.patient_id] ?? "";
-              const correcting = Boolean(row.attendance_id && status !== row.attendance_status);
-              const canCorrect = role === "admin" || role === "manager";
-              return <li key={row.patient_id}><div className="occurrence-attendance-person"><strong>{row.patient_name}</strong><small>{row.attendance_status ? `Registrado: ${ATTENDANCE_STATUSES.find((item) => item.value === row.attendance_status)?.label ?? row.attendance_status}` : "Sem registro"}</small></div><select aria-label={`Presença de ${row.patient_name}`} value={status} disabled={occurrenceDetail.occurrence.status === "cancelled" || Boolean(attendanceSavingPatient) || Boolean(row.attendance_id && !canCorrect)} onChange={(event) => { const next = event.target.value as AttendanceStatus | ""; setAttendanceDraft((current) => ({ ...current, [row.patient_id]: next })); if (row.attendance_id) { setAttendanceCorrectionPatient(row.patient_id); setAttendanceReason(""); } }}><option value="">Selecionar estado</option>{ATTENDANCE_STATUSES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>{correcting && canCorrect && attendanceCorrectionPatient === row.patient_id && <label className="attendance-correction-reason">Motivo da correção<input value={attendanceReason} maxLength={500} onChange={(event) => setAttendanceReason(event.target.value)} placeholder="Informe o motivo (mín. 3 caracteres)" /></label>}<button type="button" className="btn primary attendance-save" disabled={occurrenceDetail.occurrence.status === "cancelled" || Boolean(attendanceSavingPatient) || !status || status === row.attendance_status || (correcting && (!canCorrect || attendanceCorrectionPatient !== row.patient_id || attendanceReason.trim().length < 3))} onClick={() => void saveOccurrenceAttendance(row)}>{attendanceSavingPatient === row.patient_id ? "Salvando…" : correcting ? "Corrigir" : "Salvar"}</button></li>;
+              const correcting = Boolean(row.attendance_id && (status !== row.attendance_status || attendanceNotes[row.patient_id] !== (row.notes ?? "")));
+              const canCorrect = canEdit;
+              return <li key={row.patient_id}><div className="occurrence-attendance-person"><strong>{row.patient_name}</strong><small>{row.attendance_status ? `Registrado: ${ATTENDANCE_STATUSES.find((item) => item.value === row.attendance_status)?.label ?? row.attendance_status}` : "Sem registro"}</small></div><select aria-label={`Presença de ${row.patient_name}`} value={status} disabled={occurrenceDetail.occurrence.status === "cancelled" || Boolean(attendanceSavingPatient) || Boolean(row.attendance_id && !canCorrect)} onChange={(event) => { const next = event.target.value as AttendanceStatus | ""; setAttendanceDraft((current) => ({ ...current, [row.patient_id]: next })); if (row.attendance_id) { setAttendanceCorrectionPatient(row.patient_id); setAttendanceReason(""); } }}><option value="">Selecionar estado</option>{ATTENDANCE_STATUSES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select><label>Observações<input maxLength={2000} value={attendanceNotes[row.patient_id] ?? ""} disabled={!canEdit || Boolean(attendanceSavingPatient)} onChange={(event) => { setAttendanceNotes((current) => ({ ...current, [row.patient_id]: event.target.value })); if (row.attendance_id) setAttendanceCorrectionPatient(row.patient_id); }} /></label>{row.history?.length ? <details><summary>Histórico ({row.history.length})</summary>{row.history.map((item, index) => <p key={index}>{item.before_status} → {item.after_status} · {item.reason} · {new Date(item.created_at).toLocaleString("pt-BR")}</p>)}</details> : null}{correcting && canCorrect && attendanceCorrectionPatient === row.patient_id && <label className="attendance-correction-reason">Motivo da correção<input value={attendanceReason} maxLength={500} onChange={(event) => setAttendanceReason(event.target.value)} placeholder="Informe o motivo (mín. 3 caracteres)" /></label>}<button type="button" className="btn primary attendance-save" disabled={occurrenceDetail.occurrence.status === "cancelled" || Boolean(attendanceSavingPatient) || !status || (status === row.attendance_status && attendanceNotes[row.patient_id] === (row.notes ?? "")) || (correcting && (!canCorrect || attendanceCorrectionPatient !== row.patient_id || attendanceReason.trim().length < 3))} onClick={() => void saveOccurrenceAttendance(row)}>{attendanceSavingPatient === row.patient_id ? "Salvando…" : correcting ? "Corrigir" : "Salvar"}</button></li>;
             })}</ul>
           </> : <p className="empty-state">Nenhum participante previsto para esta aula.</p>}
           <div className="modal-actions"><button type="button" className="btn secondary" onClick={() => setAttendanceOpen(false)}>Voltar aos detalhes</button></div>
         </section> : occurrenceEditing ? <form className="modal-form" onSubmit={saveOccurrence}>
           <p className="form-instructions">Esta alteração afetará somente a aula de {new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(occurrenceDetail.occurrence.start_at))}.</p>
-          <div className="form-row"><TextField name="start_time" label="Horário inicial" type="time" defaultValue={String(occurrenceDetail.occurrence.local_start_time).slice(0, 5)} required /><TextField name="end_time" label="Horário final" type="time" defaultValue={String(occurrenceDetail.occurrence.local_end_time).slice(0, 5)} required /></div>
-          <SelectField name="actual_professional_id" label="Profissional nesta aula" defaultValue={occurrenceDetail.occurrence.actual_professional_id ?? ""}><option value="">Manter profissional planejado</option>{professionalsForUnit(professionals, selectedOccurrence.unitId, occurrenceDetail.occurrence.actual_professional_id ?? occurrenceDetail.occurrence.planned_professional_id ?? "").map((professional) => <option key={String(professional.id)} value={String(professional.id)}>{String(professional.name)}</option>)}</SelectField>
+          <div className="form-row"><TextField name="occurrence_date" label="Data desta aula" type="date" min={clinicToday()} defaultValue={clinicDateKey(occurrenceDetail.occurrence.start_at)} required /><TextField name="occurrence_reason" label="Motivo da alteração" minLength={3} maxLength={1000} required /><TextField name="start_time" label="Horário inicial" type="time" defaultValue={String(occurrenceDetail.occurrence.local_start_time).slice(0, 5)} required /><TextField name="end_time" label="Horário final" type="time" defaultValue={String(occurrenceDetail.occurrence.local_end_time).slice(0, 5)} required /></div>
+          <SelectField name="actual_professional_id" label="Profissional nesta aula" defaultValue={occurrenceDetail.occurrence.actual_professional_id ?? ""}><option value="">Manter profissional planejado</option>{professionals.filter((p) => p.active !== false).map((professional) => <option key={String(professional.id)} value={String(professional.id)}>{String(professional.name)}</option>)}</SelectField>
           <SelectField name="room_id" label="Sala" defaultValue={occurrenceDetail.occurrence.room_id ?? ""}><option value="">Não informada</option>{resourcesForUnit(rooms, selectedOccurrence.unitId).map((room) => <option key={String(room.id)} value={String(room.id)}>{String(room.name)}</option>)}</SelectField>
           <div className="modal-actions"><button type="button" className="btn secondary" onClick={() => setOccurrenceEditing(false)}>Voltar</button><button className="btn primary" disabled={occurrenceSaving}>{occurrenceSaving ? "Salvando…" : "Salvar somente esta aula"}</button></div>
         </form> : <div className="appointment-readonly-details occurrence-details"><dl>
@@ -830,11 +827,11 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
           {occurrenceDetail.occurrence.actualProfessional && <div><dt>Profissional nesta aula</dt><dd>{occurrenceDetail.occurrence.actualProfessional.name}</dd></div>}
           <div><dt>Capacidade</dt><dd>{occurrenceDetail.occupancy}/{occurrenceDetail.occurrence.effective_capacity}</dd></div><div><dt>Sala</dt><dd>{occurrenceDetail.occurrence.rooms?.name ?? "Não informada"}</dd></div><div><dt>Serviço</dt><dd>{occurrenceDetail.occurrence.services?.name ?? "Não informado"}</dd></div>
         </dl><section className="occurrence-participants" aria-labelledby="occurrence-participants-title"><div className="occurrence-participants-heading"><div><h3 id="occurrence-participants-title">Participantes desta aula</h3><p>{occurrenceDetail.occupancy}/{occurrenceDetail.occurrence.effective_capacity} ocupados</p></div>{canManageGroups && occurrenceDetail.occurrence.status === "planned" && <button type="button" className="btn secondary" onClick={() => { setParticipantMutationError(""); setAddingOccurrenceParticipant(true); }}>+ Adicionar paciente</button>}</div>{occurrenceDetail.participants.length ? <ul>{occurrenceDetail.participants.map((participant) => <li key={participant.patient.id}><span>{participant.patient.name}<small>{participant.source === "MANUAL" ? "Adicionado nesta aula" : participant.source === "MAKEUP" ? "Reposição nesta aula" : participant.patient.active ? "Ativo" : "Inativo"}</small></span>{canManageGroups && occurrenceDetail.occurrence.status === "planned" && <button type="button" className="btn secondary occurrence-participant-remove" onClick={() => { setParticipantMutationError(""); setRemovingParticipant(participant); }}>Remover desta aula</button>}</li>)}</ul> : <p className="empty-state">Nenhum aluno previsto para esta aula.</p>}</section>
-        <div className="modal-actions">{canManageGroups && occurrenceDetail.occurrence.status === "planned" && <><button type="button" className="btn secondary" onClick={() => setOccurrenceEditing(true)}>Alterar somente esta aula</button><button type="button" className="btn secondary action-delete" onClick={() => { setOccurrenceCancelError(""); setConfirmOccurrenceCancellation(true); }}>Cancelar esta aula</button></>}{canEdit && ["admin", "manager", "reception", "professional"].includes(role) && <button type="button" className="btn secondary" onClick={() => void openOccurrenceAttendance()}>Abrir chamada</button>}<button type="button" className="btn primary" onClick={() => setSelectedOccurrence(null)}>Fechar</button></div></div>}
+        <div className="modal-actions">{canManageGroups && occurrenceDetail.occurrence.status === "cancelled" && String(occurrenceDetail.occurrence.cancellation_reason ?? "").startsWith("holiday") && <button type="button" className="btn secondary" onClick={async () => { const reason = window.prompt("Justificativa para funcionar neste feriado:"); if (!reason || reason.trim().length < 3) return; try { await api(`/class-occurrences/${selectedOccurrence.sourceId}/reopen`, { method: "POST", body: JSON.stringify({ reason }) }); await refreshOccurrence(selectedOccurrence.sourceId); success("Funcionamento excepcional autorizado nesta aula."); } catch (e) { failure(e); } }}>Autorizar funcionamento neste feriado</button>}{canManageGroups && occurrenceDetail.occurrence.status === "planned" && <><button type="button" className="btn secondary" onClick={() => setOccurrenceEditing(true)}>Alterar somente esta aula</button><button type="button" className="btn secondary action-delete" onClick={() => { setOccurrenceCancelError(""); setConfirmOccurrenceCancellation(true); }}>Cancelar esta aula</button></>}{canEdit && ["admin", "manager", "reception", "professional"].includes(role) && <button type="button" className="btn secondary" onClick={() => void openOccurrenceAttendance()}>Abrir chamada</button>}<button type="button" className="btn primary" onClick={() => setSelectedOccurrence(null)}>Fechar</button></div></div>}
       </AgendaDialog>}
       {selectedOccurrence && occurrenceDetail && addingOccurrenceParticipant && <AgendaDialog labelId="add-occurrence-participant-title" className="calendar-edit-modal occurrence-participant-dialog" onClose={() => { if (!addingPatientId) { setAddingOccurrenceParticipant(false); setParticipantSearch(""); setParticipantMutationError(""); } }}>
         <div className="modal-head"><div><p className="eyebrow">AÇÃO PONTUAL</p><h2 id="add-occurrence-participant-title">Adicionar paciente</h2></div><button type="button" disabled={Boolean(addingPatientId)} onClick={() => setAddingOccurrenceParticipant(false)} aria-label="Fechar busca">×</button></div>
-        <div className="occurrence-participant-dialog-body"><p className="form-instructions">{occurrenceDetail.occupancy}/{occurrenceDetail.occurrence.effective_capacity} ocupados · {Math.max(0, Number(occurrenceDetail.occurrence.effective_capacity) - occurrenceDetail.occupancy)} vaga(s) disponível(is). A inclusão vale somente para esta aula.</p><label className="occurrence-patient-search">Buscar paciente da unidade<input type="search" autoFocus minLength={2} value={participantSearch} onChange={(event) => { setParticipantSearch(event.target.value); setParticipantMutationError(""); }} placeholder="Digite ao menos 2 letras do nome" autoComplete="off" aria-controls="occurrence-patient-results" /></label>
+        <div className="occurrence-participant-dialog-body"><p className="form-instructions">{occurrenceDetail.occupancy}/{occurrenceDetail.occurrence.effective_capacity} ocupados · capacidade de referência, sem limite obrigatório. A inclusão vale somente para esta aula.</p><label className="occurrence-patient-search">Buscar paciente<input type="search" autoFocus minLength={2} value={participantSearch} onChange={(event) => { setParticipantSearch(event.target.value); setParticipantMutationError(""); }} placeholder="Digite ao menos 2 letras do nome" autoComplete="off" aria-controls="occurrence-patient-results" /></label>
           <div id="occurrence-patient-results" className="occurrence-patient-results" aria-live="polite">{participantSearch.trim().length < 2 ? <p>Digite ao menos 2 letras para buscar.</p> : participantSearchLoading ? <p role="status">Buscando pacientes…</p> : availableOccurrencePatients.length ? <ul>{availableOccurrencePatients.map((patient) => <li key={patient.id}><span>{patient.name}<small>{patient.active ? "Ativo" : "Inativo"}</small></span><button type="button" className="btn primary" disabled={Boolean(addingPatientId)} onClick={() => void addOccurrenceParticipant(patient)}>{addingPatientId === patient.id ? "Adicionando…" : "Adicionar"}</button></li>)}</ul> : <p>Nenhum paciente disponível com esse nome.</p>}</div>
           {participantMutationError && <p className="occurrence-participant-error" role="alert">{participantMutationError}</p>}
         </div><div className="modal-actions"><button type="button" className="btn secondary" onClick={() => { setAddingOccurrenceParticipant(false); setParticipantSearch(""); setParticipantMutationError(""); }}>Fechar</button></div>
@@ -864,7 +861,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
           .map((patient) => String(patient.id));
         const availablePatientIdSet = new Set(availablePatientIds);
         const availablePatients = patients.filter((patient) => availablePatientIdSet.has(patient.id));
-        const full = selectedMembers.length >= capacity;
+        const full = false;
         const selectedProfessional = professionals.find((row: Row) => row.id === selectedGroupCell.slot.professional_id);
         const availableProfessionals = professionalsForUnit(professionals, selectedGroupCell.slot.unit_id, selectedGroupCell.slot.professional_id);
         const availableRooms = rooms.filter((room) => room.unit_id === selectedGroupCell.slot.unit_id && (room.active !== false || room.id === selectedGroupCell.slot.room_id));
@@ -878,7 +875,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
                 <div className="group-edit-heading"><div><h3>Editar turma</h3><p>Altere os dias, horário e responsável desta turma.</p></div><span>{selectedGroupCell.unitName}</span></div>
                 <TextField name="name" label="Nome da turma" defaultValue={selectedGroupCell.slot.name} required disabled={savingGroup} />
                 <div className="form-row">
-                  <SelectField name="professional_id" label="Fisioterapeuta responsável (opcional)" defaultValue={selectedGroupCell.slot.professional_id ?? ""} disabled={savingGroup} hint="Você pode atribuir ou trocar o responsável a qualquer momento.">
+                  <SelectField name="professional_id" label="Fisioterapeuta responsável" defaultValue={selectedGroupCell.slot.professional_id ?? ""} disabled={savingGroup} hint="Você pode atribuir ou trocar o responsável a qualquer momento.">
                     <option value="">Sem fisioterapeuta definido</option>
                     {availableProfessionals.map((professional) => <option key={professional.id} value={professional.id}>{professional.name}</option>)}
                   </SelectField>
@@ -905,7 +902,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
                   <TextField name="ends_on" label="Fim do período (opcional)" type="date" defaultValue={selectedGroupCell.slot.ends_on ?? ""} disabled={savingGroup} onChange={() => setEditGroupConflict(null)} />
                 </div>
                 <div className="form-row">
-                  <TextField name="capacity" label="Capacidade" type="number" min="3" max="7" defaultValue={capacity} required disabled={savingGroup} />
+                  <TextField name="effective_from" label="Aplicar mudança a partir de" type="date" defaultValue={clinicToday()} min={clinicToday()} required /><TextField name="capacity" label="Capacidade de referência" type="number" min="1" defaultValue={capacity} required disabled={savingGroup} />
                   <SelectField name="active" label="Situação" defaultValue={selectedGroupCell.slot.active === false ? "false" : "true"} required disabled={savingGroup}>
                     <option value="true">Ativa</option><option value="false">Inativa</option>
                   </SelectField>
@@ -955,7 +952,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
             <TextField name="name" label="Nome da turma" placeholder="Ex.: Lagoa · Seg/Qua 07h" required />
             <div className="form-row">
               <SelectField name="unit_id" label="Unidade" value={newGroupUnitId} onChange={(event) => { setNewGroupUnitId(event.target.value); setCreateGroupConflict(null); }} required><option value="">Selecione</option>{units.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}</SelectField>
-              <SelectField name="professional_id" label="Fisioterapeuta responsável (opcional)" defaultValue="" hint="Se preferir, crie a turma agora e defina o responsável depois.">
+              <SelectField name="professional_id" label="Fisioterapeuta responsável" defaultValue="" hint="Se preferir, crie a turma agora e defina o responsável depois.">
                 <option value="">Definir depois</option>
                 {professionalsForUnit(professionals, newGroupUnitId).map((professional) => <option key={professional.id} value={professional.id}>{professional.name}</option>)}
               </SelectField>
@@ -980,7 +977,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
               <TextField name="starts_on" label="Início da turma (opcional)" type="date" onChange={() => setCreateGroupConflict(null)} />
               <TextField name="ends_on" label="Fim da turma (opcional)" type="date" onChange={() => setCreateGroupConflict(null)} />
             </div>
-            <TextField name="capacity" label="Capacidade" type="number" min="3" max="7" defaultValue="7" required />
+            <TextField name="capacity" label="Capacidade de referência" type="number" min="1" defaultValue="7" required />
           </fieldset>
           {createGroupConflict && <GroupConflictAlert conflict={createGroupConflict} />}
           <button className="btn primary" disabled={!newGroupUnitId || Boolean(createGroupConflict)}>{createGroupConflict ? "Ajuste o horário para continuar" : "Criar turma"}</button>
@@ -992,7 +989,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
             <TextField name="name_prefix" label="Nome base das turmas" placeholder="Ex.: Pilates · Seg/Qua" hint="O horário será acrescentado automaticamente a cada nome." required />
             <div className="form-row">
               <SelectField name="unit_id" label="Unidade" value={newBulkGroupUnitId} onChange={(event) => { setNewBulkGroupUnitId(event.target.value); setCreateBulkGroupConflict(null); }} required><option value="">Selecione</option>{units.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}</SelectField>
-              <SelectField name="professional_id" label="Fisioterapeuta responsável (opcional)" defaultValue="" hint="As turmas podem ser criadas agora e receber o responsável depois.">
+              <SelectField name="professional_id" label="Fisioterapeuta responsável" defaultValue="" hint="As turmas podem ser criadas agora e receber o responsável depois.">
                 <option value="">Definir depois</option>
                 {professionalsForUnit(professionals, newBulkGroupUnitId).map((professional) => <option key={professional.id} value={professional.id}>{professional.name}</option>)}
               </SelectField>
@@ -1018,7 +1015,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
               <TextField name="starts_on" label="Início das turmas (opcional)" type="date" onChange={() => setCreateBulkGroupConflict(null)} />
               <TextField name="ends_on" label="Fim das turmas (opcional)" type="date" onChange={() => setCreateBulkGroupConflict(null)} />
             </div>
-            <TextField name="capacity" label="Capacidade de cada turma" type="number" min="3" max="7" defaultValue="7" required />
+            <TextField name="capacity" label="Capacidade de referência" type="number" min="1" defaultValue="7" required />
           </fieldset>
           <p className="bulk-group-summary" role="status"><strong>{bulkRangeIsValid ? `${bulkSlotCount} ${bulkSlotCount === 1 ? "turma será criada" : "turmas serão criadas"}` : "Revise a faixa de horários"}</strong><span>De {bulkFirstTime} a {bulkLastTime}, {bulkIntervalMinutes === "60" ? "a cada hora" : `a cada ${Number(bulkIntervalMinutes) / 60} horas`}.</span></p>
           {!bulkRangeIsValid && <p className="form-field-error" role="alert">Escolha um último horário que feche exatamente com o intervalo selecionado.</p>}
@@ -1127,12 +1124,13 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
           { name: "weekdays", label: "Dias da semana (0 domingo; 1 segunda...6 sábado)", required: true, value: (row) => (row.weekdays ?? []).join(",") },
           { name: "starts_at", label: "Horário", required: true },
           { name: "duration_minutes", label: "Duração (min)", type: "number", min: 15, max: 240, required: true },
-          { name: "capacity", label: "Capacidade", type: "number", min: 1, max: 7, required: true },
+          { name: "capacity", label: "Capacidade", type: "number", min: 1, required: true },
           { name: "active", label: "Situação", type: "select", required: true, options: [{ id: "true", name: "Ativa" }, { id: "false", name: "Inativa" }] },
         ]}
         buildBody={(form) => ({
           name: value(form, "name"),
           starts_on: value(form, "starts_on") || null,
+          effective_from: value(form, "effective_from"),
           ends_on: value(form, "ends_on") || null,
           unit_id: value(form, "unit_id"),
           room_id: value(form, "room_id"),

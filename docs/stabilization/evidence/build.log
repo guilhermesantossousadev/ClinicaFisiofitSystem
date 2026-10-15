@@ -1,0 +1,47 @@
+
+> fisiofit-platform@1.0.0 build
+> npm run build:site && npm run build:portal && node scripts/assemble-hostinger.mjs
+
+
+> fisiofit-platform@1.0.0 build:site
+> npm run build -w @fisiofit/site
+
+
+> @fisiofit/site@1.0.0 build
+> vite build
+
+vite v8.1.5 building client environment for production...
+[2Ktransforming...✓ 1605 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                      1.43 kB │ gzip:  0.61 kB
+dist/assets/cuidado-humano-fisiofit-CiYjC99k.avif  123.09 kB
+dist/assets/hero-fisiofit-CC45rPEz.avif            169.73 kB
+dist/assets/fachada-fisiofit-wH25q6ZL.avif         179.03 kB
+dist/assets/studio-lagoa-DvChoEDi.avif             206.00 kB
+dist/assets/studio-centro-DusOto0r.avif            385.20 kB
+dist/assets/index-CxNX9I6x.css                      27.78 kB │ gzip:  5.85 kB
+dist/assets/index-DFOy84LD.js                      254.04 kB │ gzip: 75.89 kB
+
+✓ built in 548ms
+
+> fisiofit-platform@1.0.0 build:portal
+> npm run build -w @fisiofit/portal
+
+
+> @fisiofit/portal@1.0.0 build
+> vite build
+
+vite v8.1.5 building client environment for production...
+[2Ktransforming...✓ 116 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                               0.60 kB │ gzip:   0.36 kB
+dist/assets/index-DQ-T-E7_.css              152.13 kB │ gzip:  28.55 kB
+dist/assets/OperationalShared-Bl0uBMR4.js    22.90 kB │ gzip:   7.78 kB
+dist/assets/OperationalImports-BEPyhpMs.js   81.55 kB │ gzip:  21.89 kB
+dist/assets/FisiofitApp-CndZFghb.js         213.24 kB │ gzip:  51.27 kB
+dist/assets/index-CitdaG58.js               385.85 kB │ gzip: 111.33 kB
+
+✓ built in 177ms
+Pacote Hostinger criado em dist/ com o portal em dist/sistema/.

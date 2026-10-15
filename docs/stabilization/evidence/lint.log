@@ -1,0 +1,11 @@
+
+> fisiofit-platform@1.0.0 lint
+> npm run lint --workspaces --if-present
+
+
+> @fisiofit/portal@1.0.0 lint
+> eslint src
+
+
+> @fisiofit/site@1.0.0 lint
+> eslint src

@@ -1,0 +1,188 @@
+NOTICE:  drop cascades to 129 other objects
+DETAIL:  drop cascades to extension btree_gist
+drop cascades to type appointment_status
+drop cascades to type charge_status
+drop cascades to type class_occurrence_status
+drop cascades to type class_status
+drop cascades to type class_weekday
+drop cascades to type delivery_status
+drop cascades to type enrollment_status
+drop cascades to type financial_kind
+drop cascades to type fiscal_status
+drop cascades to type member_status
+drop cascades to type record_kind
+drop cascades to type record_status
+drop cascades to type user_role
+drop cascades to function _effective_occurrence_patient_ids(uuid)
+drop cascades to function activate_own_profile()
+drop cascades to function add_occurrence_participant(uuid,uuid)
+drop cascades to table charges
+drop cascades to function adjust_charge_amount(uuid,integer,integer,integer,text,uuid)
+drop cascades to table commissions
+drop cascades to function approve_commission(uuid,uuid)
+drop cascades to function backfill_active_group_slots_to_classes(date,integer)
+drop cascades to function bootstrap_available()
+drop cascades to function bootstrap_clinic(text,text)
+drop cascades to function can_access_appointment(uuid)
+drop cascades to function can_access_charge(uuid)
+drop cascades to function can_access_class(uuid)
+drop cascades to function can_access_group_slot(uuid)
+drop cascades to function can_access_patient(uuid)
+drop cascades to function can_access_professional(uuid)
+drop cascades to function can_create_financial_charge(uuid,uuid,uuid)
+drop cascades to table class_occurrences
+drop cascades to function cancel_class_occurrence(uuid)
+drop cascades to function class_weekdays_are_unique(class_weekday[])
+drop cascades to table class_schedules
+drop cascades to function change_class_schedule_from_date(uuid,date,class_weekday[],time without time zone,time without time zone,text,uuid,integer,uuid)
+drop cascades to function change_enrollment_plan(uuid,uuid,date,text,text,uuid)
+drop cascades to function check_appointment_conflict(uuid,uuid,uuid,timestamp with time zone,timestamp with time zone,uuid,uuid,uuid)
+drop cascades to function check_group_membership_capacity()
+drop cascades to table appointments
+drop cascades to function complete_appointment(uuid,uuid)
+drop cascades to function correct_unpaid_charge_amount(uuid,integer,integer,text,uuid)
+drop cascades to function create_class_schedule(uuid,date,class_weekday[],time without time zone,time without time zone,text,uuid,integer,uuid)
+drop cascades to function create_class_with_schedule(uuid,text,uuid,class_status,date,class_weekday[],time without time zone,time without time zone,text,uuid,integer,uuid)
+drop cascades to function create_enrollment_charge(jsonb,uuid)
+drop cascades to function current_clinic_id()
+drop cascades to function current_professional_id()
+drop cascades to table profiles
+drop cascades to function current_profile()
+drop cascades to function "current_role"()
+drop cascades to function effective_occurrence_patient_ids(uuid)
+drop cascades to function enrollment_amount_at(uuid,date,date)
+drop cascades to function financial_enrollment_patient_summaries(uuid[])
+drop cascades to function generate_class_occurrences(uuid,date,date)
+drop cascades to function get_class_occurrence_attendance(uuid)
+drop cascades to function has_agenda_permission(boolean)
+drop cascades to function has_module_permission(text,boolean)
+drop cascades to function has_role(user_role[])
+drop cascades to policy financial_files_delete on table storage.objects
+drop cascades to policy financial_files_insert on table storage.objects
+drop cascades to policy financial_files_select on table storage.objects
+drop cascades to function has_unit_access(uuid)
+drop cascades to function import_rows_transactional(text,text,uuid,jsonb,jsonb,jsonb,text,uuid)
+drop cascades to function link_pending_group_memberships_to_enrollment()
+drop cascades to function prevent_audit_mutation()
+drop cascades to function preview_enrollment_plan_change(uuid,uuid,date)
+drop cascades to function propagate_group_weekdays_to_members()
+drop cascades to function protect_clinic_owner()
+drop cascades to function protect_owner_unit_membership()
+drop cascades to function protect_signed_record()
+drop cascades to function record_class_occurrence_attendance(uuid,uuid,text,text)
+drop cascades to table payments
+drop cascades to function register_payment(uuid,integer,text,timestamp with time zone,text,uuid)
+drop cascades to function remove_occurrence_participant(uuid,uuid)
+drop cascades to function require_enrollment_financial_editor()
+drop cascades to function reverse_payment(uuid,text,uuid)
+drop cascades to function rollback_enrollment(uuid,text,uuid)
+drop cascades to function rollback_import_batch(uuid,text,uuid)
+drop cascades to function same_clinic_professional(uuid)
+drop cascades to function same_clinic_profile(uuid)
+drop cascades to table enrollments
+drop cascades to function save_enrollment(jsonb,uuid,uuid)
+drop cascades to function save_enrollment_before_financial_release(jsonb,uuid,uuid)
+drop cascades to table plans
+drop cascades to function save_plan(jsonb,uuid,uuid)
+drop cascades to function set_enrollment_contract_amount(uuid,integer,integer,date,text,uuid)
+drop cascades to function set_enrollment_contract_terms(uuid,timestamp with time zone,integer,integer,date,text,uuid)
+drop cascades to function sync_membership_weekdays_from_group()
+drop cascades to function try_uuid(text)
+drop cascades to policy clinical_files_delete on table storage.objects
+drop cascades to policy clinical_files_insert on table storage.objects
+drop cascades to policy clinical_files_select on table storage.objects
+drop cascades to function update_class_occurrence(uuid,time without time zone,time without time zone,uuid,uuid)
+drop cascades to function update_unpaid_charge_status(uuid,charge_status,uuid)
+drop cascades to table attachments
+drop cascades to table attendance_revisions
+drop cascades to table attendances
+drop cascades to table audit_events
+drop cascades to table class_attendances
+drop cascades to table class_memberships
+and 29 other objects (see server log for list)
+NOTICE:  extension "pgcrypto" already exists, skipping
+NOTICE:  constraint "group_slots_period_check" of relation "group_slots" does not exist, skipping
+NOTICE:  policy "clinical_files_select" for relation "storage.objects" does not exist, skipping
+NOTICE:  policy "clinical_files_insert" for relation "storage.objects" does not exist, skipping
+NOTICE:  policy "clinical_files_delete" for relation "storage.objects" does not exist, skipping
+NOTICE:  policy "financial_files_select" for relation "storage.objects" does not exist, skipping
+NOTICE:  policy "financial_files_insert" for relation "storage.objects" does not exist, skipping
+NOTICE:  policy "financial_files_delete" for relation "storage.objects" does not exist, skipping
+NOTICE:  policy "profile_avatars_insert_own" for relation "storage.objects" does not exist, skipping
+NOTICE:  policy "profile_avatars_update_own" for relation "storage.objects" does not exist, skipping
+NOTICE:  policy "profile_avatars_delete_own" for relation "storage.objects" does not exist, skipping
+NOTICE:  policy "profile_avatars_select_own" for relation "storage.objects" does not exist, skipping
+NOTICE:  constraint "group_slot_memberships_weekdays_check" of relation "group_slot_memberships" does not exist, skipping
+NOTICE:  trigger "group_slot_membership_sync_weekdays" for relation "public.group_slot_memberships" does not exist, skipping
+NOTICE:  trigger "group_slot_propagate_weekdays" for relation "public.group_slots" does not exist, skipping
+NOTICE:  trigger "enrollment_link_pending_group_memberships" for relation "public.enrollments" does not exist, skipping
+NOTICE:  policy "patients_financial_enrollment_summary_select" for relation "public.patients" does not exist, skipping
+NOTICE:  extension "pgtap" already exists, skipping
+NOTICE:  policy "classes_agenda_select" for relation "public.classes" does not exist, skipping
+NOTICE:  policy "classes_agenda_insert" for relation "public.classes" does not exist, skipping
+NOTICE:  policy "classes_agenda_update" for relation "public.classes" does not exist, skipping
+NOTICE:  policy "classes_agenda_delete" for relation "public.classes" does not exist, skipping
+NOTICE:  policy "class_schedules_agenda_select" for relation "public.class_schedules" does not exist, skipping
+NOTICE:  policy "class_schedules_agenda_insert" for relation "public.class_schedules" does not exist, skipping
+NOTICE:  policy "class_schedules_agenda_update" for relation "public.class_schedules" does not exist, skipping
+NOTICE:  policy "class_schedules_agenda_delete" for relation "public.class_schedules" does not exist, skipping
+NOTICE:  policy "class_memberships_agenda_select" for relation "public.class_memberships" does not exist, skipping
+NOTICE:  policy "class_memberships_agenda_insert" for relation "public.class_memberships" does not exist, skipping
+NOTICE:  policy "class_memberships_agenda_update" for relation "public.class_memberships" does not exist, skipping
+NOTICE:  policy "class_memberships_agenda_delete" for relation "public.class_memberships" does not exist, skipping
+NOTICE:  policy "class_occurrences_agenda_select" for relation "public.class_occurrences" does not exist, skipping
+NOTICE:  policy "class_occurrences_agenda_insert" for relation "public.class_occurrences" does not exist, skipping
+NOTICE:  policy "class_occurrences_agenda_update" for relation "public.class_occurrences" does not exist, skipping
+NOTICE:  policy "class_occurrences_agenda_delete" for relation "public.class_occurrences" does not exist, skipping
+NOTICE:  policy "occurrence_participants_agenda_select" for relation "public.occurrence_participants" does not exist, skipping
+NOTICE:  policy "occurrence_participants_agenda_insert" for relation "public.occurrence_participants" does not exist, skipping
+NOTICE:  policy "occurrence_participants_agenda_update" for relation "public.occurrence_participants" does not exist, skipping
+NOTICE:  policy "occurrence_participants_agenda_delete" for relation "public.occurrence_participants" does not exist, skipping
+migration-existing-data-preservation: PASS
+NOTICE:  policy "classes_agenda_select" for relation "public.classes" does not exist, skipping
+NOTICE:  policy "classes_agenda_insert" for relation "public.classes" does not exist, skipping
+NOTICE:  policy "classes_agenda_update" for relation "public.classes" does not exist, skipping
+NOTICE:  policy "classes_agenda_delete" for relation "public.classes" does not exist, skipping
+NOTICE:  policy "class_schedules_agenda_select" for relation "public.class_schedules" does not exist, skipping
+NOTICE:  policy "class_schedules_agenda_insert" for relation "public.class_schedules" does not exist, skipping
+NOTICE:  policy "class_schedules_agenda_update" for relation "public.class_schedules" does not exist, skipping
+NOTICE:  policy "class_schedules_agenda_delete" for relation "public.class_schedules" does not exist, skipping
+NOTICE:  policy "class_memberships_agenda_select" for relation "public.class_memberships" does not exist, skipping
+NOTICE:  policy "class_memberships_agenda_insert" for relation "public.class_memberships" does not exist, skipping
+NOTICE:  policy "class_memberships_agenda_update" for relation "public.class_memberships" does not exist, skipping
+NOTICE:  policy "class_memberships_agenda_delete" for relation "public.class_memberships" does not exist, skipping
+NOTICE:  policy "class_occurrences_agenda_select" for relation "public.class_occurrences" does not exist, skipping
+NOTICE:  policy "class_occurrences_agenda_insert" for relation "public.class_occurrences" does not exist, skipping
+NOTICE:  policy "class_occurrences_agenda_update" for relation "public.class_occurrences" does not exist, skipping
+NOTICE:  policy "class_occurrences_agenda_delete" for relation "public.class_occurrences" does not exist, skipping
+NOTICE:  policy "occurrence_participants_agenda_select" for relation "public.occurrence_participants" does not exist, skipping
+NOTICE:  policy "occurrence_participants_agenda_insert" for relation "public.occurrence_participants" does not exist, skipping
+NOTICE:  policy "occurrence_participants_agenda_update" for relation "public.occurrence_participants" does not exist, skipping
+NOTICE:  policy "occurrence_participants_agenda_delete" for relation "public.occurrence_participants" does not exist, skipping
+202610150008_operational_stabilization.sql: PASS (schema-only disposable database)
+NOTICE:  extension "pgtap" already exists, skipping
+authorization.test.sql: PASS (39)
+correct_unpaid_charge_amount.test.sql: PASS (17)
+database.test.sql: PASS (19)
+enrollment_contract_amount.test.sql: PASS (23)
+financial_api_permissions.test.sql: PASS (26)
+financial_charge_status.test.sql: PASS (26)
+financial_enrollment_read_permissions.test.sql: PASS (30)
+NOTICE:  extension "pgtap" already exists, skipping
+financial_plans_release.test.sql: PASS (53)
+financial_reception_permissions.test.sql: PASS (17)
+operational_stabilization.test.sql: PASS (86)
+patient_enrollment_saving.test.sql: PASS (31)
+ERROR:  RECONCILIATION_DRIFT_REVIEW_REQUIRED
+CONTEXT:  PL/pgSQL function inline_code_block line 6 at RAISE
+guarded-reconciliation-synthetic: PASS
+typecheck: PASS
+lint: PASS
+deno-check: PASS
+api-tests: PASS
+build: PASS
+frontend-and-node: PASS
+financial-regression: PASS
+diff-check: PASS
+Native browser acceptance PASS (10 UI checks).
+HTTP acceptance PASS (44 requests; actual Auth/RLS/Storage, synthetic data).

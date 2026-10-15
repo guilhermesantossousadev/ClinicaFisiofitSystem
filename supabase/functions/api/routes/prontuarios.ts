@@ -29,6 +29,10 @@ export function registerProntuariosRoutes(app: any, dependencies: any) {
       patient_id: z.string().uuid(), entity_type: z.string().min(2).max(60), entity_id: z.string().uuid(),
       filename: z.string().trim().min(1).max(240), content_type: z.enum(["application/pdf", "image/jpeg", "image/png", "image/webp"]), size_bytes: z.number().int().positive().max(26214400),
     }).parse(await context.req.json());
+    if (input.entity_type !== "patient" || input.entity_id !== input.patient_id) return fail(context, 422, "INVALID_ATTACHMENT_TARGET", "Selecione o paciente que receberá o arquivo.");
+    const { data: patient, error: patientError } = await context.get("db").from("patients").select("id").eq("id", input.patient_id).eq("clinic_id", context.get("profile").clinic_id).is("deleted_at", null).maybeSingle();
+    if (patientError) return databaseResult(context, null, patientError);
+    if (!patient) return fail(context, 404, "PATIENT_NOT_FOUND", "Paciente não encontrado ou acesso não autorizado.");
     const bucket = "clinical-files";
     const path = `${context.get("profile").clinic_id}/${input.patient_id}/${crypto.randomUUID()}-${input.filename.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
     const { data: signed, error: signedError } = await context.get("db").storage.from(bucket).createSignedUploadUrl(path);
@@ -37,12 +41,22 @@ export function registerProntuariosRoutes(app: any, dependencies: any) {
     return databaseResult(context, { attachment: data, token: signed.token, path }, error, 201);
   });
   
+  app.get("/attachments/:id/download-url", requireRoles(["admin", "manager", "professional"]), async (context: any) => {
+    const id = z.string().uuid().parse(context.req.param("id"));
+    const db = context.get("db");
+    const { data: attachment, error } = await db.from("attachments").select("id,patient_id,bucket,storage_path").eq("id", id).eq("clinic_id", context.get("profile").clinic_id).is("deleted_at", null).maybeSingle();
+    if (error) return databaseResult(context, null, error);
+    if (!attachment) return fail(context, 404, "ATTACHMENT_NOT_FOUND", "Arquivo não encontrado ou acesso não autorizado.");
+    const { data, error: storageError } = await db.storage.from(attachment.bucket).createSignedUrl(attachment.storage_path, 60);
+    if (!storageError) await audit(context, "attachment.viewed", "attachment", id);
+    return databaseResult(context, data, storageError);
+  });
+
   app.delete("/attachments/:id", requireRoles(["admin", "manager", "professional", "reception"]), async (context: any) => {
     const id = z.string().uuid().parse(context.req.param("id"));
     const db = context.get("db");
     const { data: attachment, error: readError } = await db.from("attachments").select("id,bucket,storage_path").eq("id", id).eq("clinic_id", context.get("profile").clinic_id).is("deleted_at", null).single();
     if (readError || !attachment) return databaseResult(context, null, readError);
-    await db.storage.from(attachment.bucket).remove([attachment.storage_path]);
     const { data, error } = await db.from("attachments").update({ deleted_at: new Date().toISOString() }).eq("id", id).select().single();
     return databaseResult(context, data, error);
   });
@@ -67,8 +81,9 @@ export function registerProntuariosRoutes(app: any, dependencies: any) {
     const db = context.get("db");
     const clinicId = context.get("profile").clinic_id;
     const { data: record, error: readError } = await db.from("clinical_records").select("*")
-      .eq("id", id).eq("clinic_id", clinicId).eq("status", "draft").single();
+      .eq("id", id).eq("clinic_id", clinicId).single();
     if (readError || !record) return databaseResult(context, null, readError);
+    if (record.status === "signed") return databaseResult(context, record, null);
     if (!(await hasUnitAccess(context, record.unit_id))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
     if (context.get("profile").role === "professional" && !(await isOwnProfessional(context, record.professional_id))) return fail(context, 403, "PROFESSIONAL_FORBIDDEN", "Você só pode assinar seus próprios registros.");
     const canonical = JSON.stringify({ id: record.id, payload: record.payload, created_at: record.created_at });

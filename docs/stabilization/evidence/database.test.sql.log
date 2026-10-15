@@ -1,0 +1,20 @@
+1..19
+ok 1 - pacientes existe
+ok 2 - turmas semanais existem
+ok 3 - vínculos de alunos às turmas existem
+ok 4 - vínculo da turma guarda os dias do paciente
+ok 5 - prontuário existe
+ok 6 - pagamento transacional existe
+ok 7 - conclusão idempotente de atendimento existe
+ok 8 - aprovação transacional de comissão existe
+ok 9 - importação transacional em lote existe
+ok 10 - verificação de conflito existe
+ok 11 - clínica possui conta proprietária
+ok 12 - solicitações LGPD existem
+ok 13 - incidentes de privacidade existem
+ok 14 - chamadas diárias existem
+ok 15 - conta proprietária é protegida no banco
+ok 16 - aluno pode entrar na turma sem matrícula ou plano
+ok 17 - chamada pode ser registrada antes do plano
+ok 18 - nova matrícula é ligada aos vínculos pendentes
+ok 19 - capacidade padrão da turma é sete

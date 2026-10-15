@@ -1,0 +1,23 @@
+1..17
+ok 1 - authenticated has no direct charge DML
+ok 2 - authenticated has no direct enrollment DML
+ok 3 - authenticated has no direct plan DML
+ok 4 - authenticated cannot update or delete audit
+ok 5 - anon cannot call amount correction RPC
+ok 6 - anon cannot call contract RPC
+fa100000-0000-4000-8000-000000000001
+ok 7 - reception without finance role can correct an open charge
+ok 8 - synthetic open amount updated
+ok 9 - reception without finance role can set recurring monthly amount
+ok 10 - synthetic recurring amount persisted
+ok 11 - both adjustments create audit events attributed to receptionist
+ok 12 - partial charge cannot be edited
+ok 13 - stale contract amount rejected
+fa100000-0000-4000-8000-000000000002
+ok 14 - reception without enrollment view permission rejected
+fa100000-0000-4000-8000-000000000004
+ok 15 - reception assigned to another unit is rejected
+fa100000-0000-4000-8000-000000000005
+ok 16 - reception from another clinic cannot see target charge
+fa100000-0000-4000-8000-000000000003
+ok 17 - finance without edit permission remains rejected

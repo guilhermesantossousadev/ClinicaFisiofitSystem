@@ -23,7 +23,7 @@ export function registerPacientesRoutes(app: any, dependencies: any) {
     }
     const from = (page - 1) * pageSize;
     const { data, error, count } = await query.order("name").range(from, from + pageSize - 1);
-    if (error || !data?.length || context.req.query("includeOperational") !== "true") {
+    if (error || !data?.length || (context.req.query("includeOperational") !== "true" || context.get("profile").role === "professional")) {
       return databaseResult(context, { items: data ?? [], page, pageSize, total: count ?? 0 }, error);
     }
 
@@ -50,8 +50,8 @@ export function registerPacientesRoutes(app: any, dependencies: any) {
     for (const enrollment of enrollments ?? []) {
       if (!enrollmentByPatient.has(enrollment.patient_id)) enrollmentByPatient.set(enrollment.patient_id, enrollment);
     }
-    const membershipByPatient = new Map((membershipsResult.data ?? []).map((item: any) => [item.patient_id, item]));
-    const planById = new Map((plansResult.data ?? []).map((item: any) => [item.id, item]));
+    const membershipByPatient = new Map<string, any>((membershipsResult.data ?? []).map((item: any) => [item.patient_id, item]));
+    const planById = new Map<string, any>((plansResult.data ?? []).map((item: any) => [item.id, item]));
     const items = data.map((patient: any) => {
       const enrollment = enrollmentByPatient.get(patient.id);
       const membership = membershipByPatient.get(patient.id);

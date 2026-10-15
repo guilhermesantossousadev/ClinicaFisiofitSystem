@@ -1,8 +1,8 @@
-import { FormEvent, useCallback, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { supabase } from "../../infrastructure/supabase/client";
 import { CheckboxField, SelectField, TextareaField, TextField } from "../components/FormPrimitives";
-import { Row, messageOf, statusLabel, value, useResources, Select, DrawerForm, ModuleState } from "./OperationalShared";
+import { Row, messageOf, statusLabel, value, useResources, Select, DrawerForm, ModuleState, PatientPicker } from "./OperationalShared";
 
 export function OperationalRecords({ canEdit = true }: { canEdit?: boolean }) {
   const basePaths = [
@@ -18,39 +18,71 @@ export function OperationalRecords({ canEdit = true }: { canEdit?: boolean }) {
   const [attachments, setAttachments] = useState<Row[]>([]);
   const [notice, setNotice] = useState("");
   const [draftKind, setDraftKind] = useState<"assessment" | "evolution">("assessment");
+  const selectionVersion = useRef(0);
+  const selectedPatient = useRef("");
+  const [recordsLoading, setRecordsLoading] = useState(false);
+  const [recordsError, setRecordsError] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => () => { selectionVersion.current += 1; }, []);
   const loadRecords = useCallback(async (id: string) => {
+    const version = ++selectionVersion.current;
+    selectedPatient.current = id;
+    setRecords([]); setAttachments([]); setNotice(""); setRecordsError("");
+    setRecordsLoading(Boolean(id));
     setPatientId(id);
-    if (!id) return setRecords([]);
+    if (!id) return;
     try {
       const [recordResponse, attachmentResponse] = await Promise.all([
         api<Row[]>(`/clinical-records?patientId=${id}`),
         api<Row[]>(`/attachments?patientId=${id}`),
       ]);
+      if (version !== selectionVersion.current) return;
       setRecords(recordResponse.data ?? []);
       setAttachments(attachmentResponse.data ?? []);
     } catch (e) {
-      setNotice(messageOf(e));
-    }
+      if (version === selectionVersion.current) setRecordsError(messageOf(e));
+    } finally { if (version === selectionVersion.current) setRecordsLoading(false); }
   }, []);
+  async function openAttachment(id: string) {
+    // Open the window during the user gesture so popup blockers allow it.
+    const popup = window.open("about:blank", "_blank");
+    if (popup) popup.opener = null;
+    const version = selectionVersion.current;
+    try {
+      const result = await api<{ signedUrl: string }>(`/attachments/${id}/download-url`);
+      if (version !== selectionVersion.current) { popup?.close(); return; }
+      if (!result.data?.signedUrl) throw new Error("O arquivo não está disponível.");
+      if (popup) popup.location.href = result.data.signedUrl;
+      else setNotice("Permita abrir uma nova aba para visualizar o arquivo.");
+    } catch (e) { popup?.close(); if (version === selectionVersion.current) setNotice(messageOf(e)); }
+  }
   async function uploadAttachment(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
-    if (!file || !patientId) return;
+    if (!file || !patientId || busy) return;
+    const targetPatient = patientId; const version = selectionVersion.current; setBusy(true);
+    let attachmentId = "";
     try {
       const response = await api<Row>("/attachments/upload-url", { method: "POST", body: JSON.stringify({
         patient_id: patientId, entity_type: "patient", entity_id: patientId, filename: file.name,
         content_type: file.type, size_bytes: file.size,
       }) });
+      attachmentId = response.data?.attachment?.id ?? "";
       if (!response.data) throw new Error("Não foi possível preparar o upload.");
       const upload = await supabase.storage.from("clinical-files").uploadToSignedUrl(response.data.path, response.data.token, file);
       if (upload.error) throw upload.error;
-      await loadRecords(patientId);
-      setNotice("Anexo enviado.");
-    } catch (e) { setNotice(messageOf(e)); }
+      if (selectedPatient.current === targetPatient) { await loadRecords(targetPatient); setNotice("Anexo enviado."); }
+    } catch (e) {
+      if (attachmentId) await api(`/attachments/${attachmentId}`, { method: "DELETE" }).catch(() => {});
+      if (version === selectionVersion.current) setNotice(messageOf(e));
+    } finally { setBusy(false); }
     event.target.value = "";
   }
   async function createRecord(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    if (busy || recordsLoading) return;
+    const targetPatient = patientId; setBusy(true);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     try {
       await api("/clinical-records", {
         method: "POST",
@@ -76,26 +108,29 @@ export function OperationalRecords({ canEdit = true }: { canEdit?: boolean }) {
           },
         }),
       });
-      (event.target as HTMLFormElement).reset();
+      if (selectedPatient.current !== targetPatient) return;
+      formElement.reset();
       setDraftKind("assessment");
-      await loadRecords(patientId);
+      if (selectedPatient.current === targetPatient) await loadRecords(targetPatient);
       setNotice("Registro clínico salvo como rascunho.");
     } catch (e) {
-      setNotice(messageOf(e));
-    }
+      if (selectedPatient.current === targetPatient) setNotice(messageOf(e));
+    } finally { setBusy(false); }
   }
   async function sign(id: string) {
+    const targetPatient = patientId;
     try {
       await api(`/clinical-records/${id}/sign`, {
         method: "POST",
         idempotencyKey: crypto.randomUUID(),
       });
-      await loadRecords(patientId);
+      if (selectedPatient.current === targetPatient) await loadRecords(targetPatient);
     } catch (e) {
       setNotice(messageOf(e));
     }
   }
   async function rectify(id: string) {
+    const targetPatient = patientId;
     const reason = window.prompt(
       "Justificativa da retificação (mínimo 10 caracteres):",
     );
@@ -106,7 +141,7 @@ export function OperationalRecords({ canEdit = true }: { canEdit?: boolean }) {
         method: "POST",
         body: JSON.stringify({ reason, payload: { text } }),
       });
-      await loadRecords(patientId);
+      if (selectedPatient.current === targetPatient) await loadRecords(targetPatient);
     } catch (e) {
       setNotice(messageOf(e));
     }
@@ -123,14 +158,7 @@ export function OperationalRecords({ canEdit = true }: { canEdit?: boolean }) {
         </div>
         <div className="record-header-note"><span>Fluxo clínico</span><strong>Avaliação inicial + evoluções</strong></div>
       </div>
-      <SelectField className="card record-selector" label="Paciente" value={patientId} onChange={(e) => loadRecords(e.target.value)}>
-          <option value="">Selecione</option>
-          {patients.map((row: Row) => (
-            <option key={row.id} value={row.id}>
-              {row.name}
-            </option>
-          ))}
-      </SelectField>
+      <div className="card record-selector"><PatientPicker rows={patients} crossUnit label="Buscar paciente" onSelect={(patient) => void loadRecords(patient.id)} onClear={() => void loadRecords("")} /></div>
       {notice && (
         <div className="toast">
           <span>✓</span>
@@ -138,8 +166,8 @@ export function OperationalRecords({ canEdit = true }: { canEdit?: boolean }) {
         </div>
       )}
       <ModuleState loading={loading} error={error} retry={reload} />
-      {patientId && canEdit && (
-        <DrawerForm title="Novo registro" onSubmit={createRecord}>
+      {patientId && canEdit && !recordsLoading && !recordsError && (
+        <DrawerForm key={patientId} title="Novo registro" onSubmit={createRecord}>
           <h2>Novo registro</h2>
           <div className="form-row">
             <SelectField name="kind" label="Tipo de registro" value={draftKind} onChange={(event) => setDraftKind(event.target.value as "assessment" | "evolution")}>
@@ -148,7 +176,7 @@ export function OperationalRecords({ canEdit = true }: { canEdit?: boolean }) {
             <Select
               name="template_id"
               label="Modelo (opcional)"
-              rows={data["/record-templates"] ?? []}
+              rows={(data["/record-templates"] ?? []).filter((row: Row) => row.active !== false)}
               required={false}
             />
           </div>
@@ -181,12 +209,13 @@ export function OperationalRecords({ canEdit = true }: { canEdit?: boolean }) {
               <TextareaField name="observations" label="Observações e conduta" rows={4} placeholder="Descreva exercícios, orientações e próximos passos…" />
             </fieldset>
           </>}
-          <button className="btn primary">Salvar rascunho</button>
+          <button className="btn primary" disabled={busy}>{busy ? "Salvando…" : "Salvar rascunho"}</button>
         </DrawerForm>
       )}
-      {patientId && <section className="card table-card">
-        <div className="table-toolbar"><h2>Anexos do paciente</h2>{canEdit && <label className="btn secondary">Adicionar arquivo<input className="sr-only" type="file" accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif" onChange={uploadAttachment} /></label>}</div>
-        {attachments.map((file) => <div className="operational-row" key={file.id}><div><strong>{file.filename}</strong><small>{file.content_type} · {Math.round(file.size_bytes / 1024)} KB</small></div></div>)}
+      <ModuleState loading={recordsLoading} error={recordsError} retry={() => void loadRecords(patientId)} />
+      {patientId && !recordsLoading && !recordsError && <section className="card table-card">
+        <div className="table-toolbar"><h2>Anexos do paciente</h2>{canEdit && <label className="btn secondary">Adicionar arquivo<input className="sr-only" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={uploadAttachment} /></label>}</div>
+        {attachments.map((file) => <div className="operational-row" key={file.id}><div><strong>{file.filename}</strong><small>{file.content_type} · {Math.round(file.size_bytes / 1024)} KB</small></div><button type="button" className="btn secondary" onClick={() => void openAttachment(file.id)}>Abrir arquivo</button></div>)}
         {!attachments.length && <div className="empty-state">Nenhum anexo foi adicionado para este paciente.</div>}
       </section>}
       <section className="card table-card bespoke-table records-list-table">

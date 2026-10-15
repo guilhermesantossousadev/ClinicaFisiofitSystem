@@ -1,0 +1,17 @@
+{
+  "passed": true,
+  "checks": [
+    "Real synthetic Auth login",
+    "Dashboard shows persisted Class lesson",
+    "Search reaches patient 110 through server",
+    "UI attendance click updates database and rendered state",
+    "Patient switch clears former clinical data and ignores delayed response",
+    "Clinical form persists correct selected patient",
+    "Essential mobile viewport has no horizontal overflow",
+    "Logout returns to login",
+    "Finance UI shows partial payment and enrollment summary without clinical routes",
+    "Finance chooses permitted patient summary and completes mixed-method balance through UI"
+  ],
+  "apiResponses": 112,
+  "failedApiResponses": 0
+}

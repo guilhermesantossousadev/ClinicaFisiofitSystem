@@ -99,13 +99,13 @@ test("attendance por occurrence preserva roster, grava sob demanda e mantém cor
   assert.doesNotMatch(migration, /class_attendances|group_slots|group_slot_memberships/);
   assert.match(agenda, /app\.get\("\/class-occurrences\/:id\/attendance"/);
   assert.match(agenda, /app\.put\("\/class-occurrences\/:id\/attendance\/:patientId"/);
-  assert.match(agenda, /record_class_occurrence_attendance/);
+  assert.match(agenda, /save_occurrence_attendance/);
 });
 
 test("mantém context.md como fonte única da verdade e não restaura o legado", async () => {
   const context = await readFile(new URL("../context.md", import.meta.url), "utf8");
   assert.match(context, /fonte única da verdade/i);
-  assert.match(context, /capacidade padrão e máxima: 7 alunos/i);
+  assert.match(context, /capacidade como informativa/i);
   assert.match(context, /eeltguuoxpfttjznugla/);
 
   await assert.rejects(access(new URL("../app/page.tsx", import.meta.url)));
@@ -145,9 +145,9 @@ test("mantém turmas distintas por dias dentro dos horários fixos", async () =>
   assert.match(agendaRoute, /GROUP_SLOT_CONFLICT/);
   assert.match(agendaRoute, /conflictingGroup:/);
   assert.match(agendaRoute, /Já existe outra turma nesta unidade para o mesmo dia e horário/);
-  assert.match(agendaRoute, /function groupScheduleChanged/);
-  assert.match(agendaRoute, /target\.active && groupScheduleChanged\(slot, target\)/);
-  assert.match(agendaRoute, /weekdays: input\.weekdays/);
+  assert.match(agendaRoute, /update_operational_group/);
+  assert.match(agendaRoute, /p_input: input/);
+  assert.match(agendaRoute, /input\.weekdays\.map/);
   assert.doesNotMatch(agendaRoute, /Os horários são fixos e não podem ser cadastrados/);
   assert.match(migration, /sync_membership_weekdays_from_group/);
   assert.match(migration, /name ~\* '\^Horário fixo'/);
@@ -162,14 +162,14 @@ test("permite à administração, gestão e recepção gerenciar a grade de hor�
   assert.match(agenda, /canManageGroups && <DrawerForm title="Criar grade de horários"/);
   assert.match(agenda, /api<\{ created: number \}>\("\/group-slots\/bulk"/);
   assert.match(agenda, /15 turmas serão criadas|bulkSlotCount/);
-  assert.match(agenda, /Fisioterapeuta responsável \(opcional\)/);
+  assert.match(agenda, /Fisioterapeuta responsável/);
   assert.match(agenda, /professional_id: value\(form, "professional_id"\) \|\| undefined/);
   assert.match(agenda, />Editar<\/button>/);
   assert.match(agenda, />Excluir<\/button>/);
   assert.match(agendaRoute, /app\.post\("\/group-slots\/bulk", requireRoles\(\["admin", "manager", "reception"\]\)/);
   assert.match(agendaRoute, /app\.delete\("\/group-slots\/:id", requireRoles\(\["admin", "manager", "reception"\]\)/);
-  assert.match(agendaRoute, /GROUP_SLOT_HAS_MEMBERS/);
-  assert.match(agendaRoute, /professional_id: z\.string\(\)\.uuid\(\)\.optional\(\)/);
+  assert.match(agendaRoute, /update_operational_group/);
+  assert.match(agendaRoute, /professional_id: z\.string\(\)\.uuid\(\)/);
   assert.match(agendaRoute, /professional_id: input\.professional_id \?\? null/);
   assert.match(agendaRoute, /group_slot\.created_bulk/);
 });
@@ -196,31 +196,19 @@ test("mantém todos os recursos da agenda coerentes com a unidade selecionada", 
   assert.match(administration, /name: "unitIds", label: "Unidades em que atende", type: "checkbox-group"/);
   assert.match(api, /professional_units!inner\(unit_id\)/);
   assert.match(api, /query = query\.eq\("professional_units\.unit_id", parsedUnitId\)/);
-  assert.match(api, /group_slots!inner\(name,unit_id\)/);
+  assert.match(api, /operational_group_memberships/);
   assert.match(api, /unit_ids:/);
   assert.match(agendaRoute, /PROFESSIONAL_UNIT_NOT_LINKED/);
   assert.match(agendaRoute, /app\.patch\("\/group-slots\/:id"/);
   assert.match(agendaRoute, /weekdays: z\.array\(z\.number\(\)\.int\(\)\.min\(1\)\.max\(5\)\)/);
   assert.match(repairMigration, /insert into public\.professional_units/);
   assert.match(repairMigration, /from public\.group_slots/);
-  assert.match(api, /app\.post\("\/professionals", requireRoles\(\["admin", "manager", "reception", "finance"\]\)/);
+  assert.match(api, /app\.post\("\/professionals", requireRoles\(\["admin", "manager", "reception"\]\)/);
 });
 
-test("oferece a migração legada somente à administração com confirmação e feedback", async () => {
-  const [administration, portal] = await Promise.all([
-    readFile(new URL("../apps/portal/src/presentation/modules/OperationalAdministration.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../apps/portal/src/presentation/app/FisiofitApp.tsx", import.meta.url), "utf8"),
-  ]);
-  assert.match(portal, /isAdmin=\{profile\.role === "admin"\}/);
-  assert.match(administration, /if \(!isAdmin\) return null/);
-  assert.match(administration, /Migrar agenda legada/);
-  assert.match(administration, /Esta operação migrará as turmas ativas do sistema legado para a nova Agenda/);
-  assert.match(administration, /api<LegacyAgendaBackfillResult\[]>\("\/admin\/agenda\/backfill-legacy", \{ method: "POST" \}\)/);
-  assert.match(administration, /if \(migrating\) return/);
-  assert.match(administration, /disabled=\{migrating\}/);
-  assert.match(administration, /Migrando\.\.\./);
-  assert.match(administration, /Não foi possível executar a migração/);
-  assert.match(administration, /Migração concluída/);
+test("não oferece backfill em massa no portal operacional", async () => {
+  const administration = await readFile(new URL("../apps/portal/src/presentation/modules/OperationalAdministration.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(administration, /Migrar agenda legada|backfill-legacy/);
 });
 
 test("suporta frequência semanal por membership sem inventar dias no legado", async () => {
@@ -238,11 +226,11 @@ test("suporta frequência semanal por membership sem inventar dias no legado", a
   assert.match(agenda, /app\.patch\("\/class-memberships\/:id"/);
   assert.match(agenda, /INVALID_MEMBERSHIP_WEEKDAYS/);
   assert.match(agenda, /effectiveWeekdays: membership\.weekdays \?\? schedule\?\.weekdays/);
-  assert.match(agenda, /const effectiveWeekdays = membership\.weekdays \?\? slot\?\.weekdays/);
+  assert.match(agenda, /save_operational_membership/);
   assert.match(roster, /membership\.weekdays \?\? scheduleWeekdays/);
   assert.match(roster, /membership\.effective_from > localDate/);
   assert.match(roster, /weekday/);
-  assert.match(agenda, /!input\.weekdays\.every\(\(weekday\) => slot\.weekdays\.includes\(weekday\)\)/);
+  assert.match(agenda, /INVALID_MEMBERSHIP_WEEKDAYS/);
   assert.match(portal, /WeekdayCheckboxGroup name="weekdays"/);
   assert.match(portal, /Selecione ao menos um dia para o paciente/);
   assert.match(portal, /Editar dias/);
@@ -250,9 +238,9 @@ test("suporta frequência semanal por membership sem inventar dias no legado", a
   assert.match(portal, /const selectedWeekdays = explicitWeekdays\?\.map[\s\S]*\?\? scheduleWeekdays\.map\(String\)/);
   assert.match(portal, /savingMembershipWeekdays/);
   assert.match(portal, /`\/class-memberships\/\$\{editingMembership\.member\.class_membership_id\}`/);
-  assert.match(apiIndex, /class_membership_id: classMembership\?\.id \?\? null/);
-  assert.match(apiIndex, /class_membership_weekdays: classMembership\?\.weekdays \?\? null/);
-  assert.match(apiIndex, /class_id: classByLegacySlotId\.get\(slot\.id\) \?\? null/);
+  assert.match(apiIndex, /operational_group_memberships/);
+  assert.match(apiIndex, /operational_group_memberships/);
+  assert.match(apiIndex, /operational_group_slots/);
   assert.match(portal, /if \(group\?\.class_id\)/);
   assert.match(portal, /`\/classes\/\$\{group\.class_id\}\/memberships`/);
   assert.match(portal, /canonicalMembers\.filter/);
@@ -319,8 +307,8 @@ test("opera participantes apenas na occurrence, preservando membership e a trilh
   assert.match(route, /app\.delete\("\/class-occurrences\/:id\/participants\/:patientId"/);
   assert.match(route, /app\.get\("\/class-occurrences\/:id\/available-participants"/);
   assert.match(route, /requireRoles\(\["admin", "manager", "reception"\]\)/);
-  assert.match(route, /effectiveOccurrenceRoster\(/);
-  assert.match(route, /occupancy: effectiveOccurrenceRoster/);
+  assert.match(route, /calendar_occurrence_rosters/);
+  assert.match(route, /occupancy: rosterByOccurrence/);
   assert.match(route, /class_occurrence\.participant_added/);
   assert.match(route, /class_occurrence\.participant_removed/);
   assert.match(portal, /\+ Adicionar paciente/);
@@ -409,8 +397,8 @@ test("expõe projection semanal read-only combinando occurrences e appointments"
   assert.match(route, /sourceType: "CLASS_OCCURRENCE"/);
   assert.match(route, /sourceType: "APPOINTMENT"/);
   assert.match(route, /actualProfessional \?\? plannedProfessional/);
-  assert.match(route, /occupancy: effectiveOccurrenceRoster\(occurrence\.local_date/);
-  assert.match(route, /participantRows \?\? \[\]/);
+  assert.match(route, /occupancy: rosterByOccurrence/);
+  assert.match(route, /rosterByOccurrence/);
   assert.match(route, /capacity: occurrence\.effective_capacity/);
   assert.match(route, /query\.type === "APPOINTMENT"/);
   assert.match(route, /sort\(\(first, second\) => first\.startAt\.localeCompare/);
@@ -472,8 +460,9 @@ test("expõe backfill legado somente por rota administrativa autenticada e user-
   assert.match(api, /global: \{ headers: \{ Authorization: auth \} \}/);
   assert.match(api, /auth\.getUser\(\)/);
   assert.match(agenda, /app\.post\("\/admin\/agenda\/backfill-legacy", requireRoles\(\["admin"\]\)/);
-  assert.match(agenda, /rpc\("backfill_active_group_slots_to_classes"\)/);
-  assert.match(agenda, /agenda\.legacy_backfill\.executed/);
+  assert.match(agenda, /LEGACY_RECONCILIATION_REQUIRED/);
+  assert.doesNotMatch(agenda, /rpc\("backfill_active_group_slots_to_classes"\)/);
+
   const backfillRoute = agenda.slice(agenda.indexOf('app.post("/admin/agenda/backfill-legacy"'), agenda.indexOf('async function validateActiveProfessional'));
   assert.doesNotMatch(backfillRoute, /service_role|clinic_id|p_cutoff|p_weeks/);
 });

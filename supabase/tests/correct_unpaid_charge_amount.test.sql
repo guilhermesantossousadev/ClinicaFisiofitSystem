@@ -36,7 +36,7 @@ select ok((select prosecdef from pg_proc where oid='public.correct_unpaid_charge
 select ok(has_function_privilege('authenticated','public.correct_unpaid_charge_amount(uuid,integer,integer,text,uuid)','EXECUTE'), 'authenticated pode executar a RPC validada internamente');
 select ok(not has_function_privilege('anon','public.correct_unpaid_charge_amount(uuid,integer,integer,text,uuid)','EXECUTE'), 'anon não pode executar a RPC');
 select ok(not exists(select 1 from aclexplode((select proacl from pg_proc where oid='public.correct_unpaid_charge_amount(uuid,integer,integer,text,uuid)'::regprocedure)) a where a.grantee=0 and a.privilege_type='EXECUTE'), 'PUBLIC não recebeu EXECUTE');
-select ok(position('for update' in lower(pg_get_functiondef('public.correct_unpaid_charge_amount(uuid,integer,integer,text,uuid)'::regprocedure)))>0, 'RPC serializa edição e recebimento pelo lock da cobrança');
+select ok(position('for update' in lower(pg_get_functiondef('public.adjust_charge_amount(uuid,integer,integer,integer,text,uuid)'::regprocedure)))>0, 'RPC serializa edição e recebimento pelo lock da cobrança');
 
 select set_config('request.jwt.claim.sub','f2000000-0000-4000-8000-000000000001',true);
 set local role authenticated;
@@ -45,7 +45,7 @@ select is((select amount_cents from public.charges where id='f2000000-0000-4000-
 reset role;
 select ok(exists(select from public.audit_events where entity_id='f2000000-0000-4000-8000-000000000040' and action='charge.amount_corrected' and user_id=auth.uid() and metadata->>'previous_amount_cents'='4600' and metadata->>'amount_cents'='22000' and metadata->>'reason'='Valor contratual confirmado'),'auditoria inclui usuário, valor anterior/novo e justificativa');
 set local role authenticated;
-select throws_ok($$select public.correct_unpaid_charge_amount('f2000000-0000-4000-8000-000000000041',4600,22000,'Cobrança possui pagamento',gen_random_uuid())$$,'P0001','CHARGE_HAS_PAYMENTS','recebimento vinculado impede edição');
+select throws_ok($$select public.correct_unpaid_charge_amount('f2000000-0000-4000-8000-000000000041',4600,22000,'Cobrança possui pagamento',gen_random_uuid())$$,'P0001','PAYMENT_BALANCE_CONFLICT','recebimento sem acumulador conciliado impede edição');
 select throws_ok($$select public.correct_unpaid_charge_amount('f2000000-0000-4000-8000-000000000040',4600,23000,'Valor desatualizado',gen_random_uuid())$$,'P0001','CHARGE_AMOUNT_CONFLICT','valor anterior protege contra edição concorrente/obsoleta');
 select throws_ok($$select public.correct_unpaid_charge_amount('f2000000-0000-4000-8000-000000000042',4600,22000,'',gen_random_uuid())$$,'P0001','CHARGE_REASON_REQUIRED','justificativa é obrigatória');
 select is((select amount_cents from public.charges where id='f2000000-0000-4000-8000-000000000042'),4600,'outra paciente permanece inalterada');
