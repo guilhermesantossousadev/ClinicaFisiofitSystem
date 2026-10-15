@@ -56,3 +56,10 @@ Deno.test("rotas clínicas e financeiras são associadas ao módulo correto", ()
   assert(moduleForPath("/api/v1/units", "POST") === "settings", "escrita de unidade deve exigir settings");
   assert(moduleForPath("/api/v1/units", "GET") === null, "referência de unidade deve continuar sob RLS");
 });
+
+Deno.test("plan changes and price terms keep enrollment permission gates", () => {
+  assert(moduleForRolePath("/api/v1/enrollments/123/plan-change", "POST", "reception") === "enrollments", "troca exige edição de matrículas");
+  assert(moduleForRolePath("/api/v1/enrollments/123/plan-change/preview", "POST", "reception") === "enrollments", "prévia mantém permissão de matrícula");
+  assert(moduleForRolePath("/api/v1/enrollment-price-terms", "GET", "reception") === "enrollments", "histórico de preço exige leitura de matrícula");
+  assert(moduleForRolePath("/api/v1/payments", "POST", "reception") === "finance", "troca não libera recebimentos");
+});

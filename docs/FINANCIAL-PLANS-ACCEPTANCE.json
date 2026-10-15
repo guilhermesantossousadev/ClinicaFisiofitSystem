@@ -1,0 +1,42 @@
+{
+  "passed": true,
+  "results": [
+    {
+      "name": "typecheck",
+      "passed": true
+    },
+    {
+      "name": "lint",
+      "passed": true
+    },
+    {
+      "name": "frontend-directed",
+      "passed": true
+    },
+    {
+      "name": "api-directed",
+      "passed": true
+    },
+    {
+      "name": "migration007-and-sql",
+      "passed": true,
+      "assertions": 53
+    },
+    {
+      "name": "http-directed",
+      "passed": true
+    },
+    {
+      "name": "build",
+      "passed": true
+    },
+    {
+      "name": "publication-ci-tests",
+      "passed": true
+    },
+    {
+      "name": "diff-check",
+      "passed": true
+    }
+  ]
+}

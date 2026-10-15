@@ -1,0 +1,23 @@
+// Prepare one reviewable release from the exact committed source. Never publishes.
+import { execFileSync } from 'node:child_process';
+import { readFileSync, writeFileSync, mkdirSync, cpSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { resolve } from 'node:path';
+const git=(...args)=>execFileSync('git',args,{encoding:'utf8'}).trim();
+if(git('diff','--name-only') || git('diff','--cached','--name-only')) throw new Error('Commit the validated release first');
+const commit=git('rev-parse','HEAD');
+const base='7f16868b9e84d712c35e81ad41a07e4f097cebe4';
+execFileSync('git',['merge-base','--is-ancestor',base,commit]);
+const file='supabase/migrations/202610140007_financial_plans_release.sql';
+const sql=execFileSync('git',['show',`${commit}:${file}`],{encoding:'utf8'});
+const sha256=createHash('sha256').update(sql).digest('hex');
+const output=resolve(process.argv[2] ?? `/private/tmp/fisiofit-plans-release-${commit.slice(0,12)}`);
+mkdirSync(output,{recursive:true});
+const bundle=`-- Project: eeltguuoxpfttjznugla. Release ${commit}.\n-- ONLY financial 007; no Agenda migrations and no real-patient correction.\nbegin;\nselect pg_advisory_xact_lock(hashtextextended('fisiofit-financial-release-007',0));\ndo $preflight$ begin\n if (select count(*) from supabase_migrations.schema_migrations where version in('202610130001','202610130002','202610130003','202610130004','202610130005','202610130006'))<>6 then raise exception 'FINANCIAL_PREDECESSORS_MISSING'; end if;\n if exists(select 1 from supabase_migrations.schema_migrations where version='202610140007') then raise exception 'FINANCIAL_007_ALREADY_APPLIED'; end if;\nend $preflight$;\n${sql}\ninsert into supabase_migrations.schema_migrations(version,name,statements) values('202610140007','financial_plans_release',array['commit=${commit}; sha256=${sha256}']);\ncommit;\n`;
+writeFileSync(resolve(output,'financial-007.sql'),bundle);
+execFileSync('git',['archive','--format=tar',`--output=${resolve(output,'backend-source.tar')}`,commit,'supabase/functions','supabase/config.toml']);
+cpSync('dist',resolve(output,'frontend-local-build'),{recursive:true});
+const summary=JSON.parse(readFileSync('/private/tmp/fisiofit-plans-homologation/summary.json','utf8'));
+if(!summary.passed) throw new Error('Acceptance must pass');
+writeFileSync(resolve(output,'release-manifest.json'),JSON.stringify({commit,base,migration:file,migrationSha256:sha256,projectRef:'eeltguuoxpfttjznugla',acceptance:summary,frontendPublication:'Rebuild this exact commit via hostinger-build.yml with the production public VITE secrets; the included local build is acceptance evidence.',order:['Apply financial-007.sql transaction only','Deploy api from backend-source.tar preserving verify_jwt=false','Run Hostinger workflow for exact commit','Verify health, assets and authorized screen; patient corrections remain explicit reviewed operations']},null,2)+'\n');
+console.log(`Prepared release ${commit}\n${output}`);

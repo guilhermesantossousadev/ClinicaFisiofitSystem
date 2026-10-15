@@ -24,15 +24,15 @@ function renderStatus(status: "pending" | "overdue" | "partial" | "paid", paidCe
 describe("ações financeiras da recepção no Controle de Planos", () => {
   it.each(["pending", "overdue"] as const)("mostra somente correção e contrato para cobrança %s", (status) => {
     const html = renderStatus(status);
-    expect(html).toContain("Editar valor da cobrança");
-    expect(html).toContain("Definir valor mensal");
+    expect(html).toContain("Corrigir cobrança");
+    expect(html).toContain("Editar condição contratual");
     expect(html).not.toContain("Registrar recebimento");
     expect(html).not.toContain("Criar cobrança");
   });
 
-  it.each([["partial", 1000], ["paid", 4600]] as const)("não oferece edição da cobrança %s", (status, paidCents) => {
+  it.each([["partial", 1000], ["paid", 4600]] as const)("oferece ajuste auditado preservando recebimentos de cobrança %s", (status, paidCents) => {
     const html = renderStatus(status, paidCents);
-    expect(html).not.toContain("Editar valor da cobrança");
+    expect(html).toContain("Corrigir cobrança");
     expect(html).not.toContain("Registrar recebimento");
   });
 });

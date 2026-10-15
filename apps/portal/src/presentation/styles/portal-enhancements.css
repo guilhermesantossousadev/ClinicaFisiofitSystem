@@ -2852,3 +2852,28 @@ body { line-height: 1.5; }
   .payment-plan-summary { grid-template-columns: 1fr; }
   .modal-form.payment-registration-card .btn.primary.payment-submit { justify-self: stretch; width: 100%; }
 }
+
+.plan-catalog-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 16px; padding: 16px; }
+.catalog-option { border-top: 1px solid var(--border, #dce3e0); padding: 16px 0; display: grid; gap: 8px; }
+.catalog-option > div { display: grid; gap: 8px; }
+.catalog-option .btn { min-height: 44px; justify-self: start; }
+
+/* Keep financial amounts and all permitted actions readable in the existing card. */
+.patient-plan-row { display: grid; grid-template-columns: minmax(260px, .9fr) minmax(320px, 1.1fr); align-items: start; }
+.patient-plan-main { grid-column: 1; grid-row: 1; float: none; width: auto; grid-template-columns: minmax(150px, 1fr) minmax(110px, .6fr); }
+.patient-plan-financial { grid-column: 2; grid-row: 1; float: none; width: auto; grid-template-columns: minmax(140px, 1fr) minmax(170px, auto); }
+.patient-plan-financial > .patient-plan-action-set { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; }
+.patient-plan-action-set .patient-plan-actions { display: contents; }
+.patient-plan-row > p { grid-column: 1 / -1; margin: 0; padding: 10px 20px; color: var(--muted); background: #fffaf1; }
+.patient-plan-row > .patient-plan-details { grid-column: 1 / -1; }
+@media (max-width: 900px) {
+  .patient-plan-row { grid-template-columns: minmax(0, 1fr); }
+  .patient-plan-main, .patient-plan-financial { grid-column: 1; grid-row: auto; }
+  .patient-plan-financial .btn { grid-column: auto; width: auto; white-space: normal; }
+}
+@media (max-width: 480px) {
+  .patient-plan-main { grid-template-columns: 1fr; }
+  .patient-plan-financial { grid-template-columns: minmax(0,1fr); }
+  .patient-plan-value { text-align: left; }
+  .patient-plan-financial .btn { width: 100%; }
+}

@@ -1,3 +1,4 @@
+import { financialError } from "./financial-errors.ts";
 import { patientSchema } from "./patient-schema.ts";
 import { Hono } from "npm:hono@4.7.2";
 import { cors } from "npm:hono@4.7.2/cors";
@@ -515,7 +516,8 @@ app.post("/plans", requireRoles(["admin", "manager", "finance"]), async (context
     price_cents: z.number().int().nonnegative(),
     active: z.boolean().default(true),
   }).parse(await context.req.json());
-  return createClinicResource(context, "plans", input, "plan.created");
+  const { data, error } = await context.get("db").rpc("save_plan", { p_input: input, p_request_id: context.get("requestId") });
+  return databaseResult(context, data, error, 201);
 });
 
 app.patch("/plans/:id", requireRoles(["admin", "manager", "finance"]), async (context) => {
@@ -527,7 +529,8 @@ app.patch("/plans/:id", requireRoles(["admin", "manager", "finance"]), async (co
     price_cents: z.number().int().nonnegative().optional(),
     active: z.boolean().optional(),
   }).parse(await context.req.json());
-  return updateClinicResource(context, "plans", id, input, "plan.updated");
+  const { data, error } = await context.get("db").rpc("save_plan", { p_input: input, p_id: id, p_request_id: context.get("requestId") });
+  return databaseResult(context, data, error);
 });
 
 const enrollmentCreateSchema = z.object({
@@ -570,12 +573,14 @@ app.patch("/enrollments/:id/contract-amount", requireRoles(["admin", "manager", 
   const id = z.string().uuid().parse(context.req.param("id"));
   const input = z.object({
     expected_amount_cents: z.number().int().positive().nullable(),
+    expected_updated_at: z.string().datetime({ offset: true }),
     amount_cents: z.number().int().positive(),
     effective_from: z.string().date().refine((value) => value.endsWith("-01"), "A vigência deve iniciar no primeiro dia do mês."),
     reason: z.string().trim().min(10).max(1000),
   }).parse(await context.req.json());
   const db = context.get("db");
-  const { data, error } = await db.rpc("set_enrollment_contract_amount", {
+  const { data, error } = await db.rpc("set_enrollment_contract_terms", {
+    p_expected_updated_at: input.expected_updated_at,
     p_enrollment_id: id,
     p_expected_amount_cents: input.expected_amount_cents,
     p_amount_cents: input.amount_cents,
@@ -585,6 +590,29 @@ app.patch("/enrollments/:id/contract-amount", requireRoles(["admin", "manager", 
   });
   return databaseResult(context, data, error);
 });
+
+const planChangeSchema = z.object({
+  plan_id: z.string().uuid(),
+  effective_from: z.string().date(),
+});
+app.post("/enrollments/:id/plan-change/preview", requireRoles(["admin", "manager", "reception", "finance"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const input = planChangeSchema.parse(await context.req.json());
+  const { data, error } = await context.get("db").rpc("preview_enrollment_plan_change", {
+    p_enrollment_id: id, p_plan_id: input.plan_id, p_effective_from: input.effective_from,
+  });
+  return databaseResult(context, data, error);
+});
+app.post("/enrollments/:id/plan-change", requireRoles(["admin", "manager", "reception", "finance"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const input = planChangeSchema.extend({ expected_token: z.string().length(32), reason: z.string().trim().min(10).max(1000) }).parse(await context.req.json());
+  const { data, error } = await context.get("db").rpc("change_enrollment_plan", {
+    p_enrollment_id: id, p_plan_id: input.plan_id, p_effective_from: input.effective_from,
+    p_expected_token: input.expected_token, p_reason: input.reason, p_request_id: context.get("requestId"),
+  });
+  return databaseResult(context, data, error);
+});
+app.get("/enrollment-price-terms", requireRoles(["admin", "manager", "reception", "finance"]), listResource("enrollment_price_terms", "effective_from"));
 
 app.post("/enrollments/:id/rollback", requireRoles(["admin", "manager", "finance"]), async (context) => {
   const id = z.string().uuid().parse(context.req.param("id"));
@@ -661,6 +689,7 @@ app.patch("/charges/:id/amount", requireRoles(["admin", "manager", "reception", 
   const id = z.string().uuid().parse(context.req.param("id"));
   const input = z.object({
     expected_amount_cents: z.number().int().positive(),
+    expected_paid_cents: z.number().int().nonnegative(),
     amount_cents: z.number().int().positive(),
     reason: z.string().trim().min(10).max(1000),
   }).parse(await context.req.json());
@@ -673,9 +702,10 @@ app.patch("/charges/:id/amount", requireRoles(["admin", "manager", "reception", 
     if (permissionError) return databaseResult(context, null, permissionError);
     if (!permission?.can_edit) return fail(context, 403, "MODULE_FORBIDDEN", "Seu usuário não tem permissão financeira para editar cobranças.");
   }
-  const { data, error } = await context.get("db").rpc("correct_unpaid_charge_amount", {
+  const { data, error } = await context.get("db").rpc("adjust_charge_amount", {
     p_charge_id: id,
     p_expected_amount_cents: input.expected_amount_cents,
+    p_expected_paid_cents: input.expected_paid_cents,
     p_amount_cents: input.amount_cents,
     p_reason: input.reason,
     p_request_id: context.get("requestId"),
@@ -956,6 +986,8 @@ function databaseResult(context: any, data: unknown, error: any, status = 200) {
   if (error) {
     console.error(JSON.stringify({ requestId: context.get("requestId"), code: error.code, message: error.message }));
     if (String(error.message).includes("GROUP_CAPACITY_REACHED")) return fail(context, 409, "GROUP_CAPACITY_REACHED", "A turma está lotada em uma das datas do período escolhido. Ajuste o período do vínculo.");
+    const financial = financialError(error.message);
+    if (financial) return fail(context, financial.status, financial.code, financial.message);
     const enrollmentErrors: Record<string, [number, string]> = {
       FORBIDDEN: [403, "Seu perfil não possui permissão para alterar matrículas."],
       UNIT_FORBIDDEN: [403, "Seu perfil não possui acesso a esta unidade."],

@@ -64,7 +64,7 @@ export function buildPlanControlRows({
   const paymentsByCharge = new Map<string, PlanControlSourceRow[]>();
 
   for (const payment of payments) {
-    if (payment.reversed_at) continue;
+    if (payment.reversed_at || payment.deleted_at) continue;
     const chargeId = String(payment.charge_id ?? "");
     paymentsByCharge.set(chargeId, [...(paymentsByCharge.get(chargeId) ?? []), payment]);
   }
@@ -79,9 +79,10 @@ export function buildPlanControlRows({
         ?? planById.get(String(enrollment.plan_id))
         ?? {};
       const enrollmentCharges = charges.filter((charge) =>
-        !charge.deleted_at && String(charge.enrollment_id) === String(enrollment.id),
+        !charge.deleted_at && charge.status !== "cancelled" && String(charge.enrollment_id) === String(enrollment.id),
       );
-      const primaryCharge = [...enrollmentCharges].sort((a, b) =>
+      const cancelledCharges = charges.filter((charge) => !charge.deleted_at && charge.status === "cancelled" && String(charge.enrollment_id) === String(enrollment.id));
+      const primaryCharge = [...(enrollmentCharges.length ? enrollmentCharges : cancelledCharges)].sort((a, b) =>
         String(a.created_at ?? "").localeCompare(String(b.created_at ?? "")),
       ).at(-1);
       const amountCents = enrollmentCharges.reduce((sum, charge) => sum + Number(charge.amount_cents ?? 0), 0);
@@ -90,17 +91,11 @@ export function buildPlanControlRows({
         (paymentsByCharge.get(String(charge.id)) ?? []).map((payment) => String(payment.paid_at ?? "")),
       ).filter(Boolean).sort();
       const primaryStatus = String(primaryCharge?.status ?? "");
-      const paymentState: PaymentState = amountCents === 0
+      const paymentState: PaymentState = primaryStatus === "cancelled" ? "cancelled" : amountCents === 0
         ? "uncharged"
-        : primaryStatus === "cancelled"
-          ? "cancelled"
-          : primaryStatus === "paid" || paidCents >= amountCents
+          : paidCents >= amountCents
             ? "paid"
-            : primaryStatus === "overdue"
-              ? "overdue"
-              : primaryStatus === "partial" || paidCents > 0
-                ? "partial"
-                : "pending";
+            : paidCents > 0 ? "partial" : primaryStatus === "overdue" ? "overdue" : "pending";
       const startsAt = String(enrollment.starts_at ?? "");
       const renewsAt = String(enrollment.ends_at ?? "")
         || inferredRenewalDate(startsAt, Number(plan.duration_days ?? 0));
