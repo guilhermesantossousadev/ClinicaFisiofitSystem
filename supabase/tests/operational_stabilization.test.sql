@@ -1,4 +1,6 @@
 begin;
+-- Keep fixture dates in the same timezone as the occurrences and attendance guard.
+set local timezone='America/Sao_Paulo';
 set local search_path=public,extensions;
 select no_plan();
 create function pg_temp.id(n integer) returns uuid language sql immutable as $$ select ('fd000000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid $$;
@@ -19,7 +21,7 @@ insert into public.patients(id,clinic_id,primary_unit_id,name) values(pg_temp.id
 insert into public.patients(id,clinic_id,primary_unit_id,name) select pg_temp.id(100+n),pg_temp.id(10),pg_temp.id(20),'Synthetic search '||lpad(n::text,3,'0') from generate_series(1,110) n;
 insert into public.plans(id,clinic_id,name,kind,duration_days,sessions_included,price_cents) values(pg_temp.id(50),pg_temp.id(10),'Synthetic monthly','monthly',30,8,22000),(pg_temp.id(51),pg_temp.id(10),'Synthetic quarterly','package',90,24,60000);
 create temp table ids(key text primary key,id uuid);grant all on ids to authenticated;
-create function pg_temp.class_input(pro uuid,u uuid,t time) returns jsonb language sql as $$ select public.create_class_with_schedule(u,'Synthetic class',null,'active',current_date,array['monday','tuesday','wednesday','thursday','friday','saturday','sunday']::public.class_weekday[],t,t+interval '1 hour','America/Sao_Paulo',pro,1,null) $$;
+create function pg_temp.class_input(pro uuid,u uuid,t time,end_time time default null) returns jsonb language sql as $$ select public.create_class_with_schedule(u,'Synthetic class',null,'active',current_date,array['monday','tuesday','wednesday','thursday','friday','saturday','sunday']::public.class_weekday[],t,coalesce(end_time,t+interval '1 hour'),'America/Sao_Paulo',pro,1,null) $$;
 select set_config('request.jwt.claim.sub',pg_temp.id(1)::text,true);set local role authenticated;
 select lives_ok($$insert into ids values('classA',(pg_temp.class_input(pg_temp.id(40),pg_temp.id(20),'08:00')->'class'->>'id')::uuid)$$,'J01 create class and recurring occurrences atomically');
 select lives_ok($$select public.ensure_calendar_window(pg_temp.id(20),current_date,current_date+7)$$,'J05 repeated calendar generation is idempotent');
@@ -27,8 +29,11 @@ select lives_ok($$insert into ids values('classParallel',(pg_temp.class_input(pg
 select throws_ok($$select pg_temp.class_input(pg_temp.id(40),pg_temp.id(20),'08:30')$$,'P0001','PROFESSIONAL_SCHEDULE_CONFLICT','J01 same professional overlap rejected');
 select is((select count(*) from public.classes),2::bigint,'J01 failed compound create leaves no orphan');
 select lives_ok($$insert into ids values('classB',(pg_temp.class_input(pg_temp.id(41),pg_temp.id(21),'09:00')->'class'->>'id')::uuid)$$,'J01 another unit schedule');
-select lives_ok($$insert into ids values('makeup',(pg_temp.class_input(pg_temp.id(41),pg_temp.id(21),'11:00')->'class'->>'id')::uuid)$$,'J03 concrete makeup class');
-select lives_ok($$insert into ids values('makeup2',(pg_temp.class_input(pg_temp.id(42),pg_temp.id(20),'12:00')->'class'->>'id')::uuid)$$,'J03 alternative makeup');
+-- Reservations must still be open while attendance must be on the clinic's
+-- current date. Ending at 24:00 keeps both conditions true for the entire
+-- transaction (now() and current_date are transaction-stable), at any wall hour.
+select lives_ok($$insert into ids values('makeup',(pg_temp.class_input(pg_temp.id(41),pg_temp.id(21),'22:00','24:00')->'class'->>'id')::uuid)$$,'J03 concrete makeup class');
+select lives_ok($$insert into ids values('makeup2',(pg_temp.class_input(pg_temp.id(42),pg_temp.id(20),'23:00','24:00')->'class'->>'id')::uuid)$$,'J03 alternative makeup');
 insert into ids select 'todayA',id from public.class_occurrences where class_id=(select id from ids where key='classA') and local_date=current_date;
 insert into ids select 'todayMakeup',id from public.class_occurrences where class_id=(select id from ids where key='makeup') and local_date=current_date;
 insert into ids select 'todayMakeup2',id from public.class_occurrences where class_id=(select id from ids where key='makeup2') and local_date=current_date;
@@ -55,7 +60,7 @@ select throws_ok($$select public.save_occurrence_attendance((select id from ids 
 select set_config('request.jwt.claim.sub',pg_temp.id(3)::text,true);
 select lives_ok($$select public.save_occurrence_attendance((select id from ids where key='todayA'),pg_temp.id(30),'ABSENT_JUSTIFIED','Reception correction',2,'Synthetic notice')$$,'J02 reception may correct with history');
 select is((select count(*) from public.attendance_revisions where attendance_id=(select id from ids where key='creditA')),2::bigint,'J02 both corrections persist history');
-select lives_ok($$select public.update_class_occurrence((select id from ids where key='todayMakeup'),'11:00','12:00',pg_temp.id(40),null)$$,'J04 substitution can use a professional from another habitual unit');
+select lives_ok($$select public.update_class_occurrence((select id from ids where key='todayMakeup'),'22:00','24:00',pg_temp.id(40),null)$$,'J04 substitution can use a professional from another habitual unit');
 select is((select planned_professional_id from public.class_occurrences where id=(select id from ids where key='todayMakeup')),pg_temp.id(41),'J04 planned professional stays in history');
 select set_config('request.jwt.claim.sub',pg_temp.id(4)::text,true);
 select lives_ok($$select public.get_occurrence_attendance_details((select id from ids where key='todayMakeup'))$$,'J04 cross-unit substitute can open the assigned occurrence');

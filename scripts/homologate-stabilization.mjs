@@ -2,6 +2,8 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
+import {recordOperationalFingerprint} from './operational-fingerprint.mjs';
+import {probeExpiredFixtures} from './operational-fixture-probe.mjs';
 const stack = 'secfinfinalb14';
 if (process.env.FISIOFIT_TEST_STACK && process.env.FISIOFIT_TEST_STACK !== stack) throw new Error('Unsupported local synthetic stack');
 const output = resolve(process.env.FISIOFIT_TEST_OUTPUT ?? '/private/tmp/fisiofit-stabilization-evidence');
@@ -68,7 +70,9 @@ try {
   results.push({name:file,passed:true}); console.log(`${file}: PASS (schema-only disposable database)`);
  }
  psql(scratch,'create extension if not exists pgtap with schema extensions;');
- for(const file of readdirSync('supabase/tests').filter(f=>f.endsWith('.test.sql')).sort()) {
+ recordOperationalFingerprint({psql,database:scratch,output});
+ if(process.argv.includes('--fixture-probe')){probeExpiredFixtures({psql,database:scratch,output});results.push({name:'expired-fixture-differential-probe',passed:true});}
+ for(const file of readdirSync('supabase/tests').filter(f=>f.endsWith('.test.sql')&&!process.argv.includes('--runtime-only')).sort()) {
   let log; try { log=psql(scratch,'set search_path=public,extensions;\n'+readFileSync(`supabase/tests/${file}`,'utf8')); } catch(error) { log=(error.stdout??'')+(error.stderr??''); }
   writeFileSync(resolve(output,file+'.log'),log);
   const count=Number(log.match(/1\.\.(\d+)/)?.[1]??0);
@@ -90,7 +94,7 @@ do $$ begin
  writeFileSync(resolve(output,'reconciliation-synthetic.log'),'Unreviewed fingerprint rejected; transaction rolled back.\n'+repairEvidence+'\n2 inserts, 2 future closures, deleted patient preserved.\n');
  results.push({name:'guarded-reconciliation-synthetic',passed:true});console.log('guarded-reconciliation-synthetic: PASS');
  if(results.some(r=>!r.passed)) throw new Error('SQL suites contain failures; inspect summary and per-suite logs');
- if(!process.argv.includes('--sql-only') && !process.argv.includes('--http-only')) {
+ if(!process.argv.includes('--sql-only') && !process.argv.includes('--http-only') && !process.argv.includes('--runtime-only')) {
   run('typecheck','npm',['run','typecheck']);
   run('lint','npm',['run','lint']);
   run('deno-check',process.env.DENO_BIN??'/private/tmp/deno-2.9.7/deno',['check','supabase/functions/api/index.ts']);
@@ -105,7 +109,7 @@ do $$ begin
   const http=await runtimeAcceptance({database:scratch,psql,output,browser:!process.argv.includes('--no-browser')});
   results.push({name:'authenticated-http',passed:http.passed,requests:http.requests});
  }
- writeFileSync(resolve(output,'summary.json'),JSON.stringify({passed:true,results},null,2)+'\n');
+ writeFileSync(resolve(output,'summary.json'),JSON.stringify({passed:true,scope:process.argv.includes('--runtime-only')?'runtime-only':process.argv.includes('--sql-only')?'sql-only':'operational',results},null,2)+'\n');
 } catch(error) {
  writeFileSync(resolve(output,'summary.json'),JSON.stringify({passed:false,results,error:String(error)},null,2)+'\n');throw error;
 } finally { if(created) psql('postgres',`drop database ${scratch} with(force);`); }

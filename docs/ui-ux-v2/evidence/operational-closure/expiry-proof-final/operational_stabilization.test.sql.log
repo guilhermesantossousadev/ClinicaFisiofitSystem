@@ -1,0 +1,98 @@
+fd000000-0000-4000-8000-000000000001
+ok 1 - J01 create class and recurring occurrences atomically
+ok 2 - J05 repeated calendar generation is idempotent
+ok 3 - J01 different professionals share time/unit
+ok 4 - J01 same professional overlap rejected
+ok 5 - J01 failed compound create leaves no orphan
+ok 6 - J01 another unit schedule
+ok 7 - J03 concrete makeup class
+ok 8 - J03 alternative makeup
+ok 9 - J01 add patient A
+ok 10 - RN006 informational capacity does not block second participant
+ok 11 - J02 effective roster includes both
+ok 12 - J01 recurring patient conflict is rejected beyond materialization horizon
+ok 13 - J01 same patient can attend another unit at a different time
+ok 14 - J01 appointment conflicts with Class professional
+ok 15 - J01 appointment conflicts with Class patient across units
+ok 16 - more than 100 authorized patients are queryable
+ok 17 - second page contains remaining patients
+ok 18 - J02 record justified absence
+ok 19 - J03 configured policy creates eligible credit
+ok 20 - J02 repeated attendance is idempotent
+ok 21 - J02 retry preserves version
+ok 22 - J02 correction requires reason
+fd000000-0000-4000-8000-000000000004
+ok 23 - J02 responsible professional may correct own attendance
+ok 24 - J03 correcting unused absence removes credit eligibility
+ok 25 - J02 stale concurrent correction rejected
+fd000000-0000-4000-8000-000000000003
+ok 26 - J02 reception may correct with history
+ok 27 - J02 both corrections persist history
+ok 28 - J04 substitution can use a professional from another habitual unit
+ok 29 - J04 planned professional stays in history
+fd000000-0000-4000-8000-000000000004
+ok 30 - J04 cross-unit substitute can open the assigned occurrence
+ok 31 - J04 substitute has no access to unrelated occurrence
+fd000000-0000-4000-8000-000000000003
+ok 32 - J03 reserve credit atomically
+ok 33 - J03 reservation does not consume credit
+ok 34 - J03 retry reservation is idempotent
+ok 35 - J03 duplicate credit use rejected
+ok 36 - J03 record actual makeup presence
+ok 37 - J03 only confirmed presence consumes credit
+ok 38 - J03 consumed source cannot be silently rewritten
+ok 39 - J03 second justified absence
+ok 40 - J03 reserve another credit
+ok 41 - J03 cancellation returns reserved credit with reason
+ok 42 - J03 cancellation removes only the replacement participant
+ok 43 - J03 returned credit can be booked again
+ok 44 - J03 record no-show at makeup
+ok 45 - J03 no-show uses explicitly configured policy
+ok 46 - J05 holiday cancels tomorrow across authorized units
+ok 47 - J05 holiday persisted state is closed
+ok 48 - J05 holiday did not generate attendance or automatic credit
+ok 49 - J05 occurrence generation continues beyond initial horizon
+fd000000-0000-4000-8000-000000000007
+ok 50 - denied agenda grants hide Class rows
+ok 51 - denied agenda grants block RPC
+fd000000-0000-4000-8000-000000000008
+ok 52 - cross-clinic occurrence isolation
+ok 53 - cross-clinic patient isolation
+fd000000-0000-4000-8000-000000000006
+ok 54 - J06 create financial contract
+ok 55 - J06 new contract preserves the approved price snapshot
+ok 56 - J06 partial payment
+ok 57 - J06 actual persisted receipt accumulator
+ok 58 - J06 partial is not marked paid
+ok 59 - J06 receipt retry is idempotent
+ok 60 - J06 no duplicate receipt
+ok 61 - J06 reused key cannot change amount
+ok 62 - J06 mixed-method final payment
+ok 63 - J06 paid requires complete actual receipt
+ok 64 - J06 receipt sum equals due
+ok 65 - J06 deleting a receipt ledger is rejected
+ok 66 - J06 rollback preserves received contract
+ok 67 - finance cannot read clinical records
+ok 68 - finance cannot manage clinical professionals
+fd000000-0000-4000-8000-000000000001
+ok 69 - J05 permanent time change starts at explicit future date
+ok 70 - J05 schedule history retains both versions
+ok 71 - J05 earlier occurrence keeps original time
+ok 72 - J05 point change moves one lesson to another day
+ok 73 - J05 displayed date uses persisted exception
+ok 74 - J05 future point exception cannot be marked attended today
+ok 75 - J05 point change preserves neighboring lessons
+ok 76 - J01 transfer versions the original membership
+ok 77 - J01 transfer preserves previous attendance period
+ok 78 - J01 membership can end by effective date
+ok 79 - J04 leave records affected lessons for explicit substitution
+ok 80 - user scope error rolls back complete compound change
+ok 81 - user name stayed unchanged after failed unit update
+ok 82 - professional create rejects foreign unit atomically
+ok 83 - failed professional create leaves no orphan
+ok 84 - J01 preserve approved creation without assigned professional
+ok 85 - J01 assign responsible professional later by explicit effective date
+fd000000-0000-4000-8000-000000000003
+ok 86 - reception cannot read clinical objects through direct Storage RLS
+
+1..86

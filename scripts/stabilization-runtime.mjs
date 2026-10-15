@@ -5,6 +5,7 @@ import { createServer } from 'node:http';
 import { randomUUID, randomBytes } from 'node:crypto';
 import { writeFileSync, rmSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 export async function runtimeAcceptance({database,psql,output,browser=true}) {
  const stack='secfinfinalb14', host='http://127.0.0.1', source=`${host}:57321`, proxyOrigin=`${host}:57431`, api=`${proxyOrigin}/functions/v1/api/v1`;
@@ -58,6 +59,13 @@ export async function runtimeAcceptance({database,psql,output,browser=true}) {
     else if(req.url.startsWith('/functions/v1'))target=`${host}:57434${req.url.slice(13)}`;
     else target=source+req.url;
     const parts=[];for await(const p of req)parts.push(p);const body=Buffer.concat(parts);
+    // Explicit local fault injection for differential search tests; never alters responses.
+    const query=new URL(req.url,proxyOrigin);
+    if(query.pathname.endsWith('/patients')) {
+     const key=query.searchParams.has('search')?'FISIOFIT_TEST_SEARCH_DELAY_MS':'FISIOFIT_TEST_LIST_DELAY_MS';
+     const delay=Number(process.env[key]??0);if(!Number.isFinite(delay)||delay<0||delay>3000)throw new Error('Invalid synthetic delay');
+     if(delay)await pause(delay);
+    }
     const headers={...req.headers};delete headers.host;delete headers.connection;delete headers['content-length'];delete headers['transfer-encoding'];
     const response=await fetch(target,{method:req.method,headers,...(body.length?{body}:{})});
     for(const[k,v]of response.headers)if(!['content-encoding','content-length','transfer-encoding','connection','access-control-allow-origin','access-control-allow-credentials'].includes(k))res.setHeader(k,v);
@@ -85,8 +93,9 @@ export async function runtimeAcceptance({database,psql,output,browser=true}) {
    insert into public.patients(id,clinic_id,primary_unit_id,name)select ('fc000000-0000-4000-8000-'||lpad((100+n)::text,12,'0'))::uuid,'${id(10)}','${id(20)}','Synthetic search '||lpad(n::text,3,'0')from generate_series(1,110)n;
    commit;`);
   const wrapper=resolve(output,'serve-candidate.ts');
-  writeFileSync(wrapper,`const serve=Deno.serve;Deno.serve=((handler:unknown)=>serve({hostname:'127.0.0.1',port:57434},(async(req:Request)=>{if(new URL(req.url).pathname.endsWith('/clinical-records')&&new URL(req.url).searchParams.get('patientId')==='${id(30)}')await new Promise(r=>setTimeout(r,1000));return (handler as (r:Request)=>Response)(req);})as never))as typeof Deno.serve;await import(${JSON.stringify(new URL('../supabase/functions/api/index.ts',import.meta.url).href)});`);
-  const deno=spawn(process.env.DENO_BIN??'/private/tmp/deno-2.9.7/deno',['run','--no-check','--node-modules-dir=none','--allow-env','--allow-read','--allow-net',wrapper],{env:{...process.env,DENO_DIR:process.env.DENO_DIR??'/private/tmp/fisiofit-hotfix-deno-final-20261014',SUPABASE_URL:proxyOrigin,SUPABASE_ANON_KEY:runtimeEnv.SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY:runtimeEnv.SUPABASE_SERVICE_ROLE_KEY,APP_ORIGIN:`${host}:57435`},stdio:['ignore','ignore','ignore']});children.push(deno);await ready(`${host}:57434/api/v1/health`);
+  const apiEntry=process.env.FISIOFIT_TEST_API_ROOT?pathToFileURL(resolve(process.env.FISIOFIT_TEST_API_ROOT,'supabase/functions/api/index.ts')).href:new URL('../supabase/functions/api/index.ts',import.meta.url).href;
+  writeFileSync(wrapper,`const serve=Deno.serve;Deno.serve=((handler:unknown)=>serve({hostname:'127.0.0.1',port:57434},(async(req:Request)=>{if(new URL(req.url).pathname.endsWith('/clinical-records')&&new URL(req.url).searchParams.get('patientId')==='${id(30)}')await new Promise(r=>setTimeout(r,1000));return (handler as (r:Request)=>Response)(req);})as never))as typeof Deno.serve;await import(${JSON.stringify(apiEntry)});`);
+  const deno=spawn(process.env.DENO_BIN??'/private/tmp/deno-2.9.7/deno',['run','--no-check','--node-modules-dir=none','--allow-env','--allow-read','--allow-net',wrapper],{env:{...process.env,DENO_DIR:process.env.DENO_DIR??'/private/tmp/fisiofit-hotfix-deno-final-20261014',SUPABASE_URL:proxyOrigin,SUPABASE_ANON_KEY:runtimeEnv.SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY:runtimeEnv.SUPABASE_SERVICE_ROLE_KEY,APP_ORIGIN:`${host}:57435`,FISIOFIT_READ_ONLY_SMOKE:'false'},stdio:['ignore','ignore','ignore']});children.push(deno);await ready(`${host}:57434/api/v1/health`);
   const A=accounts.admin,R=accounts.reception,P=accounts.professional,F=accounts.finance;
   await request(null,'GET','/patients',undefined,401,'UNAUTHENTICATED');
   await request(accounts.denied,'GET','/calendar-items?unitId='+id(20)+'&from=2026-10-15T00:00:00Z&to=2026-10-16T00:00:00Z',undefined,403,'MODULE_FORBIDDEN');

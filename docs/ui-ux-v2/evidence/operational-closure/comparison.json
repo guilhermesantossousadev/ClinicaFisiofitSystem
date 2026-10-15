@@ -1,0 +1,46 @@
+{
+  "status": "BLOCKED",
+  "reason": "Historical clinical-search timeout root cause is not proven. It did not recur in controlled runs. A separate baseline network-error run remains recorded; neither is labelled flakiness.",
+  "currentComparativeOperationalRunsPassed": true,
+  "sameConditions": {
+    "apiDigest": true,
+    "migrationsDigest": true,
+    "fixturesDigest": true,
+    "runnerDigest": true,
+    "conditions": true,
+    "version": true,
+    "functions": true,
+    "columns": true
+  },
+  "assertionLabelsPreserved": 86,
+  "originalFailedAssertions": [
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    43,
+    44
+  ],
+  "classification": {
+    "makeupFailures": "fixture/runner defect preexisting in baseline; time-of-day-dependent expired target",
+    "clinicalSearchHistoricalTimeout": "cause not proven; not reproduced",
+    "baseline401": "preexisting baseline observation during logout/account switch; origin not proven"
+  },
+  "finalRuns": [
+    "v82-base-final",
+    "v82-v2-final"
+  ],
+  "apiV82Provenance": {
+    "source": "local preserved cutover source, not production access",
+    "bundleDigestFromCutoverRecord": "dbc51762026d636dad700ae105c876fdd44519d655dfa3122d6d0e1a3bc94e53",
+    "sourceApiDigest": "8b38c04f5ff62d48d953b40818e6a53fc88a59d723701dae68c90b2aaf7f5e97"
+  },
+  "uiEvidenceDigest": "e4b34da1ab11b30317501a55b556bf545a8b1123b3490f1bd9771d8c6e49ad67",
+  "approvedVisualDigest": "e4b34da1ab11b30317501a55b556bf545a8b1123b3490f1bd9771d8c6e49ad67",
+  "database": "disposable schema replay from repository migrations, not a production schema dump",
+  "additionalSqlProof": "expiry-proof-final/summary.json",
+  "currentSqlAssertionsPassed": 367
+}

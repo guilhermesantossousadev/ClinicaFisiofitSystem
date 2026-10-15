@@ -1,0 +1,271 @@
+{
+  "passed": true,
+  "requests": 44,
+  "events": [
+    {
+      "method": "GET",
+      "path": "/patients",
+      "status": 401,
+      "code": "UNAUTHENTICATED"
+    },
+    {
+      "method": "GET",
+      "path": "/calendar-items?unitId=[fixture]&from=2026-10-15T00:00:00Z&to=2026-10-16T00:00:00Z",
+      "status": 403,
+      "code": "MODULE_FORBIDDEN"
+    },
+    {
+      "method": "POST",
+      "path": "/group-slots",
+      "status": 201,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/group-slots",
+      "status": 200,
+      "code": null
+    },
+    {
+      "method": "POST",
+      "path": "/group-slots/[fixture]/members",
+      "status": 201,
+      "code": null
+    },
+    {
+      "method": "POST",
+      "path": "/group-slots/[fixture]/members",
+      "status": 201,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/calendar-items?unitId=[fixture]&from=2026-10-15T00:00:00-03:00&to=2026-10-22T00:00:00-03:00",
+      "status": 200,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/calendar-items?unitId=[fixture]&from=2026-10-15T00:00:00-03:00&to=2026-10-22T00:00:00-03:00&patientId=[fixture]",
+      "status": 200,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/attendance/daily?unitId=[fixture]&date=2026-10-15",
+      "status": 200,
+      "code": null
+    },
+    {
+      "method": "OPTIONS",
+      "status": 204,
+      "check": "PUT preflight"
+    },
+    {
+      "method": "PUT",
+      "path": "/class-occurrences/[fixture]/attendance/[fixture]",
+      "status": 200,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/class-occurrences/[fixture]/attendance",
+      "status": 200,
+      "code": null
+    },
+    {
+      "method": "PUT",
+      "path": "/class-occurrences/[fixture]/attendance/[fixture]",
+      "status": 200,
+      "code": null
+    },
+    {
+      "method": "PUT",
+      "path": "/class-occurrences/[fixture]/attendance/[fixture]",
+      "status": 409,
+      "code": "ATTENDANCE_VERSION_CONFLICT"
+    },
+    {
+      "method": "PUT",
+      "status": 409,
+      "check": "concurrent attendance"
+    },
+    {
+      "method": "PUT",
+      "status": 200,
+      "check": "concurrent attendance"
+    },
+    {
+      "method": "GET",
+      "path": "/class-occurrences/[fixture]/attendance",
+      "status": 200,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/patients?includeOperational=true",
+      "status": 403,
+      "code": "FORBIDDEN"
+    },
+    {
+      "method": "GET",
+      "path": "/charges",
+      "status": 403,
+      "code": "FORBIDDEN"
+    },
+    {
+      "method": "GET",
+      "path": "/class-occurrences/[fixture]",
+      "status": 404,
+      "code": "CLASS_OCCURRENCE_NOT_FOUND"
+    },
+    {
+      "method": "GET",
+      "path": "/patients?page=1&pageSize=100&search=Synthetic%20search%20110",
+      "status": 200,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/patients?page=2&pageSize=100",
+      "status": 200,
+      "code": null
+    },
+    {
+      "method": "POST",
+      "path": "/plans",
+      "status": 201,
+      "code": null
+    },
+    {
+      "method": "POST",
+      "path": "/enrollments",
+      "status": 201,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/enrollment-price-terms",
+      "status": 200,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/charges",
+      "status": 200,
+      "code": null
+    },
+    {
+      "method": "POST",
+      "path": "/payments",
+      "status": 201,
+      "code": null
+    },
+    {
+      "method": "POST",
+      "path": "/payments",
+      "status": 201,
+      "code": null
+    },
+    {
+      "method": "POST",
+      "path": "/payments",
+      "status": 403,
+      "code": "FORBIDDEN"
+    },
+    {
+      "method": "POST",
+      "path": "/enrollments/[fixture]/rollback",
+      "status": 409,
+      "code": "ENROLLMENT_HAS_PAYMENTS"
+    },
+    {
+      "method": "DELETE",
+      "path": "/financial-entries/[fixture]",
+      "status": 409,
+      "code": "PAYMENT_LEDGER_IMMUTABLE"
+    },
+    {
+      "method": "PATCH",
+      "path": "/professionals/[fixture]",
+      "status": 409,
+      "code": "PROFESSIONAL_PROFILE_ALREADY_LINKED"
+    },
+    {
+      "method": "POST",
+      "path": "/clinical-records",
+      "status": 201,
+      "code": null
+    },
+    {
+      "method": "POST",
+      "path": "/clinical-records",
+      "status": 201,
+      "code": null
+    },
+    {
+      "method": "POST",
+      "path": "/clinical-records/[fixture]/sign",
+      "status": 200,
+      "code": null
+    },
+    {
+      "method": "POST",
+      "path": "/clinical-records/[fixture]/sign",
+      "status": 200,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/clinical-records?patientId=[fixture]",
+      "status": 403,
+      "code": "FORBIDDEN"
+    },
+    {
+      "method": "GET",
+      "path": "/attachments?patientId=[fixture]",
+      "status": 403,
+      "code": "MODULE_FORBIDDEN"
+    },
+    {
+      "method": "POST",
+      "path": "/attachments/upload-url",
+      "status": 201,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/attachments/[fixture]/download-url",
+      "status": 200,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/attachments/[fixture]/download-url",
+      "status": 404,
+      "code": "ATTACHMENT_NOT_FOUND"
+    },
+    {
+      "method": "POST",
+      "path": "/record-templates",
+      "status": 201,
+      "code": null
+    },
+    {
+      "method": "DELETE",
+      "path": "/record-templates/[fixture]",
+      "status": 200,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard?unitId=[fixture]",
+      "status": 200,
+      "code": null
+    }
+  ],
+  "actualStorageBytesVerified": true,
+  "concurrentPaymentIdempotency": true,
+  "database": "disposable repository-migration schema",
+  "browser": true
+}

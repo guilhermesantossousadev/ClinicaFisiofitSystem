@@ -558,9 +558,9 @@
     "semantic_hash": ""
   },
   "scripts/homologate-stabilization.mjs": {
-    "mtime": 1792071670.3194091,
-    "seen": 1792074370.5262022,
-    "ast_hash": "e2fdf07e051d2fc59a3bc2371530f822",
+    "mtime": 1792083538.3470676,
+    "seen": 1792083973.8125381,
+    "ast_hash": "921a09c4d91bf5da1d1d5ce3ca1148a6",
     "semantic_hash": ""
   },
   "scripts/prepare-financial-plans-release.mjs": {
@@ -576,15 +576,15 @@
     "semantic_hash": ""
   },
   "scripts/stabilization-browser.mjs": {
-    "mtime": 1792071670.3204083,
-    "seen": 1792074370.5262048,
-    "ast_hash": "d791c56b2a25d325aff3a20484737196",
+    "mtime": 1792084039.4316428,
+    "seen": 1792084042.720704,
+    "ast_hash": "a3abc53906ac05233536d28728b97e7b",
     "semantic_hash": ""
   },
   "scripts/stabilization-runtime.mjs": {
-    "mtime": 1792071670.3207085,
-    "seen": 1792074370.526206,
-    "ast_hash": "4a1b3f7cbdcb07eca7b0f6aa0f8cc46c",
+    "mtime": 1792083287.7621741,
+    "seen": 1792083973.812592,
+    "ast_hash": "2f6cc042f094d36c99c41ac148e3aefb",
     "semantic_hash": ""
   },
   "skills-lock.json": {
@@ -1188,9 +1188,9 @@
     "semantic_hash": ""
   },
   "scripts/homologate-ui-v2.mjs": {
-    "mtime": 1792074267.3186996,
-    "seen": 1792074370.5262022,
-    "ast_hash": "d8f25aa56c911f403aef6bce12502fec",
+    "mtime": 1792083470.030591,
+    "seen": 1792083973.8125389,
+    "ast_hash": "0ab0cefb4cddb4d4fd5024d28fca680b",
     "semantic_hash": ""
   },
   "scripts/ui-v2/browser.mjs": {
@@ -1248,9 +1248,9 @@
     "semantic_hash": ""
   },
   "docs/ui-ux-v2/RELEASE.md": {
-    "mtime": 1792082543.6570735,
-    "seen": 1792082569.3223581,
-    "ast_hash": "42921d0c535ce342f145d6a11a668d5e",
+    "mtime": 1792083970.0305343,
+    "seen": 1792083973.8150458,
+    "ast_hash": "02d25a10b47e398b4381feff912174cc",
     "semantic_hash": ""
   },
   "docs/ui-ux-v2/evidence/after/agenda-1280.png": {
@@ -1667,12 +1667,6 @@
     "ast_hash": "0871cdf372382974914c1cd49ce84196",
     "semantic_hash": ""
   },
-  "docs/ui-ux-v2/evidence/after/drawer-convidar-colaboradora.png": {
-    "mtime": 1792072771.6406112,
-    "seen": 1792074370.526331,
-    "ast_hash": "5a1df2e3516f64ab5f1915ce92267348",
-    "semantic_hash": ""
-  },
   "docs/ui-ux-v2/evidence/after/drawer-criar-grade-de-horarios-1280.png": {
     "mtime": 1792074059.771434,
     "seen": 1792074370.526332,
@@ -1695,12 +1689,6 @@
     "mtime": 1792074060.0077422,
     "seen": 1792074370.526334,
     "ast_hash": "6ef6d0d2e0437b19d46cf29e734ccc3c",
-    "semantic_hash": ""
-  },
-  "docs/ui-ux-v2/evidence/after/drawer-criar-grade-de-horarios.png": {
-    "mtime": 1792072764.5170152,
-    "seen": 1792074370.526335,
-    "ast_hash": "fe96d0b3634099980f25f6f324506e37",
     "semantic_hash": ""
   },
   "docs/ui-ux-v2/evidence/after/drawer-enrollment-1280.png": {
@@ -1751,12 +1739,6 @@
     "ast_hash": "75204e484bef7fbe756018585a5f90e3",
     "semantic_hash": ""
   },
-  "docs/ui-ux-v2/evidence/after/drawer-feriado-ferias-ou-afastamento.png": {
-    "mtime": 1792072763.4233034,
-    "seen": 1792074370.526342,
-    "ast_hash": "639f9dda717454438ba12fb3e697bdf1",
-    "semantic_hash": ""
-  },
   "docs/ui-ux-v2/evidence/after/drawer-nova-comissao-1280.png": {
     "mtime": 1792074066.6611981,
     "seen": 1792074370.526342,
@@ -1779,12 +1761,6 @@
     "mtime": 1792074066.8792434,
     "seen": 1792074370.526345,
     "ast_hash": "e1bec8b1f3f8f188e6713cff3a70df19",
-    "semantic_hash": ""
-  },
-  "docs/ui-ux-v2/evidence/after/drawer-nova-comissao.png": {
-    "mtime": 1792072768.1429832,
-    "seen": 1792074370.526345,
-    "ast_hash": "3305a7445bee8716d7218b6eda2a0ce5",
     "semantic_hash": ""
   },
   "docs/ui-ux-v2/evidence/after/drawer-nova-sala-1280.png": {
@@ -1811,12 +1787,6 @@
     "ast_hash": "e2e194ef22b9d6a2d30e5a2a2b3550f0",
     "semantic_hash": ""
   },
-  "docs/ui-ux-v2/evidence/after/drawer-nova-sala.png": {
-    "mtime": 1792072776.3999822,
-    "seen": 1792074370.526349,
-    "ast_hash": "b9630b942879bbd4a1464f2fc05574a3",
-    "semantic_hash": ""
-  },
   "docs/ui-ux-v2/evidence/after/drawer-nova-solicitacao-1280.png": {
     "mtime": 1792074073.707991,
     "seen": 1792074370.52635,
@@ -1839,12 +1809,6 @@
     "mtime": 1792074073.930156,
     "seen": 1792074370.526352,
     "ast_hash": "6f3149e3f93ac1fec9ebdc8664673850",
-    "semantic_hash": ""
-  },
-  "docs/ui-ux-v2/evidence/after/drawer-nova-solicitacao.png": {
-    "mtime": 1792072772.969574,
-    "seen": 1792074370.526353,
-    "ast_hash": "8308d5acf04a1f1e7e166bcbc105b049",
     "semantic_hash": ""
   },
   "docs/ui-ux-v2/evidence/after/drawer-nova-turma-em-horario-fixo-1280.png": {
@@ -1871,12 +1835,6 @@
     "ast_hash": "a7e1842637fd51ffd52f1c53dcd50999",
     "semantic_hash": ""
   },
-  "docs/ui-ux-v2/evidence/after/drawer-nova-turma-em-horario-fixo.png": {
-    "mtime": 1792072763.978358,
-    "seen": 1792074370.526356,
-    "ast_hash": "7230f68cc99af4b30ed08b025b65ad1c",
-    "semantic_hash": ""
-  },
   "docs/ui-ux-v2/evidence/after/drawer-nova-unidade-1280.png": {
     "mtime": 1792074077.4749794,
     "seen": 1792074370.526357,
@@ -1899,12 +1857,6 @@
     "mtime": 1792074077.6801631,
     "seen": 1792074370.526359,
     "ast_hash": "38b807867906f1f4a76b1c713f2f4271",
-    "semantic_hash": ""
-  },
-  "docs/ui-ux-v2/evidence/after/drawer-nova-unidade.png": {
-    "mtime": 1792072775.1546714,
-    "seen": 1792074370.52636,
-    "ast_hash": "44cb4b187a06949ab303b68d1a85e398",
     "semantic_hash": ""
   },
   "docs/ui-ux-v2/evidence/after/drawer-novo-agendamento-1280.png": {
@@ -1931,12 +1883,6 @@
     "ast_hash": "8aa77ec5255b31bc3f3c8dab4887f67f",
     "semantic_hash": ""
   },
-  "docs/ui-ux-v2/evidence/after/drawer-novo-agendamento.png": {
-    "mtime": 1792072765.0323334,
-    "seen": 1792074370.5263638,
-    "ast_hash": "a83cce7a4c3f7e85f3be434a48ea4867",
-    "semantic_hash": ""
-  },
   "docs/ui-ux-v2/evidence/after/drawer-novo-incidente-1280.png": {
     "mtime": 1792074074.959133,
     "seen": 1792074370.526365,
@@ -1959,12 +1905,6 @@
     "mtime": 1792074075.1818974,
     "seen": 1792074370.526367,
     "ast_hash": "a0507d3324e01c9f0fd22d60d1fdac22",
-    "semantic_hash": ""
-  },
-  "docs/ui-ux-v2/evidence/after/drawer-novo-incidente.png": {
-    "mtime": 1792072773.468456,
-    "seen": 1792074370.526367,
-    "ast_hash": "e54621cc426667ccd28cdb3f8643c151",
     "semantic_hash": ""
   },
   "docs/ui-ux-v2/evidence/after/drawer-novo-modelo-clinico-1280.png": {
@@ -1991,12 +1931,6 @@
     "ast_hash": "a19d59dab836745b12b3abb9d57b38d3",
     "semantic_hash": ""
   },
-  "docs/ui-ux-v2/evidence/after/drawer-novo-modelo-clinico.png": {
-    "mtime": 1792072780.6680198,
-    "seen": 1792074370.526371,
-    "ast_hash": "eecade93bbca2caa32486767ccd79b5b",
-    "semantic_hash": ""
-  },
   "docs/ui-ux-v2/evidence/after/drawer-novo-movimento-1280.png": {
     "mtime": 1792074065.4041076,
     "seen": 1792074370.5263722,
@@ -2019,12 +1953,6 @@
     "mtime": 1792074065.6333203,
     "seen": 1792074370.5263739,
     "ast_hash": "ca3e1c139fa3560f2c1b58a0cd6b5027",
-    "semantic_hash": ""
-  },
-  "docs/ui-ux-v2/evidence/after/drawer-novo-movimento.png": {
-    "mtime": 1792072767.6498053,
-    "seen": 1792074370.5263748,
-    "ast_hash": "be4013eeea84a6c3e0034ce8f3cae77d",
     "semantic_hash": ""
   },
   "docs/ui-ux-v2/evidence/after/drawer-novo-paciente-1280.png": {
@@ -2051,12 +1979,6 @@
     "ast_hash": "c4e6df8a21f9f360682938be56008233",
     "semantic_hash": ""
   },
-  "docs/ui-ux-v2/evidence/after/drawer-novo-paciente.png": {
-    "mtime": 1792072766.3545103,
-    "seen": 1792074370.52638,
-    "ast_hash": "d96566cfb9cc1cf7a4593ffe84d4ca01",
-    "semantic_hash": ""
-  },
   "docs/ui-ux-v2/evidence/after/drawer-novo-profissional-1280.png": {
     "mtime": 1792074083.5919561,
     "seen": 1792074370.526381,
@@ -2079,12 +2001,6 @@
     "mtime": 1792074083.8158033,
     "seen": 1792074370.5263832,
     "ast_hash": "353f3cc0cd82dd9b35ae403bde84f840",
-    "semantic_hash": ""
-  },
-  "docs/ui-ux-v2/evidence/after/drawer-novo-profissional.png": {
-    "mtime": 1792072779.4255533,
-    "seen": 1792074370.526384,
-    "ast_hash": "8606e3fa00dca58ac786ed736efa2cd4",
     "semantic_hash": ""
   },
   "docs/ui-ux-v2/evidence/after/drawer-novo-registro-1280.png": {
@@ -2111,12 +2027,6 @@
     "ast_hash": "cc6e07b78eaf5ad50784afe8520e9594",
     "semantic_hash": ""
   },
-  "docs/ui-ux-v2/evidence/after/drawer-novo-registro.png": {
-    "mtime": 1792072770.3337564,
-    "seen": 1792074370.526388,
-    "ast_hash": "27820da1647d961133c4b71eeec2028f",
-    "semantic_hash": ""
-  },
   "docs/ui-ux-v2/evidence/after/drawer-novo-servico-1280.png": {
     "mtime": 1792074081.5230656,
     "seen": 1792074370.526388,
@@ -2139,12 +2049,6 @@
     "mtime": 1792074081.729691,
     "seen": 1792074370.526391,
     "ast_hash": "9970e9f6dc1f78d1a1d98c4b5f22e3ac",
-    "semantic_hash": ""
-  },
-  "docs/ui-ux-v2/evidence/after/drawer-novo-servico.png": {
-    "mtime": 1792072778.200245,
-    "seen": 1792074370.526391,
-    "ast_hash": "7e9463e5b02bae3d60900716e6947796",
     "semantic_hash": ""
   },
   "docs/ui-ux-v2/evidence/after/drawer-policy.png": {
@@ -2819,12 +2723,6 @@
     "ast_hash": "4853ff96901c97d06d01b21f71cee36c",
     "semantic_hash": ""
   },
-  "docs/ui-ux-v2/evidence/before/drawer-convidar-colaboradora.png": {
-    "mtime": 1792072134.9046571,
-    "seen": 1792074370.526554,
-    "ast_hash": "1936a625607715a50178b2ee48c84c27",
-    "semantic_hash": ""
-  },
   "docs/ui-ux-v2/evidence/before/drawer-criar-grade-de-horarios-1280.png": {
     "mtime": 1792074338.400791,
     "seen": 1792074370.5265548,
@@ -2847,12 +2745,6 @@
     "mtime": 1792074338.6090064,
     "seen": 1792074370.526557,
     "ast_hash": "ce522e48dab5dac2a1895bf39c7401e1",
-    "semantic_hash": ""
-  },
-  "docs/ui-ux-v2/evidence/before/drawer-criar-grade-de-horarios.png": {
-    "mtime": 1792072127.5525033,
-    "seen": 1792074370.526558,
-    "ast_hash": "d9ae7bf76fa5a48f58f105d52da09c79",
     "semantic_hash": ""
   },
   "docs/ui-ux-v2/evidence/before/drawer-feriado-ferias-ou-afastamento-1280.png": {
@@ -2879,12 +2771,6 @@
     "ast_hash": "f26607bd1196121a4366b078eea0164d",
     "semantic_hash": ""
   },
-  "docs/ui-ux-v2/evidence/before/drawer-feriado-ferias-ou-afastamento.png": {
-    "mtime": 1792072126.4609287,
-    "seen": 1792074370.526562,
-    "ast_hash": "079d2c0ce9838523feb4f75e51b4428e",
-    "semantic_hash": ""
-  },
   "docs/ui-ux-v2/evidence/before/drawer-nova-comissao-1280.png": {
     "mtime": 1792074344.536825,
     "seen": 1792074370.526562,
@@ -2907,12 +2793,6 @@
     "mtime": 1792074344.744257,
     "seen": 1792074370.5265641,
     "ast_hash": "725bfe00415724456070c81030fb29db",
-    "semantic_hash": ""
-  },
-  "docs/ui-ux-v2/evidence/before/drawer-nova-comissao.png": {
-    "mtime": 1792072131.3294764,
-    "seen": 1792074370.526565,
-    "ast_hash": "45e205d849496c7b0eeeb7e63015be3b",
     "semantic_hash": ""
   },
   "docs/ui-ux-v2/evidence/before/drawer-nova-sala-1280.png": {
@@ -2939,12 +2819,6 @@
     "ast_hash": "8b5dcce586f167a9117f62d33e8eea98",
     "semantic_hash": ""
   },
-  "docs/ui-ux-v2/evidence/before/drawer-nova-sala.png": {
-    "mtime": 1792072139.8674042,
-    "seen": 1792074370.526569,
-    "ast_hash": "067ff600531ed7b1f022f00712c5bd4c",
-    "semantic_hash": ""
-  },
   "docs/ui-ux-v2/evidence/before/drawer-nova-solicitacao-1280.png": {
     "mtime": 1792074351.1458297,
     "seen": 1792074370.52657,
@@ -2967,12 +2841,6 @@
     "mtime": 1792074351.3569126,
     "seen": 1792074370.526572,
     "ast_hash": "8d5d2fc8ac1bb24da08b047e76a2b643",
-    "semantic_hash": ""
-  },
-  "docs/ui-ux-v2/evidence/before/drawer-nova-solicitacao.png": {
-    "mtime": 1792072136.2556982,
-    "seen": 1792074370.526573,
-    "ast_hash": "8e567afefb5232811cdbb15588feafbd",
     "semantic_hash": ""
   },
   "docs/ui-ux-v2/evidence/before/drawer-nova-turma-em-horario-fixo-1280.png": {
@@ -2999,12 +2867,6 @@
     "ast_hash": "0f7a876dcbc9dee7269bb403fedce7c0",
     "semantic_hash": ""
   },
-  "docs/ui-ux-v2/evidence/before/drawer-nova-turma-em-horario-fixo.png": {
-    "mtime": 1792072127.0207648,
-    "seen": 1792074370.526576,
-    "ast_hash": "508c6242e2b6d906a250aa98a661beff",
-    "semantic_hash": ""
-  },
   "docs/ui-ux-v2/evidence/before/drawer-nova-unidade-1280.png": {
     "mtime": 1792074354.537096,
     "seen": 1792074370.526577,
@@ -3027,12 +2889,6 @@
     "mtime": 1792074354.7456634,
     "seen": 1792074370.5265799,
     "ast_hash": "ec0b1aa6c9cc54179dc44672386cf634",
-    "semantic_hash": ""
-  },
-  "docs/ui-ux-v2/evidence/before/drawer-nova-unidade.png": {
-    "mtime": 1792072138.5902073,
-    "seen": 1792074370.5265799,
-    "ast_hash": "79314e7ad484e509a5eebc6556bb5093",
     "semantic_hash": ""
   },
   "docs/ui-ux-v2/evidence/before/drawer-novo-agendamento-1280.png": {
@@ -3059,12 +2915,6 @@
     "ast_hash": "abdf539df5e16074b9b32454bdb53d8d",
     "semantic_hash": ""
   },
-  "docs/ui-ux-v2/evidence/before/drawer-novo-agendamento.png": {
-    "mtime": 1792072128.0993748,
-    "seen": 1792074370.5265841,
-    "ast_hash": "75bc5cde13b0aaa80d67b5b7e40d4287",
-    "semantic_hash": ""
-  },
   "docs/ui-ux-v2/evidence/before/drawer-novo-incidente-1280.png": {
     "mtime": 1792074352.2682145,
     "seen": 1792074370.526585,
@@ -3087,12 +2937,6 @@
     "mtime": 1792074352.475139,
     "seen": 1792074370.5265868,
     "ast_hash": "4e1de49eac621337e3a6237f63249856",
-    "semantic_hash": ""
-  },
-  "docs/ui-ux-v2/evidence/before/drawer-novo-incidente.png": {
-    "mtime": 1792072136.7959044,
-    "seen": 1792074370.526588,
-    "ast_hash": "4c174e988367bdce2215b84171ff76c7",
     "semantic_hash": ""
   },
   "docs/ui-ux-v2/evidence/before/drawer-novo-modelo-clinico-1280.png": {
@@ -3119,12 +2963,6 @@
     "ast_hash": "58f4dd1b67857b6384c6a4bec8c1516b",
     "semantic_hash": ""
   },
-  "docs/ui-ux-v2/evidence/before/drawer-novo-modelo-clinico.png": {
-    "mtime": 1792072143.5183854,
-    "seen": 1792074370.526592,
-    "ast_hash": "ca382791cf31cbf807f49dd8e4fd5c3c",
-    "semantic_hash": ""
-  },
   "docs/ui-ux-v2/evidence/before/drawer-novo-movimento-1280.png": {
     "mtime": 1792074343.436651,
     "seen": 1792074370.526592,
@@ -3147,12 +2985,6 @@
     "mtime": 1792074343.638289,
     "seen": 1792074370.526595,
     "ast_hash": "f6bfdfdbc201af9d3b775a2121052978",
-    "semantic_hash": ""
-  },
-  "docs/ui-ux-v2/evidence/before/drawer-novo-movimento.png": {
-    "mtime": 1792072130.7935703,
-    "seen": 1792074370.526595,
-    "ast_hash": "aa259ea31ac3c937dcc14c918db0a6b0",
     "semantic_hash": ""
   },
   "docs/ui-ux-v2/evidence/before/drawer-novo-paciente-1280.png": {
@@ -3179,12 +3011,6 @@
     "ast_hash": "84067d0c2c6e5375efcddcb6a9e72030",
     "semantic_hash": ""
   },
-  "docs/ui-ux-v2/evidence/before/drawer-novo-paciente.png": {
-    "mtime": 1792072129.4623296,
-    "seen": 1792074370.526599,
-    "ast_hash": "82303d7f04e6be38fc4f2365078f0779",
-    "semantic_hash": ""
-  },
   "docs/ui-ux-v2/evidence/before/drawer-novo-profissional-1280.png": {
     "mtime": 1792074360.3466456,
     "seen": 1792074370.5266,
@@ -3207,12 +3033,6 @@
     "mtime": 1792074360.5583215,
     "seen": 1792074370.526602,
     "ast_hash": "53b16aee02958c2ef67a1503b25dddb2",
-    "semantic_hash": ""
-  },
-  "docs/ui-ux-v2/evidence/before/drawer-novo-profissional.png": {
-    "mtime": 1792072142.3172748,
-    "seen": 1792074370.526603,
-    "ast_hash": "62a178a048cb46c360658ded11932357",
     "semantic_hash": ""
   },
   "docs/ui-ux-v2/evidence/before/drawer-novo-registro-1280.png": {
@@ -3239,12 +3059,6 @@
     "ast_hash": "b290c35d7df4c013063ddb7a911e671e",
     "semantic_hash": ""
   },
-  "docs/ui-ux-v2/evidence/before/drawer-novo-registro.png": {
-    "mtime": 1792072133.5932117,
-    "seen": 1792074370.526606,
-    "ast_hash": "881b8c6356895c61da206978a5c4c438",
-    "semantic_hash": ""
-  },
   "docs/ui-ux-v2/evidence/before/drawer-novo-servico-1280.png": {
     "mtime": 1792074358.5355573,
     "seen": 1792074370.526607,
@@ -3267,12 +3081,6 @@
     "mtime": 1792074358.729031,
     "seen": 1792074370.526609,
     "ast_hash": "e5592bf7e66e349e97caff5d10cad8f2",
-    "semantic_hash": ""
-  },
-  "docs/ui-ux-v2/evidence/before/drawer-novo-servico.png": {
-    "mtime": 1792072141.0916033,
-    "seen": 1792074370.52661,
-    "ast_hash": "dd3917c11b0db1640c7e680cb7f9c222",
     "semantic_hash": ""
   },
   "docs/ui-ux-v2/evidence/before/drawer-policy.png": {
@@ -3849,6 +3657,246 @@
     "mtime": 1792074371.9131773,
     "seen": 1792082569.33429,
     "ast_hash": "5fffa5f88a39a3758c7e2bad3b911618",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/comparison.json": {
+    "mtime": 1792083866.9712372,
+    "seen": 1792083973.811903,
+    "ast_hash": "7de1ed91e1f2ce0132b3f504a36d60c0",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/original-base/summary.json": {
+    "mtime": 1792083866.9418623,
+    "seen": 1792083973.811905,
+    "ast_hash": "cd08e729c23338457e7821a0c125bda8",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/original-v2/summary.json": {
+    "mtime": 1792083866.9431012,
+    "seen": 1792083973.811906,
+    "ast_hash": "cd08e729c23338457e7821a0c125bda8",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/reference-base-corrected/browser-result.json": {
+    "mtime": 1792083866.9447825,
+    "seen": 1792083973.811907,
+    "ast_hash": "5aa857f965fc3d20881a8a56070e5674",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/reference-base-corrected/http-result.json": {
+    "mtime": 1792083866.9451222,
+    "seen": 1792083973.811908,
+    "ast_hash": "f313d6f431ca9918c60bdc43b155a655",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/reference-base-corrected/summary.json": {
+    "mtime": 1792083866.9441133,
+    "seen": 1792083973.8119092,
+    "ast_hash": "6ca3525d8afc70590fc00f8f3125dd41",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/reference-v2-search/browser-result.json": {
+    "mtime": 1792083866.9475462,
+    "seen": 1792083973.81191,
+    "ast_hash": "18c6ee573dda1893432ab01f52b6a301",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/reference-v2-search/http-result.json": {
+    "mtime": 1792083866.9480524,
+    "seen": 1792083973.8119109,
+    "ast_hash": "f313d6f431ca9918c60bdc43b155a655",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/reference-v2-search/summary.json": {
+    "mtime": 1792083866.9470325,
+    "seen": 1792083973.8119118,
+    "ast_hash": "e0a62466c7908476240d72681d5f3a22",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/reference-v2-stress/browser-result.json": {
+    "mtime": 1792083866.9502563,
+    "seen": 1792083973.811913,
+    "ast_hash": "a709b5a992a25ad22d16fbbee90e1c0c",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/reference-v2-stress/http-result.json": {
+    "mtime": 1792083866.9508104,
+    "seen": 1792083973.811915,
+    "ast_hash": "f313d6f431ca9918c60bdc43b155a655",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/reference-v2-stress/summary.json": {
+    "mtime": 1792083866.949853,
+    "seen": 1792083973.811916,
+    "ast_hash": "e0a62466c7908476240d72681d5f3a22",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/v82-base-final/browser-result.json": {
+    "mtime": 1792083866.9573987,
+    "seen": 1792083973.811917,
+    "ast_hash": "18c6ee573dda1893432ab01f52b6a301",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/v82-base-final/environment.json": {
+    "mtime": 1792083866.9571142,
+    "seen": 1792083973.811918,
+    "ast_hash": "8d23c0c8637a897d6e22afdf8f0b570f",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/v82-base-final/expired-fixture-probe.json": {
+    "mtime": 1792083866.9583478,
+    "seen": 1792083973.8119192,
+    "ast_hash": "f8e0b6f6066b443052417eda896889a6",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/v82-base-final/http-result.json": {
+    "mtime": 1792083866.95802,
+    "seen": 1792083973.81192,
+    "ast_hash": "f313d6f431ca9918c60bdc43b155a655",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/v82-base-final/summary.json": {
+    "mtime": 1792083866.9567637,
+    "seen": 1792083973.811921,
+    "ast_hash": "2845c996a52aeaf5f87ce2559d7d1787",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/v82-base-first/browser-result.json": {
+    "mtime": 1792083866.9541752,
+    "seen": 1792083973.8119218,
+    "ast_hash": "a1e273a13e646bc3a43adc23b87e8cd7",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/v82-base-first/environment.json": {
+    "mtime": 1792083866.9538298,
+    "seen": 1792083973.8119218,
+    "ast_hash": "d237138eabf6923f5758697d72ae30fa",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/v82-base-first/summary.json": {
+    "mtime": 1792083866.9530797,
+    "seen": 1792083973.811923,
+    "ast_hash": "8841e72b87386c4e16e418ec909e7f68",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/v82-v2-final/browser-result.json": {
+    "mtime": 1792083866.9629772,
+    "seen": 1792083973.811925,
+    "ast_hash": "a709b5a992a25ad22d16fbbee90e1c0c",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/v82-v2-final/environment.json": {
+    "mtime": 1792083866.9623334,
+    "seen": 1792083973.811925,
+    "ast_hash": "282544421a8adff14eaca10889b71fea",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/v82-v2-final/expired-fixture-probe.json": {
+    "mtime": 1792083866.963874,
+    "seen": 1792083973.8119261,
+    "ast_hash": "f8e0b6f6066b443052417eda896889a6",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/v82-v2-final/http-result.json": {
+    "mtime": 1792083866.9634326,
+    "seen": 1792083973.811927,
+    "ast_hash": "f313d6f431ca9918c60bdc43b155a655",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/v82-v2-final/summary.json": {
+    "mtime": 1792083866.9614625,
+    "seen": 1792083973.811928,
+    "ast_hash": "2845c996a52aeaf5f87ce2559d7d1787",
+    "semantic_hash": ""
+  },
+  "scripts/operational-fingerprint.mjs": {
+    "mtime": 1792083492.0169725,
+    "seen": 1792083973.8125398,
+    "ast_hash": "80920f675abb5db7490c0b754ed432a5",
+    "semantic_hash": ""
+  },
+  "scripts/operational-fixture-probe.mjs": {
+    "mtime": 1792084017.8384392,
+    "seen": 1792084042.72065,
+    "ast_hash": "e3bcb6a20d34aa815b1b5045b22b3cd4",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/OPERATIONAL_CLOSURE.md": {
+    "mtime": 1792083947.676749,
+    "seen": 1792083973.815045,
+    "ast_hash": "5b3f1ac15c7f4c3f9f94a94bab77110a",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/reference-base-corrected/browser-finance-paid.png": {
+    "mtime": 1792083866.946577,
+    "seen": 1792083973.828898,
+    "ast_hash": "488fd57bdac169f4a44818a47441050f",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/reference-base-corrected/browser-records.png": {
+    "mtime": 1792083866.9461303,
+    "seen": 1792083973.8288991,
+    "ast_hash": "0c9d1fe2cf2eed9ac5a5ee362359789f",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/reference-v2-search/browser-finance-paid.png": {
+    "mtime": 1792083866.9490352,
+    "seen": 1792083973.8289,
+    "ast_hash": "7b683f6439b95dcd91d771e696dc19ba",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/reference-v2-search/browser-records.png": {
+    "mtime": 1792083866.9484801,
+    "seen": 1792083973.828901,
+    "ast_hash": "e4d12d187eb4ecdcefaf6851de0f4527",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/reference-v2-stress/browser-finance-paid.png": {
+    "mtime": 1792083866.952096,
+    "seen": 1792083973.828902,
+    "ast_hash": "7b683f6439b95dcd91d771e696dc19ba",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/reference-v2-stress/browser-records.png": {
+    "mtime": 1792083866.9514973,
+    "seen": 1792083973.828903,
+    "ast_hash": "87440a016c2e6554a8be15ec92e78e25",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/v82-base-final/browser-finance-paid.png": {
+    "mtime": 1792083866.9608436,
+    "seen": 1792083973.828904,
+    "ast_hash": "488fd57bdac169f4a44818a47441050f",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/v82-base-final/browser-records.png": {
+    "mtime": 1792083866.960348,
+    "seen": 1792083973.828904,
+    "ast_hash": "0d75bd32185584693a7732452ae0aefd",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/v82-base-first/browser-finance-paid.png": {
+    "mtime": 1792083866.956315,
+    "seen": 1792083973.8289049,
+    "ast_hash": "488fd57bdac169f4a44818a47441050f",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/v82-base-first/browser-records.png": {
+    "mtime": 1792083866.9558244,
+    "seen": 1792083973.828906,
+    "ast_hash": "6fa388d756741685c1a310de79751ba1",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/v82-v2-final/browser-finance-paid.png": {
+    "mtime": 1792083866.9662251,
+    "seen": 1792083973.828907,
+    "ast_hash": "7b683f6439b95dcd91d771e696dc19ba",
+    "semantic_hash": ""
+  },
+  "docs/ui-ux-v2/evidence/operational-closure/v82-v2-final/browser-records.png": {
+    "mtime": 1792083866.9657934,
+    "seen": 1792083973.828908,
+    "ast_hash": "2d88f8084a121a45242ede33e8e4d893",
     "semantic_hash": ""
   }
 }

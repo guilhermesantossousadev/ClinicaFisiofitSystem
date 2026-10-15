@@ -1,5 +1,7 @@
 # Release candidato — Fisiofit UI/UX V2
 
+**Fechamento operacional: BLOCKED.** A causa das nove falhas foi comprovada e corrigida exclusivamente no fixture. As execuções comparativas finais base/V2 passaram com a fonte local preservada da API v82. A causa do timeout clínico histórico e a origem de dois 401 observados em uma rodada da base ainda não foram comprovadas. Consulte `OPERATIONAL_CLOSURE.md` e `evidence/operational-closure/comparison.json`; não declarar a homologação integral encerrada.
+
 Branch `feat/ui-ux-v2-20261015`, worktree `/private/tmp/fisiofit-ui-ux-v2-20261015`. O SHA final é o HEAD desta branch. O checkout operacional continua em `fix/estab-009-agenda-authorization` com suas alterações originais preservadas. Não houve publicação nem push.
 
 ## Base e preservação
@@ -35,7 +37,7 @@ npm run homologate:ui-v2 -- --no-operational
 
 `--visual-only` e `--no-baseline` são modos de diagnóstico. `--reuse-visual` só aceita evidências aprovadas cujo hash dos fontes da UI seja idêntico. Nenhum modo publica.
 
-A regressão operacional completa teve uma execução aprovada registrada em `evidence/operational/`. Na repetição desta entrega, a etapa integral não foi reproduzível no stack local: nove assertions do teste `operational_stabilization.test.sql` falharam em transições de crédito de reposição e o navegador não encontrou um resultado da busca clínica. Os testes restantes de banco passaram, inclusive 367 assertions nos demais arquivos. O backend v82 publicado é posterior à base frontend exigida para esta branch; esta diferença está fora do escopo de mudança e precisa ser reconciliada na homologação operacional em ambiente correspondente ao v82. O resultado da repetição consta em `evidence/operational/repeat-divergence.json`. Não apresento a repetição como aprovação.
+A regressão operacional teve uma execução aprovada e uma repetição com falhas, preservadas em `evidence/operational/`. A investigação diferencial posterior identificou uma falha temporal no fixture de reposição preexistente na base: as duas turmas terminavam ao meio-dia/13h e eram reservadas depois do encerramento. O ajuste preserva as 86 assertions e passou com a base e a V2. A investigação completa, a consideração das alterações posteriores da API v82, as execuções finais aprovadas e as pendências de causa não comprovada estão em `OPERATIONAL_CLOSURE.md`. A mensagem `RECONCILIATION_DRIFT_REVIEW_REQUIRED` é uma rejeição esperada do teste de segurança, seguida de PASS; não era falha de infraestrutura.
 
 As fixtures visuais são mocks exclusivamente locais. Elas verificam renderização e interação; persistência, RLS, concorrência, pagamento e isolamento clínico têm evidência separada em `evidence/operational/`. O onboarding da base tem um redirecionamento prematuro conhecido, registrado como defeito anterior, sem falso PASS.
 

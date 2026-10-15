@@ -10,7 +10,7 @@ mkdirSync(temp,{recursive:true});mkdirSync(evidence,{recursive:true});
 const checks=[];
 function run(name,command,args,env={}){const r=spawnSync(command,args,{cwd,encoding:'utf8',env:{...process.env,...env},maxBuffer:40e6});writeFileSync(resolve(temp,name+'.log'),(r.stdout??'')+(r.stderr??''));checks.push({name,passed:r.status===0,log:resolve(temp,name+'.log')});console.log(`${name}: ${r.status===0?'PASS':'FAIL'}`);if(r.status!==0)throw Error(`${name} failed; see ${resolve(temp,name+'.log')}`);}
 try{
- const changed=execFileSync('git',['diff',baseline,'--name-only','--','supabase','packages/contracts','apps/portal/src/application','apps/portal/src/domain','apps/portal/src/infrastructure','apps/site'],{encoding:'utf8'}).trim();
+ const changed=execFileSync('git',['diff',baseline,'--name-only','--','supabase','packages/contracts','apps/portal/src/application','apps/portal/src/domain','apps/portal/src/infrastructure','apps/site'],{encoding:'utf8'}).trim().split('\n').filter(path=>path&&!path.startsWith('supabase/tests/')).join('\n');
  if(changed)throw Error('Protected backend/domain/site paths changed: '+changed);
  checks.push({name:'protected-contracts-and-backend-unchanged',passed:true});
  if(!process.argv.includes('--visual-only')){

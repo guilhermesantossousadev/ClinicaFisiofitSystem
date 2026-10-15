@@ -1,0 +1,24 @@
+{
+  "capturedAt": "2026-10-15T16:58:22.435Z",
+  "frontendDigest": "129eaef20834d0f06177fdb513dee6286bea0ff1178a3ed8998ebc0928d298f7",
+  "apiDigest": "8b38c04f5ff62d48d953b40818e6a53fc88a59d723701dae68c90b2aaf7f5e97",
+  "migrationsDigest": "1abb71cac3ca01d5a4f4a2db792be5c396d859ae2b7f6ca4d3b473909692b982",
+  "fixturesDigest": "dbe5e5324e2019ae711b46e23aca5f061011bffb920e074ae46ff70d81b4e75a",
+  "runnerDigest": "0ff23af9aa177f5ea781614f5b7e68b0943fc2d528bd546988bd1fbac761f8f5",
+  "db": {
+    "version": "17.6",
+    "clock": "2026-10-15T16:58:22.397638+00:00",
+    "clinic_date": "2026-10-15",
+    "original_noon_ended": true,
+    "original_13h_ended": true,
+    "functions": "01828c28091ca06372ac773383976a39",
+    "columns": "bcce7a9e437a6b550b7721dc9ed29bfe"
+  },
+  "readOnlySmoke": false,
+  "conditions": {
+    "listDelayMs": 0,
+    "searchDelayMs": 0,
+    "cpuRate": 1
+  },
+  "synthetic": true
+}
