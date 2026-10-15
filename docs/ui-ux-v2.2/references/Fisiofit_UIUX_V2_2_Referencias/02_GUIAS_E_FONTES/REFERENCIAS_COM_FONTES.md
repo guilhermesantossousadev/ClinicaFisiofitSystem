@@ -146,4 +146,3 @@ Categoria: Contexto / Painel lateral
 - Captura: https://www.notion.com/_next/image?q=75&url=https%3A%2F%2Fimages.ctfassets.net%2Fspoqsaf9291f%2F5ocQvarEF5eVAnubGwqKy7%2F646911f4ccecd1ac5b3d4785a14ebecf%2FCustomize_database_page.png&w=2048
 - Observar: Propriedades visíveis, hierarquia de informação e abertura de registro.
 - Adaptar: Painel de detalhes da ocorrência, participantes, chamada e histórico.
-

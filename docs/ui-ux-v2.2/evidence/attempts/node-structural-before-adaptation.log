@@ -40,7 +40,7 @@
 test at tests/platform.test.mjs:411:1
 ✖ agenda semanal usa a projection consolidada sem compor cards pelo legado (2.307ms)
   AssertionError [ERR_ASSERTION]: The input did not match the regular expression /sourceType === "CLASS_OCCURRENCE"/. Input:
-  
+
   "import { confirmAction, requestText } from '../components/Decisions';\n" +
     'import { Notice } from "@fisiofit/design-system/react";\n' +
     'import { useDialogFocus } from "@fisiofit/design-system/react";\n' +
@@ -219,7 +219,7 @@ test at tests/platform.test.mjs:411:1
     '  const [calendarAppointment, setCalendarAppointment] = useState<Row | null | undefined>(undefined);\n' +
     '  const [savingGroup, setSavingGroup] = useState(false);\n' +
     '  const [calendarMode'... 87279 more characters
-  
+
       at TestContext.<anonymous> (file:///private/tmp/fisiofit-ui-ux-v2.2-20261015/tests/platform.test.mjs:420:10)
       at async Test.run (node:internal/test_runner/test:1208:7)
       at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
