@@ -67,7 +67,7 @@ export function OperationalFinance({ canEdit = true }: { canEdit?: boolean }) {
     }
   }
   async function removeEntry(id: string) {
-    if (!await confirmAction("Excluir este lançamento? Ele ficará oculto, mas será mantido no histórico.")) return;
+    if (!await confirmAction("Excluir este lançamento? Ele ficará oculto, mas será mantido no histórico.", { confirmLabel: "Excluir lançamento", destructive: true })) return;
     try {
       await api(`/financial-entries/${id}`, { method: "DELETE" });
       await reload();
@@ -144,7 +144,7 @@ export function OperationalFinance({ canEdit = true }: { canEdit?: boolean }) {
               />
           </div>
           <CheckboxField name="settled" label="Já realizado" />
-          <button className="btn primary">Lançar</button>
+          <button className="btn primary">Registrar movimento</button>
         </DrawerForm>
         <DrawerForm title="Nova comissão" onSubmit={commission}>
           <h2>Nova comissão</h2>
@@ -175,7 +175,7 @@ export function OperationalFinance({ canEdit = true }: { canEdit?: boolean }) {
           "amount_cents",
         ]}
         emptyMessage="Nenhum movimento financeiro foi lançado neste mês."
-        actions={(row) => canEdit ? <button type="button" onClick={() => void removeEntry(row.id)}>Excluir</button> : null}
+        actions={(row) => canEdit ? <button type="button" className="action-delete" onClick={() => void removeEntry(row.id)}>Excluir</button> : null}
       />
       <section className="card table-card bespoke-table commissions-list-table">
         <div className="table-toolbar">

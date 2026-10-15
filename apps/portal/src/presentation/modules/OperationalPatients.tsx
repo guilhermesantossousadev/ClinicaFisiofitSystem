@@ -1,5 +1,5 @@
 import { confirmAction } from '../components/Decisions';
-import { Notice } from "@fisiofit/design-system/react";
+import { Notice, FilterSummary } from "@fisiofit/design-system/react";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { FormSection, TextareaField, TextField } from "../components/FormPrimitives";
@@ -30,7 +30,7 @@ export function OperationalPatients({ initialSearch = "", canEdit = true, canVie
   const [notice, setNotice] = useState("");
   const [detailDirty, setDetailDirty] = useState(false);
   async function closePatientDetails() {
-    if (detailDirty && !await confirmAction("Descartar os dados do responsável ainda não salvos?")) return;
+    if (detailDirty && !await confirmAction("Descartar os dados do responsável ainda não salvos?", { title: "Descartar alterações?", confirmLabel: "Descartar alterações", destructive: true })) return;
     setDetailDirty(false);
     detailRequest.current += 1;
     setSelected(null);
@@ -168,7 +168,9 @@ export function OperationalPatients({ initialSearch = "", canEdit = true, canVie
           <button className="btn primary">Buscar</button>
           {appliedSearch && <button type="button" className="btn secondary" onClick={() => { setSearch(""); setAppliedSearch(""); setPage(1); }}>Limpar</button>}
         </div>
+        {search.trim() !== appliedSearch && <p className="form-field-hint" role="status">Pressione Buscar para aplicar o texto digitado.</p>}
       </form>
+      {!loading && !error && <FilterSummary count={total} filters={appliedSearch ? [`Busca: ${appliedSearch}`] : []} />}
       {canEdit && <DrawerForm title="Novo paciente" onSubmit={create}>
         <h2>Novo paciente</h2>
         {notice && <Notice message={notice} onDismiss={() => setNotice("")} />}

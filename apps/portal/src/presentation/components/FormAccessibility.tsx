@@ -8,6 +8,7 @@ const digits = (value: string) => value.replace(/\D/g, "");
 function messageFor(field: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement) {
   const label = field.labels?.[0]?.textContent?.replace(/\s*\*\s*$/, "").trim() || "Este campo";
   const validity = field.validity;
+  if (validity.customError) return field.validationMessage;
   if (validity.valueMissing) return `${label} precisa ser preenchido.`;
   if (validity.typeMismatch && field.type === "email") return `Digite um e-mail válido, como nome@exemplo.com.`;
   if (validity.tooShort && !(field instanceof HTMLSelectElement)) return `${label} precisa ter pelo menos ${field.minLength} caracteres.`;
@@ -30,7 +31,7 @@ function setInlineError(field: HTMLInputElement | HTMLSelectElement | HTMLTextAr
       error = document.createElement("span");
       error.id = id;
       error.className = "field-error";
-      error.setAttribute("role", "alert");
+      error.setAttribute("aria-live", "polite");
       field.insertAdjacentElement("afterend", error);
     }
     error.textContent = message;
@@ -87,7 +88,7 @@ function validateForm(form: HTMLFormElement) {
   );
   const errors: FormError[] = [];
   fields.forEach((field) => {
-    if (field.disabled || field.type === "hidden" || field.type === "submit" || field.type === "button") return;
+    if (!field.willValidate) return;
     const custom = customMessage(field);
     field.setCustomValidity(custom);
     const message = field.checkValidity() ? "" : messageFor(field);
@@ -162,18 +163,31 @@ export default function FormAccessibility() {
     const blur = (event: FocusEvent) => {
       const field = event.target;
       if (!(field instanceof HTMLInputElement || field instanceof HTMLSelectElement || field instanceof HTMLTextAreaElement)) return;
+      if (field.disabled || ("readOnly" in field && field.readOnly) || field.type === "hidden") return;
+      if (!field.value.trim() && !field.form?.dataset.validationAttempted && field.getAttribute("aria-invalid") !== "true") return;
+      field.setCustomValidity("");
       field.setCustomValidity(customMessage(field));
       setInlineError(field, field.checkValidity() ? "" : messageFor(field));
     };
     const input = (event: Event) => {
       const field = event.target;
       if (!(field instanceof HTMLInputElement || field instanceof HTMLSelectElement || field instanceof HTMLTextAreaElement) || field.getAttribute("aria-invalid") !== "true") return;
+      field.setCustomValidity("");
       field.setCustomValidity(customMessage(field));
       if (field.checkValidity()) setInlineError(field);
+    };
+    const reset = (event: Event) => {
+      const form = event.target;
+      if (!(form instanceof HTMLFormElement)) return;
+      delete form.dataset.validationAttempted;
+      form.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>("input,select,textarea").forEach(field => {
+        field.setCustomValidity(""); setInlineError(field);
+      });
     };
     const submit = (event: SubmitEvent) => {
       const form = event.target;
       if (!(form instanceof HTMLFormElement)) return;
+      form.dataset.validationAttempted = "true";
       const nextErrors = validateForm(form);
       if (!nextErrors.length) return;
       event.preventDefault();
@@ -184,7 +198,8 @@ export default function FormAccessibility() {
     document.addEventListener("focusout", blur, true);
     document.addEventListener("input", input, true);
     document.addEventListener("submit", submit, true);
-    return () => { observer.disconnect(); document.removeEventListener("focusout", blur, true); document.removeEventListener("input", input, true); document.removeEventListener("submit", submit, true); };
+    document.addEventListener("reset", reset, true);
+    return () => { observer.disconnect(); document.removeEventListener("focusout", blur, true); document.removeEventListener("input", input, true); document.removeEventListener("submit", submit, true); document.removeEventListener("reset", reset, true); };
   }, []);
 
   function close() { setErrors([]); requestAnimationFrame(() => trigger.current?.focus()); }

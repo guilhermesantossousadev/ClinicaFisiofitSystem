@@ -1,0 +1,22 @@
+{
+  "passed": false,
+  "results": [
+    {
+      "name": "repository-baseline-replay",
+      "passed": true
+    },
+    {
+      "name": "migration-existing-data-preservation",
+      "passed": true
+    },
+    {
+      "name": "202610150008_operational_stabilization.sql",
+      "passed": true
+    },
+    {
+      "name": "guarded-reconciliation-synthetic",
+      "passed": true
+    }
+  ],
+  "error": "Error: Local service did not start on 57432"
+}

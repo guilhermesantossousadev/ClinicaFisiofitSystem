@@ -272,110 +272,129 @@ export function PatientPicker({
   const [activeIndex, setActiveIndex] = useState(-1);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
-  useEffect(() => setOptions(rows), [rows]);
-  useEffect(() => setActiveIndex(-1), [options, query]);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const scopeKey = `${unitId ?? ""}:${crossUnit}:${allowedIds?.join(",") ?? ""}`;
+  const previousScope = useRef(scopeKey);
   useEffect(() => {
+    if (previousScope.current === scopeKey) return;
+    previousScope.current = scopeKey;
+    setSelectedId(""); setQuery(""); setOptions([]); setOpen(false);
+    onClear?.();
+  }, [scopeKey]);
+  useEffect(() => {
+    setActiveIndex(-1);
+    setSearchError("");
     const search = query.trim();
-    if (search.length < 2) return;
+    const permitted = (patient: Row) => !allowedIds || allowedIds.includes(patient.id);
+    if (search.length < 2 || selectedId || !open) {
+      setOptions([]); setSearching(false); return;
+    }
     if (!remoteSearch) {
       const term = search.toLocaleLowerCase("pt-BR");
-      setOptions(rows.filter((row) => String(row.name ?? "").toLocaleLowerCase("pt-BR").includes(term) && (!allowedIds || allowedIds.includes(row.id))));
+      const numbers = search.replace(/\D/g, "");
+      setSearching(false);
+      setOptions(rows.filter(patient => permitted(patient) && (
+        String(patient.name ?? "").toLocaleLowerCase("pt-BR").includes(term) ||
+        (numbers.length >= 2 && `${patient.phone ?? ""} ${patient.cpf ?? ""}`.replace(/\D/g, "").includes(numbers))
+      )));
       return;
     }
     let active = true;
-    setSearching(true); setSearchError(""); setOptions([]);
+    setSearching(true); setOptions([]);
     const timer = window.setTimeout(() => {
       const unitFilter = unitId ? `&unitId=${encodeURIComponent(unitId)}` : "";
       void api<{ items: Row[] }>(`/patients?page=1&pageSize=100&search=${encodeURIComponent(search)}${unitFilter}`, { scopeUnit: !crossUnit })
-        .then((response) => {
+        .then(response => {
           if (!active) return;
           setSearching(false);
-          const results = response.data?.items ?? [];
-          if (!allowedIds) return setOptions(results);
-          const allowedIdSet = new Set(allowedIds);
-          setOptions(results.filter((row) => allowedIdSet.has(row.id)));
+          setOptions((response.data?.items ?? []).filter(permitted));
         })
-        .catch(error => { if (active) { setSearching(false); setOptions([]); setSearchError(messageOf(error).replace(/^Erro:\s*/, "")); } });
+        .catch(error => {
+          if (!active) return;
+          setSearching(false); setOptions([]);
+          setSearchError(messageOf(error).replace(/^Erro:\s*/, ""));
+        });
     }, 220);
     return () => { active = false; window.clearTimeout(timer); };
-  }, [allowedIds, query, rows, unitId, crossUnit, remoteSearch]);
+  }, [allowedIds, query, rows, unitId, crossUnit, remoteSearch, selectedId, open]);
+  useEffect(() => {
+    const form = inputRef.current?.form;
+    const reset = () => { setQuery(defaultLabel); setSelectedId(defaultValue); setOptions([]); setOpen(false); onClear?.(); };
+    form?.addEventListener("reset", reset);
+    return () => form?.removeEventListener("reset", reset);
+  }, [defaultLabel, defaultValue, onClear]);
+  useEffect(() => {
+    if (open && activeIndex >= 0) document.getElementById(`${optionsId}-${options[activeIndex]?.id}`)?.scrollIntoView({ block: "nearest" });
+  }, [activeIndex, open, optionsId, options]);
+  useEffect(() => {
+    if (!selectedId || !inputRef.current) return;
+    inputRef.current.setCustomValidity("");
+    inputRef.current.dispatchEvent(new Event("input", { bubbles: true }));
+  }, [selectedId]);
   const choose = (patient: Row) => {
     setSelectedId(patient.id);
     setQuery(patient.name ?? "Paciente");
-    setOpen(false);
-    setActiveIndex(-1);
+    setOpen(false); setActiveIndex(-1); setOptions([]);
+    inputRef.current?.setCustomValidity("");
     onSelect?.(patient);
   };
-  const selectable = query.trim().length >= 2 ? options.slice(0, 8) : [];
+  const selectable = open && !selectedId && query.trim().length >= 2 ? options.slice(0, 8) : [];
   const hasInvalidFreeText = query.trim().length > 0 && !selectedId;
+  const expanded = open && query.trim().length >= 2 && !selectedId;
+  const hintId = `${fieldId}-selection`;
   const handleKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Escape") {
-      setOpen(false);
-      setActiveIndex(-1);
+    if (event.key === "Escape" && open) {
+      event.preventDefault(); event.stopPropagation();
+      setOpen(false); setActiveIndex(-1); return;
+    }
+    if (event.key === "Enter" && !selectedId) {
+      // Typing a name never submits a form or implicitly selects the first result.
+      event.preventDefault();
+      if (open && activeIndex >= 0 && selectable[activeIndex]) choose(selectable[activeIndex]);
+      else setOpen(true);
       return;
     }
-    if (!selectable.length) return;
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      setOpen(true);
-      setActiveIndex((current) => (current + 1) % selectable.length);
-    } else if (event.key === "ArrowUp") {
-      event.preventDefault();
-      setOpen(true);
-      setActiveIndex((current) => (current <= 0 ? selectable.length - 1 : current - 1));
-    } else if (event.key === "Enter" && activeIndex >= 0) {
-      event.preventDefault();
-      choose(selectable[activeIndex]);
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault(); setOpen(true);
+      if (!selectable.length) return;
+      setActiveIndex(current => event.key === "ArrowDown" ? (current + 1) % selectable.length : current <= 0 ? selectable.length - 1 : current - 1);
     }
   };
   return (
     <FormField className="input-group patient-picker" label={label} id={fieldId} required={required}>
       <input type="hidden" name={name} value={selectedId} />
-      <input
-        id={fieldId}
-        type="text"
-        value={query}
-        required={required}
+      <input ref={inputRef}
+        id={fieldId} type="text" value={query} required={required}
         pattern={hasInvalidFreeText ? "(?!)" : undefined}
-        title={hasInvalidFreeText ? "Selecione um paciente da lista." : undefined}
-        data-validation-message={hasInvalidFreeText ? "Selecione um paciente da lista." : undefined}
-        aria-invalid={hasInvalidFreeText ? "true" : undefined}
-        aria-expanded={open && selectable.length > 0}
-        aria-controls={selectable.length ? optionsId : undefined}
+        data-validation-message={hasInvalidFreeText ? "Selecione um paciente nos resultados para continuar." : undefined}
+        aria-expanded={expanded}
+        aria-controls={expanded ? optionsId : undefined}
         aria-busy={searching}
-        aria-describedby={open && !selectable.length ? `${optionsId}-status` : undefined}
-        aria-activedescendant={activeIndex >= 0 ? `${optionsId}-${selectable[activeIndex]?.id}` : undefined}
-        aria-autocomplete="list"
-        role="combobox"
-        autoComplete="off"
+        aria-describedby={hintId}
+        aria-activedescendant={expanded && activeIndex >= 0 && selectable[activeIndex] ? `${optionsId}-${selectable[activeIndex].id}` : undefined}
+        aria-autocomplete="list" role="combobox" autoComplete="off"
         placeholder="Digite nome, telefone ou CPF"
-        onFocus={() => setOpen(selectable.length > 0)}
+        onFocus={() => { if (!selectedId) setOpen(true); }}
+        onBlur={() => { setOpen(false); setActiveIndex(-1); }}
         onKeyDown={handleKeyDown}
-        onChange={(event) => {
-          setQuery(event.target.value);
+        onChange={event => {
+          setQuery(event.target.value); setOptions([]); setActiveIndex(-1);
           if (selectedId) onClear?.();
-          setSelectedId("");
-          setOpen(event.target.value.trim().length >= 2);
+          setSelectedId(""); setOpen(true);
         }}
       />
-      {open && query.trim().length >= 2 && (
-        <div className="patient-picker-options" id={optionsId} role={selectable.length ? "listbox" : undefined} aria-label={`${label}: resultados`}>
-          {selectable.length ? selectable.map((patient, index) => (
-            <div
-              id={`${optionsId}-${patient.id}`}
-              role="option"
-              aria-selected={index === activeIndex}
-              key={patient.id}
-              onMouseDown={(event) => event.preventDefault()}
-              onMouseEnter={() => setActiveIndex(index)}
-              onClick={() => choose(patient)}
-            >
-              <strong>{patient.name}</strong>
-              <small>{patient.phone ?? patient.cpf ?? ""}</small>
-            </div>
-          )) : <span id={`${optionsId}-status`} className="patient-picker-empty" role="status">{searching ? "Buscando pacientes…" : searchError || "Nenhum paciente encontrado."}</span>}
+      <small id={hintId} className={`form-field-hint${selectedId ? " patient-picker-selected" : ""}`} role="status" aria-live="polite">
+        {selectedId ? `Paciente selecionado: ${query}.` : hasInvalidFreeText ? "Nome digitado. Selecione o paciente nos resultados." : "Digite pelo menos 2 caracteres e selecione um paciente."}
+      </small>
+      {expanded && <div className="patient-picker-options" onMouseDown={event => event.preventDefault()}>
+        <div id={optionsId} role="listbox" aria-label={`${label}: resultados`} aria-busy={searching}>
+          {selectable.map((patient, index) => <div
+            id={`${optionsId}-${patient.id}`} role="option" aria-selected={index === activeIndex}
+            key={patient.id} onMouseEnter={() => setActiveIndex(index)} onClick={() => choose(patient)}
+          ><strong>{patient.name}</strong><small>{patient.phone ?? patient.cpf ?? ""}</small></div>)}
         </div>
-      )}
+        {!selectable.length && <span className="patient-picker-empty" role="status">{searching ? "Buscando pacientes…" : searchError || "Nenhum paciente encontrado. Revise o nome, telefone ou CPF."}</span>}
+      </div>}
     </FormField>
   );
 }
@@ -408,7 +427,7 @@ export function DrawerForm({
   const submittingRef = useRef(false);
   const close = async (force = false) => {
     if (submittingRef.current) return;
-    if (!force && dirtyRef.current && !await confirmAction("Descartar as alterações deste formulário? Os dados preenchidos não serão salvos.")) return;
+    if (!force && dirtyRef.current && !await confirmAction("Descartar as alterações deste formulário? Os dados preenchidos não serão salvos.", { title: "Descartar alterações?", confirmLabel: "Descartar alterações", destructive: true })) return;
     dirtyRef.current = false;
     setOpen(false);
     onClose?.();
@@ -595,7 +614,7 @@ export function EditableOperationalTable({
 
   async function closeEditing(force = false) {
     if (savingRef.current) return;
-    if (!force && editDirtyRef.current && !await confirmAction("Descartar as alterações desta edição? Os dados modificados não serão salvos.")) return;
+    if (!force && editDirtyRef.current && !await confirmAction("Descartar as alterações desta edição? Os dados modificados não serão salvos.", { title: "Descartar alterações?", confirmLabel: "Descartar alterações", destructive: true })) return;
     editDirtyRef.current = false;
     setEditing(null);
   }
@@ -622,7 +641,7 @@ export function EditableOperationalTable({
       onNotice(`${title.replace(/s$/, "")} atualizado com sucesso.`);
     } catch (error) {
       setSaveError(messageOf(error));
-      onNotice(messageOf(error));
+      // The error remains next to the editable values, without duplicate feedback.
     } finally {
       savingRef.current = false;
       setSaving(false);
@@ -633,7 +652,7 @@ export function EditableOperationalTable({
     if (rowPending.current) return;
     const activate = row.active === false;
     if (!activate && !await confirmAction(
-      `Inativar ${row.name}? O histórico será preservado e o cadastro poderá ser reativado.`,
+      `Inativar ${row.name}? O histórico será preservado e o cadastro poderá ser reativado.`, { confirmLabel: "Inativar cadastro", destructive: true },
     )) return;
     if (rowPending.current) return;
     rowPending.current = true; setRowBusy(row.id);
@@ -651,7 +670,7 @@ export function EditableOperationalTable({
 
   async function remove(row: Row) {
     if (rowPending.current) return;
-    if (!await confirmAction(`Excluir ${row.name}? O cadastro sairá das listagens. O histórico clínico e financeiro será preservado para fins legais.`)) return;
+    if (!await confirmAction(`Excluir ${row.name}? O cadastro sairá das listagens. O histórico clínico e financeiro será preservado para fins legais.`, { confirmLabel: "Excluir cadastro", destructive: true })) return;
     if (rowPending.current) return;
     rowPending.current = true; setRowBusy(row.id);
     try {
@@ -666,7 +685,7 @@ export function EditableOperationalTable({
   return (
     <>
       <DataTable title={title} rows={rows} count={total} emptyMessage={emptyMessage}
-        columns={fields.map((field, index) => ({ key: field, label: fieldLabel(field),
+        columns={fields.map((field, index) => ({ key: field, label: fieldLabel(field), align: field.endsWith("_cents") ? "end" : "start",
           sortValue: (row: Row) => typeof row[field] === "number" ? row[field] : field.endsWith("_at") || field.endsWith("_on") || field.endsWith("_date") ? String(row[field] ?? "") : String(render(row[field], field)),
           render: (row: Row) => field === "active" ? <span className={`status ${row.active === false ? "neutral" : "success"}`}>{render(row[field], field)}</span>
             : index === 0 ? <strong>{render(row[field], field)}</strong> : render(row[field], field) }))}
@@ -745,7 +764,7 @@ export function OperationalTable({
   emptyMessage?: string;
 }) {
   return <DataTable title={title} rows={rows} emptyMessage={emptyMessage} actions={actions}
-    columns={fields.map((field,index) => ({key:field,label:fieldLabel(field),sortValue:(row: Row) => typeof row[field] === "number" ? row[field] : field.endsWith("_at") || field.endsWith("_on") || field.endsWith("_date") ? String(row[field] ?? "") : String(render(row[field],field)),render:(row: Row) => index===0?<strong>{render(row[field],field)}</strong>:render(row[field],field)}))} />;
+    columns={fields.map((field,index) => ({key:field,label:fieldLabel(field),align:field.endsWith("_cents")?"end":"start",sortValue:(row: Row) => typeof row[field] === "number" ? row[field] : field.endsWith("_at") || field.endsWith("_on") || field.endsWith("_date") ? String(row[field] ?? "") : String(render(row[field],field)),render:(row: Row) => index===0?<strong>{render(row[field],field)}</strong>:render(row[field],field)}))} />;
 }
 export function fieldLabel(field: string) {
   const labels: Record<string, string> = {

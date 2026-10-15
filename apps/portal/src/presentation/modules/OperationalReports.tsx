@@ -1,25 +1,34 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { TextField } from "../components/FormPrimitives";
 import { Row, messageOf, brl, MetricLite, ModuleState } from "./OperationalShared";
 
-export function OperationalReports() {
+export function OperationalReports({ selectedUnitId = "" }: { selectedUnitId?: string }) {
   const [year, setYear] = useState(new Date().getFullYear());
-  const [report, setReport] = useState<Row | null>(null);
+  const [draftYear, setDraftYear] = useState(String(year));
+  const version = useRef(0);
+  const [reportData, setReport] = useState<Row | null>(null);
+  const scope = `${selectedUnitId}:${year}`;
+  const [reportScope, setReportScope] = useState("");
+  const report = reportScope === scope ? reportData : null;
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   async function load() {
+    const request = ++version.current;
     setLoading(true);
+    setReport(null);
+    setReportScope(scope);
     setError("");
     try {
-      setReport((await api<Row>(`/reports/annual?year=${year}`)).data);
+      const response = await api<Row>(`/reports/annual?year=${year}`);
+      if (request === version.current) setReport(response.data);
     } catch (e) {
-      setError(messageOf(e));
+      if (request === version.current) { setError(messageOf(e)); setReport(null); }
     } finally {
-      setLoading(false);
+      if (request === version.current) setLoading(false);
     }
   }
-  useEffect(() => void load(), [year]);
+  useEffect(() => { void load(); return () => { version.current += 1; }; }, [year, selectedUnitId]);
   function exportCsv() {
     if (!report) return;
     const csv = [
@@ -51,23 +60,25 @@ export function OperationalReports() {
           <h1>Relatório anual</h1>
           <p>Doze meses lado a lado, previsto e realizado.</p>
         </div>
-        <div className="title-actions">
+        <div className="title-actions"><form className="report-year-filter" onSubmit={event => { event.preventDefault(); setYear(Number(draftYear)); }}>
           <TextField
             label="Ano"
             type="number"
-            value={year}
-            onChange={(e) => setYear(Number(e.target.value))}
+            value={draftYear}
+            required step="1"
+            onChange={(e) => setDraftYear(e.target.value)}
           />
-          <button className="btn secondary" onClick={exportCsv} disabled={!report || loading}>
+          <button className="btn secondary" type="submit">Consultar ano</button></form>
+          <button className="btn secondary" onClick={exportCsv} disabled={!report || loading || Boolean(error)}>
             Exportar planilha
           </button>
-          <button className="btn primary" onClick={() => window.print()} disabled={!report || loading}>
+          <button className="btn primary" onClick={() => window.print()} disabled={!report || loading || Boolean(error)}>
             Gerar PDF
           </button>
         </div>
       </div>
-      <ModuleState loading={loading} error={error} retry={load} />
-      <div className="metrics">
+      <ModuleState loading={loading || reportScope !== scope} error={error} retry={load} />
+      {report && <><div className="metrics">
         <MetricLite
           label="Receitas realizadas"
           value={brl(report?.totals?.realizedIncomeCents ?? 0)}
@@ -111,7 +122,7 @@ export function OperationalReports() {
             </div>
           ))}
         </div>
-      </section>
+      </section></>}
     </div>
   );
 }

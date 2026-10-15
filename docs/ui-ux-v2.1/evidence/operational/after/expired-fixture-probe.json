@@ -1,0 +1,41 @@
+{
+  "passed": true,
+  "scope": "negative fixture probe: expected expiry rejection and its cascade, not a green full suite",
+  "productionRulesChanged": false,
+  "runs": [
+    {
+      "label": "base",
+      "ref": "8e9adda7f9b0198ae181add88fd1548d970750c9",
+      "originalFixtureDigest": "e05d2ae84258482cea18f87571eef71c59dde070dd27adba7e5ec3938bd4a86a",
+      "expectedFailedAssertions": [
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        43,
+        44
+      ],
+      "passed": true
+    },
+    {
+      "label": "v2",
+      "ref": "029eee4e1c9fbe5b3b5b659e66ee085d94b0272b",
+      "originalFixtureDigest": "e05d2ae84258482cea18f87571eef71c59dde070dd27adba7e5ec3938bd4a86a",
+      "expectedFailedAssertions": [
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        43,
+        44
+      ],
+      "passed": true
+    }
+  ]
+}

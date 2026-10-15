@@ -17,13 +17,13 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
   const [editingDirty, setEditingDirty] = useState(false);
   const [passwordDirty, setPasswordDirty] = useState(false);
   async function closePasswordDialog() {
-    if (passwordDirty && !await confirmAction("Descartar a nova senha ainda não salva?")) return;
+    if (passwordDirty && !await confirmAction("Descartar a nova senha ainda não salva?", { title: "Descartar alterações?", confirmLabel: "Descartar alterações", destructive: true })) return;
     setPasswordDirty(false);
     setPasswordUser(null);
   }
   const passwordDialogRef = useDialogFocus(Boolean(passwordUser), closePasswordDialog, !updatingUserId);
   async function toggleUserEditing(id: string) {
-    if (editingUserId && editingDirty && !await confirmAction("Descartar as alterações de acesso ainda não salvas?")) return;
+    if (editingUserId && editingDirty && !await confirmAction("Descartar as alterações de acesso ainda não salvas?", { title: "Descartar alterações?", confirmLabel: "Descartar alterações", destructive: true })) return;
     setEditingDirty(false);
     setEditingUserId(editingUserId === id ? "" : id);
   }
@@ -140,7 +140,7 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
     setPasswordUser(row);
   }
   async function removeUser(row: Row) {
-    if (!await confirmAction(`Excluir o acesso de ${row.name}? O histórico será preservado, mas a conta não poderá mais entrar.`)) return;
+    if (!await confirmAction(`Excluir o acesso de ${row.name}? O histórico será preservado, mas a conta não poderá mais entrar.`, { confirmLabel: "Excluir acesso", destructive: true })) return;
     setUpdatingUserId(row.id);
     setNotice("");
     try {

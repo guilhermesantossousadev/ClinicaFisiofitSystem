@@ -1,0 +1,37 @@
+ea000000-0000-4000-8000-000000000002
+ok 1 - Reception creates enrollment and charge atomically
+ok 2 - One enrollment
+ok 3 - Retry succeeds
+ok 4 - Retry creates no duplicate
+ok 5 - Reception reads its enrollment charge under 007 permissions
+ok 6 - Zero total rejected
+ok 7 - Invalid period rejected
+ok 8 - Group needs agenda permission
+ok 9 - Session overflow rejected
+ok 10 - Session edit and blank end accepted
+ok 11 - Commercial changes require approved preview workflow
+ok 12 - One charge after retry
+ok 13 - Rejected commercial change preserves charge
+ok 14 - Rejected commercial change preserves coverage
+ea000000-0000-4000-8000-000000000001
+(32b02981-7704-4ddb-8a65-615f559f2239,ea000000-0000-4000-8000-000000000010,46ae2be6-d477-437c-9006-5511adeafbc4,100,pix,"2026-10-15 17:25:06.792094+00",,,,,synthetic-patient-test,"2026-10-15 17:25:06.792094+00")
+ea000000-0000-4000-8000-000000000002
+ok 15 - Paid charge prevents silent commercial change
+ok 16 - Rejected commercial change preserves plan
+ok 17 - Direct RPC cannot change unapproved commercial fields
+ok 18 - Paid enrollment allows session edits
+ok 19 - Charge failure aborts entire enrollment
+ok 20 - Failed charge leaves no orphan enrollment
+ok 21 - Enrollment charge and group saved together
+ok 22 - Group retry is idempotent
+ok 23 - Retry does not duplicate membership
+ok 24 - Reception creates patient under RLS
+ok 25 - Reception clears optional patient fields
+ok 26 - Optional field actually cleared
+ok 27 - Inaccessible unit rejected
+ok 28 - Unscoped patient rejected
+ok 29 - Unscoped plan rejected
+ok 30 - Missing edit grant rejected
+
+ok 31 - Anonymous cannot call RPC
+1..31

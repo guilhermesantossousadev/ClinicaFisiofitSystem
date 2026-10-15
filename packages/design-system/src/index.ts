@@ -51,7 +51,7 @@ export const portalTokens = {
   '--ff-title-sm': '1.25rem', '--ff-title-md': '1.5rem', '--ff-title-lg': '1.875rem',
   '--ff-space-1': '0.25rem', '--ff-space-2': '0.5rem', '--ff-space-3': '0.75rem', '--ff-space-4': '1rem',
   '--ff-space-5': '1.25rem', '--ff-space-6': '1.5rem', '--ff-space-8': '2rem', '--ff-space-10': '2.5rem',
-  '--ff-control': '2.75rem', '--ff-radius-sm': '0.5rem', '--ff-radius-md': '0.75rem', '--ff-radius-lg': '1rem',
+  '--ff-control': '2.75rem', '--ff-control-compact': '2.5rem', '--ff-control-border': '#526477', '--ff-radius-sm': '0.5rem', '--ff-radius-md': '0.75rem', '--ff-radius-lg': '1rem',
   '--ff-shadow-sm': '0 1px 3px rgb(19 43 64 / 4%)', '--ff-shadow-lg': '0 20px 64px rgb(19 43 64 / 14%)',
   '--ff-motion': '140ms',
 } as const;

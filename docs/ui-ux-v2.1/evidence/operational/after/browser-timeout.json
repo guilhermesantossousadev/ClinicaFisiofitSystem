@@ -1,0 +1,33 @@
+{
+  "label": "Class lesson on dashboard",
+  "snapshot": {
+    "focus": {
+      "tag": "BODY",
+      "id": "",
+      "type": null
+    },
+    "options": []
+  },
+  "network": [
+    {
+      "path": "/functions/v1/api/v1/me",
+      "status": 204
+    },
+    {
+      "path": "/functions/v1/api/v1/me",
+      "status": 204
+    },
+    {
+      "path": "/functions/v1/api/v1/me",
+      "status": 200
+    },
+    {
+      "path": "/functions/v1/api/v1/me",
+      "status": 200
+    },
+    {
+      "path": "/functions/v1/api/v1/me",
+      "status": 401
+    }
+  ]
+}

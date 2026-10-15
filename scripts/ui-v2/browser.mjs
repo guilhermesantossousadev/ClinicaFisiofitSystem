@@ -11,7 +11,7 @@ const initialDigest=sourceDigest(process.env.FISIOFIT_UI_ROOT??process.cwd());
 const phase=process.argv[2]??'after';
 let fault='',delay=0; const requests=[];
 if(!['before','after'].includes(phase))throw Error('Use before or after');
-const output=resolve(`docs/ui-ux-v2/evidence/${phase}`);mkdirSync(output,{recursive:true});rmSync(resolve(output,'failure.json'),{force:true});
+const output=resolve(process.env.FISIOFIT_UI_OUTPUT??`docs/ui-ux-v2/evidence/${phase}`);mkdirSync(output,{recursive:true});rmSync(resolve(output,'failure.json'),{force:true});
 const apiPort=57446,vitePort=57445,debugPort=57447,origin=`http://127.0.0.1:${vitePort}`;
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
 const server=createServer(async(req,res)=>{res.setHeader('Access-Control-Allow-Origin',origin);res.setHeader('Access-Control-Allow-Headers','*');res.setHeader('Access-Control-Allow-Methods','GET,POST,PUT,PATCH,DELETE,OPTIONS');res.setHeader('Content-Type','application/json');if(req.method==='OPTIONS'){res.end();return;}const url=new URL(req.url,`http://127.0.0.1:${apiPort}`);requests.push({method:req.method,path:url.pathname});if(delay)await new Promise(r=>setTimeout(r,delay));if(fault&&url.pathname.includes(fault)){res.statusCode=503;res.end(JSON.stringify({data:null,error:{code:'SYNTHETIC_FAILURE',message:'Serviço temporariamente indisponível. Tente novamente.'},requestId:'synthetic-error'}));return;}if(url.pathname.startsWith('/auth/')){res.end('{}');return;}let body='';for await(const c of req)body+=c;const data=fixture(url.pathname.replace('/functions/v1/api/v1',''),url.searchParams,req.method,body?JSON.parse(body):{});res.end(JSON.stringify({data,error:null,requestId:'synthetic-visual'}));});

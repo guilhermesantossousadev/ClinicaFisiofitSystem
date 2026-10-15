@@ -1,0 +1,13 @@
+{
+  "passed": false,
+  "checks": [
+    "Real synthetic Auth login"
+  ],
+  "error": "Error: Browser assertion timed out: Class lesson on dashboard",
+  "failedApiResponses": [
+    {
+      "path": "/functions/v1/api/v1/me",
+      "status": 401
+    }
+  ]
+}

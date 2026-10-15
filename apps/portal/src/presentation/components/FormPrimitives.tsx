@@ -50,7 +50,7 @@ export function TextField({ label, hint, error, id, required, fieldClassName, la
   const describedBy = [props["aria-describedby"], hint || error ? messageId : undefined].filter(Boolean).join(" ") || undefined;
   return (
     <FormField className={fieldClassName} label={label} hint={hint} error={error} id={controlId} required={required} labelHidden={labelHidden}>
-      <input {...props} id={controlId} required={required} aria-invalid={error ? "true" : undefined} aria-describedby={describedBy} />
+      <input {...props} id={controlId} required={required} aria-invalid={error ? "true" : props["aria-invalid"]} aria-describedby={describedBy} />
     </FormField>
   );
 }
@@ -61,7 +61,7 @@ export function TextareaField({ label, hint, error, id, required, fieldClassName
   const describedBy = [props["aria-describedby"], hint || error ? messageId : undefined].filter(Boolean).join(" ") || undefined;
   return (
     <FormField className={fieldClassName} label={label} hint={hint} error={error} id={controlId} required={required} labelHidden={labelHidden}>
-      <textarea {...props} id={controlId} required={required} aria-invalid={error ? "true" : undefined} aria-describedby={describedBy} />
+      <textarea {...props} id={controlId} required={required} aria-invalid={error ? "true" : props["aria-invalid"]} aria-describedby={describedBy} />
     </FormField>
   );
 }
@@ -72,7 +72,7 @@ export function SelectField({ label, hint, error, id, required, fieldClassName, 
   const describedBy = [props["aria-describedby"], hint || error ? messageId : undefined].filter(Boolean).join(" ") || undefined;
   return (
     <FormField className={fieldClassName} label={label} hint={hint} error={error} id={controlId} required={required} labelHidden={labelHidden}>
-      <select {...props} id={controlId} required={required} aria-invalid={error ? "true" : undefined} aria-describedby={describedBy}>{children}</select>
+      <select {...props} id={controlId} required={required} aria-invalid={error ? "true" : props["aria-invalid"]} aria-describedby={describedBy}>{children}</select>
     </FormField>
   );
 }
@@ -83,7 +83,7 @@ export function CheckboxField({ label, hint, error, id, required, ...props }: Ba
   return (
     <div className="form-checkbox-field">
       <label htmlFor={controlId}>
-        <input {...props} id={controlId} type="checkbox" required={required} aria-invalid={error ? "true" : undefined} aria-describedby={hint || error ? messageId : undefined} />
+        <input {...props} id={controlId} type="checkbox" required={required} aria-invalid={error ? "true" : props["aria-invalid"]} aria-describedby={[props["aria-describedby"], hint || error ? messageId : undefined].filter(Boolean).join(" ") || undefined} />
         <span>{label}{required && <span className="required-mark" aria-hidden="true">*</span>}</span>
       </label>
       <FieldMessage id={messageId} hint={hint} error={error} />

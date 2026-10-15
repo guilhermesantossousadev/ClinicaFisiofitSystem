@@ -121,7 +121,7 @@ export function OperationalRecords({ canEdit = true }: { canEdit?: boolean }) {
   }
   async function sign(id: string) {
     if (busy) return;
-    if (!await confirmAction("Assinar este registro clínico? Após a assinatura, o conteúdo só poderá ser corrigido por uma retificação com justificativa.")) return;
+    if (!await confirmAction("Assinar este registro clínico? Após a assinatura, o conteúdo só poderá ser corrigido por uma retificação com justificativa.", { confirmLabel: "Assinar registro clínico", destructive: false })) return;
     setBusy(true);
     const targetPatient = patientId;
     try {
@@ -129,27 +129,30 @@ export function OperationalRecords({ canEdit = true }: { canEdit?: boolean }) {
         method: "POST",
         idempotencyKey: crypto.randomUUID(),
       });
-      if (selectedPatient.current === targetPatient) await loadRecords(targetPatient);
+      if (selectedPatient.current === targetPatient) { await loadRecords(targetPatient); setNotice("Registro clínico assinado."); }
     } catch (e) {
       setNotice(messageOf(e));
     } finally { setBusy(false); }
   }
   async function rectify(id: string) {
+    if (busy) return;
     const targetPatient = patientId;
     const reason = await requestText(
       "Justificativa da retificação (mínimo 10 caracteres):",
     );
+    if (!reason) return;
     const text = await requestText("Texto corrigido:");
-    if (!reason || !text) return;
+    if (!text) return;
+    setBusy(true);
     try {
       await api(`/clinical-records/${id}/rectify`, {
         method: "POST",
         body: JSON.stringify({ reason, payload: { text } }),
       });
-      if (selectedPatient.current === targetPatient) await loadRecords(targetPatient);
+      if (selectedPatient.current === targetPatient) { await loadRecords(targetPatient); setNotice("Retificação registrada."); }
     } catch (e) {
       setNotice(messageOf(e));
-    }
+    } finally { setBusy(false); }
   }
   return (
     <div className="content">
@@ -238,7 +241,7 @@ export function OperationalRecords({ canEdit = true }: { canEdit?: boolean }) {
                 <button disabled={busy} onClick={() => void sign(row.id)}>{busy ? "Processando…" : "Assinar"}</button>
               )}
               {canEdit && row.status === "signed" && (
-                <button onClick={() => rectify(row.id)}>Retificar</button>
+                <button disabled={busy} onClick={() => rectify(row.id)}>Retificar</button>
               )}
             </div>
           </div>

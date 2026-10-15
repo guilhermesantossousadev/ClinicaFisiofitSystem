@@ -1,0 +1,36 @@
+1..26
+ok 1 - status RPC is installed
+ok 2 - status RPC is SECURITY DEFINER
+ok 3 - authenticated may execute the internally authorized status RPC
+ok 4 - anon cannot execute the status RPC
+ok 5 - status changes do not grant direct charge UPDATE
+ok 6 - status changes do not grant direct charge DELETE
+f6200000-0000-4000-8000-000000000001
+ok 7 - manual paid status is rejected
+ok 8 - authorized user may change an unpaid administrative status
+ok 9 - administrative status is persisted
+ok 10 - authorized user may return an unpaid charge to pending
+ok 11 - authorized user may cancel an unpaid charge
+ok 12 - historically accepted reopen transition remains available without payment
+ok 13 - each administrative status change is audited
+(d847efc5-a5ce-49a1-9319-0ea1e039b740,f6200000-0000-4000-8000-000000000010,f6200000-0000-4000-8000-000000000040,4600,pix,"2026-10-15 17:25:04.323315+00",,,,,status-test-full-payment,"2026-10-15 17:25:04.323315+00")
+ok 14 - register_payment owns paid state and balance
+ok 15 - paid charge cannot be changed by administrative status RPC
+(d847efc5-a5ce-49a1-9319-0ea1e039b740,f6200000-0000-4000-8000-000000000010,f6200000-0000-4000-8000-000000000040,4600,pix,"2026-10-15 17:25:04.323315+00","2026-10-15 17:25:04.323315+00",f6200000-0000-4000-8000-000000000001,"Synthetic reversal for status test",,status-test-full-payment,"2026-10-15 17:25:04.323315+00")
+ok 16 - reverse_payment owns restoration of unpaid state
+ok 17 - reversed payment leaves no active balance conflict
+(23460ecd-512e-459a-9b03-e577eb56e4d7,f6200000-0000-4000-8000-000000000010,f6200000-0000-4000-8000-000000000041,500,pix,"2026-10-15 17:25:04.323315+00",,,,,status-test-partial-payment,"2026-10-15 17:25:04.323315+00")
+ok 18 - register_payment owns partial state and balance
+ok 19 - partially paid charge cannot be changed administratively
+ok 20 - partial status cannot be assigned directly
+f6200000-0000-4000-8000-000000000002
+ok 21 - edit=true/view=false cannot read charge details under RLS
+ok 22 - edit=true/view=false is denied by the command permission check
+f6200000-0000-4000-8000-000000000003
+ok 23 - view=true/edit=false cannot change status
+f6200000-0000-4000-8000-000000000004
+ok 24 - other unit cannot change status
+f6200000-0000-4000-8000-000000000005
+ok 25 - other clinic cannot find or change status
+f6200000-0000-4000-8000-000000000006
+ok 26 - user without module permissions cannot change status

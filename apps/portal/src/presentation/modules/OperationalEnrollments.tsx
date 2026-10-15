@@ -8,7 +8,7 @@ import { api } from "../../infrastructure/http/api";
 import { buildPlanControlRows, renewalCopy, type PlanControlRow } from "../../application/portal/planControl";
 import { buildAvailablePaymentPlans } from "../../application/portal/paymentPlans";
 import { SelectField, TextField } from "../components/FormPrimitives";
-import { type AgendaEnrollmentContext, Row, messageOf, value, cents, brl, groupSlotLabel, useDialogFocus, useResources, PlanSelect, PatientPicker, DrawerForm, ModuleState, MetricLite, OperationalTable, dateKey, localDateAtNoonIso } from "./OperationalShared";
+import { type AgendaEnrollmentContext, Row, messageOf, statusLabel, value, cents, brl, groupSlotLabel, useDialogFocus, useResources, PlanSelect, PatientPicker, DrawerForm, ModuleState, MetricLite, OperationalTable, dateKey, localDateAtNoonIso } from "./OperationalShared";
 
 export function OperationalEnrollments({ agendaContext, onClearAgendaContext, openEnrollment = false, units = [], selectedUnitId = "", onUnitChange = () => undefined, canEdit = true, canManagePlans = true, canViewCharges = true, canViewPayments = true, canReceivePayments = true, canCorrectChargeAmounts = false, canViewPatients = true, canViewAgenda = true }: { agendaContext?: AgendaEnrollmentContext; onClearAgendaContext?: () => void; openEnrollment?: boolean; units?: Array<{ id: string; name: string }>; selectedUnitId?: string; onUnitChange?: (unitId: string) => void; canEdit?: boolean; canManagePlans?: boolean; canDeletePlans?: boolean; canViewCharges?: boolean; canViewPayments?: boolean; canReceivePayments?: boolean; canRollback?: boolean; canCorrectChargeAmounts?: boolean; canViewPatients?: boolean; canViewAgenda?: boolean }) {
   const paths = [
@@ -238,7 +238,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
               <TextField id="enrollment-due-day" name="due_day" label="Dia do vencimento" type="number" min="1" max="31" required />
           </div>
           <TextField id="enrollment-discount" name="discount" label="Desconto" type="number" min="0" step=".01" defaultValue="0" />
-          <button className="btn primary">Matricular</button>
+          <button className="btn primary">Criar matrícula</button>
         </DrawerForm>
         )}
       </div>}
@@ -318,7 +318,7 @@ function EnrollmentHistoryPanel({ rows, charges, payments }: { rows: PlanControl
   const selected = patientId ? matchingRows.find((row) => row.id === patientId) : matchingRows[0];
   const historyCharges = selected ? charges.filter((charge) => charge.enrollment_id === selected.id && !charge.deleted_at) : [];
   const historyPayments = selected ? payments.filter((payment) => historyCharges.some((charge) => charge.id === payment.charge_id) && !payment.deleted_at) : [];
-  return <section className="enrollment-history card" aria-labelledby="enrollment-history-title"><div className="table-toolbar"><div><p className="eyebrow">CONSULTA</p><h2 id="enrollment-history-title">Histórico de matrículas</h2><p>Use os eventos já registrados para entender planos, cobranças e recebimentos.</p></div><TextField label="Buscar paciente ou plano" type="search" placeholder="Buscar paciente ou plano..." value={search} onChange={(event) => { setSearch(event.target.value); setPatientId(""); }} /></div><div className="history-layout"><div className="history-patients" aria-label="Pacientes encontrados">{matchingRows.map((row) => <button type="button" key={row.id} className={selected?.id === row.id ? "active" : ""} onClick={() => setPatientId(row.id)}><strong>{row.patientName}</strong><span>{row.planName}</span></button>)}{!matchingRows.length && <p>Nenhuma matrícula encontrada.</p>}</div><div className="history-events">{selected ? <><h3>{selected.patientName}</h3><p className="history-plan">{selected.planName}</p><article><strong>Matrícula</strong><span>Início: {dateLabel(selected.startsAt)} · Renovação: {dateLabel(selected.renewsAt)}</span></article>{historyCharges.map((charge) => <article key={charge.id}><strong>Cobrança</strong><span>{String(charge.description ?? "Cobrança do plano")} · {brl(Number(charge.amount_cents ?? 0))} · {String(charge.status ?? "")}</span></article>)}{historyPayments.map((payment) => <article key={payment.id}><strong>Recebimento</strong><span>{brl(Number(payment.amount_cents ?? 0))} · {dateLabel(String(payment.paid_at ?? ""), true)} · {String(payment.method ?? "")}</span></article>)}{!historyCharges.length && <p className="history-empty">Não há cobranças registradas para esta matrícula.</p>}</> : <p>Selecione um paciente para consultar o histórico disponível.</p>}</div></div></section>;
+  return <section className="enrollment-history card" aria-labelledby="enrollment-history-title"><div className="table-toolbar"><div><p className="eyebrow">CONSULTA</p><h2 id="enrollment-history-title">Histórico de matrículas</h2><p>Use os eventos já registrados para entender planos, cobranças e recebimentos.</p></div><TextField label="Buscar paciente ou plano" type="search" placeholder="Buscar paciente ou plano..." value={search} onChange={(event) => { setSearch(event.target.value); setPatientId(""); }} /></div><div className="history-layout"><div className="history-patients" aria-label="Pacientes encontrados">{matchingRows.map((row) => <button type="button" key={row.id} className={selected?.id === row.id ? "active" : ""} onClick={() => setPatientId(row.id)}><strong>{row.patientName}</strong><span>{row.planName}</span></button>)}{!matchingRows.length && <p>Nenhuma matrícula encontrada.</p>}</div><div className="history-events">{selected ? <><h3>{selected.patientName}</h3><p className="history-plan">{selected.planName}</p><article><strong>Matrícula</strong><span>Início: {dateLabel(selected.startsAt)} · Renovação: {dateLabel(selected.renewsAt)}</span></article>{historyCharges.map((charge) => <article key={charge.id}><strong>Cobrança</strong><span>{String(charge.description ?? "Cobrança do plano")} · {brl(Number(charge.amount_cents ?? 0))} · {statusLabel(charge.status)}</span></article>)}{historyPayments.map((payment) => <article key={payment.id}><strong>Recebimento</strong><span>{brl(Number(payment.amount_cents ?? 0))} · {dateLabel(String(payment.paid_at ?? ""), true)} · {({ pix: "PIX", card: "Cartão", cash: "Dinheiro", transfer: "Transferência" } as Record<string, string>)[String(payment.method)] ?? statusLabel(payment.method)}</span></article>)}{!historyCharges.length && <p className="history-empty">Não há cobranças registradas para esta matrícula.</p>}</> : <p>Selecione um paciente para consultar o histórico disponível.</p>}</div></div></section>;
 }
 
 function dateLabel(value: string, withTime = false) {
@@ -440,7 +440,7 @@ function EditControlledPlanDialog({
 
   const requestClose = async () => {
     if (saving) return;
-    if (dirty && !await confirmAction("Descartar as alterações deste plano?")) return;
+    if (dirty && !await confirmAction("Descartar as alterações deste plano?", { title: "Descartar alterações?", confirmLabel: "Descartar alterações", destructive: true })) return;
     onClose();
   };
   const dialogRef = useDialogFocus(true, requestClose, !saving);

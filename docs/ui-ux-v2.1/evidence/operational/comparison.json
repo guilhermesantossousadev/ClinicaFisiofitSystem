@@ -1,0 +1,52 @@
+{
+  "baselineSHA": "a0fef799cc8556e8458622da55a019f2611f5b05",
+  "comparability": {
+    "apiDigest": {
+      "equal": true,
+      "value": "8b38c04f5ff62d48d953b40818e6a53fc88a59d723701dae68c90b2aaf7f5e97"
+    },
+    "migrationsDigest": {
+      "equal": true,
+      "value": "1abb71cac3ca01d5a4f4a2db792be5c396d859ae2b7f6ca4d3b473909692b982"
+    },
+    "fixturesDigest": {
+      "equal": true,
+      "value": "dbe5e5324e2019ae711b46e23aca5f061011bffb920e074ae46ff70d81b4e75a"
+    },
+    "runnerDigest": {
+      "equal": true,
+      "value": "40e23a5bee085d6ec0e686bc6c276efdc3c2dccf34cb4ef03819234d8ceaee4f"
+    },
+    "readOnlySmoke": {
+      "equal": true,
+      "value": false
+    },
+    "conditions": {
+      "equal": true,
+      "value": {
+        "listDelayMs": 0,
+        "searchDelayMs": 0,
+        "cpuRate": 1
+      }
+    },
+    "db.version": {
+      "equal": true,
+      "value": "17.6"
+    },
+    "db.functions": {
+      "equal": true,
+      "value": "01828c28091ca06372ac773383976a39"
+    },
+    "db.columns": {
+      "equal": true,
+      "value": "bcce7a9e437a6b550b7721dc9ed29bfe"
+    }
+  },
+  "allEqual": true,
+  "beforeFrontend": "e4b34da1ab11b30317501a55b556bf545a8b1123b3490f1bd9771d8c6e49ad67",
+  "afterFrontend": "6a2c4d15b939899a245f23daa3856461e4914e1a3441664873baf3fe75f95b52",
+  "historicalClinicalTimeoutCause": "unproven",
+  "historical401Cause": "unproven",
+  "newObservation": "Both browser runs returned 401 on /me. Preserved as FAIL, no assertions removed.",
+  "synthetic": true
+}

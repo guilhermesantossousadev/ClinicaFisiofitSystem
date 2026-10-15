@@ -1,0 +1,50 @@
+{
+  "status": "BLOCKED",
+  "uiChecksPassed": true,
+  "base": "a0fef799cc8556e8458622da55a019f2611f5b05",
+  "sourceDigest": "19ec04d58cf512fe0ffa9929a2329e3338a949404e3a3afdfb133b72ccbaf508",
+  "checks": [
+    {
+      "name": "protected-paths-unchanged-from-exact-v2",
+      "passed": true
+    },
+    {
+      "name": "typecheck",
+      "passed": true
+    },
+    {
+      "name": "lint",
+      "passed": true
+    },
+    {
+      "name": "design-system-lint",
+      "passed": true
+    },
+    {
+      "name": "build",
+      "passed": true
+    },
+    {
+      "name": "vitest-and-node",
+      "passed": true
+    },
+    {
+      "name": "visual-after",
+      "passed": true
+    },
+    {
+      "name": "gallery",
+      "passed": true
+    },
+    {
+      "name": "diff-check",
+      "passed": true
+    }
+  ],
+  "operational": {
+    "before": false,
+    "after": false
+  },
+  "synthetic": true,
+  "published": false
+}

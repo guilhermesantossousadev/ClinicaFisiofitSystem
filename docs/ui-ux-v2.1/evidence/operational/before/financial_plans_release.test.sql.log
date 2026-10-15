@@ -1,0 +1,63 @@
+f7000000-0000-4000-8000-000000000001
+ok 1 - nine combinations can be created with supplied test prices
+ok 2 - all nine combinations exist without seeds
+(cc5061f2-ca31-458f-aeef-0135a1385329,f7000000-0000-4000-8000-000000000010,f7000000-0000-4000-8000-000000000040,22000,pix,"2026-10-15 17:25:04.508901+00",,,,,release007-partial,"2026-10-15 17:25:04.508901+00")
+ok 3 - 266 due / 220 received is adjusted without invented receipt
+ok 4 - adjusted amount, paid amount, zero balance and paid status agree
+ok 5 - unpaid discrepancy can be adjusted
+ok 6 - unpaid remains unpaid
+ok 7 - amount below real receipts is blocked
+ok 8 - receipt concurrency is checked
+ok 9 - every receipt field preserved
+ok 10 - financial ledger unchanged by adjustment
+ok 11 - correction is audited with paid amount
+ok 12 - catalogue price can be edited
+ok 13 - catalogue price change preserves contracted price
+ok 14 - catalogue edit leaves historical charge unchanged
+ok 15 - catalogue duplicate is rejected
+ok 16 - plan can be deactivated
+ok 17 - inactive plan cannot be selected for change
+(07541855-bdc1-459d-a29f-54de7a5bb748,f7000000-0000-4000-8000-000000000010,"Trimestral · 2x por semana",package,24,90,22092,t,"2026-10-15 17:25:04.508901+00","2026-10-15 17:25:04.508901+00",,)
+ok 18 - incompatible future charge produces explicit cause
+ok 19 - contract concurrency produces explicit cause
+(807abbae-3551-40d9-ac19-c076b910de62,f7000000-0000-4000-8000-000000000010,f7000000-0000-4000-8000-000000000042,100,pix,"2026-10-15 17:25:04.508901+00",,,,,release007-future-partial,"2026-10-15 17:25:04.508901+00")
+ok 20 - future partial receipt blocks change explicitly
+(807abbae-3551-40d9-ac19-c076b910de62,f7000000-0000-4000-8000-000000000010,f7000000-0000-4000-8000-000000000042,100,pix,"2026-10-15 17:25:04.508901+00","2026-10-15 17:25:04.508901+00",f7000000-0000-4000-8000-000000000001,"Synthetic reversal to clear fixture",,release007-future-partial,"2026-10-15 17:25:04.508901+00")
+ok 21 - future contractual condition can be saved
+ok 22 - previous contract price survives new terms
+ok 23 - future contract price follows effective date
+ok 24 - historical condition can be confirmed without overwriting future condition
+ok 25 - future contractual snapshot remains unchanged
+ok 26 - historical condition uses approved price
+ok 27 - revision detects concurrent equal price changes
+ok 28 - old edit flow cannot silently change historical commercial terms
+ok 29 - preview identifies only unpaid future charge to cancel
+ok 30 - stale plan preview cannot confirm
+ok 31 - plan change works with old paid charge and creates successor
+ok 32 - old enrollment preserved with explicit end date
+ok 33 - future unpaid charge preserved as cancelled
+ok 34 - old paid charge preserved
+ok 35 - old received amount preserved after plan change
+ok 36 - new future charge follows new plan price and quarterly coverage
+ok 37 - receipts remain identical after plan change
+ok 38 - plan change audited
+ok 39 - global price remains editable with legacy contracts
+ok 40 - legacy contract never inherits mutable catalogue price
+f7000000-0000-4000-8000-000000000002
+ok 41 - reception with enrollments edit may adjust a charge
+ok 42 - reception cannot register receipts
+ok 43 - reception cannot change global prices
+ok 44 - reception may preview next plan change after paid coverage
+f7000000-0000-4000-8000-000000000003
+ok 45 - reception view only cannot adjust charges
+ok 46 - reception view only cannot change plans
+f7000000-0000-4000-8000-000000000004
+ok 47 - cross unit adjustment denied
+ok 48 - cross unit plan change denied
+f7000000-0000-4000-8000-000000000005
+ok 49 - cross clinic adjustment denied
+ok 50 - cross clinic plan change denied
+ok 51 - internal old commercial edit RPC is not callable by authenticated
+ok 52 - anonymous plan changes denied
+ok 53 - no direct charge update grant introduced
+1..53
