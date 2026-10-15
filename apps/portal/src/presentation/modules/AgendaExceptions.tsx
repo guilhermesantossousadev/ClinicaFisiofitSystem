@@ -1,3 +1,4 @@
+import { Notice } from "@fisiofit/design-system/react";
 import { useState, type FormEvent } from "react";
 import { api } from "../../infrastructure/http/api";
 import { SelectField, TextField, TextareaField } from "../components/FormPrimitives";
@@ -20,6 +21,6 @@ export function AgendaExceptions({ onChanged }: { onChanged: () => Promise<void>
     <SelectField name="unit" label="Unidade de referência" required><option value="">Selecione</option>{(data["/units"] ?? []).map((u: Row) => <option key={u.id} value={u.id}>{u.name}</option>)}</SelectField>
     {kind === "leave" && <SelectField name="professional" label="Profissional afastado" required><option value="">Selecione</option>{(data["/professionals"] ?? []).map((p: Row) => <option key={p.id} value={p.id}>{p.name}</option>)}</SelectField>}
     <div className="form-row"><TextField name="from" label="Início" type="datetime-local" required /><TextField name="to" label="Fim (exclusivo)" type="datetime-local" required /></div><TextareaField name="reason" label="Motivo" minLength={3} maxLength={1000} required />
-    {notice && <p role="status">{notice}</p>}<p className="form-instructions">Afastamentos mantêm as aulas sinalizadas para decisão. Feriados cancelam as aulas do período; chamadas ou reservas existentes exigem revisão prévia.</p><button className="btn primary" disabled={busy}>{busy ? "Salvando…" : "Registrar"}</button>
+    {notice && <Notice message={notice} onDismiss={() => setNotice("")} />}<p className="form-instructions">Afastamentos mantêm as aulas sinalizadas para decisão. Feriados cancelam as aulas do período; chamadas ou reservas existentes exigem revisão prévia.</p><button className="btn primary" disabled={busy}>{busy ? "Salvando…" : "Registrar"}</button>
   </DrawerForm>;
 }

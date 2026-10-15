@@ -23,7 +23,7 @@ export default function SetPasswordPage() {
         <section className="login-card auth-card" aria-labelledby="invalid-link-title">
           <img src="/sistema/fisiofit-logo.jpg" alt="" />
           <p className="eyebrow">LINK DE ACESSO</p>
-          <h2 id="invalid-link-title">Solicite um novo link</h2>
+          <h1 id="invalid-link-title">Solicite um novo link</h1>
           <div className="login-error" role="alert">
             {callbackError ?? "Este link não possui uma sessão válida ou já expirou."}
           </div>
@@ -97,7 +97,7 @@ export default function SetPasswordPage() {
       <form className="login-card auth-card" onSubmit={submit}>
         <img src="/sistema/fisiofit-logo.jpg" alt="" />
         <p className="eyebrow">PRIMEIRO ACESSO</p>
-        <h2>Crie sua senha</h2>
+        <h1>Crie sua senha</h1>
         <p>Use pelo menos 10 caracteres. Recomendamos letras, números e símbolos.</p>
         <div className="form-field-group">
           <TextField

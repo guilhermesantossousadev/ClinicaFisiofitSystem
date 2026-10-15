@@ -1,3 +1,4 @@
+import { Notice, Tabs } from "@fisiofit/design-system/react";
 import { MakeupPolicy } from "./MakeupPolicy";
 import { FormEvent, useState } from "react";
 import { api } from "../../infrastructure/http/api";
@@ -146,30 +147,13 @@ export function OperationalAdministration({ canEdit = true, canManageProfessiona
         </div>
       </div>
       {notice && (
-        <div className="toast">
-          <span>✓</span>
-          {notice}
-        </div>
+        <Notice message={notice} onDismiss={() => setNotice("")} />
       )}
-      <nav className="administration-tabs" role="tablist" aria-label="Tipos de configuração">
-        {visibleTabs.map((tab, index) => <button key={tab.id} type="button" role="tab"
-          id={`administration-tab-${tab.id}`} aria-selected={activeTab === tab.id}
-          aria-controls={`administration-panel-${tab.id}`} tabIndex={activeTab === tab.id ? 0 : -1}
-          className={activeTab === tab.id ? "active" : ""} onClick={() => setActiveTab(tab.id)}
-          onKeyDown={(event) => {
-            if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-            event.preventDefault();
-            const nextIndex = event.key === "Home" ? 0 : event.key === "End" ? visibleTabs.length - 1
-              : (index + (event.key === "ArrowRight" ? 1 : -1) + visibleTabs.length) % visibleTabs.length;
-            setActiveTab(visibleTabs[nextIndex].id);
-            const buttons = event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]');
-            buttons?.[nextIndex]?.focus();
-          }}>{tab.label}</button>)}
-      </nav>
+      <Tabs<AdministrationTab> id="administration" label="Tipos de configuração" value={activeTab} onChange={setActiveTab} items={visibleTabs.map(tab => ({value:tab.id,label:tab.label}))} />
       {canEdit && <MakeupPolicy />}
       <ModuleState loading={loading} error={error} retry={reload} />
       {!loading && !error && <section key={activeTab} className="administration-tab-panel" role="tabpanel"
-        id={`administration-panel-${activeTab}`} aria-labelledby={`administration-tab-${activeTab}`} tabIndex={0}>
+        id={`administration-panel-${activeTab}`} aria-labelledby={`administration-${activeTab}`} tabIndex={0}>
         {activeTab === "units" && <FormularioUnidade data={data} reload={reload} setNotice={setNotice} submit={submit} canEdit={canEdit} canManageUnits={canManageUnits} canDelete={canDelete} />}
         {activeTab === "rooms" && <FormularioSala data={data} reload={reload} setNotice={setNotice} submit={submit} canEdit={canEdit} canDelete={canDelete} />}
         {activeTab === "services" && <FormularioServico data={data} reload={reload} setNotice={setNotice} submit={submit} canEdit={canEdit} canDelete={canDelete} />}

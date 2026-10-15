@@ -1,3 +1,5 @@
+import { confirmAction } from '../components/Decisions';
+import { Notice } from "@fisiofit/design-system/react";
 import { FormEvent, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { CheckboxField, FormSection, SelectField, TextField } from "../components/FormPrimitives";
@@ -14,14 +16,14 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
   const [passwordError, setPasswordError] = useState("");
   const [editingDirty, setEditingDirty] = useState(false);
   const [passwordDirty, setPasswordDirty] = useState(false);
-  function closePasswordDialog() {
-    if (passwordDirty && !window.confirm("Descartar a nova senha ainda não salva?")) return;
+  async function closePasswordDialog() {
+    if (passwordDirty && !await confirmAction("Descartar a nova senha ainda não salva?")) return;
     setPasswordDirty(false);
     setPasswordUser(null);
   }
   const passwordDialogRef = useDialogFocus(Boolean(passwordUser), closePasswordDialog, !updatingUserId);
-  function toggleUserEditing(id: string) {
-    if (editingUserId && editingDirty && !window.confirm("Descartar as alterações de acesso ainda não salvas?")) return;
+  async function toggleUserEditing(id: string) {
+    if (editingUserId && editingDirty && !await confirmAction("Descartar as alterações de acesso ainda não salvas?")) return;
     setEditingDirty(false);
     setEditingUserId(editingUserId === id ? "" : id);
   }
@@ -138,7 +140,7 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
     setPasswordUser(row);
   }
   async function removeUser(row: Row) {
-    if (!window.confirm(`Excluir o acesso de ${row.name}? O histórico será preservado, mas a conta não poderá mais entrar.`)) return;
+    if (!await confirmAction(`Excluir o acesso de ${row.name}? O histórico será preservado, mas a conta não poderá mais entrar.`)) return;
     setUpdatingUserId(row.id);
     setNotice("");
     try {
@@ -161,10 +163,7 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
         </div>
       </div>
       {notice && (
-        <div className="toast">
-          <span>✓</span>
-          {notice}
-        </div>
+        <Notice message={notice} onDismiss={() => setNotice("")} />
       )}
       <ModuleState loading={loading} error={error} retry={reload} />
       {!canManageUsers && (

@@ -1,3 +1,5 @@
+import { requestText, confirmAction } from '../components/Decisions';
+import { Notice } from "@fisiofit/design-system/react";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { supabase } from "../../infrastructure/supabase/client";
@@ -118,6 +120,9 @@ export function OperationalRecords({ canEdit = true }: { canEdit?: boolean }) {
     } finally { setBusy(false); }
   }
   async function sign(id: string) {
+    if (busy) return;
+    if (!await confirmAction("Assinar este registro clínico? Após a assinatura, o conteúdo só poderá ser corrigido por uma retificação com justificativa.")) return;
+    setBusy(true);
     const targetPatient = patientId;
     try {
       await api(`/clinical-records/${id}/sign`, {
@@ -127,14 +132,14 @@ export function OperationalRecords({ canEdit = true }: { canEdit?: boolean }) {
       if (selectedPatient.current === targetPatient) await loadRecords(targetPatient);
     } catch (e) {
       setNotice(messageOf(e));
-    }
+    } finally { setBusy(false); }
   }
   async function rectify(id: string) {
     const targetPatient = patientId;
-    const reason = window.prompt(
+    const reason = await requestText(
       "Justificativa da retificação (mínimo 10 caracteres):",
     );
-    const text = window.prompt("Texto corrigido:");
+    const text = await requestText("Texto corrigido:");
     if (!reason || !text) return;
     try {
       await api(`/clinical-records/${id}/rectify`, {
@@ -160,10 +165,7 @@ export function OperationalRecords({ canEdit = true }: { canEdit?: boolean }) {
       </div>
       <div className="card record-selector"><PatientPicker rows={patients} crossUnit label="Buscar paciente" onSelect={(patient) => void loadRecords(patient.id)} onClear={() => void loadRecords("")} /></div>
       {notice && (
-        <div className="toast">
-          <span>✓</span>
-          {notice}
-        </div>
+        <Notice message={notice} onDismiss={() => setNotice("")} />
       )}
       <ModuleState loading={loading} error={error} retry={reload} />
       {patientId && canEdit && !recordsLoading && !recordsError && (
@@ -233,7 +235,7 @@ export function OperationalRecords({ canEdit = true }: { canEdit?: boolean }) {
             </div>
             <div className="row-actions">
               {canEdit && row.status === "draft" && (
-                <button onClick={() => sign(row.id)}>Assinar</button>
+                <button disabled={busy} onClick={() => void sign(row.id)}>{busy ? "Processando…" : "Assinar"}</button>
               )}
               {canEdit && row.status === "signed" && (
                 <button onClick={() => rectify(row.id)}>Retificar</button>

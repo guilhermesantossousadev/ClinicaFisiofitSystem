@@ -1,4 +1,7 @@
-import { FormEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useCallback, useEffect, useId, useRef, useState } from "react";
+import { confirmAction } from '../components/Decisions';
+import { DataTable, Skeleton, useDialogFocus } from "@fisiofit/design-system/react";
+export { useDialogFocus } from "@fisiofit/design-system/react";
+import { FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useCallback, useEffect, useId, useRef, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { getPortalSessionGeneration, operationalResourceCache } from "../../infrastructure/session/portalSessionState";
 import { CheckboxField, FormField, FormSection, SelectField, TextareaField, TextField } from "../components/FormPrimitives";
@@ -59,6 +62,7 @@ export function brl(amountCents: number) {
 }
 
 const STATUS_LABELS: Record<string, string> = {
+  planned: "Planejada", in_progress: "Em andamento", PRESENT: "Presente", LATE: "Atrasado", ABSENT_JUSTIFIED: "Falta justificada", ABSENT_UNJUSTIFIED: "Falta", CANCELLED_IN_ADVANCE: "Cancelado antecipadamente", CANCELLED_LATE: "Cancelado tardiamente",
   active: "Ativo", inactive: "Inativo", blocked: "Bloqueado", invited: "Convite enviado",
   scheduled: "Agendado", confirmed: "Confirmado", attending: "Em atendimento", completed: "Concluído",
   missed: "Falta", cancelled: "Cancelado", present: "Presente", absent: "Faltou",
@@ -167,55 +171,6 @@ export function useResources(paths: string[]) {
   return { data: dataScope.current === cacheKey ? data : (operationalResourceCache.get(cacheKey) ?? {}), loading: dataScope.current !== cacheKey || loading, error: dataScope.current === cacheKey ? error : "", reload };
 }
 
-export function useDialogFocus(open: boolean, onClose: () => void, canClose = true) {
-  const dialogRef = useRef<HTMLElement>(null);
-  const onCloseRef = useRef(onClose);
-  const canCloseRef = useRef(canClose);
-  onCloseRef.current = onClose;
-  canCloseRef.current = canClose;
-
-  useEffect(() => {
-    if (!open) return;
-    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const focusFrame = window.requestAnimationFrame(() => {
-      const preferred = dialogRef.current?.querySelector<HTMLElement>('[autofocus], .dialog-close, .modal-head > button, button, input, select, textarea, a[href]');
-      (preferred ?? dialogRef.current)?.focus();
-    });
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && canCloseRef.current) {
-        event.preventDefault();
-        onCloseRef.current();
-        return;
-      }
-      if (event.key !== "Tab") return;
-      const focusable = [...(dialogRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])') ?? [])];
-      const first = focusable[0];
-      const last = focusable.at(-1);
-      if (!first || !last) {
-        event.preventDefault();
-        dialogRef.current?.focus();
-      } else if (event.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.cancelAnimationFrame(focusFrame);
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener("keydown", handleKeyDown);
-      if (previousFocus?.isConnected) window.requestAnimationFrame(() => previousFocus.focus());
-    };
-  }, [open]);
-
-  return dialogRef;
-}
-
 export function Select({
   name,
   rows,
@@ -315,6 +270,8 @@ export function PatientPicker({
   const [options, setOptions] = useState<Row[]>(rows);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState("");
   useEffect(() => setOptions(rows), [rows]);
   useEffect(() => setActiveIndex(-1), [options, query]);
   useEffect(() => {
@@ -326,17 +283,19 @@ export function PatientPicker({
       return;
     }
     let active = true;
+    setSearching(true); setSearchError(""); setOptions([]);
     const timer = window.setTimeout(() => {
       const unitFilter = unitId ? `&unitId=${encodeURIComponent(unitId)}` : "";
       void api<{ items: Row[] }>(`/patients?page=1&pageSize=100&search=${encodeURIComponent(search)}${unitFilter}`, { scopeUnit: !crossUnit })
         .then((response) => {
           if (!active) return;
+          setSearching(false);
           const results = response.data?.items ?? [];
           if (!allowedIds) return setOptions(results);
           const allowedIdSet = new Set(allowedIds);
           setOptions(results.filter((row) => allowedIdSet.has(row.id)));
         })
-        .catch(() => { if (active) setOptions([]); });
+        .catch(error => { if (active) { setSearching(false); setOptions([]); setSearchError(messageOf(error).replace(/^Erro:\s*/, "")); } });
     }, 220);
     return () => { active = false; window.clearTimeout(timer); };
   }, [allowedIds, query, rows, unitId, crossUnit, remoteSearch]);
@@ -382,7 +341,9 @@ export function PatientPicker({
         data-validation-message={hasInvalidFreeText ? "Selecione um paciente da lista." : undefined}
         aria-invalid={hasInvalidFreeText ? "true" : undefined}
         aria-expanded={open && selectable.length > 0}
-        aria-controls={optionsId}
+        aria-controls={selectable.length ? optionsId : undefined}
+        aria-busy={searching}
+        aria-describedby={open && !selectable.length ? `${optionsId}-status` : undefined}
         aria-activedescendant={activeIndex >= 0 ? `${optionsId}-${selectable[activeIndex]?.id}` : undefined}
         aria-autocomplete="list"
         role="combobox"
@@ -398,7 +359,7 @@ export function PatientPicker({
         }}
       />
       {open && query.trim().length >= 2 && (
-        <div className="patient-picker-options" id={optionsId} role="listbox" aria-label={`${label}: resultados`}>
+        <div className="patient-picker-options" id={optionsId} role={selectable.length ? "listbox" : undefined} aria-label={`${label}: resultados`}>
           {selectable.length ? selectable.map((patient, index) => (
             <div
               id={`${optionsId}-${patient.id}`}
@@ -412,7 +373,7 @@ export function PatientPicker({
               <strong>{patient.name}</strong>
               <small>{patient.phone ?? patient.cpf ?? ""}</small>
             </div>
-          )) : <span className="patient-picker-empty" role="status">Nenhum paciente encontrado.</span>}
+          )) : <span id={`${optionsId}-status`} className="patient-picker-empty" role="status">{searching ? "Buscando pacientes…" : searchError || "Nenhum paciente encontrado."}</span>}
         </div>
       )}
     </FormField>
@@ -441,13 +402,13 @@ export function DrawerForm({
   const titleId = `${dialogId}-title`;
   const triggerRef = useRef<HTMLButtonElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
-  const dialogRef = useRef<HTMLElement>(null);
+  const dialogRef = useDialogFocus(open, () => close(), !submitting);
   const formRef = useRef<HTMLFormElement>(null);
   const dirtyRef = useRef(false);
   const submittingRef = useRef(false);
-  const close = (force = false) => {
+  const close = async (force = false) => {
     if (submittingRef.current) return;
-    if (!force && dirtyRef.current && !window.confirm("Descartar as alterações deste formulário? Os dados preenchidos não serão salvos.")) return;
+    if (!force && dirtyRef.current && !await confirmAction("Descartar as alterações deste formulário? Os dados preenchidos não serão salvos.")) return;
     dirtyRef.current = false;
     setOpen(false);
     onClose?.();
@@ -480,41 +441,6 @@ export function DrawerForm({
       }
     }
   };
-  useEffect(() => {
-    if (!open) return;
-    const previousFocus = document.activeElement as HTMLElement | null;
-    const focusables = () => dialogRef.current
-      ? [...dialogRef.current.querySelectorAll<HTMLElement>('button, input, select, textarea, a[href], [tabindex]:not([tabindex="-1"])')]
-        .filter((element) => !element.hasAttribute("disabled") && element.getAttribute("aria-hidden") !== "true")
-      : [];
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        close();
-        return;
-      }
-      if (event.key !== "Tab") return;
-      const elements = focusables();
-      const first = elements[0];
-      const last = elements.at(-1);
-      if (!first || !last) return;
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener("keydown", handleKeyDown);
-    requestAnimationFrame(() => closeRef.current?.focus());
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      if (document.activeElement instanceof HTMLElement && dialogRef.current?.contains(document.activeElement)) {
-        previousFocus?.focus();
-      }
-    };
-  }, [open]);
   return (
     <>
       <button
@@ -568,15 +494,7 @@ export function ModuleState({
   error: string;
   retry?: () => void | Promise<void>;
 }) {
-  if (loading)
-    return (
-      <div className="card module-skeleton" role="status" aria-live="polite">
-        <span className="sr-only">Carregando dados do módulo…</span>
-        <div className="skeleton-line skeleton-title" />
-        <div className="skeleton-line" />
-        <div className="skeleton-line skeleton-short" />
-      </div>
-    );
+  if (loading) return <Skeleton />;
   if (error)
     return (
       <div className="system-message error-message" role="alert">
@@ -668,50 +586,19 @@ export function EditableOperationalTable({
   const [editing, setEditing] = useState<Row | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
-  const editDialogRef = useRef<HTMLElement>(null);
+  const editDialogRef = useDialogFocus(Boolean(editing), () => closeEditing(), !saving);
   const editTriggerRef = useRef<HTMLButtonElement | null>(null);
   const editDirtyRef = useRef(false);
   const savingRef = useRef(false);
+  const rowPending = useRef(false);
+  const [rowBusy, setRowBusy] = useState("");
 
-  function closeEditing(force = false) {
+  async function closeEditing(force = false) {
     if (savingRef.current) return;
-    if (!force && editDirtyRef.current && !window.confirm("Descartar as alterações desta edição? Os dados modificados não serão salvos.")) return;
+    if (!force && editDirtyRef.current && !await confirmAction("Descartar as alterações desta edição? Os dados modificados não serão salvos.")) return;
     editDirtyRef.current = false;
     setEditing(null);
   }
-
-  useEffect(() => {
-    if (!editing) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const focusFrame = window.requestAnimationFrame(() => editDialogRef.current?.querySelector<HTMLElement>(".dialog-close")?.focus());
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        closeEditing();
-        return;
-      }
-      if (event.key !== "Tab") return;
-      const focusable = [...(editDialogRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])') ?? [])];
-      const first = focusable[0];
-      const last = focusable.at(-1);
-      if (!first || !last) return;
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.cancelAnimationFrame(focusFrame);
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener("keydown", handleKeyDown);
-      window.requestAnimationFrame(() => editTriggerRef.current?.focus());
-    };
-  }, [editing]);
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -743,10 +630,13 @@ export function EditableOperationalTable({
   }
 
   async function toggle(row: Row) {
+    if (rowPending.current) return;
     const activate = row.active === false;
-    if (!activate && !window.confirm(
+    if (!activate && !await confirmAction(
       `Inativar ${row.name}? O histórico será preservado e o cadastro poderá ser reativado.`,
     )) return;
+    if (rowPending.current) return;
+    rowPending.current = true; setRowBusy(row.id);
     try {
       await api(`/${resource}/${row.id}`, {
         method: "PATCH",
@@ -756,65 +646,40 @@ export function EditableOperationalTable({
       onNotice(activate ? "Cadastro reativado." : "Cadastro inativado.");
     } catch (error) {
       onNotice(messageOf(error));
-    }
+    } finally { rowPending.current = false; setRowBusy(""); }
   }
 
   async function remove(row: Row) {
-    if (!window.confirm(`Excluir ${row.name}? O cadastro sairá das listagens. O histórico clínico e financeiro será preservado para fins legais.`)) return;
+    if (rowPending.current) return;
+    if (!await confirmAction(`Excluir ${row.name}? O cadastro sairá das listagens. O histórico clínico e financeiro será preservado para fins legais.`)) return;
+    if (rowPending.current) return;
+    rowPending.current = true; setRowBusy(row.id);
     try {
       await api(`/${resource}/${row.id}`, { method: "DELETE" });
       await onChanged();
       onNotice("Cadastro excluído com segurança.");
     } catch (error) {
       onNotice(messageOf(error));
-    }
+    } finally { rowPending.current = false; setRowBusy(""); }
   }
 
   return (
     <>
-      <section className="card table-card operational-data-table" style={{ "--table-columns": `repeat(${fields.length}, minmax(120px, 1fr)) minmax(230px, auto)` } as CSSProperties}>
-        <div className="table-toolbar">
-          <h2>{title}</h2>
-          <span>{total ?? rows.length} registros</span>
-        </div>
-        <div className="operational-table-head" aria-hidden="true">
-          {fields.map((field) => <span key={field}>{fieldLabel(field)}</span>)}
-          <span>Ações</span>
-        </div>
-        {rows.map((row) => (
-          <div className="operational-row" key={row.id}>
-            {fields.map((field, index) => <div className="operational-cell" key={field} data-label={fieldLabel(field)}>
-              {index === 0 ? <strong>{render(row[field], field)}</strong> : <span>{render(row[field], field)}</span>}
-            </div>)}
-            <div className="row-actions" aria-label={`Ações de ${row.name}`}>
-              {onOpen && <button type="button" onClick={() => void onOpen(row)}>Detalhes</button>}
-              {actions?.(row)}
-              {canEdit && <button type="button" onClick={(event) => {
-                editTriggerRef.current = event.currentTarget;
-                editDirtyRef.current = false;
-                setSaveError("");
-                setEditing(row);
-              }}>Editar</button>}
-              {canEdit && showToggle && <button
-                  type="button"
-                  className={row.active === false ? "action-activate" : "action-inactivate"}
-                  onClick={() => void toggle(row)}
-                >
-                  {row.active === false ? "Reativar" : "Inativar"}
-                </button>}
-              {canEdit && allowDelete && <button type="button" className="action-delete" onClick={() => void remove(row)}>Excluir</button>}
-            </div>
-          </div>
-        ))}
-        {!rows.length && <div className="empty-state">{emptyMessage}</div>}
-        {page && pageSize && total !== undefined && total > pageSize && (
-          <nav className="table-pagination" aria-label={`Paginação de ${title}`}>
-            <button className="btn secondary" type="button" disabled={page === 1} onClick={() => onPageChange?.(page - 1)}>Anterior</button>
-            <span>Página {page} de {Math.ceil(total / pageSize)}</span>
-            <button className="btn secondary" type="button" disabled={page >= Math.ceil(total / pageSize)} onClick={() => onPageChange?.(page + 1)}>Próxima</button>
-          </nav>
-        )}
-      </section>
+      <DataTable title={title} rows={rows} count={total} emptyMessage={emptyMessage}
+        columns={fields.map((field, index) => ({ key: field, label: fieldLabel(field),
+          sortValue: (row: Row) => typeof row[field] === "number" ? row[field] : field.endsWith("_at") || field.endsWith("_on") || field.endsWith("_date") ? String(row[field] ?? "") : String(render(row[field], field)),
+          render: (row: Row) => field === "active" ? <span className={`status ${row.active === false ? "neutral" : "success"}`}>{render(row[field], field)}</span>
+            : index === 0 ? <strong>{render(row[field], field)}</strong> : render(row[field], field) }))}
+        actions={(row) => <>
+          {onOpen && <button type="button" onClick={() => void onOpen(row)}>Detalhes</button>}
+          {actions?.(row)}
+          {canEdit && <button type="button" onClick={(event) => { editTriggerRef.current = event.currentTarget; editDirtyRef.current = false; setSaveError(""); setEditing(row); }}>Editar</button>}
+          {canEdit && showToggle && <button type="button" disabled={Boolean(rowBusy)} aria-busy={rowBusy === row.id} className={row.active === false ? "action-activate" : "action-inactivate"} onClick={() => void toggle(row)}>{row.active === false ? "Reativar" : "Inativar"}</button>}
+          {canEdit && allowDelete && <button type="button" disabled={Boolean(rowBusy)} aria-busy={rowBusy === row.id} className="action-delete" onClick={() => void remove(row)}>Excluir</button>}
+        </>}
+        footer={page && pageSize && total !== undefined && total > pageSize ? <nav className="table-pagination" aria-label={`Paginação de ${title}`}>
+          <button className="btn secondary" type="button" disabled={page === 1} onClick={() => onPageChange?.(page - 1)}>Anterior</button><span>Página {page} de {Math.ceil(total / pageSize)} · Ordenação nesta página</span><button className="btn secondary" type="button" disabled={page >= Math.ceil(total / pageSize)} onClick={() => onPageChange?.(page + 1)}>Próxima</button>
+        </nav> : undefined} />
       {editing && (
         <div className="edit-dialog-backdrop" role="presentation" onMouseDown={(event) => {
           if (event.target === event.currentTarget) closeEditing();
@@ -879,28 +744,8 @@ export function OperationalTable({
   actions?: (row: Row) => ReactNode;
   emptyMessage?: string;
 }) {
-  return (
-    <section className="card table-card operational-data-table" style={{ "--table-columns": `repeat(${fields.length}, minmax(135px, 1fr))` } as CSSProperties}>
-      <div className="table-toolbar">
-        <h2>{title}</h2>
-        <span>{rows.length} registros</span>
-      </div>
-      <div className="operational-table-head" aria-hidden="true">
-        {fields.map((field) => <span key={field}>{fieldLabel(field)}</span>)}
-      </div>
-      {rows.map((row) => (
-        <div className="operational-row" key={row.id}>
-          {fields.map((field, index) => <div className="operational-cell" key={field} data-label={fieldLabel(field)}>
-            {index === 0 ? <strong>{render(row[field], field)}</strong> : <span>{render(row[field], field)}</span>}
-          </div>)}
-          {actions && <div className="operational-cell row-actions" data-label="Ações">{actions(row)}</div>}
-        </div>
-      ))}
-      {!rows.length && (
-        <div className="empty-state">{emptyMessage}</div>
-      )}
-    </section>
-  );
+  return <DataTable title={title} rows={rows} emptyMessage={emptyMessage} actions={actions}
+    columns={fields.map((field,index) => ({key:field,label:fieldLabel(field),sortValue:(row: Row) => typeof row[field] === "number" ? row[field] : field.endsWith("_at") || field.endsWith("_on") || field.endsWith("_date") ? String(row[field] ?? "") : String(render(row[field],field)),render:(row: Row) => index===0?<strong>{render(row[field],field)}</strong>:render(row[field],field)}))} />;
 }
 export function fieldLabel(field: string) {
   const labels: Record<string, string> = {

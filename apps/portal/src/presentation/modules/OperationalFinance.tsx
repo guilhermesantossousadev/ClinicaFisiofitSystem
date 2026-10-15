@@ -1,3 +1,5 @@
+import { confirmAction } from '../components/Decisions';
+import { Notice } from "@fisiofit/design-system/react";
 import { FormEvent, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { CheckboxField, SelectField, TextField } from "../components/FormPrimitives";
@@ -65,7 +67,7 @@ export function OperationalFinance({ canEdit = true }: { canEdit?: boolean }) {
     }
   }
   async function removeEntry(id: string) {
-    if (!window.confirm("Excluir este lançamento? Ele ficará oculto, mas será mantido no histórico.")) return;
+    if (!await confirmAction("Excluir este lançamento? Ele ficará oculto, mas será mantido no histórico.")) return;
     try {
       await api(`/financial-entries/${id}`, { method: "DELETE" });
       await reload();
@@ -99,10 +101,7 @@ export function OperationalFinance({ canEdit = true }: { canEdit?: boolean }) {
         </div>
       </div>
       {notice && (
-        <div className="toast">
-          <span>✓</span>
-          {notice}
-        </div>
+        <Notice message={notice} onDismiss={() => setNotice("")} />
       )}
       <ModuleState loading={loading} error={error} retry={reload} />
       <TextField label="Mês de competência" type="month" value={month} onChange={(event) => { if (event.target.value) setMonth(event.target.value); }} />

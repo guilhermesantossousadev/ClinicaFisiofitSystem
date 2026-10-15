@@ -1,0 +1,26 @@
+/* Fisiofit V2 — semantic foundations. Values come from @fisiofit/design-system. */
+* { box-sizing: border-box; }
+html { font-size: 16px; scroll-padding-top: 100px; color-scheme: light; }
+body { margin: 0; min-width: 320px; background: var(--canvas); color: var(--ink); font: 400 var(--ff-text-sm)/1.5 var(--ff-font); -webkit-font-smoothing: antialiased; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button, summary { cursor: pointer; }
+button { touch-action: manipulation; }
+button:disabled, input:disabled, select:disabled, textarea:disabled { cursor: not-allowed; opacity: .58; }
+button, a, input, select, textarea, summary { -webkit-tap-highlight-color: transparent; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+input:focus-visible, textarea:focus-visible, select:focus-visible { outline-offset: 2px; }
+a { color: var(--blue); text-underline-offset: 3px; }
+h1,h2,h3,p { margin-block-start: 0; }
+h1 { font-size: var(--ff-title-lg); line-height: 1.2; letter-spacing: -.7px; }
+h2 { font-size: var(--ff-text-lg); line-height: 1.35; letter-spacing: -.2px; }
+h3 { font-size: var(--ff-text-md); line-height: 1.4; }
+p { margin-block-end: 1rem; }
+small { font-size: var(--ff-text-xs); line-height: 1.5; }
+strong { font-weight: 650; }
+svg { flex-shrink: 0; vertical-align: middle; }
+img { max-width: 100%; }
+.sr-only { position: absolute!important; width: 1px!important; height: 1px!important; padding: 0!important; margin: -1px!important; overflow: hidden!important; clip: rect(0,0,0,0)!important; white-space: nowrap!important; border: 0!important; }
+.skip-link { position: fixed; inset: 8px auto auto 8px; z-index: 9999; transform: translateY(-160%); background: var(--paper); border: 2px solid var(--blue); border-radius: 8px; padding: 12px 18px; }
+.skip-link:focus { transform: translateY(0); }
+@media(prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration: .01ms!important; animation-iteration-count: 1!important; transition-duration: .01ms!important; scroll-behavior: auto!important; } }
+@media print { .sidebar,.topbar,.mobile-bottom-nav,.title-actions,.row-actions,.drawer-create-trigger,.ff-notice { display: none!important; } .app-shell { display: block!important; } .workspace { width: 100%!important; } .content { padding: 0!important; } }

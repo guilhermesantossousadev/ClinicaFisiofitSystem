@@ -1,0 +1,54 @@
+{
+  "passed": true,
+  "baseline": "8e9adda7f9b0198ae181add88fd1548d970750c9",
+  "source": "8e9adda7f9b0198ae181add88fd1548d970750c9",
+  "checks": [
+    {
+      "name": "protected-contracts-and-backend-unchanged",
+      "passed": true
+    },
+    {
+      "name": "typecheck",
+      "passed": true,
+      "log": "/var/folders/wb/dpwqn7kd5z15rky2jfd338nh0000gn/T/fisiofit-ui-v2-homologation-57574/typecheck.log"
+    },
+    {
+      "name": "lint",
+      "passed": true,
+      "log": "/var/folders/wb/dpwqn7kd5z15rky2jfd338nh0000gn/T/fisiofit-ui-v2-homologation-57574/lint.log"
+    },
+    {
+      "name": "design-system-lint",
+      "passed": true,
+      "log": "/var/folders/wb/dpwqn7kd5z15rky2jfd338nh0000gn/T/fisiofit-ui-v2-homologation-57574/design-system-lint.log"
+    },
+    {
+      "name": "build",
+      "passed": true,
+      "log": "/var/folders/wb/dpwqn7kd5z15rky2jfd338nh0000gn/T/fisiofit-ui-v2-homologation-57574/build.log"
+    },
+    {
+      "name": "unit-contracts",
+      "passed": true,
+      "log": "/var/folders/wb/dpwqn7kd5z15rky2jfd338nh0000gn/T/fisiofit-ui-v2-homologation-57574/unit-contracts.log"
+    },
+    {
+      "name": "visual-after-exact-source-evidence-reused",
+      "passed": true,
+      "digest": "e4b34da1ab11b30317501a55b556bf545a8b1123b3490f1bd9771d8c6e49ad67",
+      "checks": 232,
+      "frames": 208
+    },
+    {
+      "name": "evidence-index",
+      "passed": true,
+      "log": "/var/folders/wb/dpwqn7kd5z15rky2jfd338nh0000gn/T/fisiofit-ui-v2-homologation-57574/evidence-index.log"
+    },
+    {
+      "name": "diff-check",
+      "passed": true,
+      "log": "/var/folders/wb/dpwqn7kd5z15rky2jfd338nh0000gn/T/fisiofit-ui-v2-homologation-57574/diff-check.log"
+    }
+  ],
+  "synthetic": true
+}

@@ -2,7 +2,7 @@ import { InternalNotifications } from "../modules/InternalNotifications";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { api, list } from "../../infrastructure/http/api";
 import { supabase } from "../../infrastructure/supabase/client";
-import "../styles/portal-enhancements.css";
+import { Icon, useDialogFocus, type IconName } from "@fisiofit/design-system/react";
 import { useAuth } from "../auth/AuthProvider";
 import {
   OperationalAdministration,
@@ -26,6 +26,7 @@ const sidebarGroups: Array<{ label: string; items: View[] }> = [
   { label: "Gestão", items: ["Financeiro", "Relatórios", "Importações"] },
   { label: "Administração", items: ["Usuários", "Configurações", "Privacidade"] },
 ];
+const viewIcon: Record<string, IconName> = { "Painel":"dashboard", "Agenda":"calendar", "Chamada diária":"check", "Pacientes":"patients", "Matrículas":"plans", "Prontuários":"records", "Financeiro":"finance", "Relatórios":"reports", "Importações":"imports", "Usuários":"users", "Configurações":"settings", "Privacidade":"privacy" };
 const brl = (cents: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
     cents / 100,
@@ -107,6 +108,9 @@ export default function FisiofitApp() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [unit, setUnit] = useState(() => storedValue(`${storagePrefix}:unit`));
   const [search, setSearch] = useState("");
+  const [patientSearch, setPatientSearch] = useState("");
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [activeSearchIndex, setActiveSearchIndex] = useState(-1);
   const [loading, setLoading] = useState(true);
@@ -117,7 +121,7 @@ export default function FisiofitApp() {
   const [avatarUrl, setAvatarUrl] = useState(() => String(user?.user_metadata?.avatar_url ?? ""));
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [avatarNotice, setAvatarNotice] = useState("");
-  const mobileMenuRef = useRef<HTMLElement>(null);
+  const mobileMenuRef = useDialogFocus(mobileMenuOpen, () => setMobileMenuOpen(false));
   const mobileMenuTriggerRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
@@ -182,8 +186,8 @@ export default function FisiofitApp() {
   }, [unit, loading, profile.role, profile.profile_permissions]);
   useEffect(() => {
     if (search.trim().length < 2 || !canViewModule(profile, "patients") || profile.role === "finance") return;
-    let active = true; setPatients([]);
-    const timer = window.setTimeout(() => { void list<Patient>(`/patients?page=1&pageSize=100&search=${encodeURIComponent(search.trim())}${unit ? `&unitId=${unit}` : ""}`).then((response) => { if (active) setPatients(response.data?.items ?? []); }).catch(() => { if (active) setPatients([]); }); }, 220);
+    let active = true; setPatients([]); setSearchLoading(true); setSearchError("");
+    const timer = window.setTimeout(() => { void list<Patient>(`/patients?page=1&pageSize=100&search=${encodeURIComponent(search.trim())}${unit ? `&unitId=${unit}` : ""}`).then((response) => { if (active) { setPatients(response.data?.items ?? []); setSearchLoading(false); } }).catch(reason => { if (active) { setPatients([]); setSearchLoading(false); setSearchError(reason instanceof Error ? reason.message : "Não foi possível buscar pacientes."); } }); }, 220);
     return () => { active = false; window.clearTimeout(timer); };
   }, [search, unit, profile.role, profile.profile_permissions]);
   const visibleNav = useMemo(
@@ -195,46 +199,13 @@ export default function FisiofitApp() {
       setView(visibleNav[0]?.label ?? "Painel");
     }
   }, [loading, view, visibleNav]);
-  useEffect(() => {
-    if (!mobileMenuOpen) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const focusFrame = window.requestAnimationFrame(() => {
-      mobileMenuRef.current?.querySelector<HTMLElement>("button")?.focus();
-    });
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setMobileMenuOpen(false);
-        return;
-      }
-      if (event.key !== "Tab") return;
-      const focusable = [...(mobileMenuRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])') ?? [])];
-      const first = focusable[0];
-      const last = focusable.at(-1);
-      if (!first || !last) return;
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.cancelAnimationFrame(focusFrame);
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener("keydown", handleKeyDown);
-      window.requestAnimationFrame(() => mobileMenuTriggerRef.current?.focus());
-    };
-  }, [mobileMenuOpen]);
   const mobilePrimaryNav = visibleNav.slice(0, 4);
   const mobileSecondaryNav = visibleNav.slice(4);
   const mobileViewIsSecondary = mobileSecondaryNav.some(
     (item) => item.label === view,
   );
   const navigate = (nextView: View) => {
+    if (nextView !== "Pacientes") setPatientSearch("");
     setView(nextView);
     setMobileMenuOpen(false);
   };
@@ -255,7 +226,8 @@ export default function FisiofitApp() {
       .slice(0, 8);
   }, [patients, search, unit]);
   useEffect(() => setActiveSearchIndex(-1), [results, search]);
-  const chooseSearchResult = (_patient: Patient) => {
+  const chooseSearchResult = (patient: Patient) => {
+    setPatientSearch(patient.name);
     navigate("Pacientes");
     setSearch("");
     setSearchOpen(false);
@@ -318,7 +290,7 @@ export default function FisiofitApp() {
       <a className="skip-link" href="#portal-content">Pular para o conteúdo principal</a>
       <main className={`app-shell${sidebarCollapsed ? " sidebar-collapsed" : ""}`} aria-busy={loading}>
       <aside className="sidebar">
-        <button className="brand" onClick={() => navigate("Painel")}>
+        <button aria-label="Fisiofit: abrir painel" className="brand" onClick={() => navigate("Painel")}>
           <img className="brand-logo" src="/sistema/fisiofit-logo.jpg" alt="" />
           <span>
             <strong>FISIOFIT</strong>
@@ -350,9 +322,10 @@ export default function FisiofitApp() {
                   className={view === item.label ? "nav-item active" : "nav-item"}
                   onClick={() => navigate(item.label)}
                   aria-current={view === item.label ? "page" : undefined}
-                  title={sidebarCollapsed ? item.label : undefined}
+                  aria-label={item.label}
+                  title={item.label}
                 >
-                  <span className="nav-icon" aria-hidden="true">{item.icon}</span>
+                  <span className="nav-icon" aria-hidden="true"><Icon name={viewIcon[item.label] ?? "users"} /></span>
                   <span className="nav-item-label">{item.label}</span>
                 </button>
               ))}
@@ -380,7 +353,7 @@ export default function FisiofitApp() {
             onClick={() => navigate(item.label)}
             aria-current={view === item.label ? "page" : undefined}
           >
-            <span className="nav-icon" aria-hidden="true">{item.icon}</span>
+            <span className="nav-icon" aria-hidden="true"><Icon name={viewIcon[item.label] ?? "users"} /></span>
             <span>{item.label}</span>
           </button>
         ))}
@@ -420,7 +393,7 @@ export default function FisiofitApp() {
                   onClick={() => navigate(item.label)}
                   aria-current={view === item.label ? "page" : undefined}
                 >
-                  <span className="nav-icon" aria-hidden="true">{item.icon}</span>
+                  <span className="nav-icon" aria-hidden="true"><Icon name={viewIcon[item.label] ?? "users"} /></span>
                   <span>{item.label}</span>
                 </button>
               ))}
@@ -435,7 +408,7 @@ export default function FisiofitApp() {
           </section>
         </div>
       )}
-      <section className="workspace" id="portal-content">
+      <section className="workspace" id="portal-content" tabIndex={-1}>
         <header className="topbar">
           <div className="mobile-brand">
             <img
@@ -446,11 +419,11 @@ export default function FisiofitApp() {
             <strong>Fisiofit</strong>
           </div>
           <div className="current-view" aria-live="polite">
-            <strong>{view}</strong>
+            <small>Clínica / {sidebarGroups.find(group => group.items.includes(view))?.label ?? "Conta"}</small><strong>{view}</strong>
           </div>
           <label className="global-search">
             <span className="sr-only">Buscar paciente, telefone ou CPF</span>
-            <span aria-hidden="true">⌕</span>
+            <Icon name="search" />
             <input
               value={search}
               onChange={(event) => {
@@ -462,15 +435,16 @@ export default function FisiofitApp() {
               onKeyDown={handleSearchKeyDown}
               placeholder="Buscar paciente, telefone ou CPF…"
               role="combobox"
-              aria-expanded={searchOpen && search.trim().length >= 2}
-              aria-controls="global-search-results"
+              aria-expanded={searchOpen && results.length > 0}
+              aria-controls={results.length ? "global-search-results" : undefined}
+              aria-describedby={searchOpen && !results.length ? "global-search-status" : undefined}
               aria-activedescendant={activeSearchIndex >= 0 ? `global-search-result-${results[activeSearchIndex]?.id}` : undefined}
               aria-autocomplete="list"
             />
           </label>
           <div className="top-actions">
             <label className="unit-select">
-              <span className="unit-select-icon" aria-hidden="true">⌖</span>
+              <span className="unit-select-icon"><Icon name="location" size={18} /></span>
               <span className="unit-select-copy"><small>Unidade ativa</small><select
                 aria-label="Selecionar unidade ativa"
                 value={unit}
@@ -493,7 +467,7 @@ export default function FisiofitApp() {
             </span>
           </div>
           {searchOpen && search.trim().length >= 2 && (
-            <div className="global-results" id="global-search-results" role="listbox" aria-label="Pacientes encontrados">
+            <div className="global-results" id="global-search-results" role={results.length ? "listbox" : undefined} aria-label="Pacientes encontrados">
               {results.length ? results.map((patient, index) => (
                 <button
                   id={`global-search-result-${patient.id}`}
@@ -508,7 +482,7 @@ export default function FisiofitApp() {
                   <strong>{patient.name}</strong>
                   <small>{patient.phone ?? "Sem telefone"}</small>
                 </button>
-              )) : <p className="global-results-empty" role="status">Nenhum paciente encontrado nesta unidade.</p>}
+              )) : <p id="global-search-status" className="global-results-empty" role="status">{searchLoading ? "Buscando pacientes…" : searchError || "Nenhum paciente encontrado nesta unidade."}</p>}
             </div>
           )}
         </header>
@@ -519,11 +493,11 @@ export default function FisiofitApp() {
         )}
         {view === "Meu perfil" && <ProfilePage profile={profile} email={user?.email ?? ""} avatarUrl={avatarUrl} avatarBusy={avatarBusy} avatarNotice={avatarNotice} onAvatarChange={changeAvatar} onSignOut={() => void signOut()} />}
         {view === "Painel" && (
-          <Dashboard data={dashboardUnit === unit ? dashboard : null} name={profile.name} setView={setView} loading={loading} />
+          <Dashboard data={dashboardUnit === unit ? dashboard : null} name={profile.name} setView={setView} loading={loading} allowedViews={visibleNav.map(item => item.label)} />
         )}{" "}
         {view === "Agenda" && <OperationalAgenda role={profile.role} canEdit={canEditModule(profile, "agenda")} onOpenPatients={() => navigate("Pacientes")} onOpenEnrollment={(context) => { setAgendaContext(context); navigate("Matrículas"); }} />}{" "}
         {view === "Chamada diária" && <OperationalDailyAttendance canEdit={canEditModule(profile, "agenda")} canManageMakeups={["admin", "manager", "reception"].includes(profile.role)} />}{" "}
-        {view === "Pacientes" && <OperationalPatients canEdit={canEditModule(profile, "patients")} canViewEnrollments={canViewModule(profile, "enrollments")} canEditEnrollments={canEditModule(profile, "enrollments")} canViewAgenda={canViewModule(profile, "agenda")} canEditAgenda={canEditModule(profile, "agenda")} canViewTimeline={["admin", "manager"].includes(profile.role)} />}{" "}
+        {view === "Pacientes" && <OperationalPatients initialSearch={patientSearch} canEdit={canEditModule(profile, "patients")} canViewEnrollments={canViewModule(profile, "enrollments")} canEditEnrollments={canEditModule(profile, "enrollments")} canViewAgenda={canViewModule(profile, "agenda")} canEditAgenda={canEditModule(profile, "agenda")} canViewTimeline={["admin", "manager"].includes(profile.role)} />}{" "}
         {view === "Matrículas" && <OperationalEnrollments canViewPatients={profile.role !== "finance" && canViewModule(profile, "patients")} canViewAgenda={profile.role !== "finance" && canViewModule(profile, "agenda")} agendaContext={agendaContext} onClearAgendaContext={() => setAgendaContext(undefined)} units={units} selectedUnitId={unit} onUnitChange={setUnit} canEdit={canEditModule(profile, "enrollments")} canManagePlans={canEditModule(profile, "enrollments") && ["admin", "manager", "finance"].includes(profile.role)} canDeletePlans={profile.role === "admin"} canViewCharges={["admin", "manager", "finance", "reception"].includes(profile.role) && canViewModule(profile, "enrollments")} canViewPayments={["admin", "manager", "finance"].includes(profile.role) && canViewModule(profile, "finance")} canReceivePayments={["admin", "manager", "finance"].includes(profile.role) && canEditModule(profile, "finance")} canRollback={["admin", "manager", "finance"].includes(profile.role) && canEditModule(profile, "enrollments")} canCorrectChargeAmounts={profile.role === "reception" ? canViewModule(profile, "enrollments") && canEditModule(profile, "enrollments") : ["admin", "manager", "finance"].includes(profile.role) && canEditModule(profile, "finance")} />}{" "}
         {view === "Prontuários" && <OperationalRecords canEdit={canEditModule(profile, "records")} />}{" "}
         {view === "Financeiro" && <OperationalFinance canEdit={canEditModule(profile, "finance")} />}{" "}
@@ -556,7 +530,7 @@ function ProfilePage({ profile, email, avatarUrl, avatarBusy, avatarNotice, onAv
       </div>
       <section className="card profile-hero" aria-labelledby="profile-name">
         <Avatar initials={initials} url={avatarUrl} className="profile-avatar" />
-        <div className="profile-hero-copy"><h2 id="profile-name">{profile.name}</h2><p>{roleLabel[profile.role]}</p><label className="profile-photo-action">{avatarBusy ? "Atualizando foto…" : avatarUrl ? "Trocar foto" : "Adicionar foto"}<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => void onAvatarChange(event.target.files?.[0])} disabled={avatarBusy} /></label>{avatarNotice && <small className="profile-photo-notice" role="status">{avatarNotice}</small>}</div>
+        <div className="profile-hero-copy"><h2 id="profile-name">{profile.name}</h2><p>{roleLabel[profile.role]}</p><label className="profile-photo-action">{avatarBusy ? "Atualizando foto…" : avatarUrl ? "Trocar foto" : "Adicionar foto"}<input className="sr-only" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => void onAvatarChange(event.target.files?.[0])} disabled={avatarBusy} /></label>{avatarNotice && <small className="profile-photo-notice" role="status">{avatarNotice}</small>}</div>
       </section>
       <section className="card profile-details" aria-labelledby="profile-details-title">
         <div className="card-head"><div><h2 id="profile-details-title">Dados da conta</h2><p>Informações vinculadas ao seu acesso ao sistema.</p></div></div>
@@ -579,11 +553,13 @@ function Dashboard({
   name,
   setView,
   loading = false,
+  allowedViews,
 }: {
   data: DashboardData | null;
   name: string;
   setView: (view: View) => void;
   loading?: boolean;
+  allowedViews: View[];
 }) {
   const result =
     (data?.receivedMonthCents ?? 0) - (data?.paidExpensesMonthCents ?? 0);
@@ -596,27 +572,15 @@ function Dashboard({
           <p>Indicadores calculados a partir dos registros da clínica.</p>
         </div>
         <div className="title-actions">
-          <button
-            className="btn secondary"
-            onClick={() => setView("Pacientes")}
-          >
-            Novo paciente
-          </button>
-          <button className="btn primary" onClick={() => setView("Agenda")}>
-            Novo agendamento
-          </button>
+          {allowedViews.includes("Pacientes") && <button className="btn secondary" onClick={() => setView("Pacientes")}>Ver pacientes</button>}
+          {allowedViews.includes("Agenda") && <button className="btn primary" onClick={() => setView("Agenda")}>Abrir agenda</button>}
         </div>
       </div>
       {loading && <section className="metrics" aria-label="Carregando indicadores" aria-live="polite">
         {Array.from({ length: 4 }, (_, index) => <div className="metric-card module-skeleton" key={index}><div className="skeleton-line skeleton-short" /><div className="skeleton-line skeleton-title" /></div>)}
       </section>}
-      {!loading && <>
-      <section className="card table-card dashboard-agenda-top" aria-labelledby="dashboard-agenda-title">
-        <div className="table-toolbar"><div><p className="eyebrow">PRÓXIMOS HORÁRIOS</p><h2 id="dashboard-agenda-title">Agenda de hoje</h2></div><button className="text-button" onClick={() => setView("Agenda")}>Abrir agenda →</button></div>
-        {(data?.appointments ?? []).map((item) => <div className="operational-row" key={item.id}><div><strong>{new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" }).format(new Date(item.starts_at))} · {item.patients?.name ?? item.services?.name ?? "Horário bloqueado"}</strong><small>{item.services?.name ?? "Atendimento"} · {item.professionals?.name ?? "Sem profissional"} · {item.units?.name ?? "Sem unidade"}</small></div><span className="status info">{statusLabel(item.status)}</span></div>)}
-        {!data?.appointments?.length && <div className="empty-state compact-empty"><strong>Nenhum atendimento para hoje</strong><p>A agenda está livre.</p></div>}
-      </section>
-      {Boolean(data?.dueCharges?.length) && <section className="dashboard-due-alert" role="status" aria-labelledby="dashboard-due-title"><div><strong id="dashboard-due-title">Vencimentos próximos</strong><span>Há cobranças com vencimento nos próximos 7 dias.</span></div><div className="dashboard-due-list">{data?.dueCharges.map((charge) => <span key={charge.id}><b>{new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" }).format(new Date(`${charge.due_at}T12:00:00`))}</b> · {charge.patients?.name ?? "Paciente"} · {brl(Math.max(Number(charge.amount_cents) - Number(charge.paid_cents), 0))}</span>)}</div></section>}
+      {!loading && !data && <div className="card empty-state"><strong>Indicadores indisponíveis</strong><p>Não foi possível obter os dados desta unidade. Tente acessar o painel novamente.</p></div>}
+      {!loading && data && <>
       <div className="metrics">
         <Metric
           label="Atendimentos hoje"
@@ -629,6 +593,13 @@ function Dashboard({
           value={`${data?.overdueCharges ?? 0} · ${brl(data?.overdueAmountCents ?? 0)}`}
         />
       </div>
+      <section className="card table-card dashboard-agenda-top" aria-labelledby="dashboard-agenda-title">
+        <div className="table-toolbar"><div><p className="eyebrow">PRÓXIMOS HORÁRIOS</p><h2 id="dashboard-agenda-title">Agenda de hoje</h2></div><button className="text-button" onClick={() => setView("Agenda")}>Abrir agenda →</button></div>
+        {(data?.appointments ?? []).map((item) => <div className="operational-row" key={item.id}><div><strong>{new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" }).format(new Date(item.starts_at))} · {item.patients?.name ?? item.services?.name ?? "Horário bloqueado"}</strong><small>{item.services?.name ?? "Atendimento"} · {item.professionals?.name ?? "Sem profissional"} · {item.units?.name ?? "Sem unidade"}</small></div><span className="status info">{statusLabel(item.status)}</span></div>)}
+        {!data?.appointments?.length && <div className="empty-state compact-empty"><strong>Nenhum atendimento para hoje</strong><p>A agenda está livre.</p></div>}
+      </section>
+      {Boolean(data?.dueCharges?.length) && <section className="dashboard-due-alert" role="status" aria-labelledby="dashboard-due-title"><div><strong id="dashboard-due-title">Vencimentos próximos</strong><span>Há cobranças com vencimento nos próximos 7 dias.</span></div><div className="dashboard-due-list">{data?.dueCharges.map((charge) => <span key={charge.id}><b>{new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" }).format(new Date(`${charge.due_at}T12:00:00`))}</b> · {charge.patients?.name ?? "Paciente"} · {brl(Math.max(Number(charge.amount_cents) - Number(charge.paid_cents), 0))}</span>)}</div></section>}
+
       </>}
     </div>
   );

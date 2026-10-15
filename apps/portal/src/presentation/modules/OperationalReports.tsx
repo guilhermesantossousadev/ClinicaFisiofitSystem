@@ -85,7 +85,7 @@ export function OperationalReports() {
         />
         <MetricLite label="Ano" value={year} />
       </div>
-      <section className="card annual-table" aria-labelledby="annual-table-title" aria-describedby="annual-table-description">
+      <section className="card annual-table" tabIndex={0} aria-labelledby="annual-table-title" aria-describedby="annual-table-description">
         <h2 className="sr-only" id="annual-table-title">Comparativo mensal de {year}</h2>
         <p className="annual-table-description" id="annual-table-description">Valores realizados e previstos por mês, com total anual na última coluna.</p>
         <div className="month-grid" role="table" aria-label={`Relatório financeiro de ${year}`}>

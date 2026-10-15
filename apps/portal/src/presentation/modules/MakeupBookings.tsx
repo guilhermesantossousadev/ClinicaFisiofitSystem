@@ -1,3 +1,5 @@
+import { requestText } from '../components/Decisions';
+import { Notice } from "@fisiofit/design-system/react";
 import { useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { SelectField, TextField } from "../components/FormPrimitives";
@@ -19,7 +21,7 @@ export function MakeupBookings({ canManage, initialUnit = "" }: { canManage: boo
   const credits: Row[] = data["/makeup-credits"] ?? [];
   async function act(item: Row, action: string) {
     if (busy) return;
-    const reason = action === "reserve" ? null : window.prompt("Justificativa da decisão (mínimo 3 caracteres):");
+    const reason = action === "reserve" ? null : await requestText("Justificativa da decisão (mínimo 3 caracteres):");
     if (action !== "reserve" && (!reason || reason.trim().length < 3)) return;
     setBusy(true); setNotice("");
     try {
@@ -30,7 +32,7 @@ export function MakeupBookings({ canManage, initialUnit = "" }: { canManage: boo
   return <section className="card makeup-card" aria-labelledby="makeup-title">
     <div className="card-head"><div><h2 id="makeup-title">Reposições e créditos</h2><p>Reserva, comparecimento e cancelamento preservam a origem da falta. Elegibilidade sem política definida exige revisão.</p></div></div>
     <ModuleState loading={loading} error={error} retry={reload} />
-    {notice && <p role="status">{notice}</p>}
+    {notice && <Notice message={notice} onDismiss={() => setNotice("")} />}
     {credits.map((item) => <article className="operational-row" key={`${item.legacy}-${item.id}`}><div><strong>{item.patient_name}</strong><small>{item.source_date} · {labels[item.state] ?? item.state}</small>{item.reason && <small>{item.reason}</small>}</div>{canManage && <div className="row-actions">
       {item.state === "eligible" && <button type="button" disabled={busy} onClick={() => { setCredit(item); setOccurrence(""); }}>Reservar reposição</button>}
       {item.state === "review" && <button type="button" disabled={busy} onClick={() => void act(item, "approve")}>Autorizar com justificativa</button>}

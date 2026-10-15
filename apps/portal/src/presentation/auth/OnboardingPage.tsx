@@ -5,13 +5,14 @@ import { useAuth } from "./AuthProvider";
 import { TextField } from "../components/FormPrimitives";
 
 export default function OnboardingPage() {
-  const { session } = useAuth();
+  const { session, loading } = useAuth();
   const [, navigate] = useLocation();
   const [clinicName, setClinicName] = useState("Clínica Fisiofit");
   const [adminName, setAdminName] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
+  if (loading) return <div className="auth-loading" role="status">Validando o acesso inicial…</div>;
   if (!session) return <Redirect to="/login" replace />;
 
   async function submit(event: FormEvent) {
@@ -36,7 +37,7 @@ export default function OnboardingPage() {
       <form className="login-card auth-card" onSubmit={submit}>
         <img src="/sistema/fisiofit-logo.jpg" alt="" />
         <p className="eyebrow">PRIMEIRO ACESSO</p>
-        <h2>Vamos preparar a clínica</h2>
+        <h1>Vamos preparar a clínica</h1>
         <p>Somente a primeira administradora pode concluir esta etapa. As unidades serão cadastradas depois.</p>
         <div className="form-field-group">
           <TextField

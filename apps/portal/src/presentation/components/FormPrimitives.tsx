@@ -137,7 +137,7 @@ export function WeekdayCheckboxGroup({
   }, [defaultsKey]);
 
   return (
-    <fieldset ref={groupRef} className={`weekday-checkbox-group${error ? " has-error" : ""}`} aria-describedby={hintId} aria-required={required} aria-invalid={error ? "true" : undefined} data-max-selections={maxSelections}>
+    <fieldset ref={groupRef} className={`weekday-checkbox-group${error ? " has-error" : ""}`} aria-describedby={hintId} aria-invalid={error ? "true" : undefined} data-max-selections={maxSelections}>
       <legend>{label}{required && <span className="required-mark" aria-hidden="true">*</span>}</legend>
       <div className="weekday-picker">
         {DEFAULT_WEEKDAYS.filter((day) => !availableValues || availableValues.includes(day.value)).map((day, index) => {

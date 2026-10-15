@@ -1,0 +1,15 @@
+
+> @fisiofit/portal@1.0.0 dev
+> vite --host 127.0.0.1 --port 57445
+
+
+  VITE v8.1.5  ready in 326 ms
+
+  ➜  Local:   http://127.0.0.1:57445/sistema/
+npm error Lifecycle script `dev` failed with error:
+npm error code 143
+npm error path /private/tmp/fisiofit-ui-ux-v2-20261015/apps/portal
+npm error workspace @fisiofit/portal@1.0.0
+npm error location /private/tmp/fisiofit-ui-ux-v2-20261015/apps/portal
+npm error command failed
+npm error command sh -c vite --host 127.0.0.1 --port 57445

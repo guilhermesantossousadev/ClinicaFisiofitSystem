@@ -1,5 +1,7 @@
+import { requestText } from '../components/Decisions';
+import { Notice } from "@fisiofit/design-system/react";
 import { MakeupBookings } from "./MakeupBookings";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { SelectField, TextField } from "../components/FormPrimitives";
 import { dateKey, messageOf, ModuleState, type Row, useResources } from "./OperationalShared";
@@ -12,6 +14,7 @@ export function OperationalDailyAttendance({ canEdit = true, canManageMakeups = 
   const [selectedSlotId, setSelectedSlotId] = useState("");
   const [notice, setNotice] = useState("");
   const [savingId, setSavingId] = useState("");
+  const markPending = useRef(false);
   const path = selectedUnitId ? `/attendance/daily?date=${selectedDate}&unitId=${selectedUnitId}` : "";
   const paths = path ? ["/units", path] : ["/units"];
   const { data, loading, error, reload } = useResources(paths);
@@ -37,10 +40,12 @@ export function OperationalDailyAttendance({ canEdit = true, canManageMakeups = 
   }
 
   async function markAttendance(member: Row, status: "present" | "absent") {
+    if (markPending.current) return;
+    markPending.current = true;
     setSavingId(member.id);
     setNotice("");
     try {
-      const reason = member.attendance ? window.prompt("Motivo da correção (mínimo 3 caracteres):") : null;
+      const reason = member.attendance ? await requestText("Motivo da correção (mínimo 3 caracteres):") : null;
       if (member.attendance && (!reason || reason.trim().length < 3)) return;
       await api(`/class-occurrences/${member.occurrence_id}/attendance/${member.patient_id}`, { method: "PUT", body: JSON.stringify({ status: status === "present" ? "PRESENT" : "ABSENT_UNJUSTIFIED", expectedVersion: member.attendance?.version ?? null, notes: member.attendance?.notes ?? null, ...(reason ? { reason } : {}) }) });
       await reload();
@@ -48,6 +53,7 @@ export function OperationalDailyAttendance({ canEdit = true, canManageMakeups = 
     } catch (error) {
       setNotice(messageOf(error));
     } finally {
+      markPending.current = false;
       setSavingId("");
     }
   }
@@ -79,7 +85,7 @@ export function OperationalDailyAttendance({ canEdit = true, canManageMakeups = 
         </SelectField>
       </div>
     </section>
-    {notice && <div className="toast" role="status"><span>✓</span>{notice}</div>}
+    {notice && <Notice message={notice} onDismiss={() => setNotice("")} />}
     <ModuleState loading={loading} error={error} retry={reload} />
     {!loading && !error && <>
       {isFuture && <div className="system-message attendance-future-note" role="status"><span className="message-icon" aria-hidden="true">i</span><div><strong>Chamada futura</strong><p>Você pode conferir a turma, mas a presença só poderá ser marcada no dia da aula.</p></div></div>}
@@ -97,8 +103,8 @@ export function OperationalDailyAttendance({ canEdit = true, canManageMakeups = 
             <div className="attendance-person"><strong>{member.patients?.name ?? "Paciente"}</strong><span>{member.patients?.phone ?? "Telefone não informado"}</span></div>
             <span className={`status ${status === "present" ? "success" : status === "absent" ? "danger" : "neutral"}`}>{status === "present" ? "Presente" : status === "absent" ? "Faltou" : "Sem marcar"}</span>
             {canEdit ? <div className="attendance-actions" aria-label={`Registrar chamada de ${member.patients?.name ?? "paciente"}`}>
-              <button type="button" className={status === "present" ? "attendance-action present selected" : "attendance-action present"} disabled={busy || isFuture} onClick={() => void markAttendance(member, "present")} aria-pressed={status === "present"}>Veio</button>
-              <button type="button" className={status === "absent" ? "attendance-action missed selected" : "attendance-action missed"} disabled={busy || isFuture} onClick={() => void markAttendance(member, "absent")} aria-pressed={status === "absent"}>Faltou</button>
+              <button type="button" className={status === "present" ? "attendance-action present selected" : "attendance-action present"} disabled={Boolean(savingId) || isFuture} onClick={() => void markAttendance(member, "present")} aria-pressed={status === "present"}>Veio</button>
+              <button type="button" className={status === "absent" ? "attendance-action missed selected" : "attendance-action missed"} disabled={Boolean(savingId) || isFuture} onClick={() => void markAttendance(member, "absent")} aria-pressed={status === "absent"}>Faltou</button>
             </div> : <span className="attendance-readonly">Somente leitura</span>}
           </article>;
         })}</div> : <div className="attendance-empty"><strong>Nenhum paciente neste horário</strong></div>}

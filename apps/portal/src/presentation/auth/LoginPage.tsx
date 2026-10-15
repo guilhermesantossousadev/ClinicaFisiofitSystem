@@ -151,9 +151,9 @@ export default function LoginPage() {
     <main className="login-page">
       <section className="login-brand-panel">
         <img src="/sistema/logo-fisiofit.svg" alt="Fisiofit Pilates e Fisioterapia" />
-        <div>
+        <div className="login-brand-copy">
           <p>GESTÃO CLÍNICA</p>
-          <h1>Cuidado organizado.<br />Decisões mais tranquilas.</h1>
+          <p className="login-claim">Cuidado organizado.<br />Decisões mais tranquilas.</p>
           <span>Agenda, prontuários, planos e financeiro em um só lugar.</span>
         </div>
       </section>
@@ -161,7 +161,7 @@ export default function LoginPage() {
         <form className="login-card" onSubmit={submit}>
           <img src="/sistema/fisiofit-logo.jpg" alt="" />
           <p className="eyebrow">ÁREA DA CLÍNICA</p>
-          <h2>Bem-vinda de volta</h2>
+          <h1>Bem-vinda de volta</h1>
           <p>Entre com a conta criada pela administradora.</p>
           {!isSupabaseConfigured && (
             <div className="environment-warning">

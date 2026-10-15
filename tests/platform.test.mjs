@@ -188,7 +188,7 @@ test("mantém todos os recursos da agenda coerentes com a unidade selecionada", 
   assert.match(agenda, /unitId=\{newAppointmentUnitId\}/);
   assert.match(agenda, /Salvar alterações da turma/);
   assert.match(agenda, /Cancelar agendamento/);
-  assert.match(agenda, /toast-\$\{notice\.type\}/);
+  assert.match(agenda, /<Notice message=\{notice\.message\} tone=\{notice\.type\}/);
   assert.match(agenda, /GroupConflictAlert/);
   assert.match(agenda, /agenda-mobile-list/);
   assert.match(agenda, /canManageGroups/);
@@ -415,7 +415,7 @@ test("agenda semanal usa a projection consolidada sem compor cards pelo legado",
   assert.match(agenda, /calendarItemsForDay/);
   assert.match(agenda, /sourceType === "CLASS_OCCURRENCE"/);
   assert.match(agenda, /occupancy == null \? `Capacidade: \$\{item\.capacity\}`/);
-  assert.match(agenda, /setFromDate\(shiftDate\(fromDate, -7\)\)/);
+  assert.match(agenda, /setFromDate\(shiftDate\(fromDate, calendarMode === "day" \? -1 : -7\)\)/);
   assert.match(agenda, /setFromDate\(clinicToday\(\)\)/);
   assert.match(agenda, /calendarLoading/);
   assert.match(agenda, /calendarError/);

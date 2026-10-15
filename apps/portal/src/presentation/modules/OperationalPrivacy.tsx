@@ -1,3 +1,4 @@
+import { Notice } from "@fisiofit/design-system/react";
 import { FormEvent, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { SelectField, TextareaField, TextField } from "../components/FormPrimitives";
@@ -76,10 +77,7 @@ export function OperationalPrivacy({
         </div>
       </div>
       {notice && (
-        <div className="toast">
-          <span>✓</span>
-          {notice}
-        </div>
+        <Notice message={notice} onDismiss={() => setNotice("")} />
       )}
       <ModuleState loading={loading} error={error} retry={reload} />
       {canEditPrivacy && <div className="dashboard-grid">

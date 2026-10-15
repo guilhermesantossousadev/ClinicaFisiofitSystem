@@ -1,4 +1,6 @@
-import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { requestText } from '../components/Decisions';
+import { Notice } from "@fisiofit/design-system/react";
+import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import Papa from "papaparse";
 import { z } from "zod";
 import { api } from "../../infrastructure/http/api";
@@ -67,6 +69,8 @@ export default function OperationalImports() {
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(true);
   const [notionBusy, setNotionBusy] = useState(false);
+  const [csvBusy, setCsvBusy] = useState(false);
+  const csvPending = useRef(false);
   const [notionValidated, setNotionValidated] = useState(false);
 
   const reload = useCallback(async () => {
@@ -98,12 +102,14 @@ export default function OperationalImports() {
       event.target.value = "";
       setFilename("");
       setRows([]);
-      setNotice(messageOf(error));
+      setNotice(`Erro: ${messageOf(error)}`);
     }
   }
 
   async function run(event: FormEvent<HTMLFormElement>, dryRun: boolean) {
     event.preventDefault();
+    if (csvPending.current) return;
+    csvPending.current = true; setCsvBusy(true);
     try {
       const response = await api<Row>("/imports/workbook", {
         method: "POST",
@@ -115,11 +121,12 @@ export default function OperationalImports() {
         }),
       });
       setPreview(response.data);
-      setNotice(dryRun ? "Pré-validação concluída." : "Importação concluída.");
+      const rejected = Array.isArray(response.data?.rejected) ? response.data.rejected.length : 0;
+      setNotice(dryRun ? "Pré-validação concluída. Confira o resumo antes de importar." : rejected ? `Processamento concluído com ${rejected} linha(s) rejeitada(s). Confira o relatório.` : "Importação concluída.");
       if (!dryRun) await reload();
     } catch (error) {
       setNotice(`Erro: ${messageOf(error)}`);
-    }
+    } finally { csvPending.current = false; setCsvBusy(false); }
   }
 
   async function runNotion(form: HTMLFormElement, dryRun: boolean) {
@@ -143,7 +150,7 @@ export default function OperationalImports() {
   }
 
   async function rollbackBatch(id: string) {
-    const reason = window.prompt("Informe o motivo da reversão do lote (mínimo de 10 caracteres):");
+    const reason = await requestText("Informe o motivo da reversão do lote (mínimo de 10 caracteres):");
     if (!reason) return;
     try {
       await api(`/imports/${id}/rollback`, { method: "POST", body: JSON.stringify({ reason }) });
@@ -154,12 +161,12 @@ export default function OperationalImports() {
 
   return <div className="content">
     <div className="page-title"><div><p className="eyebrow">MIGRAÇÃO RASTREÁVEL</p><h1>Importações</h1><p>Importe CSVs com validação, deduplicação e lote auditável.</p></div></div>
-    {notice && <div className="toast" role="status"><span aria-hidden="true">✓</span>{notice}</div>}
+    {notice && <Notice message={notice} onDismiss={() => setNotice("")} />}
     {loading && <div className="card module-skeleton" role="status">Carregando dados do módulo…</div>}
     <form className="card modal-form" onSubmit={(event) => void run(event, true)}>
       <div className="form-row">
         <SelectField name="source" label="Origem"><option value="manual">CSV manual</option><option value="oluma">Oluma</option><option value="notion">Notion</option></SelectField>
-        <SelectField name="unit_id" label="Unidade de destino" required><option value="">Selecione</option>{units.map((unit) => <option key={String(unit.id)} value={String(unit.id)}>{String(unit.name)}</option>)}</SelectField>
+        <SelectField name="unit_id" label="Unidade de destino" required onChange={() => { setNotionValidated(false); setPreview(null); }}><option value="">Selecione</option>{units.map((unit) => <option key={String(unit.id)} value={String(unit.id)}>{String(unit.name)}</option>)}</SelectField>
       </div>
       <section className="notion-import-panel" aria-labelledby="notion-import-title">
         <h2 id="notion-import-title">Importação direta do Notion</h2><p>Lê somente o espaço autorizado e não grava dados durante a pré-validação.</p>
@@ -167,9 +174,9 @@ export default function OperationalImports() {
         {notionValidated && <button className="btn primary" type="button" disabled={notionBusy} onClick={(event) => void runNotion(event.currentTarget.closest("form") as HTMLFormElement, false)}>Importar válidos do Notion</button>}
       </section>
       <TextField label="Arquivo CSV" type="file" accept=".csv,text/csv" onChange={(event) => void choose(event)} required />
-      <SelectField label="Tipo de informação" value={entity} onChange={(event) => setEntity(event.target.value)}>{entityOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</SelectField>
+      <SelectField label="Tipo de informação" disabled={csvBusy} value={entity} onChange={(event) => { setEntity(event.target.value); setPreview(null); }}>{entityOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</SelectField>
       <p>{rows.length} linhas carregadas.</p>
-      <div className="title-actions"><button className="btn secondary" type="submit" disabled={!rows.length}>Pré-validar</button><button className="btn primary" type="button" disabled={!preview} onClick={(event) => void run({ preventDefault() {}, currentTarget: event.currentTarget.closest("form") as HTMLFormElement } as FormEvent<HTMLFormElement>, false)}>Importar válidos</button></div>
+      <div className="title-actions"><button className="btn secondary" type="submit" disabled={!rows.length || csvBusy || notionBusy}>{csvBusy ? "Validando…" : "Pré-validar"}</button><button className="btn primary" type="button" disabled={!preview || csvBusy || notionBusy} onClick={(event) => void run({ preventDefault() {}, currentTarget: event.currentTarget.closest("form") as HTMLFormElement } as FormEvent<HTMLFormElement>, false)}>{csvBusy ? "Importando…" : "Importar válidos"}</button></div>
       {preview && <div className="environment-warning">Aceitos: {String(preview.accepted ?? preview.imported ?? preview.total ?? 0)} · Rejeitados: {Array.isArray(preview.rejected) ? preview.rejected.length : 0}</div>}
     </form>
     <section className="card table-card operational-data-table"><div className="table-toolbar"><h2>Histórico de lotes</h2><span>{batches.length} registros</span></div>{batches.map((batch) => <div className="operational-row" key={batch.id}><div><strong>{String(batch.filename ?? "Importação")}</strong><small>{statusLabel(batch.status)} · {batch.created_at ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(String(batch.created_at))) : "Data não informada"}</small></div>{!batch.rollback_at && <button type="button" onClick={() => void rollbackBatch(batch.id)}>Reverter lote</button>}</div>)}{!batches.length && <div className="empty-state">Nenhuma importação foi executada até agora.</div>}</section>

@@ -1,3 +1,5 @@
+import { confirmAction } from '../components/Decisions';
+import { Notice } from "@fisiofit/design-system/react";
 import { PlanCatalog } from "./PlanCatalog";
 import { PlanChangeDialog } from "./PlanChangeDialog";
 import { MonthlyPayments } from "./MonthlyPayments";
@@ -179,12 +181,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
   return (
     <div className="content">
       <header className="enrollment-module-header"><div><p className="eyebrow">PACIENTES / MATRÍCULAS</p><h1>Matrículas e planos</h1><p>Financeiro mensal e gestão das matrículas dos pacientes.</p></div><nav className="enrollment-module-nav" aria-label="Áreas de matrículas">{([['control', 'Controle de Planos'], ['management', 'Matrículas'], ...(canManagePlans ? [['catalog', 'Gestão de Planos']] as const : []), ['history', 'Histórico']] as const).map(([value, label]) => <button type="button" key={value} className={section === value ? "active" : ""} aria-current={section === value ? "page" : undefined} onClick={() => navigateSection(value)}>{label}</button>)}</nav></header>
-      {notice && (
-        <div className="toast" role="status">
-          <span aria-hidden="true">i</span>
-          {notice}
-        </div>
-      )}
+      {notice && <Notice message={notice} onDismiss={() => setNotice("")} />}
       <ModuleState loading={loading} error={error} retry={reload} />
       {section === "control" && canViewCharges && <MonthlyPayments onChangePlan={canEdit ? setChangingEnrollmentId : undefined} data={data} month={paymentMonth} onMonth={(month) => { setPaymentMonth(month); clearPaymentPatient(); }} canEdit={canReceivePayments} canCorrectChargeAmounts={canCorrectChargeAmounts} reload={reload} onNotice={setNotice} onRegisterPayment={(row) => { setPaymentPatientPickerVersion((version) => version + 1); setSelectedPaymentPatientId(row.patientId); setSelectedPaymentChargeId(row.chargeId); setPaymentAmount((row.balanceCents / 100).toFixed(2)); requestAnimationFrame(() => document.getElementById("payment-registration")?.scrollIntoView({ behavior: "smooth", block: "start" })); }} />}
       {section === "catalog" && canManagePlans && <PlanCatalog plans={data["/plans"] ?? []} reload={reload} onNotice={setNotice} />}
@@ -225,7 +222,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
         {canEdit && (
         <DrawerForm title="Nova matrícula" onSubmit={enroll} openInitially={openEnrollment || Boolean(agendaContext)} onClose={onClearAgendaContext}>
           <h2>Nova matrícula</h2>
-          {notice && <p role="status">{notice}</p>}
+          {notice && <Notice message={notice} onDismiss={() => setNotice("")} />}
           <div className="form-row">
             <PatientPicker key={patientPickerVersion} name="patient_id" label="Paciente" rows={patients} remoteSearch={canViewPatients} onSelect={setSelectedPatient} />
             <PlanSelect rows={data["/plans"] ?? []} />
@@ -441,9 +438,9 @@ function EditControlledPlanDialog({
   const titleId = `edit-controlled-plan-${row.id}`;
   const [dirty, setDirty] = useState(false);
 
-  const requestClose = () => {
+  const requestClose = async () => {
     if (saving) return;
-    if (dirty && !window.confirm("Descartar as alterações deste plano?")) return;
+    if (dirty && !await confirmAction("Descartar as alterações deste plano?")) return;
     onClose();
   };
   const dialogRef = useDialogFocus(true, requestClose, !saving);
@@ -461,7 +458,7 @@ function EditControlledPlanDialog({
           <button type="button" className="dialog-close" aria-label="Fechar edição do plano" onClick={requestClose} disabled={saving} autoFocus>×</button>
         </div>
         <form className="modal-form controlled-plan-form" onSubmit={(event) => void onSubmit(event)} onInput={() => setDirty(true)} aria-busy={saving}>
-          {notice && <p role="status">{notice}</p>}
+          {notice && <Notice message={notice} />}
           <SelectField name="plan_id" label="Plano contratado" defaultValue={row.planId} disabled>
             {plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} · {brl(Number(plan.price_cents ?? 0))}</option>)}
           </SelectField>

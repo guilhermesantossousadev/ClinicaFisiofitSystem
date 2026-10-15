@@ -1,11 +1,12 @@
 import React, { lazy, Suspense } from "react";
 import ReactDOM from "react-dom/client";
 import { Redirect, Route, Router, Switch } from "wouter";
-import { appBasePath, brandCssVariables } from "@fisiofit/design-system";
+import { appBasePath, portalCssVariables } from "@fisiofit/design-system";
 import { AuthProvider, useAuth } from "./presentation/auth/AuthProvider";
 import LoginPage from "./presentation/auth/LoginPage";
 import OnboardingPage from "./presentation/auth/OnboardingPage";
 import SetPasswordPage from "./presentation/auth/SetPasswordPage";
+import { DecisionHost } from "./presentation/components/Decisions";
 import FormAccessibility from "./presentation/components/FormAccessibility";
 import {
   classifyAccessFailure,
@@ -15,9 +16,8 @@ import {
 import { api } from "./infrastructure/http/api";
 import { isSupabaseConfigured, supabase } from "./infrastructure/supabase/client";
 import "./presentation/styles/index.css";
-import "./presentation/styles/portal-enhancements.css";
 
-for (const [name, value] of Object.entries(brandCssVariables)) {
+for (const [name, value] of Object.entries(portalCssVariables)) {
   document.documentElement.style.setProperty(name, value);
 }
 
@@ -149,6 +149,7 @@ root.render(
     <Router base={appBasePath}>
       <AuthProvider>
         <FormAccessibility />
+        <DecisionHost />
         <Switch>
           <Route path="/login" component={LoginPage} />
           <Route path="/set-password" component={SetPasswordPage} />

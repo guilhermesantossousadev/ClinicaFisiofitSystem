@@ -1,12 +1,15 @@
-import { FormEvent, useRef, useState } from "react";
+import { confirmAction } from '../components/Decisions';
+import { Notice } from "@fisiofit/design-system/react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { FormSection, TextareaField, TextField } from "../components/FormPrimitives";
 import { Row, messageOf, value, useDialogFocus, useResources, Select, DrawerForm, ModuleState, EditableOperationalTable } from "./OperationalShared";
 
-export function OperationalPatients({ canEdit = true, canViewEnrollments = true, canViewAgenda = true, canViewTimeline = true }: { canEdit?: boolean; canViewEnrollments?: boolean; canEditEnrollments?: boolean; canViewAgenda?: boolean; canEditAgenda?: boolean; canViewTimeline?: boolean }) {
+export function OperationalPatients({ initialSearch = "", canEdit = true, canViewEnrollments = true, canViewAgenda = true, canViewTimeline = true }: { initialSearch?: string; canEdit?: boolean; canViewEnrollments?: boolean; canEditEnrollments?: boolean; canViewAgenda?: boolean; canEditAgenda?: boolean; canViewTimeline?: boolean }) {
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
-  const [appliedSearch, setAppliedSearch] = useState("");
+  const [search, setSearch] = useState(initialSearch);
+  const [appliedSearch, setAppliedSearch] = useState(initialSearch);
+  useEffect(() => { setSearch(initialSearch); setAppliedSearch(initialSearch); setPage(1); }, [initialSearch]);
   const pageSize = 20;
   const includeOperational = canViewEnrollments || canViewAgenda;
   const patientPath = `/patients?page=${page}&pageSize=${pageSize}${appliedSearch ? `&search=${encodeURIComponent(appliedSearch)}` : ""}${includeOperational ? "&includeOperational=true" : ""}`;
@@ -26,8 +29,8 @@ export function OperationalPatients({ canEdit = true, canViewEnrollments = true,
   const detailRequest = useRef(0);
   const [notice, setNotice] = useState("");
   const [detailDirty, setDetailDirty] = useState(false);
-  function closePatientDetails() {
-    if (detailDirty && !window.confirm("Descartar os dados do responsável ainda não salvos?")) return;
+  async function closePatientDetails() {
+    if (detailDirty && !await confirmAction("Descartar os dados do responsável ainda não salvos?")) return;
     setDetailDirty(false);
     detailRequest.current += 1;
     setSelected(null);
@@ -156,10 +159,7 @@ export function OperationalPatients({ canEdit = true, canViewEnrollments = true,
         </div>
       </div>
       {notice && (
-        <div className="toast">
-          <span>✓</span>
-          {notice}
-        </div>
+        <Notice message={notice} onDismiss={() => setNotice("")} />
       )}
       <ModuleState loading={loading} error={error} retry={reload} />
       <form className="card patient-search" role="search" onSubmit={submitSearch}>
@@ -171,7 +171,7 @@ export function OperationalPatients({ canEdit = true, canViewEnrollments = true,
       </form>
       {canEdit && <DrawerForm title="Novo paciente" onSubmit={create}>
         <h2>Novo paciente</h2>
-        {notice && <p role="status">{notice}</p>}
+        {notice && <Notice message={notice} onDismiss={() => setNotice("")} />}
         <p className="form-instructions"><span aria-hidden="true">*</span> indica campo obrigatório.</p>
         <FormSection legend="Identificação e contato">
           <div className="form-row">
@@ -291,7 +291,7 @@ export function OperationalPatients({ canEdit = true, canViewEnrollments = true,
               <p>{detail.consents.length} registros de consentimento.</p>
               {canEdit && <form onSubmit={responsible} onInput={() => setDetailDirty(true)}>
                 <h3>Adicionar responsável</h3>
-                {notice && <p role="status">{notice}</p>}
+                {notice && <Notice message={notice} onDismiss={() => setNotice("")} />}
                 <div className="form-row">
                   <TextField name="name" label="Nome" minLength={3} maxLength={160} required />
                   <TextField name="relationship" label="Relação" />

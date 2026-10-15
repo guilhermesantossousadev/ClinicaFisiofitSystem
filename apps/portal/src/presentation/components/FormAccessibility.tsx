@@ -1,3 +1,4 @@
+import { useDialogFocus } from "@fisiofit/design-system/react";
 import { useEffect, useRef, useState } from "react";
 
 type FormError = { id?: string; message: string };
@@ -121,7 +122,7 @@ function validateForm(form: HTMLFormElement) {
 
 export default function FormAccessibility() {
   const [errors, setErrors] = useState<FormError[]>([]);
-  const dialog = useRef<HTMLDivElement>(null);
+  const dialog = useDialogFocus<HTMLDivElement>(errors.length > 0, () => close());
   const closeButton = useRef<HTMLButtonElement>(null);
   const trigger = useRef<HTMLElement | null>(null);
 
@@ -141,7 +142,7 @@ export default function FormAccessibility() {
     });
     const enhanceStatuses = () => {
       document.querySelectorAll<HTMLElement>(".toast").forEach((toast) => {
-        const isError = toast.textContent?.trim().toLocaleLowerCase("pt-BR").startsWith("✓erro:") ?? false;
+        const isError = /^(?:✓)?erro:/i.test(toast.textContent?.trim() ?? "");
         toast.classList.toggle("toast-error", isError);
         const icon = toast.querySelector("span");
         if (isError && icon) icon.textContent = "!";
@@ -186,20 +187,11 @@ export default function FormAccessibility() {
     return () => { observer.disconnect(); document.removeEventListener("focusout", blur, true); document.removeEventListener("input", input, true); document.removeEventListener("submit", submit, true); };
   }, []);
 
-  useEffect(() => { if (errors.length) closeButton.current?.focus(); }, [errors]);
   function close() { setErrors([]); requestAnimationFrame(() => trigger.current?.focus()); }
-  function keyDown(event: React.KeyboardEvent) {
-    if (event.key === "Escape") close();
-    if (event.key !== "Tab" || !dialog.current) return;
-    const focusable = [...dialog.current.querySelectorAll<HTMLElement>('button, a[href], [tabindex]:not([tabindex="-1"])')];
-    const first = focusable[0], last = focusable.at(-1);
-    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
-    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
-  }
   if (!errors.length) return null;
   return (
     <div className="validation-backdrop" onMouseDown={(event) => event.target === event.currentTarget && close()}>
-      <div className="validation-dialog" role="alertdialog" aria-modal="true" aria-labelledby="validation-title" aria-describedby="validation-description" ref={dialog} onKeyDown={keyDown}>
+      <div className="validation-dialog" role="alertdialog" aria-modal="true" aria-labelledby="validation-title" aria-describedby="validation-description" ref={dialog}>
         <div className="validation-icon" aria-hidden="true">!</div>
         <div>
           <h2 id="validation-title">{errors.some((error) => error.id) ? "Vamos revisar alguns campos" : "Não foi possível concluir"}</h2>

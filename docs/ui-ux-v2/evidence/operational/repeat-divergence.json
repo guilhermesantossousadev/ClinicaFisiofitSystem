@@ -1,0 +1,17 @@
+{
+  "date": "2026-10-15",
+  "scope": "repeated existing operational suite against repository API baseline in disposable local database",
+  "passed": false,
+  "failure": {
+    "file": "operational_stabilization.test.sql",
+    "failedAssertions": 9,
+    "assertions": 86,
+    "area": "makeup-credit reservation, roster participation, and consumption transitions",
+    "errors": ["INVALID_OCCURRENCE_STATE_TRANSITION", "PATIENT_NOT_IN_OCCURRENCE_ROSTER"]
+  },
+  "otherChecks": "The remaining SQL files passed. The subsequent authenticated browser search assertion also timed out when run through the unified runner.",
+  "interpretation": "The test run is not reproducible against this branch's deployed-frontend source baseline. This UI-only branch does not change the backend, migrations, business rules, or test fixtures.",
+  "approvedPriorRun": "evidence/operational/summary.json",
+  "failureLog": "evidence/operational/repeat-operational-stabilization.sql.log",
+  "rawSummary": "evidence/operational/repeat-summary.json"
+}
