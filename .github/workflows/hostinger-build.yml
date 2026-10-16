@@ -87,6 +87,7 @@ jobs:
         with:
           name: fisiofit-v23-distribution-${{ github.sha }}
           path: dist/
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 14
 
