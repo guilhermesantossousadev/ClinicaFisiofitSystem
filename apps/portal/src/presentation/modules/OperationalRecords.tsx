@@ -1,5 +1,6 @@
 import { requestText, confirmAction } from '../components/Decisions';
-import { Notice } from "@fisiofit/design-system/react";
+import { Notice, Tabs } from "@fisiofit/design-system/react";
+import { DetailPanel, Facts, RelatedActions, SectionIntro, useModuleState, useWorkspace } from "../components/ModuleWorkspace";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { supabase } from "../../infrastructure/supabase/client";
@@ -7,6 +8,8 @@ import { CheckboxField, SelectField, TextareaField, TextField } from "../compone
 import { Row, messageOf, statusLabel, value, useResources, Select, DrawerForm, ModuleState, PatientPicker } from "./OperationalShared";
 
 export function OperationalRecords({ canEdit = true }: { canEdit?: boolean }) {
+  const workspace = useWorkspace();
+  const contextPatient = workspace?.journey?.patient;
   const basePaths = [
     "/patients?page=1&pageSize=100",
     "/professionals",
@@ -16,6 +19,10 @@ export function OperationalRecords({ canEdit = true }: { canEdit?: boolean }) {
   const { data, loading, error, reload } = useResources(basePaths);
   const patients = data[basePaths[0]]?.items ?? [];
   const [patientId, setPatientId] = useState("");
+  const [patientName, setPatientName] = useState("");
+  const [recordTab, setRecordTab] = useModuleState("records.tab", "all");
+  const [recordQuery, setRecordQuery] = useModuleState("records.query", "");
+  const [openedRecord, setOpenedRecord] = useState<Row | null>(null);
   const [records, setRecords] = useState<Row[]>([]);
   const [attachments, setAttachments] = useState<Row[]>([]);
   const [notice, setNotice] = useState("");
@@ -45,6 +52,7 @@ export function OperationalRecords({ canEdit = true }: { canEdit?: boolean }) {
       if (version === selectionVersion.current) setRecordsError(messageOf(e));
     } finally { if (version === selectionVersion.current) setRecordsLoading(false); }
   }, []);
+  useEffect(() => { if (contextPatient) { setPatientName(contextPatient.name); void loadRecords(contextPatient.id); } }, [contextPatient?.id, loadRecords]);
   async function openAttachment(id: string) {
     // Open the window during the user gesture so popup blockers allow it.
     const popup = window.open("about:blank", "_blank");
@@ -166,7 +174,9 @@ export function OperationalRecords({ canEdit = true }: { canEdit?: boolean }) {
         </div>
         <div className="record-header-note"><span>Fluxo clínico</span><strong>Avaliação inicial + evoluções</strong></div>
       </div>
-      <div className="card record-selector"><PatientPicker rows={patients} crossUnit label="Buscar paciente" onSelect={(patient) => void loadRecords(patient.id)} onClear={() => void loadRecords("")} /></div>
+      <div className="card record-selector"><PatientPicker key={contextPatient?.id ?? "manual"} rows={patients} crossUnit defaultValue={contextPatient?.id} defaultLabel={contextPatient?.name} label="Buscar paciente" onSelect={(patient) => { setPatientName(patient.name); setOpenedRecord(null); void loadRecords(patient.id); }} onClear={() => { setPatientName(""); setOpenedRecord(null); void loadRecords(""); }} /></div>
+      {!patientId && <SectionIntro title="Comece pelo paciente">Pesquise e selecione a pessoa para consultar o histórico, adicionar um registro ou abrir os anexos autorizados.</SectionIntro>}
+      {patientId && <section className="patient-workspace-heading"><div className="patient-monogram" aria-hidden="true">{patientName.slice(0, 1)}</div><div><p className="eyebrow">PRONTUÁRIO DO PACIENTE</p><h2>{patientName}</h2><p>Acesso clínico restrito à equipe autorizada.</p></div><RelatedActions patient={{id:patientId,name:patientName}} exclude="Prontuários" /></section>}
       {notice && (
         <Notice message={notice} onDismiss={() => setNotice("")} />
       )}
@@ -223,20 +233,19 @@ export function OperationalRecords({ canEdit = true }: { canEdit?: boolean }) {
         {attachments.map((file) => <div className="operational-row" key={file.id}><div><strong>{file.filename}</strong><small>{file.content_type} · {Math.round(file.size_bytes / 1024)} KB</small></div><button type="button" className="btn secondary" onClick={() => void openAttachment(file.id)}>Abrir arquivo</button></div>)}
         {!attachments.length && <div className="empty-state">Nenhum anexo foi adicionado para este paciente.</div>}
       </section>}
-      <section className="card table-card bespoke-table records-list-table">
+      {patientId && !recordsLoading && !recordsError && <section className="card table-card records-list-table clinical-workspace">
         <div className="table-toolbar"><h2>Registros clínicos</h2><span>{records.length} registros</span></div>
-        <div className="bespoke-table-head" aria-hidden="true"><span>Tipo e status</span><span>Data e conteúdo</span><span>Ações</span></div>
-        {records.map((row) => (
-          <div className="operational-row" key={row.id}>
+        <div className="collection-toolbar"><Tabs id="clinical-records" label="Filtrar registros clínicos" value={recordTab} onChange={setRecordTab} items={[{value:"all",label:"Todos"},{value:"assessment",label:"Avaliações"},{value:"evolution",label:"Evoluções"},{value:"draft",label:"Rascunhos"},{value:"signed",label:"Assinados"}]} /><TextField label="Pesquisar no histórico clínico" type="search" value={recordQuery} onChange={event => setRecordQuery(event.target.value)} /></div>
+        <div role="tabpanel" id={`clinical-records-panel-${recordTab}`} aria-labelledby={`clinical-records-${recordTab}`} tabIndex={0}>
+        {records.filter(row => (recordTab === "all" || row.kind === recordTab || row.status === recordTab) && (!recordQuery.trim() || Object.values(row.payload ?? {}).flat().join(' ').toLocaleLowerCase('pt-BR').includes(recordQuery.trim().toLocaleLowerCase('pt-BR')))).sort((a,b) => String(b.created_at).localeCompare(String(a.created_at))).map((row) => (
+          <article className="clinical-timeline-entry" key={row.id}>
             <div>
-              <strong>
-                {row.kind === "assessment" ? "Avaliação inicial" : "Evolução"} · {statusLabel(row.status)}
-              </strong>
-              <small>
-                {new Date(row.created_at).toLocaleString("pt-BR")} · {row.payload?.complaint || row.payload?.text || row.payload?.functional_diagnosis || "Sem descrição"}
-              </small>
+              <div className="clinical-entry-heading"><strong>{row.kind === "assessment" ? "Avaliação inicial" : row.kind === "rectification" ? "Retificação" : "Evolução"}</strong><span className={`status ${row.status === 'signed' ? 'success' : 'neutral'}`}>{statusLabel(row.status)}</span></div>
+              <small>{new Date(row.created_at).toLocaleString("pt-BR", { timeZone:"America/Sao_Paulo" })} · {(data['/professionals'] ?? []).find((pro: Row) => pro.id === row.professional_id)?.name || "Profissional não informado"}</small>
+              <p className="clinical-excerpt">{row.payload?.complaint || row.payload?.text || row.payload?.functional_diagnosis || "Sem descrição"}</p>
             </div>
             <div className="row-actions">
+              <button className="btn secondary" type="button" onClick={() => setOpenedRecord(row)}>Ler registro completo</button>
               {canEdit && row.status === "draft" && (
                 <button disabled={busy} onClick={() => void sign(row.id)}>{busy ? "Processando…" : "Assinar"}</button>
               )}
@@ -244,12 +253,17 @@ export function OperationalRecords({ canEdit = true }: { canEdit?: boolean }) {
                 <button disabled={busy} onClick={() => rectify(row.id)}>Retificar</button>
               )}
             </div>
-          </div>
+          </article>
         ))}
+        {records.length > 0 && !records.some(row => (recordTab === 'all' || row.kind === recordTab || row.status === recordTab) && (!recordQuery.trim() || Object.values(row.payload ?? {}).flat().join(' ').toLocaleLowerCase('pt-BR').includes(recordQuery.trim().toLocaleLowerCase('pt-BR')))) && <div className="empty-state"><strong>Nenhum registro corresponde aos filtros</strong><button className="btn secondary" onClick={() => { setRecordTab('all'); setRecordQuery(''); }}>Limpar filtros clínicos</button></div>}
         {patientId && !records.length && (
           <div className="empty-state">Este paciente ainda não possui avaliações ou evoluções registradas.</div>
         )}
-      </section>
+        </div>
+      </section>}
+      {openedRecord && <DetailPanel title={openedRecord.kind === 'assessment' ? 'Avaliação inicial' : 'Registro clínico'} eyebrow={patientName} onClose={() => setOpenedRecord(null)} wide><Facts items={[["Situação", statusLabel(openedRecord.status)], ["Registrado em", new Date(openedRecord.created_at).toLocaleString('pt-BR', {timeZone:'America/Sao_Paulo'})], ["Profissional", (data['/professionals'] ?? []).find((pro: Row) => pro.id === openedRecord.professional_id)?.name], ["Unidade", (data['/units'] ?? []).find((unit: Row) => unit.id === openedRecord.unit_id)?.name]]} />{Object.entries(clinicalLabels).filter(([key]) => openedRecord.payload?.[key] && (!Array.isArray(openedRecord.payload[key]) || openedRecord.payload[key].length)).map(([key,label]) => <section className="clinical-narrative" key={key}><h3>{label}</h3><p>{Array.isArray(openedRecord.payload[key]) ? openedRecord.payload[key].join(', ') : String(openedRecord.payload[key])}</p></section>)}{openedRecord.signed_at && <p className="clinical-signature">Assinado em {new Date(openedRecord.signed_at).toLocaleString('pt-BR')}. Correções são registradas por retificação.</p>}</DetailPanel>}
     </div>
   );
 }
+
+const clinicalLabels: Record<string,string> = { text:'Registro / diagnóstico clínico', complaint:'Queixa principal', current_history:'História da moléstia atual', previous_history:'História pregressa', measures:'Medidas e sinais vitais', exam:'Encurtamentos', exam_detail:'Exame físico', functional_diagnosis:'Diagnóstico funcional', treatment_plan:'Plano de tratamento', goals:'Objetivos', exercises:'Focos trabalhados', observations:'Observações e conduta' };

@@ -1,4 +1,5 @@
 import { confirmAction, requestText } from '../components/Decisions';
+import { RelatedActions, useModuleState, useWorkspace } from '../components/ModuleWorkspace';
 import { Notice } from "@fisiofit/design-system/react";
 import { useDialogFocus } from "@fisiofit/design-system/react";
 import { OperationalCalendar } from '../calendar/OperationalCalendar';
@@ -150,9 +151,10 @@ function GroupMemberForm({
 }
 
 export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnrollment, canEdit = true, role = "admin" }: { onOpenPatients?: () => void; onOpenEnrollment?: (context: AgendaEnrollmentContext) => void; canEdit?: boolean; role?: Role }) {
+  const workspace = useWorkspace();
   const { canManageAppointments, canManageGroups } = agendaCapabilities(role, canEdit);
   const canRecordAttendance = canEdit && ["admin", "manager", "reception", "professional"].includes(role);
-  const [fromDate, setFromDate] = useState(() =>
+  const [fromDate, setFromDate] = useModuleState("agenda.date", () =>
     clinicToday(),
   );
   const range = useMemo(() => {
@@ -175,7 +177,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
   const [newAppointmentEnd, setNewAppointmentEnd] = useState("");
   const [calendarAppointment, setCalendarAppointment] = useState<Row | null | undefined>(undefined);
   const [savingGroup, setSavingGroup] = useState(false);
-  const [calendarMode, setCalendarMode] = useState<"week" | "day">(() => window.matchMedia("(max-width: 600px)").matches ? "day" : "week");
+  const [calendarMode, setCalendarMode] = useModuleState<"week" | "day">("agenda.mode", () => window.matchMedia("(max-width: 600px)").matches ? "day" : "week");
   const [selectedUnitId, setSelectedUnitId] = useState(() => window.localStorage.getItem("fisiofit:selected-unit") ?? "");
   const [newGroupUnitId, setNewGroupUnitId] = useState(() => window.localStorage.getItem("fisiofit:selected-unit") ?? "");
   const [newBulkGroupUnitId, setNewBulkGroupUnitId] = useState(() => window.localStorage.getItem("fisiofit:selected-unit") ?? "");
@@ -189,7 +191,19 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
   const [editingMembership, setEditingMembership] = useState<{ member: Row; slot: Row } | null>(null);
   const [savingMembershipWeekdays, setSavingMembershipWeekdays] = useState(false);
   const [canonicalMembers, setCanonicalMembers] = useState<Row[]>([]);
-  const [selectedOccurrence, setSelectedOccurrence] = useState<CalendarItem | null>(null);
+  const [selectedOccurrence, setSelectedOccurrence] = useModuleState<CalendarItem | null>("agenda.occurrence", null);
+  useEffect(() => {
+    const journey = workspace?.journey;
+    if (journey?.section && /^\d{4}-\d{2}-\d{2}$/.test(journey.section)) setFromDate(journey.section);
+    if (!journey?.recordId) return;
+    let active = true;
+    void api<OccurrenceDetail>(`/class-occurrences/${encodeURIComponent(journey.recordId)}`).then(result => {
+      if (!active || !result.data) return;
+      const row = result.data.occurrence;
+      setSelectedOccurrence({id:row.id,sourceId:row.id,sourceType:'CLASS_OCCURRENCE',unitId:row.unit_id,startAt:row.start_at,endAt:row.end_at,status:row.status,title:row.classes?.name || 'Aula',class:row.classes});
+    }).catch(error => { if (active) setNotice({type:'error',message:messageOf(error)}); });
+    return () => { active = false; };
+  }, [workspace?.journey?.recordId, workspace?.journey?.section]);
   const [occurrenceDetail, setOccurrenceDetail] = useState<OccurrenceDetail | null>(null);
   const [occurrenceError, setOccurrenceError] = useState("");
   const [occurrenceRetry, setOccurrenceRetry] = useState(0);
@@ -725,7 +739,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
           <div><dt>Profissional planejado</dt><dd>{occurrenceDetail.occurrence.plannedProfessional?.name ?? "Não informado"}</dd></div>
           {occurrenceDetail.occurrence.actualProfessional && <div><dt>Profissional nesta aula</dt><dd>{occurrenceDetail.occurrence.actualProfessional.name}</dd></div>}
           <div><dt>Participantes / capacidade informativa</dt><dd>{occurrenceDetail.occupancy}/{occurrenceDetail.occurrence.effective_capacity}</dd></div><div><dt>Sala</dt><dd>{occurrenceDetail.occurrence.rooms?.name ?? "Não informada"}</dd></div><div><dt>Serviço</dt><dd>{occurrenceDetail.occurrence.services?.name ?? "Não informado"}</dd></div>
-        </dl><section hidden={detailSection !== "participants"} className="occurrence-participants" aria-labelledby="occurrence-participants-title"><div className="occurrence-participants-heading"><div><h3 id="occurrence-participants-title">Participantes desta aula</h3><p>{occurrenceDetail.occupancy}/{occurrenceDetail.occurrence.effective_capacity} ocupados</p></div>{canManageGroups && occurrenceDetail.occurrence.status === "planned" && <button type="button" className="btn secondary" onClick={() => { setParticipantMutationError(""); setAddingOccurrenceParticipant(true); }}>+ Adicionar paciente</button>}</div>{occurrenceDetail.participants.length ? <ul>{occurrenceDetail.participants.map((participant) => <li key={participant.patient.id}><span>{participant.patient.name}<small>{participant.source === "MANUAL" ? "Adicionado nesta aula" : participant.source === "MAKEUP" ? "Reposição nesta aula" : participant.patient.active ? "Ativo" : "Inativo"}</small></span>{canManageGroups && occurrenceDetail.occurrence.status === "planned" && <button type="button" className="btn secondary occurrence-participant-remove" onClick={() => { setParticipantMutationError(""); setRemovingParticipant(participant); }}>Remover desta aula</button>}</li>)}</ul> : <p className="empty-state">Nenhum aluno previsto para esta aula.</p>}</section>
+        </dl><section hidden={detailSection !== "participants"} className="occurrence-participants" aria-labelledby="occurrence-participants-title"><div className="occurrence-participants-heading"><div><h3 id="occurrence-participants-title">Participantes desta aula</h3><p>{occurrenceDetail.occupancy}/{occurrenceDetail.occurrence.effective_capacity} ocupados</p></div>{canManageGroups && occurrenceDetail.occurrence.status === "planned" && <button type="button" className="btn secondary" onClick={() => { setParticipantMutationError(""); setAddingOccurrenceParticipant(true); }}>+ Adicionar paciente</button>}</div>{occurrenceDetail.participants.length ? <ul>{occurrenceDetail.participants.map((participant) => <li key={participant.patient.id}><span>{participant.patient.name}<small>{participant.source === "MANUAL" ? "Adicionado nesta aula" : participant.source === "MAKEUP" ? "Reposição nesta aula" : participant.patient.active ? "Ativo" : "Inativo"}</small><RelatedActions patient={{id:participant.patient.id,name:participant.patient.name}} exclude="Financeiro" /></span>{canManageGroups && occurrenceDetail.occurrence.status === "planned" && <button type="button" className="btn secondary occurrence-participant-remove" onClick={() => { setParticipantMutationError(""); setRemovingParticipant(participant); }}>Remover desta aula</button>}</li>)}</ul> : <p className="empty-state">Nenhum aluno previsto para esta aula.</p>}</section>
         <div className="modal-actions">{canManageGroups && occurrenceDetail.occurrence.status === "cancelled" && String(occurrenceDetail.occurrence.cancellation_reason ?? "").startsWith("holiday") && <button type="button" className="btn secondary" onClick={async () => { const reason = await requestText("Justificativa para funcionar neste feriado:"); if (!reason || reason.trim().length < 3) return; try { await api(`/class-occurrences/${selectedOccurrence.sourceId}/reopen`, { method: "POST", body: JSON.stringify({ reason }) }); await refreshOccurrence(selectedOccurrence.sourceId); success("Funcionamento excepcional autorizado nesta aula."); } catch (e) { failure(e); } }}>Autorizar funcionamento neste feriado</button>}{canManageGroups && occurrenceDetail.occurrence.status === "planned" && <><button type="button" className="btn secondary" onClick={() => setOccurrenceEditing(true)}>Alterar somente esta aula</button><button type="button" className="btn secondary action-delete" onClick={() => { setOccurrenceCancelError(""); setConfirmOccurrenceCancellation(true); }}>Cancelar esta aula</button></>}{["admin", "manager", "reception", "professional"].includes(role) && <button type="button" className="btn secondary" onClick={() => void openOccurrenceAttendance()}>Abrir chamada</button>}<button type="button" className="btn primary" onClick={() => setSelectedOccurrence(null)}>Fechar</button></div></div>}
       </OccurrenceDetailsPanel>}
       {selectedOccurrence && occurrenceDetail && addingOccurrenceParticipant && <AgendaDialog labelId="add-occurrence-participant-title" className="calendar-edit-modal occurrence-participant-dialog" onClose={() => { if (!addingPatientId) { setAddingOccurrenceParticipant(false); setParticipantSearch(""); setParticipantMutationError(""); } }}>

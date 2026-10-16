@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { CheckboxField, FormSection, SelectField, TextField } from "../components/FormPrimitives";
 import { Row, Unit, messageOf, value, cents, useResources, Select, DrawerForm, ModuleState, EditableOperationalTable } from "./OperationalShared";
+import { SectionIntro, useModuleState } from "../components/ModuleWorkspace";
 
 type AdministrationTab = "units" | "rooms" | "services" | "professionals" | "templates";
 type AdministrationSectionProps = {
@@ -119,8 +120,13 @@ export function OperationalAdministration({ canEdit = true, canManageProfessiona
   ];
   const { data, loading, error, reload } = useResources(paths);
   const [notice, setNotice] = useState("");
-  const visibleTabs = canEdit ? administrationTabs : administrationTabs.filter((tab) => tab.id === "professionals" && canManageProfessionals);
-  const [activeTab, setActiveTab] = useState<AdministrationTab>(canEdit ? "units" : "professionals");
+  const visibleTabs = administrationTabs;
+  const [activeTab, setActiveTab] = useModuleState<AdministrationTab>("settings.tab", canEdit ? "units" : "professionals");
+  const [query, setQuery] = useModuleState("settings.query", "");
+  const [statusFilter, setStatusFilter] = useModuleState("settings.status", "all");
+  const resourceForTab = { units:'/units', rooms:'/rooms', services:'/services', professionals:'/professionals', templates:'/record-templates' };
+  const currentResource = resourceForTab[activeTab];
+  const filteredData = {...data, [currentResource]: (data[currentResource] ?? []).filter((row: Row) => (!query.trim() || `${row.name} ${row.specialty ?? ''}`.toLocaleLowerCase('pt-BR').includes(query.trim().toLocaleLowerCase('pt-BR'))) && (statusFilter === 'all' || (statusFilter === 'active' ? row.active !== false : row.active === false)))};
   async function submit(
     event: FormEvent<HTMLFormElement>,
     path: string,
@@ -150,15 +156,17 @@ export function OperationalAdministration({ canEdit = true, canManageProfessiona
         <Notice message={notice} onDismiss={() => setNotice("")} />
       )}
       <Tabs<AdministrationTab> id="administration" label="Tipos de configuração" value={activeTab} onChange={setActiveTab} items={visibleTabs.map(tab => ({value:tab.id,label:tab.label}))} />
+      <SectionIntro title={administrationTabs.find(tab => tab.id === activeTab)?.label || 'Configurações'}>{({units:'Organize a estrutura de atendimento. A criação de unidades é reservada à administração.',rooms:'Consulte a capacidade das salas e mantenha os vínculos da unidade.',services:'Duração e preço padrão dos serviços. Condições já contratadas permanecem na matrícula.',professionals:'Equipe, registro profissional e unidades de atendimento. O vínculo com um usuário define o acesso clínico.',templates:'Modelos disponíveis para avaliação e evolução. Registros assinados permanecem preservados.'})[activeTab]}</SectionIntro>
+      <div className="collection-toolbar card"><TextField label="Buscar nesta configuração" type="search" value={query} onChange={event => setQuery(event.target.value)} /><SelectField label="Situação do cadastro" value={statusFilter} onChange={event => setStatusFilter(event.target.value)}><option value="all">Todos</option><option value="active">Ativos</option><option value="inactive">Inativos</option></SelectField><span role="status">{filteredData[currentResource].length} registros</span>{(query || statusFilter !== 'all') && <button className="btn secondary" onClick={() => { setQuery(''); setStatusFilter('all'); }}>Limpar filtros</button>}</div>
       {canEdit && <MakeupPolicy />}
       <ModuleState loading={loading} error={error} retry={reload} />
       {!loading && !error && <section key={activeTab} className="administration-tab-panel" role="tabpanel"
         id={`administration-panel-${activeTab}`} aria-labelledby={`administration-${activeTab}`} tabIndex={0}>
-        {activeTab === "units" && <FormularioUnidade data={data} reload={reload} setNotice={setNotice} submit={submit} canEdit={canEdit} canManageUnits={canManageUnits} canDelete={canDelete} />}
-        {activeTab === "rooms" && <FormularioSala data={data} reload={reload} setNotice={setNotice} submit={submit} canEdit={canEdit} canDelete={canDelete} />}
-        {activeTab === "services" && <FormularioServico data={data} reload={reload} setNotice={setNotice} submit={submit} canEdit={canEdit} canDelete={canDelete} />}
-        {activeTab === "professionals" && <FormularioProfissional data={data} reload={reload} setNotice={setNotice} submit={submit} canCreate={canManageProfessionals} canEdit={canManageProfessionals} canDelete={canDelete} />}
-        {activeTab === "templates" && <FormularioModeloClinico data={data} reload={reload} setNotice={setNotice} submit={submit} canEdit={canEdit} canDelete={canDelete} />}
+        {activeTab === "units" && <FormularioUnidade data={filteredData} reload={reload} setNotice={setNotice} submit={submit} canEdit={canEdit} canManageUnits={canManageUnits} canDelete={canDelete} />}
+        {activeTab === "rooms" && <FormularioSala data={filteredData} reload={reload} setNotice={setNotice} submit={submit} canEdit={canEdit} canDelete={canDelete} />}
+        {activeTab === "services" && <FormularioServico data={filteredData} reload={reload} setNotice={setNotice} submit={submit} canEdit={canEdit} canDelete={canDelete} />}
+        {activeTab === "professionals" && <FormularioProfissional data={filteredData} reload={reload} setNotice={setNotice} submit={submit} canCreate={canManageProfessionals} canEdit={canManageProfessionals} canDelete={canDelete} />}
+        {activeTab === "templates" && <FormularioModeloClinico data={filteredData} reload={reload} setNotice={setNotice} submit={submit} canEdit={canEdit} canDelete={canDelete} />}
       </section>}
     </div>
   );

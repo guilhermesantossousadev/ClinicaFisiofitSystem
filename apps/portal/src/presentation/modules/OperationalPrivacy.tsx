@@ -1,8 +1,9 @@
-import { Notice } from "@fisiofit/design-system/react";
+import { Notice, Tabs } from "@fisiofit/design-system/react";
+import { DetailPanel, Facts, SectionIntro, useModuleState } from "../components/ModuleWorkspace";
 import { FormEvent, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { SelectField, TextareaField, TextField } from "../components/FormPrimitives";
-import { messageOf, value, useResources, DrawerForm, ModuleState, OperationalTable } from "./OperationalShared";
+import { messageOf, value, useResources, DrawerForm, ModuleState, OperationalTable, type Row, fieldLabel, render } from "./OperationalShared";
 
 export function privacyResourcePaths(canManageIncidents: boolean) {
   return canManageIncidents
@@ -22,6 +23,10 @@ export function OperationalPrivacy({
   const paths = privacyResourcePaths(canManageIncidents);
   const { data, loading, error, reload } = useResources(paths);
   const [notice, setNotice] = useState("");
+  const [section, setSection] = useModuleState('privacy.section', 'requests');
+  const [query, setQuery] = useModuleState('privacy.query', '');
+  const [selectedRow, setSelectedRow] = useState<Row | null>(null);
+  const matches = (row: Row) => !query.trim() || [row.requester_name,row.title,row.action,row.entity_type,row.kind,row.status].filter(Boolean).join(' ').toLocaleLowerCase('pt-BR').includes(query.trim().toLocaleLowerCase('pt-BR'));
   async function request(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -80,6 +85,9 @@ export function OperationalPrivacy({
         <Notice message={notice} onDismiss={() => setNotice("")} />
       )}
       <ModuleState loading={loading} error={error} retry={reload} />
+      <Tabs id="privacy-workspace" label="Áreas de privacidade" value={section} onChange={setSection} items={[{value:'requests',label:'Solicitações'},...(canManageIncidents ? [{value:'incidents',label:'Incidentes'}] : []),{value:'audit',label:'Auditoria'}]} />
+      <SectionIntro title="Acompanhamento e prestação de contas">Consulte solicitações e eventos autorizados. Incidentes são restritos à administração.</SectionIntro>
+      <TextField label="Buscar nos registros de privacidade" type="search" value={query} onChange={event => setQuery(event.target.value)} />
       {canEditPrivacy && <div className="dashboard-grid">
         <DrawerForm title="Nova solicitação" onSubmit={request}>
           <h2>Nova solicitação</h2>
@@ -121,26 +129,32 @@ export function OperationalPrivacy({
           <button className="btn primary">Registrar incidente</button>
         </DrawerForm>}
       </div>}
-      <OperationalTable
+      <section role="tabpanel" id={`privacy-workspace-panel-${section}`} aria-labelledby={`privacy-workspace-${section}`} tabIndex={0}>
+      {section === 'requests' && <OperationalTable
         title="Solicitações de titulares"
-        rows={data["/privacy/requests"] ?? []}
+        rows={(data["/privacy/requests"] ?? []).filter(matches)}
         fields={["requester_name", "kind", "status", "due_at"]}
         emptyMessage="Nenhuma solicitação de titular foi registrada."
-      />
-      {canManageIncidents && (
+        actions={row => <button onClick={() => setSelectedRow(row)}>Detalhes da solicitação</button>}
+      />}
+      {canManageIncidents && section === 'incidents' && (
         <OperationalTable
           title="Incidentes"
-          rows={data["/privacy/incidents"] ?? []}
+          rows={(data["/privacy/incidents"] ?? []).filter(matches)}
           fields={["title", "severity", "status", "discovered_at"]}
           emptyMessage="Nenhum incidente de privacidade foi registrado."
+          actions={row => <button onClick={() => setSelectedRow(row)}>Detalhes do incidente</button>}
         />
       )}
-      <OperationalTable
+      {section === 'audit' && <OperationalTable
         title="Auditoria recente"
-        rows={data["/audit"] ?? []}
+        rows={(data["/audit"] ?? []).filter(matches)}
         fields={["action", "entity_type", "user_id", "occurred_at"]}
         emptyMessage="Nenhum evento de auditoria está disponível para consulta."
-      />
+        actions={row => <button onClick={() => setSelectedRow(row)}>Detalhes do evento</button>}
+      />}
+      </section>
+      {selectedRow && <DetailPanel title={selectedRow.title || selectedRow.requester_name || 'Evento de auditoria'} eyebrow="REGISTRO DE PRIVACIDADE" onClose={() => setSelectedRow(null)}><Facts items={['kind','status','severity','due_at','discovered_at','occurred_at','action','entity_type','description','mitigation'].filter(key => selectedRow[key] != null).map(key => [fieldLabel(key),render(selectedRow[key],key)])} /></DetailPanel>}
     </div>
   );
 }

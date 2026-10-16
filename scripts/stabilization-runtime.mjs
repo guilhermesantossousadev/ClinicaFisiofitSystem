@@ -12,13 +12,16 @@ export async function runtimeAcceptance({database,psql,output,browser=true}) {
  const docker=(args)=>execFileSync('docker',args,{encoding:'utf8',maxBuffer:5e6});
  const inspect=(name)=>JSON.parse(docker(['inspect',name]))[0];
  const rest=inspect(`supabase_rest_${stack}`), storage=inspect(`supabase_storage_${stack}`), runtime=inspect(`supabase_edge_runtime_${stack}`);
+ const isolatedAuth=process.env.FISIOFIT_TEST_ISOLATED_AUTH==='1';
+ const authMeta=isolatedAuth?inspect(`supabase_auth_${stack}`):null;
+ if(authMeta&&authMeta.Config.Labels['com.docker.compose.project']!==stack)throw Error('Synthetic Auth identity mismatch');
  for(const m of [rest,storage,runtime]) if(m.Config.Labels['com.docker.compose.project']!==stack) throw new Error('Local runtime identity mismatch');
  const envOf=(m)=>Object.fromEntries(m.Config.Env.map(s=>s.split(/=(.*)/s).slice(0,2)));
  const runtimeEnv=envOf(runtime), restEnv=envOf(rest), storageEnv=envOf(storage);
  const network=Object.keys(rest.NetworkSettings.Networks)[0];
- const names={rest:`fisiofit-stab-rest-${process.pid}`,storage:`fisiofit-stab-storage-${process.pid}`};
+ const names={rest:`fisiofit-stab-rest-${process.pid}`,storage:`fisiofit-stab-storage-${process.pid}`,auth:`fisiofit-stab-auth-${process.pid}`};
  const authHeaders={apikey:runtimeEnv.SUPABASE_SERVICE_ROLE_KEY,authorization:`Bearer ${runtimeEnv.SUPABASE_SERVICE_ROLE_KEY}`,'content-type':'application/json'};
- const children=[],containers=[],users=[],events=[];let proxy;
+ const children=[],containers=[],users=[],events=[],authFailures=[];let proxy;
  const id=n=>`fc000000-0000-4000-8000-${String(n).padStart(12,'0')}`;
  const sql=q=>psql(database,q).trim();
  const assert=(condition,message)=>{if(!condition) throw new Error(message);};
@@ -26,11 +29,11 @@ export async function runtimeAcceptance({database,psql,output,browser=true}) {
  async function ready(url) {for(let n=0;n<300;n++){try{if((await fetch(url)).status<500)return;}catch{}await pause(100);}throw new Error(`Local service did not start on ${new URL(url).port}`);}
  function startContainer(name,meta,env,port) {
   const file=resolve(output,`${name}.env`);writeFileSync(file,Object.entries(env).map(([k,v])=>`${k}=${v}`).join('\n'),{mode:0o600});
-  try {docker(['run','--detach','--name',name,'--network',network,'--publish',`127.0.0.1:${port}:`+(name===names.rest?'3000':'5000'),'--env-file',file,meta.Config.Image]);containers.push(name);}
+  try {docker(['run','--detach','--name',name,'--network',network,'--publish',`127.0.0.1:${port}:`+(name===names.rest?'3000':name===names.auth?'9999':'5000'),'--env-file',file,meta.Config.Image]);containers.push(name);}
   catch {throw new Error(`Isolated container startup failed: ${name}`);} finally {rmSync(file,{force:true});}
  }
  function replaceDatabase(uri) {const u=new URL(uri);u.pathname=`/${database}`;return u.href;}
- async function auth(path,body) {const r=await fetch(`${source}/auth/v1/${path}`,{method:'POST',headers:authHeaders,body:JSON.stringify(body)});if(!r.ok)throw new Error(`Synthetic Auth failed: ${r.status}`);return r.json();}
+ async function auth(path,body) {const r=await fetch(`${isolatedAuth?host+':57436':source+'/auth/v1'}/${path}`,{method:'POST',headers:authHeaders,body:JSON.stringify(body)});if(!r.ok)throw new Error(`Synthetic Auth failed: ${r.status}`);return r.json();}
  async function request(account,method,path,input,status=200,code,extra={}) {
   const r=await fetch(api+path,{method,headers:{authorization:`Bearer ${account?.token??'invalid'}`,'content-type':'application/json','idempotency-key':extra.key??randomUUID(),...extra.headers},...(input===undefined?{}:{body:JSON.stringify(input)})});
   const json=await r.json();
@@ -40,6 +43,16 @@ export async function runtimeAcceptance({database,psql,output,browser=true}) {
  }
  try {
   assert(/^[a-z0-9_]+$/.test(database)&&database.startsWith('stabilization_'),'Disposable database required');
+  if(isolatedAuth){
+   sql(docker(['exec',`supabase_db_${stack}`,'pg_dump','-U','postgres','-d','postgres','--data-only','--table=auth.schema_migrations','--no-owner']));
+   // Restore Auth infrastructure ownership only in the disposable database.
+   sql(`do $$ declare r record; begin
+    for r in select tablename from pg_tables where schemaname='auth' loop execute format('alter table auth.%I owner to supabase_auth_admin',r.tablename);end loop;
+    for r in select sequencename from pg_sequences where schemaname='auth' loop execute format('alter sequence auth.%I owner to supabase_auth_admin',r.sequencename);end loop;
+    end $$; alter schema auth owner to supabase_auth_admin;`);
+   const authEnv=envOf(authMeta);authEnv.GOTRUE_DB_DATABASE_URL=replaceDatabase(authEnv.GOTRUE_DB_DATABASE_URL);authEnv.API_EXTERNAL_URL=proxyOrigin+'/auth/v1';
+   startContainer(names.auth,authMeta,authEnv,57436);await ready(`${host}:57436/health`);
+  }
   restEnv.PGRST_DB_URI=replaceDatabase(restEnv.PGRST_DB_URI);
   startContainer(names.rest,rest,restEnv,57430);
   storageEnv.DATABASE_URL=replaceDatabase(storageEnv.DATABASE_URL);
@@ -57,6 +70,7 @@ export async function runtimeAcceptance({database,psql,output,browser=true}) {
     if(req.url.startsWith('/rest/v1'))target=`${host}:57430${req.url.slice(8)}`;
     else if(req.url.startsWith('/storage/v1'))target=`${host}:57432${req.url.slice(11)}`;
     else if(req.url.startsWith('/functions/v1'))target=`${host}:57434${req.url.slice(13)}`;
+    else if(isolatedAuth&&req.url.startsWith('/auth/v1/'))target=`${host}:57436${req.url.slice(8)}`;
     else target=source+req.url;
     const parts=[];for await(const p of req)parts.push(p);const body=Buffer.concat(parts);
     // Explicit local fault injection for differential search tests; never alters responses.
@@ -68,6 +82,8 @@ export async function runtimeAcceptance({database,psql,output,browser=true}) {
     }
     const headers={...req.headers};delete headers.host;delete headers.connection;delete headers['content-length'];delete headers['transfer-encoding'];
     const response=await fetch(target,{method:req.method,headers,...(body.length?{body}:{})});
+    if(response.status>=400&&req.url.startsWith('/auth/v1/')){const failure=await response.clone().json().catch(()=>({}));authFailures.push({status:response.status,path:new URL(req.url,proxyOrigin).pathname,code:failure.code,error_code:failure.error_code,message:String(failure.msg??failure.message??failure.error??'').slice(0,180)});}
+    if(response.status===401&&req.url.startsWith('/functions/v1/'))authFailures.push({status:401,path:new URL(req.url,proxyOrigin).pathname,hasBearer:Boolean(req.headers.authorization?.startsWith('Bearer '))});
     for(const[k,v]of response.headers)if(!['content-encoding','content-length','transfer-encoding','connection','access-control-allow-origin','access-control-allow-credentials'].includes(k))res.setHeader(k,v);
     res.writeHead(response.status);res.end(Buffer.from(await response.arrayBuffer()));
    }catch{res.writeHead(502);res.end(JSON.stringify({error:{code:'LOCAL_PROXY_FAILED'}}));}
@@ -80,7 +96,7 @@ export async function runtimeAcceptance({database,psql,output,browser=true}) {
    const login=await auth('token?grant_type=password',{email,password});accounts[role]={id:created.id,token:login.access_token,email,password};
   }
   sql(`begin;alter table public.clinics alter constraint clinics_owner_profile_fk deferrable initially deferred;
-   insert into auth.users(id) values${users.map(u=>`('${u}')`).join(',')};
+   insert into auth.users(id) values${users.map(u=>`('${u}')`).join(',')} on conflict(id)do nothing;
    insert into public.clinics(id,name,owner_profile_id,makeup_policy)values('${id(10)}','Synthetic HTTP stabilization','${accounts.admin.id}','{"eligible_statuses":["ABSENT_JUSTIFIED"],"no_show_action":"return"}'),('${id(11)}','Synthetic foreign HTTP','${accounts.foreign.id}',null);
    ${Object.entries(accounts).map(([role,a])=>`insert into public.profiles(id,clinic_id,name,role,status)values('${a.id}','${role==='foreign'?id(11):id(10)}','Synthetic ${role}','${['substitute'].includes(role)?'professional':['denied'].includes(role)?'reception':role==='foreign'?'admin':role}','active');`).join('\n')}
    insert into public.units(id,clinic_id,name)values('${id(20)}','${id(10)}','Synthetic unit A'),('${id(21)}','${id(10)}','Synthetic unit B'),('${id(22)}','${id(11)}','Synthetic foreign unit');
@@ -154,13 +170,15 @@ export async function runtimeAcceptance({database,psql,output,browser=true}) {
   const template=await request(A,'POST','/record-templates',{name:'Synthetic template',kind:'evolution',schema:{}},201);
   await request(A,'DELETE',`/record-templates/${template.id}`,undefined,200);assert(sql(`select active from public.record_templates where id='${template.id}'`)==='f','Template soft delete failed');
   const dashboard=await request(A,'GET',`/dashboard?unitId=${id(20)}`);assert(dashboard.appointments.some(x=>x.id===occurrence.id),'Dashboard omits Class occurrence');
+  writeFileSync(resolve(output,'http-core-result.json'),JSON.stringify({passed:true,requests:events.length,events,actualStorageBytesVerified:true,concurrentPaymentIdempotency:true,isolatedAuth},null,2)+'\n');
   if(browser) {const {browserAcceptance}=await import('./stabilization-browser.mjs');await browserAcceptance({proxyOrigin,anonKey:runtimeEnv.SUPABASE_ANON_KEY,account:A,financeAccount:F,output,children,sql,calendarAccounts:process.env.FISIOFIT_TEST_CALENDAR==='1'?{reception:R,professional:P}:undefined,fixture:{unit:id(20),unitB:id(21),professionalB:id(41),patientA:id(30),patientB:id(31),recordA:recordA.id,recordB:recordB.id}});}
   const result={passed:true,requests:events.length,events,actualStorageBytesVerified:true,concurrentPaymentIdempotency:true,database:'disposable repository-migration schema',browser};
   writeFileSync(resolve(output,'http-result.json'),JSON.stringify(result,null,2)+'\n');console.log(`HTTP acceptance PASS (${events.length} requests; actual Auth/RLS/Storage, synthetic data).`);return result;
  } finally {
+  writeFileSync(resolve(output,'auth-transport.json'),JSON.stringify({isolatedAuth,failures:authFailures},null,2)+'\n');
   for(const c of children) c.kill('SIGTERM');
   if(proxy)await new Promise(r=>proxy.close(r));
   for(const name of containers.reverse())try{docker(['rm','--force','--volumes',name]);}catch{}
-  for(const user of users)await fetch(`${source}/auth/v1/admin/users/${user}`,{method:'DELETE',headers:authHeaders});
+  if(!isolatedAuth)for(const user of users)await fetch(`${source}/auth/v1/admin/users/${user}`,{method:'DELETE',headers:authHeaders});
  }
 }

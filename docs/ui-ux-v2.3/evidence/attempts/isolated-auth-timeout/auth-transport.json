@@ -1,0 +1,22 @@
+{
+  "isolatedAuth": true,
+  "failures": [
+    {
+      "status": 403,
+      "path": "/auth/v1/user",
+      "code": "bad_jwt",
+      "message": "invalid JWT: unable to parse or verify signature, token is malformed: token contains an invalid number of segments"
+    },
+    {
+      "status": 401,
+      "path": "/functions/v1/api/v1/patients",
+      "hasBearer": true
+    },
+    {
+      "status": 504,
+      "path": "/auth/v1/token",
+      "code": "request_timeout",
+      "message": "Processing this request timed out, please retry after a moment."
+    }
+  ]
+}

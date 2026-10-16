@@ -1,0 +1,16 @@
+{
+  "passed": false,
+  "checks": [],
+  "error": "Error: Browser assertion timed out: authenticated portal",
+  "transport": [
+    {
+      "path": "/auth/v1/token",
+      "status": 204
+    },
+    {
+      "path": "/auth/v1/token",
+      "status": 504
+    }
+  ],
+  "failedApiResponses": []
+}

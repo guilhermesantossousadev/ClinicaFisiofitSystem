@@ -1,5 +1,6 @@
 import { confirmAction } from '../components/Decisions';
-import { Notice } from "@fisiofit/design-system/react";
+import { Notice, FilterSummary } from "@fisiofit/design-system/react";
+import { DetailPanel, Facts, useModuleState } from "../components/ModuleWorkspace";
 import { FormEvent, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { CheckboxField, FormSection, SelectField, TextField } from "../components/FormPrimitives";
@@ -10,6 +11,11 @@ import { Row, Unit, messageOf, statusLabel, value, useDialogFocus, useResources,
 export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }) {
   const { data, loading, error, reload } = useResources(["/users", "/units"]);
   const [notice, setNotice] = useState("");
+  const [query, setQuery] = useModuleState("users.query", "");
+  const [roleFilter, setRoleFilter] = useModuleState("users.role", "");
+  const [statusFilter, setStatusFilter] = useModuleState("users.status", "");
+  const [selectedUser, setSelectedUser] = useState<Row | null>(null);
+  const filteredUsers: Row[] = (data['/users'] ?? []).filter((row: Row) => (!query.trim() || `${row.name} ${row.email}`.toLocaleLowerCase('pt-BR').includes(query.trim().toLocaleLowerCase('pt-BR'))) && (!roleFilter || row.role === roleFilter) && (!statusFilter || row.status === statusFilter));
   const [updatingUserId, setUpdatingUserId] = useState("");
   const [editingUserId, setEditingUserId] = useState("");
   const [passwordUser, setPasswordUser] = useState<Row | null>(null);
@@ -191,10 +197,12 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
           </div></FormSection>
         <button className="btn primary">Enviar convite</button>
       </DrawerForm>}
+      <div className="collection-toolbar card"><TextField label="Buscar colaboradora" type="search" placeholder="Nome ou e-mail" value={query} onChange={event => setQuery(event.target.value)} /><SelectField label="Filtrar por perfil" value={roleFilter} onChange={event => setRoleFilter(event.target.value)}><option value="">Todos os perfis</option>{Object.entries(roleLabel).map(([role,label]) => <option key={role} value={role}>{label}</option>)}</SelectField><SelectField label="Filtrar por acesso" value={statusFilter} onChange={event => setStatusFilter(event.target.value)}><option value="">Todos os acessos</option>{['active','invited','blocked'].map(status => <option key={status} value={status}>{statusLabel(status)}</option>)}</SelectField></div>
+      <FilterSummary count={filteredUsers.length} filters={[...(query ? [`Busca: ${query}`] : []), ...(roleFilter ? [roleLabel[roleFilter as Role]] : []), ...(statusFilter ? [statusLabel(statusFilter)] : [])]} onClear={() => { setQuery(''); setRoleFilter(''); setStatusFilter(''); }} />
       <section className="card table-card bespoke-table users-list-table">
         <div className="table-toolbar"><h2>Colaboradoras cadastradas</h2><span>{(data["/users"] ?? []).length} registros</span></div>
         <div className="bespoke-table-head" aria-hidden="true"><span>Nome</span><span>Acesso e segurança</span><span>Ações</span></div>
-        {(data["/users"] ?? []).map((row: Row) => (
+        {filteredUsers.map((row: Row) => (
           <div className="user-management-entry" key={row.id}>
           <div className="operational-row">
             <div>
@@ -205,6 +213,8 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
               <small>
                 {row.email ? `${row.email} · ` : ""}{roleLabel[row.role as Role] ?? row.role} · {statusLabel(row.status)}
               </small>
+              <small>{(row.profile_units ?? []).map((entry: Row) => (data['/units'] ?? []).find((unit: Row) => unit.id === entry.unit_id)?.name).filter(Boolean).join(' · ') || 'Unidades conforme acesso do perfil'}</small>
+              <button className="text-button" type="button" onClick={() => setSelectedUser(row)}>Consultar acesso e permissões</button>
             </div>
             {!canManageUsers ? (
               <span className="status info">Somente leitura</span>
@@ -326,6 +336,7 @@ export function OperationalUsers({ canManageUsers }: { canManageUsers: boolean }
           </section>
         </div>
       )}
+      {selectedUser && <DetailPanel title={selectedUser.name} eyebrow="ACESSO E PERMISSÕES" onClose={() => setSelectedUser(null)}><Facts items={[["Perfil", roleLabel[selectedUser.role as Role] || selectedUser.role], ["E-mail", selectedUser.email], ["Acesso", statusLabel(selectedUser.status)], ["Unidades", (selectedUser.profile_units ?? []).map((entry: Row) => (data['/units'] ?? []).find((unit: Row) => unit.id === entry.unit_id)?.name).filter(Boolean).join(', ') || 'Conforme perfil']]} /><h3>Permissões cadastradas</h3><p>O papel e as unidades também restringem o acesso. Esta lista apresenta as permissões cadastradas por módulo.</p><div className="permission-summary">{permissionModules.map(([module,label]) => { const permission = (selectedUser.profile_permissions ?? []).find((item: Row) => item.module === module); return <div key={module}><strong>{label}</strong><span>{selectedUser.role === 'admin' ? 'Administrador' : permission?.can_edit ? 'Consultar e editar' : permission?.can_view ? 'Consultar' : 'Sem permissão cadastrada'}</span></div>; })}</div></DetailPanel>}
     </div>
   );
 }

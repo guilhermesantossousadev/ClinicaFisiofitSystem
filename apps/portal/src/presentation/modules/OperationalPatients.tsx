@@ -1,15 +1,20 @@
 import { confirmAction } from '../components/Decisions';
-import { Notice, FilterSummary } from "@fisiofit/design-system/react";
+import { Notice, FilterSummary, Tabs } from "@fisiofit/design-system/react";
+import { Facts, RelatedActions, useModuleState, useWorkspace } from "../components/ModuleWorkspace";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { FormSection, TextareaField, TextField } from "../components/FormPrimitives";
 import { Row, messageOf, value, useDialogFocus, useResources, Select, DrawerForm, ModuleState, EditableOperationalTable } from "./OperationalShared";
 
 export function OperationalPatients({ initialSearch = "", canEdit = true, canViewEnrollments = true, canViewAgenda = true, canViewTimeline = true }: { initialSearch?: string; canEdit?: boolean; canViewEnrollments?: boolean; canEditEnrollments?: boolean; canViewAgenda?: boolean; canEditAgenda?: boolean; canViewTimeline?: boolean }) {
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState(initialSearch);
-  const [appliedSearch, setAppliedSearch] = useState(initialSearch);
-  useEffect(() => { setSearch(initialSearch); setAppliedSearch(initialSearch); setPage(1); }, [initialSearch]);
+  const workspace = useWorkspace();
+  const contextPatient = workspace?.journey?.patient;
+  const [page, setPage] = useModuleState("patients.page", 1);
+  const [search, setSearch] = useModuleState("patients.search", initialSearch);
+  const [appliedSearch, setAppliedSearch] = useModuleState("patients.applied", initialSearch);
+  const [previousSearch, setPreviousSearch] = useModuleState("patients.globalSearch", "");
+  useEffect(() => { if (initialSearch && initialSearch !== previousSearch) { setSearch(initialSearch); setAppliedSearch(initialSearch); setPage(1); setPreviousSearch(initialSearch); } }, [initialSearch]);
+  useEffect(() => { if (contextPatient) { setSearch(contextPatient.name); setAppliedSearch(contextPatient.name); setPage(1); } }, [contextPatient?.id]);
   const pageSize = 20;
   const includeOperational = canViewEnrollments || canViewAgenda;
   const patientPath = `/patients?page=${page}&pageSize=${pageSize}${appliedSearch ? `&search=${encodeURIComponent(appliedSearch)}` : ""}${includeOperational ? "&includeOperational=true" : ""}`;
@@ -21,14 +26,22 @@ export function OperationalPatients({ initialSearch = "", canEdit = true, canVie
   const patients: Row[] = data[patientPath]?.items ?? [];
   const total = Number(data[patientPath]?.total ?? 0);
   const [selected, setSelected] = useState<Row | null>(null);
+  const [detailTab, setDetailTab] = useState("summary");
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState("");
   const [detail, setDetail] = useState<{
     responsibles: Row[];
     consents: Row[];
     timeline?: Row;
   }>({ responsibles: [], consents: [] });
   const detailRequest = useRef(0);
+  useEffect(() => () => { detailRequest.current += 1; }, []);
   const [notice, setNotice] = useState("");
   const [detailDirty, setDetailDirty] = useState(false);
+  async function changeDetailTab(next: string) {
+    if (detailDirty && next !== detailTab && !await confirmAction("Descartar os dados do responsável ainda não salvos?", {title:"Descartar alterações?",confirmLabel:"Descartar alterações",destructive:true})) return;
+    setDetailDirty(false); setDetailTab(next);
+  }
   async function closePatientDetails() {
     if (detailDirty && !await confirmAction("Descartar os dados do responsável ainda não salvos?", { title: "Descartar alterações?", confirmLabel: "Descartar alterações", destructive: true })) return;
     setDetailDirty(false);
@@ -83,6 +96,7 @@ export function OperationalPatients({ initialSearch = "", canEdit = true, canVie
     setDetailDirty(false);
     setDetail({ responsibles: [], consents: [] });
     setSelected(row);
+    setDetailLoading(true); setDetailError("");
     try {
       const [responsibles, consents, timeline] = await Promise.all([
         api<Row[]>(`/patients/${row.id}/responsibles`),
@@ -96,8 +110,8 @@ export function OperationalPatients({ initialSearch = "", canEdit = true, canVie
         timeline: timeline.data ?? undefined,
       });
     } catch (e) {
-      setNotice(messageOf(e));
-    }
+      if (request === detailRequest.current) setDetailError(messageOf(e));
+    } finally { if (request === detailRequest.current) setDetailLoading(false); }
   }
   async function responsible(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -249,7 +263,7 @@ export function OperationalPatients({ initialSearch = "", canEdit = true, canVie
         })}
         onChanged={reload}
         onNotice={setNotice}
-        onOpen={open}
+        onOpen={(row) => { setDetailTab("summary"); void open(row); }}
         allowDelete
         canEdit={canEdit}
         total={total}
@@ -263,7 +277,7 @@ export function OperationalPatients({ initialSearch = "", canEdit = true, canVie
         }}>
           <section
             ref={patientDialogRef}
-            className="modal"
+            className="modal patient-profile-panel"
             role="dialog"
             aria-modal="true"
             aria-labelledby="patient-dialog-title"
@@ -273,11 +287,26 @@ export function OperationalPatients({ initialSearch = "", canEdit = true, canVie
               <div>
                 <p className="eyebrow">PACIENTE</p>
                 <h2 id="patient-dialog-title">{selected.name}</h2>
-                <p>{selected.cpf ?? "CPF não informado"}</p>
+                <p><span className={`status ${selected.active ? 'success' : 'neutral'}`}>{selected.active ? "Ativo" : "Inativo"}</span> · {selected.phone || "Telefone não informado"}</p>
               </div>
               <button type="button" aria-label="Fechar detalhes do paciente" onClick={closePatientDetails}>×</button>
             </div>
             <div className="modal-form">
+              {!detailDirty && <RelatedActions patient={{ id: selected.id, name: selected.name }} exclude="Pacientes" />}
+              <Tabs id="patient-profile" label="Seções da ficha" value={detailTab} onChange={next => void changeDetailTab(next)} items={[{value:"summary",label:"Resumo"},{value:"relationships",label:"Vínculos e histórico"},{value:"care",label:"Responsáveis e consentimentos"}]} />
+              <section role="tabpanel" id={`patient-profile-panel-${detailTab}`} aria-labelledby={`patient-profile-${detailTab}`} tabIndex={0}>
+              {detailTab === "summary" && <><Facts items={[
+                ["Nome completo", selected.name], ["CPF", selected.cpf || "Não informado"], ["Nascimento", selected.birth_date ? new Date(`${selected.birth_date}T12:00:00`).toLocaleDateString("pt-BR") : "Não informado"],
+                ["Telefone", selected.phone || "Não informado"], ["E-mail", selected.email || "Não informado"], ["Unidade", (data["/units"] ?? []).find((unit: Row) => unit.id === selected.primary_unit_id)?.name],
+                ...(canViewEnrollments ? [["Plano", selected.plan_name || "Consulte as matrículas"] as [string, string]] : []), ...(canViewAgenda ? [["Turma", selected.group_name || "Consulte a agenda"] as [string, string]] : []),
+                ["Endereço", [selected.address?.street, selected.address?.number, selected.address?.neighborhood, selected.address?.city, selected.address?.state].filter(Boolean).join(", ") || "Não informado"],
+              ]} />{selected.notes && <div className="clinical-narrative"><h3>Observações do cadastro</h3><p>{selected.notes}</p></div>}</>}
+              {detailTab !== "summary" && <ModuleState loading={detailLoading} error={detailError} retry={() => void open(selected)} />}
+              {detailTab === "relationships" && !detailLoading && !detailError && <>
+                {!canViewTimeline && <p className="empty-state">O histórico integrado é restrito ao perfil autorizado. Use as ações acima para consultar os módulos disponíveis.</p>}
+                {canViewTimeline && <div className="patient-timeline">{([['Cobranças', 'charges'], ['Atendimentos', 'appointments'], ['Registros clínicos', 'records']] as const).map(([label, key]) => <section key={key}><h3>{label} <span className="status neutral">{detail.timeline?.[key]?.length ?? 0}</span></h3>{(detail.timeline?.[key] ?? []).map((item: Row) => <article key={item.id}><strong>{item.plans?.name || item.description || item.services?.name || (item.kind === 'assessment' ? 'Avaliação inicial' : item.kind === 'evolution' ? 'Evolução' : label)}</strong><small>{item.starts_at || item.due_at || item.created_at ? new Date(item.starts_at || `${item.due_at || item.created_at}`.slice(0,10)+'T12:00:00').toLocaleDateString('pt-BR') : 'Data não informada'}{item.status ? ` · ${item.status}` : ''}</small></article>)}{!detail.timeline?.[key]?.length && <p>Nenhum registro disponível neste histórico.</p>}</section>)}</div>}
+              </>}
+              {detailTab === "care" && !detailLoading && !detailError && <>
               <h3>Consentimentos</h3>
               {canEdit && <div className="row-actions">
                 <button onClick={() => consent("whatsapp", true)}>
@@ -291,6 +320,10 @@ export function OperationalPatients({ initialSearch = "", canEdit = true, canVie
                 </button>
               </div>}
               <p>{detail.consents.length} registros de consentimento.</p>
+              {detail.consents.map((item: Row) => <div className="consent-entry" key={item.id}><strong>{item.purpose || item.kind}</strong><span className={`status ${item.granted ? 'success' : 'neutral'}`}>{item.granted ? 'Registrado' : 'Revogado'}</span></div>)}
+              <h3>Responsáveis cadastrados</h3>
+              {detail.responsibles.map((item: Row) => <Facts key={item.id} items={[["Nome", item.name], ["Relação", item.relationship], ["Contato", item.phone || item.email || "Não informado"]]} />)}
+              {!detail.responsibles.length && <p>Nenhum responsável cadastrado.</p>}
               {canEdit && <form onSubmit={responsible} onInput={() => setDetailDirty(true)}>
                 <h3>Adicionar responsável</h3>
                 {notice && <Notice message={notice} onDismiss={() => setNotice("")} />}
@@ -305,12 +338,8 @@ export function OperationalPatients({ initialSearch = "", canEdit = true, canVie
                 <TextField name="email" label="E-mail" type="email" />
                 <button className="btn primary">Salvar responsável</button>
               </form>}
-              <h3>Linha do tempo</h3>
-              <p>
-                {detail.timeline?.appointments?.length ?? 0} atendimentos ·{" "}
-                {detail.timeline?.records?.length ?? 0} registros clínicos ·{" "}
-                {detail.timeline?.charges?.length ?? 0} cobranças
-              </p>
+              </>}
+              </section>
             </div>
           </section>
         </div>

@@ -1,0 +1,59 @@
+
+> fisiofit-platform@1.0.0 test
+> npm run test --workspaces --if-present && node --test tests/*.test.mjs
+
+
+> @fisiofit/portal@1.0.0 test
+> vitest run
+
+
+ RUN  v4.1.10 /private/tmp/fisiofit-ui-ux-v2.3-20261016/apps/portal
+
+
+ Test Files  15 passed (15)
+      Tests  91 passed (91)
+   Start at  08:52:20
+   Duration  1.89s (transform 2.81s, setup 0ms, import 4.21s, tests 406ms, environment 3ms)
+
+✔ patient creation accepts omitted, blank and null optional fields (4.805541ms)
+✔ patient edit distinguishes clearing fields from leaving them unchanged (1.067458ms)
+✔ invalid dates, email, short names and absent units are rejected with helpful messages (0.598666ms)
+✔ POST patient writes validated data under current clinic (0.778666ms)
+✔ PATCH patient clears fields in the actual handler (0.781584ms)
+✔ patient writes reject inaccessible unit, missing patient and duplicate CPF (0.457417ms)
+✔ gera site e portal no pacote único da Hostinger (25.204084ms)
+✔ mantém API, banco e integrações versionados (19.5795ms)
+✔ attendance por occurrence preserva roster, grava sob demanda e mantém correções (11.973541ms)
+✔ mantém context.md como fonte única da verdade e não restaura o legado (6.641625ms)
+✔ salva avaliações e apresenta os campos clínicos corretos (3.87975ms)
+✔ mantém turmas distintas por dias dentro dos horários fixos (2.477958ms)
+✔ permite à administração, gestão e recepção gerenciar a grade de horários (3.593083ms)
+✔ mantém todos os recursos da agenda coerentes com a unidade selecionada (3.894166ms)
+✔ não oferece backfill em massa no portal operacional (0.998709ms)
+✔ suporta frequência semanal por membership sem inventar dias no legado (4.916166ms)
+✔ detalha e altera somente a ClassOccurrence sem tocar no schedule ou no legado (2.94475ms)
+✔ confirma cancelamento da occurrence em diálogo do portal (1.046542ms)
+✔ opera participantes apenas na occurrence, preservando membership e a trilha (1.964375ms)
+✔ aplica a política crítica de conflitos de appointments no servidor (1.168375ms)
+✔ mantém a persistência nova de turma aditiva e historicamente segura (3.288ms)
+✔ materializa occurrences de schedule com janela, timezone e idempotência (1.211375ms)
+✔ expõe a API mínima versionada de Class e ClassSchedule sem tocar o legado (5.769667ms)
+✔ expõe projection semanal read-only combinando occurrences e appointments (1.791584ms)
+✔ agenda semanal usa a projection consolidada sem compor cards pelo legado (5.559875ms)
+✔ backfill operacional de group slots é idempotente, limitado e não altera legado (1.679917ms)
+✔ reconcilia referências opcionais apenas no adaptador de backfill legado (2.775167ms)
+✔ expõe backfill legado somente por rota administrativa autenticada e user-scoped (2.488708ms)
+✔ mantém o fluxo de matrícula da recepção funcional e sem expor o financeiro (2.829291ms)
+✔ protege recuperação administrativa e consentimento de cookies (9.111ms)
+✔ mantém autenticação por e-mail e senha sem segundo fator (4.765666ms)
+✔ isola consultas operacionais por clínica (7.190791ms)
+✔ preserva a área atual do portal entre recarregamentos (2.954125ms)
+✔ mantém modularização, acessibilidade, SEO e build seguro (9.361917ms)
+ℹ tests 34
+ℹ suites 0
+ℹ pass 34
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 659.771542

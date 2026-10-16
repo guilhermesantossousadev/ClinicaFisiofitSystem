@@ -1,4 +1,5 @@
 import { InternalNotifications } from "../modules/InternalNotifications";
+import { JourneyTrail, ModuleWorkspace, useWorkspace } from "../components/ModuleWorkspace";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { api, list } from "../../infrastructure/http/api";
 import { supabase } from "../../infrastructure/supabase/client";
@@ -168,7 +169,10 @@ export default function FisiofitApp() {
         if (unitResult.status === "fulfilled") setUnits(unitResult.value.data ?? []);
         if (dashboardResult.status === "fulfilled") { setDashboard(dashboardResult.value.data); setDashboardUnit(unit); }
         if (patientResult.status === "fulfilled") setPatients(patientResult.value.data?.items ?? []);
-        const failure = [unitResult, dashboardResult, patientResult].find((result) => result.status === "rejected");
+        // Patient prefetch is optional for global search. A failure belongs to
+        // search/module recovery, not a stale global warning after a retry.
+        if (patientResult.status === "rejected") setSearchError(patientResult.reason instanceof Error ? patientResult.reason.message : "Não foi possível buscar pacientes.");
+        const failure = [unitResult, dashboardResult].find((result) => result.status === "rejected");
         if (failure?.status === "rejected") setError(failure.reason instanceof Error ? failure.reason.message : "Alguns dados não foram carregados.");
       } catch (reason) {
         setError(reason instanceof Error ? reason.message : "Não foi possível carregar o portal.");
@@ -205,6 +209,7 @@ export default function FisiofitApp() {
     (item) => item.label === view,
   );
   const navigate = (nextView: View) => {
+    if (nextView !== "Matrículas" && window.location.pathname.includes('/matriculas/')) window.history.replaceState({}, '', '/sistema/');
     if (nextView !== "Pacientes") setPatientSearch("");
     setView(nextView);
     setMobileMenuOpen(false);
@@ -288,6 +293,7 @@ export default function FisiofitApp() {
   return (
     <>
       <a className="skip-link" href="#portal-content">Pular para o conteúdo principal</a>
+      <ModuleWorkspace key={`${storagePrefix}:${unit}`} view={view} allowed={visibleNav.map(item => item.label)} onNavigate={navigate}>
       <main className={`app-shell${sidebarCollapsed ? " sidebar-collapsed" : ""}`} aria-busy={loading}>
       <aside className="sidebar">
         <button aria-label="Fisiofit: abrir painel" className="brand" onClick={() => navigate("Painel")}>
@@ -486,6 +492,7 @@ export default function FisiofitApp() {
             </div>
           )}
         </header>
+        <JourneyTrail />
         {error && (
           <div className="content">
             <div className="system-message error-message" role="alert"><span className="message-icon" aria-hidden="true">!</span><div><strong>Alguns dados não foram carregados</strong><p>{error}</p></div></div>
@@ -493,7 +500,7 @@ export default function FisiofitApp() {
         )}
         {view === "Meu perfil" && <ProfilePage profile={profile} email={user?.email ?? ""} avatarUrl={avatarUrl} avatarBusy={avatarBusy} avatarNotice={avatarNotice} onAvatarChange={changeAvatar} onSignOut={() => void signOut()} />}
         {view === "Painel" && (
-          <Dashboard data={dashboardUnit === unit ? dashboard : null} name={profile.name} setView={setView} loading={loading} allowedViews={visibleNav.map(item => item.label)} />
+          <Dashboard data={dashboardUnit === unit ? dashboard : null} name={profile.name} setView={navigate} loading={loading} allowedViews={visibleNav.map(item => item.label)} />
         )}{" "}
         {view === "Agenda" && <OperationalAgenda role={profile.role} canEdit={canEditModule(profile, "agenda")} onOpenPatients={() => navigate("Pacientes")} onOpenEnrollment={(context) => { setAgendaContext(context); navigate("Matrículas"); }} />}{" "}
         {view === "Chamada diária" && <OperationalDailyAttendance canEdit={canEditModule(profile, "agenda")} canManageMakeups={["admin", "manager", "reception"].includes(profile.role)} />}{" "}
@@ -504,7 +511,7 @@ export default function FisiofitApp() {
         {view === "Relatórios" && <OperationalReports selectedUnitId={unit} />}{" "}
         {view === "Importações" && (
           <Suspense fallback={<div className="content"><div className="card module-skeleton" role="status">Carregando importações…</div></div>}>
-            <OperationalImports />
+            <OperationalImports canEdit={canEditModule(profile, "imports")} />
           </Suspense>
         )}{" "}
         {view === "Usuários" && <OperationalUsers canManageUsers={profile.role === "admin"} />}
@@ -517,6 +524,7 @@ export default function FisiofitApp() {
         )}
       </section>
       </main>
+      </ModuleWorkspace>
     </>
   );
 }
@@ -561,6 +569,8 @@ function Dashboard({
   loading?: boolean;
   allowedViews: View[];
 }) {
+  const workspace = useWorkspace();
+  const open = (view: View) => { if (workspace) workspace.open(view); else setView(view); };
   const result =
     (data?.receivedMonthCents ?? 0) - (data?.paidExpensesMonthCents ?? 0);
   return (
@@ -569,7 +579,7 @@ function Dashboard({
         <div>
           <p className="eyebrow">VISÃO OPERACIONAL</p>
           <h1>Olá, {name.split(" ")[0]}</h1>
-          <p>Indicadores calculados a partir dos registros da clínica.</p>
+          <p>Seu trabalho de hoje, com os registros e acessos disponíveis para o seu perfil.</p>
         </div>
         <div className="title-actions">
           {allowedViews.includes("Pacientes") && <button className="btn secondary" onClick={() => setView("Pacientes")}>Ver pacientes</button>}
@@ -581,20 +591,26 @@ function Dashboard({
       </section>}
       {!loading && !data && <div className="card empty-state"><strong>Indicadores indisponíveis</strong><p>Não foi possível obter os dados desta unidade. Tente acessar o painel novamente.</p></div>}
       {!loading && data && <>
+      <section className="work-queue" aria-labelledby="work-queue-title"><div><p className="eyebrow">COMECE POR AQUI</p><h2 id="work-queue-title">Central de trabalho</h2><p>Abra uma tarefa para continuar no módulo responsável.</p></div><div className="work-queue-actions">
+        {allowedViews.includes("Chamada diária") && <button onClick={() => open("Chamada diária")}><Icon name="check" /><span><strong>Fazer a chamada</strong><small>Turmas, presença e reposições</small></span><Icon name="arrow" /></button>}
+        {allowedViews.includes("Prontuários") && <button onClick={() => open("Prontuários")}><Icon name="records" /><span><strong>Continuar um prontuário</strong><small>Avaliações, evoluções e anexos</small></span><Icon name="arrow" /></button>}
+        {allowedViews.includes("Matrículas") && <button onClick={() => open("Matrículas")}><Icon name="plans" /><span><strong>Revisar matrículas</strong><small>Vigência, planos e cobranças</small></span><Icon name="arrow" /></button>}
+        {allowedViews.includes("Financeiro") && <button onClick={() => open("Financeiro")}><Icon name="finance" /><span><strong>Conferir recebimentos</strong><small>{data.overdueCharges} cobranças vencidas no painel</small></span><Icon name="arrow" /></button>}
+      </div></section>
       <div className="metrics">
         <Metric
           label="Atendimentos hoje"
           value={data?.appointmentsToday ?? 0}
         />
         <Metric label="Pacientes ativos" value={data?.activePatients ?? 0} />
-        <Metric label="Resultado no mês" value={brl(result)} />
-        <Metric
+        {allowedViews.includes("Financeiro") && <Metric label="Resultado realizado no mês" value={brl(result)} />}
+        {allowedViews.includes("Matrículas") && <Metric
           label="Cobranças vencidas"
           value={`${data?.overdueCharges ?? 0} · ${brl(data?.overdueAmountCents ?? 0)}`}
-        />
+        />}
       </div>
       <section className="card table-card dashboard-agenda-top" aria-labelledby="dashboard-agenda-title">
-        <div className="table-toolbar"><div><p className="eyebrow">PRÓXIMOS HORÁRIOS</p><h2 id="dashboard-agenda-title">Agenda de hoje</h2></div><button className="text-button" onClick={() => setView("Agenda")}>Abrir agenda →</button></div>
+        <div className="table-toolbar"><div><p className="eyebrow">PRÓXIMOS HORÁRIOS</p><h2 id="dashboard-agenda-title">Agenda de hoje</h2></div>{allowedViews.includes("Agenda") && <button className="text-button" onClick={() => open("Agenda")}>Abrir agenda →</button>}</div>
         {(data?.appointments ?? []).map((item) => <div className="operational-row" key={item.id}><div><strong>{new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" }).format(new Date(item.starts_at))} · {item.patients?.name ?? item.services?.name ?? "Horário bloqueado"}</strong><small>{item.services?.name ?? "Atendimento"} · {item.professionals?.name ?? "Sem profissional"} · {item.units?.name ?? "Sem unidade"}</small></div><span className="status info">{statusLabel(item.status)}</span></div>)}
         {!data?.appointments?.length && <div className="empty-state compact-empty"><strong>Nenhum atendimento para hoje</strong><p>A agenda está livre.</p></div>}
       </section>

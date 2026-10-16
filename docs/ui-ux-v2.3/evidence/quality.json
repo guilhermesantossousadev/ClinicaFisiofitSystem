@@ -1,0 +1,21 @@
+{
+  "sourceDigest": "8c69d5f72c39b1a2cda5a8533357d8041f4ed986bc7f7a7f48ecde1299cc64b9",
+  "checks": [
+    {
+      "name": "typecheck",
+      "passed": true
+    },
+    {
+      "name": "lint",
+      "passed": true
+    },
+    {
+      "name": "build",
+      "passed": true
+    },
+    {
+      "name": "vitest-and-node",
+      "passed": true
+    }
+  ]
+}

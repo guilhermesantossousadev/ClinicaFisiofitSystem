@@ -3,6 +3,7 @@ import { Notice } from "@fisiofit/design-system/react";
 import { PlanCatalog } from "./PlanCatalog";
 import { PlanChangeDialog } from "./PlanChangeDialog";
 import { MonthlyPayments } from "./MonthlyPayments";
+import { RelatedActions, SectionIntro, useModuleState, useWorkspace } from "../components/ModuleWorkspace";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { buildPlanControlRows, renewalCopy, type PlanControlRow } from "../../application/portal/planControl";
@@ -11,6 +12,7 @@ import { SelectField, TextField } from "../components/FormPrimitives";
 import { type AgendaEnrollmentContext, Row, messageOf, statusLabel, value, cents, brl, groupSlotLabel, useDialogFocus, useResources, PlanSelect, PatientPicker, DrawerForm, ModuleState, MetricLite, OperationalTable, dateKey, localDateAtNoonIso } from "./OperationalShared";
 
 export function OperationalEnrollments({ agendaContext, onClearAgendaContext, openEnrollment = false, units = [], selectedUnitId = "", onUnitChange = () => undefined, canEdit = true, canManagePlans = true, canViewCharges = true, canViewPayments = true, canReceivePayments = true, canCorrectChargeAmounts = false, canViewPatients = true, canViewAgenda = true }: { agendaContext?: AgendaEnrollmentContext; onClearAgendaContext?: () => void; openEnrollment?: boolean; units?: Array<{ id: string; name: string }>; selectedUnitId?: string; onUnitChange?: (unitId: string) => void; canEdit?: boolean; canManagePlans?: boolean; canDeletePlans?: boolean; canViewCharges?: boolean; canViewPayments?: boolean; canReceivePayments?: boolean; canRollback?: boolean; canCorrectChargeAmounts?: boolean; canViewPatients?: boolean; canViewAgenda?: boolean }) {
+  const contextPatient = useWorkspace()?.journey?.patient;
   const paths = [
     "/plans",
     "/enrollments",
@@ -26,17 +28,17 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
   const patients: Row[] = useMemo(() => canViewPatients ? data["/patients?page=1&pageSize=100"]?.items ?? [] : [...new Map((data["/enrollments"] ?? []).filter((row: Row) => row.patient).map((row: Row) => [row.patient.id, row.patient])).values()] as Row[], [data, canViewPatients]);
   const [notice, setNotice] = useState("");
   const sectionFromPath = () => window.location.pathname.includes("/matriculas/historico") ? "history" : window.location.pathname.includes("/matriculas/planos") ? "catalog" : window.location.pathname.includes("/matriculas/gestao") ? "management" : "control";
-  const [section, setSection] = useState<"control" | "management" | "history" | "catalog">(sectionFromPath);
+  const [section, setSection] = useModuleState<"control" | "management" | "history" | "catalog">("enrollments.section", sectionFromPath);
   const navigateSection = (next: "control" | "management" | "history" | "catalog") => { window.history.pushState({}, "", `/sistema/matriculas/${next === "catalog" ? "planos" : next === "management" ? "gestao" : next === "history" ? "historico" : "controle"}`); setSection(next); };
   useEffect(() => { const sync = () => setSection(sectionFromPath()); window.addEventListener("popstate", sync); return () => window.removeEventListener("popstate", sync); }, []);
-  const [paymentMonth, setPaymentMonth] = useState(() => dateKey(new Date()).slice(0, 7));
+  const [paymentMonth, setPaymentMonth] = useModuleState("enrollments.month", () => dateKey(new Date()).slice(0, 7));
   const [selectedPatient, setSelectedPatient] = useState<Row>();
   const [selectedEnrollmentGroup, setSelectedEnrollmentGroup] = useState(agendaContext?.groupSlotId ?? "");
   const [selectedEnrollmentUnit, setSelectedEnrollmentUnit] = useState(agendaContext?.unitId ?? selectedUnitId);
   const [patientPickerVersion, setPatientPickerVersion] = useState(0);
   const [changingEnrollmentId, setChangingEnrollmentId] = useState("");
-  const [controlSearch, setControlSearch] = useState("");
-  const [controlFilter, setControlFilter] = useState("all");
+  const [controlSearch, setControlSearch] = useModuleState("enrollments.search", "");
+  const [controlFilter, setControlFilter] = useModuleState("enrollments.filter", "all");
   const [editingControlRow, setEditingControlRow] = useState<PlanControlRow | null>(null);
   const [savingControlRow, setSavingControlRow] = useState(false);
   const paymentPending = useRef(false);
@@ -51,6 +53,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
     setSelectedPaymentPatientId(""); setSelectedPaymentChargeId(""); setPaymentAmount("");
     setPatientPickerVersion((version) => version + 1); setPaymentPatientPickerVersion((version) => version + 1);
   }, [selectedUnitId]);
+  useEffect(() => { if (contextPatient) { setSelectedPatient(contextPatient); setSection("control"); setControlSearch(""); setControlFilter("all"); } }, [contextPatient?.id]);
   async function enroll(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formElement = event.currentTarget;
@@ -171,9 +174,9 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
         || (controlFilter === "due-soon" && row.renewalState === "due-soon")
         || (controlFilter === "expired" && row.renewalState === "expired")
         || (controlFilter === "active" && row.enrollmentStatus === "active");
-      return matchesSearch && matchesFilter;
+      return matchesSearch && matchesFilter && (!contextPatient || (data['/enrollments'] ?? []).some((enrollment: Row) => enrollment.id === row.id && enrollment.patient_id === contextPatient.id));
     });
-  }, [controlFilter, controlRows, controlSearch]);
+  }, [controlFilter, controlRows, controlSearch, contextPatient?.id]);
   const activeControlRows = controlRows.filter((row) => row.enrollmentStatus === "active");
   const paidPlans = activeControlRows.filter((row) => row.paymentState === "paid").length;
   const dueSoonPlans = activeControlRows.filter((row) => row.renewalState === "due-soon").length;
@@ -183,10 +186,12 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
       <header className="enrollment-module-header"><div><p className="eyebrow">PACIENTES / MATRÍCULAS</p><h1>Matrículas e planos</h1><p>Financeiro mensal e gestão das matrículas dos pacientes.</p></div><nav className="enrollment-module-nav" aria-label="Áreas de matrículas">{([['control', 'Controle de Planos'], ['management', 'Matrículas'], ...(canManagePlans ? [['catalog', 'Gestão de Planos']] as const : []), ['history', 'Histórico']] as const).map(([value, label]) => <button type="button" key={value} className={section === value ? "active" : ""} aria-current={section === value ? "page" : undefined} onClick={() => navigateSection(value)}>{label}</button>)}</nav></header>
       {notice && <Notice message={notice} onDismiss={() => setNotice("")} />}
       <ModuleState loading={loading} error={error} retry={reload} />
-      {section === "control" && canViewCharges && <MonthlyPayments onChangePlan={canEdit ? setChangingEnrollmentId : undefined} data={data} month={paymentMonth} onMonth={(month) => { setPaymentMonth(month); clearPaymentPatient(); }} canEdit={canReceivePayments} canCorrectChargeAmounts={canCorrectChargeAmounts} reload={reload} onNotice={setNotice} onRegisterPayment={(row) => { setPaymentPatientPickerVersion((version) => version + 1); setSelectedPaymentPatientId(row.patientId); setSelectedPaymentChargeId(row.chargeId); setPaymentAmount((row.balanceCents / 100).toFixed(2)); requestAnimationFrame(() => document.getElementById("payment-registration")?.scrollIntoView({ behavior: "smooth", block: "start" })); }} />}
+      {contextPatient && <section className="patient-workspace-heading"><div><p className="eyebrow">JORNADA DO PACIENTE</p><h2>{contextPatient.name}</h2><p>Matrícula → plano → cobrança → recebimento</p></div><RelatedActions patient={contextPatient} exclude="Matrículas" /></section>}
+      {section === 'management' && <SectionIntro title="Contratação e vigência">Crie a matrícula com o plano e a turma existentes. Confira cobranças no controle mensal e consulte alterações no histórico.</SectionIntro>}
+      {section === "control" && canViewCharges && <MonthlyPayments patientId={contextPatient?.id} onChangePlan={canEdit ? setChangingEnrollmentId : undefined} data={data} month={paymentMonth} onMonth={(month) => { setPaymentMonth(month); clearPaymentPatient(); }} canEdit={canReceivePayments} canCorrectChargeAmounts={canCorrectChargeAmounts} reload={reload} onNotice={setNotice} onRegisterPayment={(row) => { setPaymentPatientPickerVersion((version) => version + 1); setSelectedPaymentPatientId(row.patientId); setSelectedPaymentChargeId(row.chargeId); setPaymentAmount((row.balanceCents / 100).toFixed(2)); requestAnimationFrame(() => { const form = document.getElementById("payment-registration"); form?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? "auto" : "smooth", block: "start" }); form?.querySelector<HTMLInputElement>('#payment-amount')?.focus({preventScroll:true}); }); }} />}
       {section === "catalog" && canManagePlans && <PlanCatalog plans={data["/plans"] ?? []} reload={reload} onNotice={setNotice} />}
       {changingEnrollmentId && <PlanChangeDialog enrollment={(data["/enrollments"] ?? []).find((e: Row) => e.id === changingEnrollmentId)!} plans={data["/plans"] ?? []} onClose={() => setChangingEnrollmentId("")} onChanged={async () => { await reload(); setNotice("Plano trocado com auditoria. Histórico financeiro preservado."); }} />}
-      {section === "history" && <EnrollmentHistoryPanel rows={controlRows} charges={data["/charges"] ?? []} payments={data["/payments"] ?? []} />}
+      {section === "history" && <EnrollmentHistoryPanel rows={controlRows.filter(row => !contextPatient || (data['/enrollments'] ?? []).some((enrollment: Row) => enrollment.id === row.id && enrollment.patient_id === contextPatient.id))} charges={canViewCharges ? data["/charges"] ?? [] : []} payments={canViewPayments ? data["/payments"] ?? [] : []} />}
       {section === "management" && <>
       <div className="metrics">
         <MetricLite label="Pacientes com plano" value={activeControlRows.length} />
@@ -224,7 +229,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
           <h2>Nova matrícula</h2>
           {notice && <Notice message={notice} onDismiss={() => setNotice("")} />}
           <div className="form-row">
-            <PatientPicker key={patientPickerVersion} name="patient_id" label="Paciente" rows={patients} remoteSearch={canViewPatients} onSelect={setSelectedPatient} />
+            <PatientPicker key={patientPickerVersion} name="patient_id" label="Paciente" rows={patients} defaultValue={contextPatient?.id} defaultLabel={contextPatient?.name} remoteSearch={canViewPatients} onSelect={setSelectedPatient} />
             <PlanSelect rows={data["/plans"] ?? []} />
           </div>
           {selectedPatient && <div className="agenda-context-summary" role="status"><strong>Paciente selecionado</strong><span>{selectedPatient.name}{selectedPatient.phone ? ` · ${selectedPatient.phone}` : ""}{selectedPatient.cpf ? ` · CPF ${selectedPatient.cpf}` : ""}</span></div>}
@@ -298,7 +303,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
       </form>}
       {section === "history" && canViewCharges && <OperationalTable
         title="Cobranças"
-        rows={data["/charges"] ?? []}
+        rows={(data["/charges"] ?? []).filter((charge: Row) => !contextPatient || charge.patient_id === contextPatient.id)}
         fields={[
           "description",
           "due_at",
@@ -312,8 +317,8 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
 }
 
 function EnrollmentHistoryPanel({ rows, charges, payments }: { rows: PlanControlRow[]; charges: Row[]; payments: Row[] }) {
-  const [search, setSearch] = useState("");
-  const [patientId, setPatientId] = useState("");
+  const [search, setSearch] = useModuleState("enrollments.history.search", "");
+  const [patientId, setPatientId] = useModuleState("enrollments.history.selection", "");
   const matchingRows = rows.filter((row) => !search.trim() || `${row.patientName} ${row.planName}`.toLocaleLowerCase("pt-BR").includes(search.trim().toLocaleLowerCase("pt-BR")));
   const selected = patientId ? matchingRows.find((row) => row.id === patientId) : matchingRows[0];
   const historyCharges = selected ? charges.filter((charge) => charge.enrollment_id === selected.id && !charge.deleted_at) : [];

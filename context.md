@@ -756,3 +756,13 @@ Metadados remotos confirmaram a mesma incompatibilidade estrutural na produção
 sem teste de escrita ou incidente real afirmado. Aplicação remota e publicação
 continuam sem autorização. Evidências, testes e proposta reversível em
 [patient returning RLS](docs/PATIENT-RETURNING-RLS-2026-10-15.md).
+
+## UI/UX V2.3 — candidata local de 16/10/2026
+
+Base exata recuperada da referência GitHub autorizada: `f256de6369f98567fabaf9139658c6de8e4af517`, descendente do calendário V2.2 e da V2.1, com a migration de pacientes versionada. O usuário informou que este release e a migration009 já foram publicados; esta sessão não realizou nova publicação nem escrita em produção. A ressalva de autorização do registro anterior refere-se à sessão de 15/10 e não descreve a autorização desta tarefa.
+
+**Implementado e validado localmente: READY_FOR_REVIEW.** Branch `feat/ui-ux-v2.3-20261016`, worktree isolada `/private/tmp/fisiofit-ui-ux-v2.3-20261016`. Painel, pacientes, matrículas/planos, financeiro, prontuários, chamada/reposições, relatórios, usuários, configurações, privacidade, notificações e importações receberam refinamentos de jornada. A Agenda só recebeu integração frontend para abrir registros relacionados e conservar contexto durante o retorno. API v82, contratos, domínio, infraestrutura, schema, migrations/RLS e regras financeiras/Class permanecem sem diff.
+
+Typecheck/lint/build PASS; Vitest91 e Node34 PASS; 410 assertions SQL, 44 requisições HTTP reais locais e dez verificações de navegador autenticado PASS na candidata, com comparação da base também PASS. Galeria sintética: 118 capturas da base e 204 da candidata, mais seis capturas autenticadas de cada; 222 verificações de interface PASS e zero violações axe nos estados registrados. Sem certificação WCAG integral ou validação pela equipe clínica inferida.
+
+Entrega e limites em [UI/UX V2.3](docs/ui-ux-v2.3/RELEASE.md). Não houve push, merge, deploy, escrita no Vault ou sincronização. A pendência anterior de gravação de memória continua no handoff local, conforme instrução explícita do usuário.

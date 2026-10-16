@@ -782,13 +782,13 @@ export function fieldLabel(field: string) {
     user_id: "Usuário", occurred_at: "Data", capacity: "Capacidade",
     duration_minutes: "Duração", council: "Conselho", specialty: "Especialidade", unit_names: "Unidades",
     weekdays: "Dias da semana", weekdays_label: "Dias da semana",
-    plan_name: "Plano", group_name: "Turma",
+    plan_name: "Plano", group_name: "Turma", patient_name: "Paciente", balance_cents: "Saldo pendente", paid_at: "Recebido em", method: "Forma de pagamento",
   };
   return labels[field] ?? field.replaceAll("_", " ");
 }
 export function render(value: any, field: string) {
   if (value == null) return "—";
-  if (field.includes("amount") || field.includes("paid_cents") || field === "price_cents" || field === "total_plan_cents")
+  if (field.includes("amount") || field.includes("paid_cents") || field === "price_cents" || field === "total_plan_cents" || field === "balance_cents")
     return brl(Number(value));
   if (field === "kind") return ({
     monthly: "Mensal", package: "Pacote", single: "Avulso", assessment: "Avaliação", evolution: "Evolução",
@@ -797,6 +797,7 @@ export function render(value: any, field: string) {
     income: "Entrada", expense: "Saída",
   } as Record<string, string>)[String(value)] ?? statusLabel(value);
   if (field === "status") return statusLabel(value);
+  if (field === "method") return ({pix:"PIX",card:"Cartão",cash:"Dinheiro",transfer:"Transferência"} as Record<string,string>)[String(value)] ?? statusLabel(value);
   if (field === "severity") return ({ low: "Baixa", medium: "Média", high: "Alta", critical: "Crítica" } as Record<string, string>)[String(value)] ?? statusLabel(value);
   if (field === "action") return ({ INSERT: "Criação", UPDATE: "Alteração", DELETE: "Exclusão", create: "Criação", update: "Alteração", delete: "Exclusão" } as Record<string, string>)[String(value)] ?? statusLabel(value);
   if (field === "entity_type") return ({ patient: "Paciente", patients: "Paciente", appointment: "Agendamento", appointments: "Agendamento", enrollment: "Matrícula", enrollments: "Matrícula", clinical_record: "Prontuário", clinical_records: "Prontuário", user: "Usuário", profiles: "Usuário" } as Record<string, string>)[String(value)] ?? statusLabel(value);

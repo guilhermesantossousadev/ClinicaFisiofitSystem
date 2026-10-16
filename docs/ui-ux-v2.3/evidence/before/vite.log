@@ -1,0 +1,8 @@
+
+> @fisiofit/portal@1.0.0 dev
+> vite --host 127.0.0.1 --port 57545
+
+
+  VITE v8.1.5  ready in 461 ms
+
+  ➜  Local:   http://127.0.0.1:57545/sistema/

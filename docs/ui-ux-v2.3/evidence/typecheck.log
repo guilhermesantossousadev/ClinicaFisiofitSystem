@@ -1,0 +1,11 @@
+
+> fisiofit-platform@1.0.0 typecheck
+> npm run typecheck --workspaces --if-present
+
+
+> @fisiofit/portal@1.0.0 typecheck
+> tsc --noEmit
+
+
+> @fisiofit/site@1.0.0 typecheck
+> tsc -b --pretty false

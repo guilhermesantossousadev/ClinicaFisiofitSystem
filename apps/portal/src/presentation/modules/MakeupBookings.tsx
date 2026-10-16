@@ -4,6 +4,7 @@ import { useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { SelectField, TextField } from "../components/FormPrimitives";
 import { dateKey, messageOf, ModuleState, type Row, useResources } from "./OperationalShared";
+import { SectionIntro, useModuleState } from "../components/ModuleWorkspace";
 
 const labels: Record<string, string> = { review: "Revisão necessária", eligible: "Disponível", reserved: "Reservado", consumed: "Utilizado", waived: "Encerrado" };
 export function MakeupBookings({ canManage, initialUnit = "" }: { canManage: boolean; initialUnit?: string }) {
@@ -19,6 +20,9 @@ export function MakeupBookings({ canManage, initialUnit = "" }: { canManage: boo
   const paths = ["/makeup-credits", "/units", ...(credit && calendarPath ? [calendarPath] : [])];
   const { data, loading, error, reload } = useResources(paths);
   const credits: Row[] = data["/makeup-credits"] ?? [];
+  const [stateFilter, setStateFilter] = useModuleState("makeups.state", "all");
+  const [query, setQuery] = useModuleState("makeups.query", "");
+  const filteredCredits = credits.filter(item => (stateFilter === 'all' || item.state === stateFilter) && (!query.trim() || String(item.patient_name).toLocaleLowerCase('pt-BR').includes(query.trim().toLocaleLowerCase('pt-BR'))));
   async function act(item: Row, action: string) {
     if (busy) return;
     const reason = action === "reserve" ? null : await requestText("Justificativa da decisão (mínimo 3 caracteres):");
@@ -33,13 +37,16 @@ export function MakeupBookings({ canManage, initialUnit = "" }: { canManage: boo
     <div className="card-head"><div><h2 id="makeup-title">Reposições e créditos</h2><p>Reserva, comparecimento e cancelamento preservam a origem da falta. Elegibilidade sem política definida exige revisão.</p></div></div>
     <ModuleState loading={loading} error={error} retry={reload} />
     {notice && <Notice message={notice} onDismiss={() => setNotice("")} />}
-    {credits.map((item) => <article className="operational-row" key={`${item.legacy}-${item.id}`}><div><strong>{item.patient_name}</strong><small>{item.source_date} · {labels[item.state] ?? item.state}</small>{item.reason && <small>{item.reason}</small>}</div>{canManage && <div className="row-actions">
+    <SectionIntro title="Da falta à reposição">Revise a elegibilidade, reserve uma aula e registre a presença na chamada. Reservar não consome o crédito.</SectionIntro>
+    <div className="collection-toolbar"><TextField label="Buscar crédito por paciente" type="search" value={query} onChange={event => setQuery(event.target.value)} /><SelectField label="Situação do crédito" value={stateFilter} onChange={event => setStateFilter(event.target.value)}><option value="all">Todas as situações</option>{Object.entries(labels).map(([value,label]) => <option key={value} value={value}>{label}</option>)}</SelectField><span role="status">{filteredCredits.length} créditos</span></div>
+    {filteredCredits.map((item) => <article className="operational-row" key={`${item.legacy}-${item.id}`}><div><strong>{item.patient_name}</strong><small>{item.source_date} · {labels[item.state] ?? item.state}</small>{item.reason && <small>{item.reason}</small>}</div>{canManage && <div className="row-actions">
       {item.state === "eligible" && <button type="button" disabled={busy} onClick={() => { setCredit(item); setOccurrence(""); }}>Reservar reposição</button>}
       {item.state === "review" && <button type="button" disabled={busy} onClick={() => void act(item, "approve")}>Autorizar com justificativa</button>}
       {item.state === "reserved" && <button type="button" disabled={busy} onClick={() => void act(item, "return")}>Cancelar e devolver crédito</button>}
       {["review", "eligible", "reserved"].includes(item.state) && <button type="button" disabled={busy} onClick={() => void act(item, "forfeit")}>Encerrar com justificativa</button>}
     </div>}</article>)}
     {!loading && !credits.length && <p className="empty-state">Nenhum crédito de reposição neste escopo.</p>}
+    {!loading && credits.length > 0 && !filteredCredits.length && <div className="empty-state"><strong>Nenhum crédito corresponde aos filtros</strong><button className="btn secondary" onClick={() => { setQuery(''); setStateFilter('all'); }}>Limpar filtros de reposição</button></div>}
     {credit && <div className="modal-form"><h3>Reposição de {credit.patient_name}</h3><div className="form-row">
       <SelectField label="Unidade da reposição" value={unit} onChange={(e) => { setUnit(e.target.value); setOccurrence(""); }}><option value="">Selecione</option>{(data["/units"] ?? []).map((u: Row) => <option key={u.id} value={u.id}>{u.name}</option>)}</SelectField>
       <TextField label="Dia da reposição" type="date" min={dateKey(new Date())} value={day} onChange={(e) => { setDay(e.target.value); setOccurrence(""); }} />

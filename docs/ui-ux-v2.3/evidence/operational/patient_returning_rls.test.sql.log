@@ -1,0 +1,77 @@
+fb230000-0000-4000-8000-000000000003
+ok 1 - original policy permits INSERT without RETURNING
+ok 2 - original policy reads patient after insertion
+ok 3 - original RETURNING failure is the SELECT policy, not INSERT WITH CHECK
+ok 4 - failed original statement leaves no patient
+ok 5 - failed original statement leaves no audit side effect
+fb230000-0000-4000-8000-000000000001
+fb230000-0000-4000-8000-000000000002
+fb230000-0000-4000-8000-000000000003
+fb230000-0000-4000-8000-000000000004
+fb230000-0000-4000-8000-000000000005
+fb230000-0000-4000-8000-000000000006
+fb230000-0000-4000-8000-000000000007
+fb230000-0000-4000-8000-000000000008
+fb230000-0000-4000-8000-000000000001
+ok 6 - existing patient visibility unchanged for profile 1
+fb230000-0000-4000-8000-000000000002
+ok 7 - existing patient visibility unchanged for profile 2
+fb230000-0000-4000-8000-000000000003
+ok 8 - existing patient visibility unchanged for profile 3
+fb230000-0000-4000-8000-000000000004
+ok 9 - existing patient visibility unchanged for profile 4
+fb230000-0000-4000-8000-000000000005
+ok 10 - existing patient visibility unchanged for profile 5
+fb230000-0000-4000-8000-000000000006
+ok 11 - existing patient visibility unchanged for profile 6
+fb230000-0000-4000-8000-000000000007
+ok 12 - existing patient visibility unchanged for profile 7
+fb230000-0000-4000-8000-000000000008
+ok 13 - existing patient visibility unchanged for profile 8
+ok 14 - existing SECURITY DEFINER function and volatility unchanged
+ok 15 - all other patient policies unchanged
+ok 16 - SELECT policy remains restrictive
+ok 17 - RLS remains enabled
+fb230000-0000-4000-8000-000000000001
+ok 18 - admin creates and receives patient
+fb230000-0000-4000-8000-000000000002
+ok 19 - manager creates and receives patient
+fb230000-0000-4000-8000-000000000003
+ok 20 - reception creates and receives patient
+ok 21 - created patient readable by authorized reception
+ok 22 - authorized update returns patient
+ok 23 - update persists requested data
+ok 24 - reception cannot insert into another organization
+ok 25 - mixed authorized/unauthorized batch fails atomically
+ok 26 - failed batch has no partial rows
+ok 27 - failed batch leaves no audit side effects
+fb230000-0000-4000-8000-000000000003
+ok 28 - reception cannot read another unit without a relationship
+ok 29 - reception cannot create in another unit
+ok 30 - UPDATE WITH CHECK still prevents unauthorized unit transfer
+ok 31 - failed transfer preserves original unit
+fb230000-0000-4000-8000-000000000007
+ok 32 - user without patient permission sees no patients
+ok 33 - user without permission cannot create
+fb230000-0000-4000-8000-000000000004
+ok 34 - professional cannot read newly created unassigned patient
+ok 35 - professional cannot create despite module edit permission
+fb230000-0000-4000-8000-000000000005
+ok 36 - professional in another unit cannot read created patient
+fb230000-0000-4000-8000-000000000006
+ok 37 - finance gains no patient-table visibility
+fb230000-0000-4000-8000-000000000008
+ok 38 - foreign organization admin gains no access
+fb230000-0000-4000-8000-000000000001
+{"class": {"id": "f06566f9-6336-4082-be14-847edd08276b", "name": "Synthetic patient access class", "status": "active", "unit_id": "fb230000-0000-4000-8000-000000000020", "clinic_id": "fb230000-0000-4000-8000-000000000010", "created_at": "2026-10-16T08:56:00.549699-03:00", "created_by": "fb230000-0000-4000-8000-000000000001", "service_id": null, "updated_at": "2026-10-16T08:56:00.549699-03:00", "legacy_source": null, "legacy_source_id": null}, "schedule": {"id": "161fa1b7-a7bc-4c2f-b29c-3cb76395e2f0", "room_id": null, "class_id": "f06566f9-6336-4082-be14-847edd08276b", "end_time": "07:00:00", "timezone": "America/Sao_Paulo", "weekdays": ["monday"], "clinic_id": "fb230000-0000-4000-8000-000000000010", "created_at": "2026-10-16T08:56:00.549699-03:00", "created_by": "fb230000-0000-4000-8000-000000000001", "start_time": "06:00:00", "effective_to": null, "legacy_source": null, "effective_from": "2026-10-16", "legacy_source_id": null, "effective_capacity": 1, "planned_professional_id": "fb230000-0000-4000-8000-000000000040"}}
+(151c244b-ce59-46cc-8ab2-a1a03875180c,fb230000-0000-4000-8000-000000000010,f06566f9-6336-4082-be14-847edd08276b,fb230000-0000-4000-8000-000000000064,,2026-10-16,,"2026-10-16 08:56:00.549699-03",fb230000-0000-4000-8000-000000000001,,,{monday})
+fb230000-0000-4000-8000-000000000004
+ok 39 - assigned professional retains legitimate membership-based visibility
+fb230000-0000-4000-8000-000000000005
+ok 40 - unassigned professional remains excluded after membership
+fb230000-0000-4000-8000-000000000001
+ok 41 - soft-deleted patient remains hidden from admin
+fb230000-0000-4000-8000-000000000003
+ok 42 - rollback restores original behavior
+ok 43 - rollback does not remove previously created patient
+1..43

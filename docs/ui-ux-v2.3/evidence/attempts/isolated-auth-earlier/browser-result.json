@@ -1,0 +1,45 @@
+{
+  "passed": false,
+  "checks": [
+    "Real synthetic Auth login",
+    "Dashboard shows persisted Class lesson",
+    "Search reaches patient 110 through server"
+  ],
+  "error": "Error: Browser assertion timed out: daily units",
+  "transport": [
+    {
+      "path": "/auth/v1/token",
+      "status": 204
+    },
+    {
+      "path": "/auth/v1/token",
+      "status": 200
+    }
+  ],
+  "failedApiResponses": [
+    {
+      "path": "/functions/v1/api/v1/notifications",
+      "status": 401,
+      "startedStage": "existing acceptance",
+      "responseStage": "existing acceptance"
+    },
+    {
+      "path": "/functions/v1/api/v1/dashboard",
+      "status": 401,
+      "startedStage": "existing acceptance",
+      "responseStage": "existing acceptance"
+    },
+    {
+      "path": "/functions/v1/api/v1/units",
+      "status": 401,
+      "startedStage": "existing acceptance",
+      "responseStage": "existing acceptance"
+    },
+    {
+      "path": "/functions/v1/api/v1/units",
+      "status": 401,
+      "startedStage": "existing acceptance",
+      "responseStage": "existing acceptance"
+    }
+  ]
+}

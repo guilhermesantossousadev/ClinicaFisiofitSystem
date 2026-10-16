@@ -2,6 +2,8 @@ import { useState, type FormEvent } from "react";
 import { api } from "../../infrastructure/http/api";
 import { SelectField, TextField } from "../components/FormPrimitives";
 import { brl, cents, messageOf, PLAN_PERIODS, type PlanPeriod, type Row, useDialogFocus } from "./OperationalShared";
+import { SectionIntro, useModuleState } from "../components/ModuleWorkspace";
+import { useUnsavedChanges } from "../components/useUnsavedChanges";
 
 export function PlanCatalog({ plans, reload, onNotice }: { plans: Row[]; reload: () => Promise<void>; onNotice: (text: string) => void }) {
   const [editing, setEditing] = useState<Row | null>();
@@ -9,9 +11,13 @@ export function PlanCatalog({ plans, reload, onNotice }: { plans: Row[]; reload:
   const [frequency, setFrequency] = useState(2);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const ref = useDialogFocus(editing !== undefined, () => !saving && setEditing(undefined), !saving);
+  const [catalogQuery, setCatalogQuery] = useModuleState("catalog.query", "");
+  const [availability, setAvailability] = useModuleState("catalog.availability", "active");
+  const draft = useUnsavedChanges(() => setEditing(undefined), saving);
+  const ref = useDialogFocus(editing !== undefined, draft.requestClose, !saving);
+  const visiblePlans = plans.filter(plan => (!catalogQuery.trim() || String(plan.name).toLocaleLowerCase('pt-BR').includes(catalogQuery.trim().toLocaleLowerCase('pt-BR'))) && (availability === 'all' || (availability === 'active' ? plan.active !== false : plan.active === false)));
   function open(plan: Row | null) {
-    setEditing(plan); setError("");
+    setEditing(plan); setError(""); draft.reset();
     const entry = Object.entries(PLAN_PERIODS).find(([, p]) => p.durationDays === Number(plan?.duration_days));
     const next = (entry?.[0] ?? "monthly") as PlanPeriod;
     setPeriod(next); setFrequency(Number(plan?.sessions_included ?? 8) / (PLAN_PERIODS[next].months * 4));
@@ -26,11 +32,13 @@ export function PlanCatalog({ plans, reload, onNotice }: { plans: Row[]; reload:
     } catch (e) { setError(messageOf(e)); } finally { setSaving(false); }
   }
   return <section className="card table-card"><div className="table-toolbar"><div><h2>Gestão de Planos</h2><p>Preços globais do catálogo. Condições particulares são editadas na matrícula.</p></div><button className="btn primary" onClick={() => open(null)}>Criar plano</button></div>
+    <SectionIntro title="Catálogo e contrato têm funções diferentes">O catálogo define novas contratações. Mudanças de plano, vigência e condições particulares são feitas na matrícula e preservam o histórico financeiro.</SectionIntro>
+    <div className="collection-toolbar"><TextField label="Buscar plano no catálogo" type="search" value={catalogQuery} onChange={event => setCatalogQuery(event.target.value)} /><SelectField label="Disponibilidade dos planos" value={availability} onChange={event => setAvailability(event.target.value)}><option value="active">Ativos</option><option value="inactive">Inativos</option><option value="all">Todos</option></SelectField><span role="status">{visiblePlans.length} planos</span></div>
     <div className="plan-catalog-grid">{Object.entries(PLAN_PERIODS).map(([key, duration]) => <section className="card" key={key}><h3>{duration.label}</h3>{[1, 2, 3].map((f) => {
-      const matches = plans.filter((p) => Number(p.duration_days) === duration.durationDays && Number(p.sessions_included) === duration.months * f * 4);
+      const matches = visiblePlans.filter((p) => Number(p.duration_days) === duration.durationDays && Number(p.sessions_included) === duration.months * f * 4);
       return <div className="catalog-option" key={f}><strong>{f}x por semana · {duration.months * f * 4} aulas</strong>{matches.length ? matches.map((p) => <div key={p.id}><span>{p.name} · {brl(Number(p.price_cents))} · {p.active ? "Ativo" : "Inativo"}</span><button className="btn secondary" onClick={() => open(p)}>Editar plano</button></div>) : <p>Não cadastrado — informe o preço ao criar.</p>}</div>;
     })}</section>)}</div>
-    {plans.filter((p) => ![30,90,180].includes(Number(p.duration_days)) || ![1,2,3].includes(Number(p.sessions_included)/(Number(p.duration_days)/30*4))).map((p) => <p key={p.id}>Plano existente: {p.name} · {brl(Number(p.price_cents))}. Revise sua duração e frequência antes de usar na nova gestão.</p>)}
-    {editing !== undefined && <div className="edit-dialog-backdrop"><section ref={ref} className="edit-dialog" role="dialog" aria-modal="true" aria-labelledby="catalog-title" tabIndex={-1}><div className="edit-dialog-header"><h2 id="catalog-title">{editing ? "Editar plano" : "Criar plano"}</h2><button className="dialog-close" aria-label="Fechar plano" disabled={saving} onClick={() => setEditing(undefined)}>×</button></div><form className="modal-form" onSubmit={(e) => void save(e)}>{error && <p role="alert">{error}</p>}<SelectField label="Duração" value={period} onChange={(e) => setPeriod(e.target.value as PlanPeriod)}>{Object.entries(PLAN_PERIODS).map(([key,p]) => <option key={key} value={key}>{p.label}</option>)}</SelectField><SelectField label="Frequência" value={frequency} onChange={(e) => setFrequency(Number(e.target.value))}>{[1,2,3].map((f) => <option key={f} value={f}>{f}x por semana</option>)}</SelectField><p>{PLAN_PERIODS[period].durationDays} dias · {PLAN_PERIODS[period].months * frequency * 4} aulas</p><TextField label="Preço global do período (R$)" name="price" type="number" min="0.01" step="0.01" defaultValue={editing ? Number(editing.price_cents)/100 : ""} required /><SelectField label="Disponibilidade" name="active" defaultValue={editing?.active === false ? "false" : "true"}><option value="true">Ativo</option><option value="false">Inativo</option></SelectField><p>Alterar o preço vale para novas contratações. Os valores já contratados e recebidos são preservados.</p><div className="edit-dialog-actions"><button className="btn secondary" type="button" disabled={saving} onClick={() => setEditing(undefined)}>Cancelar</button><button className="btn primary" disabled={saving}>{saving ? "Salvando…" : "Salvar plano"}</button></div></form></section></div>}
+    {visiblePlans.filter((p) => ![30,90,180].includes(Number(p.duration_days)) || ![1,2,3].includes(Number(p.sessions_included)/(Number(p.duration_days)/30*4))).map((p) => <p key={p.id}>Plano existente: {p.name} · {brl(Number(p.price_cents))}. Revise sua duração e frequência antes de usar na nova gestão.</p>)}
+    {editing !== undefined && <div className="edit-dialog-backdrop"><section ref={ref} className="edit-dialog" role="dialog" aria-modal="true" aria-labelledby="catalog-title" tabIndex={-1}><div className="edit-dialog-header"><h2 id="catalog-title">{editing ? "Editar plano" : "Criar plano"}</h2><button className="dialog-close" aria-label="Fechar plano" disabled={saving} onClick={() => void draft.requestClose()}>×</button></div><form className="modal-form" onInput={draft.markDirty} onSubmit={(e) => void save(e)}>{error && <p role="alert">{error}</p>}<SelectField label="Duração" value={period} onChange={(e) => setPeriod(e.target.value as PlanPeriod)}>{Object.entries(PLAN_PERIODS).map(([key,p]) => <option key={key} value={key}>{p.label}</option>)}</SelectField><SelectField label="Frequência" value={frequency} onChange={(e) => setFrequency(Number(e.target.value))}>{[1,2,3].map((f) => <option key={f} value={f}>{f}x por semana</option>)}</SelectField><p>{PLAN_PERIODS[period].durationDays} dias · {PLAN_PERIODS[period].months * frequency * 4} aulas</p><TextField label="Preço global do período (R$)" name="price" type="number" min="0.01" step="0.01" defaultValue={editing ? Number(editing.price_cents)/100 : ""} required /><SelectField label="Disponibilidade" name="active" defaultValue={editing?.active === false ? "false" : "true"}><option value="true">Ativo</option><option value="false">Inativo</option></SelectField><p>Alterar o preço vale para novas contratações. Os valores já contratados e recebidos são preservados.</p><div className="edit-dialog-actions"><button className="btn secondary" type="button" disabled={saving} onClick={() => void draft.requestClose()}>Cancelar</button><button className="btn primary" disabled={saving}>{saving ? "Salvando…" : "Salvar plano"}</button></div></form></section></div>}
   </section>;
 }

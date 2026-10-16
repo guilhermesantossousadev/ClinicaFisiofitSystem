@@ -5,13 +5,18 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { SelectField, TextField } from "../components/FormPrimitives";
 import { dateKey, messageOf, ModuleState, type Row, useResources } from "./OperationalShared";
+import { DetailPanel, Facts, RelatedActions, useModuleState, useWorkspace } from "../components/ModuleWorkspace";
 
 type AttendanceResponse = { slots: Row[]; makeups: Row[] };
 
 export function OperationalDailyAttendance({ canEdit = true, canManageMakeups = false }: { canEdit?: boolean; canManageMakeups?: boolean }) {
   const [selectedUnitId, setSelectedUnitId] = useState(() => window.localStorage.getItem("fisiofit:selected-unit") ?? "");
-  const [selectedDate, setSelectedDate] = useState(() => dateKey(new Date()));
-  const [selectedSlotId, setSelectedSlotId] = useState("");
+  const workspace = useWorkspace();
+  const [selectedDate, setSelectedDate] = useModuleState("attendance.date", () => dateKey(new Date()));
+  const [selectedSlotId, setSelectedSlotId] = useModuleState("attendance.slot", "");
+  const [rosterQuery, setRosterQuery] = useModuleState("attendance.query", "");
+  const [rosterFilter, setRosterFilter] = useModuleState("attendance.filter", "all");
+  const [historyMember, setHistoryMember] = useState<Row | null>(null);
   const [notice, setNotice] = useState("");
   const [savingId, setSavingId] = useState("");
   const markPending = useRef(false);
@@ -62,7 +67,7 @@ export function OperationalDailyAttendance({ canEdit = true, canManageMakeups = 
 
   return <div className="content daily-attendance">
     <div className="page-title daily-attendance-title">
-      <div><p className="eyebrow">TURMAS E REPOSIÇÕES</p><h1>Chamada diária</h1><p>Confira os pacientes de cada horário e registre quem veio ou faltou.</p></div>
+      <div><p className="eyebrow">TURMAS E REPOSIÇÕES</p><h1>Chamada diária</h1><p>Confira os pacientes de cada horário e registre quem veio ou faltou.</p></div>{workspace?.allowed.includes('Agenda') && <button type="button" className="btn secondary" onClick={() => workspace.open('Agenda', undefined, selectedDate, selectedSlot?.members?.[0]?.occurrence_id)}>Abrir na agenda</button>}
     </div>
     <section className="card attendance-filters" aria-labelledby="attendance-filters-title">
       <div><p className="eyebrow">SELECIONE A TURMA</p><h2 id="attendance-filters-title">Unidade, dia e horário</h2><p>Ao escolher o horário, os pacientes e o fisioterapeuta aparecem automaticamente.</p></div>
@@ -93,14 +98,15 @@ export function OperationalDailyAttendance({ canEdit = true, canManageMakeups = 
         <div><span>Pacientes</span><strong>{members.length}</strong></div><div><span>Presentes</span><strong>{present}</strong></div><div><span>Faltas</span><strong>{absent}</strong></div><div><span>Sem marcar</span><strong>{pending}</strong></div>
       </section>}
       {selectedSlot && <div className="attendance-day-heading"><h2>{formattedDate}</h2><p>Horário e equipe selecionados</p></div>}
+      {selectedSlot && <div className="collection-toolbar card"><TextField label="Buscar na turma" type="search" value={rosterQuery} onChange={event => setRosterQuery(event.target.value)} /><SelectField label="Situação da chamada" value={rosterFilter} onChange={event => setRosterFilter(event.target.value)}><option value="all">Todos os pacientes</option><option value="pending">Sem marcar</option><option value="present">Presentes</option><option value="absent">Faltas</option></SelectField><p role="status">{pending ? `${pending} de ${members.length} pacientes ainda sem marcar` : 'Chamada preenchida para todos os pacientes'}</p></div>}
       {selectedSlot ? <div className="attendance-slot-list"><section className="card attendance-card" key={selectedSlot.id}>
         {(() => { const slot = selectedSlot; return <>
         <div className="card-head attendance-slot-head"><div><p className="eyebrow">{slot.units?.name ?? "UNIDADE"}</p><h2>Horário {String(slot.starts_at).slice(0, 5)}</h2><p>{slot.professionals?.name ?? "Profissional não informado"} · {slot.services?.name ?? slot.name}</p></div><strong>{slot.members?.length ?? 0} pacientes</strong></div>
-        {slot.members?.length ? <div className="attendance-list">{slot.members.map((member: Row) => {
+        {slot.members?.length ? <div className="attendance-list">{slot.members.filter((member: Row) => (!rosterQuery.trim() || String(member.patients?.name).toLocaleLowerCase('pt-BR').includes(rosterQuery.trim().toLocaleLowerCase('pt-BR'))) && (rosterFilter === 'all' || (rosterFilter === 'pending' ? !member.attendance : member.attendance?.status === rosterFilter))).map((member: Row) => {
           const status = member.attendance?.status as "present" | "absent" | undefined;
           const busy = savingId === member.id;
           return <article className="attendance-row" key={member.id} aria-busy={busy}>
-            <div className="attendance-person"><strong>{member.patients?.name ?? "Paciente"}</strong><span>{member.patients?.phone ?? "Telefone não informado"}</span></div>
+            <div className="attendance-person"><strong>{member.patients?.name ?? "Paciente"}</strong><span>{member.attendance?.occurrence_status ? `Registro: ${member.attendance.occurrence_status}` : 'Participante desta aula'}</span><button className="text-button" onClick={() => setHistoryMember(member)}>Histórico e ficha</button></div>
             <span className={`status ${status === "present" ? "success" : status === "absent" ? "danger" : "neutral"}`}>{status === "present" ? "Presente" : status === "absent" ? "Faltou" : "Sem marcar"}</span>
             {canEdit ? <div className="attendance-actions" aria-label={`Registrar chamada de ${member.patients?.name ?? "paciente"}`}>
               <button type="button" className={status === "present" ? "attendance-action present selected" : "attendance-action present"} disabled={Boolean(savingId) || isFuture} onClick={() => void markAttendance(member, "present")} aria-pressed={status === "present"}>Veio</button>
@@ -112,5 +118,6 @@ export function OperationalDailyAttendance({ canEdit = true, canManageMakeups = 
       </section></div> : <div className="card attendance-empty"><strong>{selectedUnitId ? response.slots.length ? "Selecione um horário" : "Nenhuma turma fixa nesta data" : "Selecione a unidade"}</strong><p>{selectedUnitId ? response.slots.length ? "Depois da escolha, pacientes e fisioterapeuta serão carregados automaticamente." : "Os pacientes aparecerão conforme os dias e períodos cadastrados na Agenda." : "Comece escolhendo a unidade da clínica para fazer a chamada."}</p></div>}
       <MakeupBookings key={selectedUnitId} canManage={canEdit && canManageMakeups} initialUnit={selectedUnitId} />
     </>}
+    {historyMember && <DetailPanel title={historyMember.patients?.name || 'Paciente'} eyebrow="CHAMADA E HISTÓRICO" onClose={() => setHistoryMember(null)}><Facts items={[["Dia", formattedDate], ["Registro atual", historyMember.attendance?.status === 'present' ? 'Presente' : historyMember.attendance?.status === 'absent' ? 'Faltou' : 'Sem marcar'], ["Observações", historyMember.attendance?.notes || 'Sem observações']]} /><h3>Correções registradas</h3>{(historyMember.attendance?.history ?? []).map((item: Row,index: number) => <article className="history-correction" key={index}><strong>{item.before_status} → {item.after_status}</strong><p>{item.reason}</p><small>{new Date(item.created_at).toLocaleString('pt-BR')}</small></article>)}{!historyMember.attendance?.history?.length && <p>Nenhuma correção neste registro.</p>}<RelatedActions patient={{id:historyMember.patient_id,name:historyMember.patients?.name || 'Paciente'}} /></DetailPanel>}
   </div>;
 }

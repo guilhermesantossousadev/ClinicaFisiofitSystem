@@ -1,0 +1,2295 @@
+{
+  "error": "Error: Missing control Novo paciente",
+  "checks": [],
+  "shots": [
+    {
+      "name": "painel-1440",
+      "width": 1440,
+      "path": "before/painel-1440.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 27
+    },
+    {
+      "name": "painel-1280",
+      "width": 1280,
+      "path": "before/painel-1280.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 27
+    },
+    {
+      "name": "painel-768",
+      "width": 768,
+      "path": "before/painel-768.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 27
+    },
+    {
+      "name": "painel-390",
+      "width": 390,
+      "path": "before/painel-390.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 27
+    },
+    {
+      "name": "pacientes-1440",
+      "width": 1440,
+      "path": "before/pacientes-1440.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 29
+    },
+    {
+      "name": "pacientes-1280",
+      "width": 1280,
+      "path": "before/pacientes-1280.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 29
+    },
+    {
+      "name": "pacientes-768",
+      "width": 768,
+      "path": "before/pacientes-768.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 30
+    },
+    {
+      "name": "pacientes-390",
+      "width": 390,
+      "path": "before/pacientes-390.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 30
+    },
+    {
+      "name": "matriculas-1440",
+      "width": 1440,
+      "path": "before/matriculas-1440.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 30
+    },
+    {
+      "name": "matriculas-1280",
+      "width": 1280,
+      "path": "before/matriculas-1280.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 30
+    },
+    {
+      "name": "matriculas-768",
+      "width": 768,
+      "path": "before/matriculas-768.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 30
+    },
+    {
+      "name": "matriculas-390",
+      "width": 390,
+      "path": "before/matriculas-390.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 31
+    },
+    {
+      "name": "financeiro-1440",
+      "width": 1440,
+      "path": "before/financeiro-1440.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 29
+    },
+    {
+      "name": "financeiro-1280",
+      "width": 1280,
+      "path": "before/financeiro-1280.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 29
+    },
+    {
+      "name": "financeiro-768",
+      "width": 768,
+      "path": "before/financeiro-768.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 30
+    },
+    {
+      "name": "financeiro-390",
+      "width": 390,
+      "path": "before/financeiro-390.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 30
+    },
+    {
+      "name": "prontuarios-1440",
+      "width": 1440,
+      "path": "before/prontuarios-1440.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 28
+    },
+    {
+      "name": "prontuarios-1280",
+      "width": 1280,
+      "path": "before/prontuarios-1280.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 28
+    },
+    {
+      "name": "prontuarios-768",
+      "width": 768,
+      "path": "before/prontuarios-768.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 28
+    },
+    {
+      "name": "prontuarios-390",
+      "width": 390,
+      "path": "before/prontuarios-390.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 28
+    },
+    {
+      "name": "chamada-diaria-1440",
+      "width": 1440,
+      "path": "before/chamada-diaria-1440.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 27
+    },
+    {
+      "name": "chamada-diaria-1280",
+      "width": 1280,
+      "path": "before/chamada-diaria-1280.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 27
+    },
+    {
+      "name": "chamada-diaria-768",
+      "width": 768,
+      "path": "before/chamada-diaria-768.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 27
+    },
+    {
+      "name": "chamada-diaria-390",
+      "width": 390,
+      "path": "before/chamada-diaria-390.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 27
+    },
+    {
+      "name": "relatorios-1440",
+      "width": 1440,
+      "path": "before/relatorios-1440.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 29
+    },
+    {
+      "name": "relatorios-1280",
+      "width": 1280,
+      "path": "before/relatorios-1280.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 29
+    },
+    {
+      "name": "relatorios-768",
+      "width": 768,
+      "path": "before/relatorios-768.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 30
+    },
+    {
+      "name": "relatorios-390",
+      "width": 390,
+      "path": "before/relatorios-390.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 30
+    },
+    {
+      "name": "usuarios-1440",
+      "width": 1440,
+      "path": "before/usuarios-1440.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 27
+    },
+    {
+      "name": "usuarios-1280",
+      "width": 1280,
+      "path": "before/usuarios-1280.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 27
+    },
+    {
+      "name": "usuarios-768",
+      "width": 768,
+      "path": "before/usuarios-768.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 27
+    },
+    {
+      "name": "usuarios-390",
+      "width": 390,
+      "path": "before/usuarios-390.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 27
+    },
+    {
+      "name": "configuracoes-1440",
+      "width": 1440,
+      "path": "before/configuracoes-1440.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 31
+    },
+    {
+      "name": "configuracoes-1280",
+      "width": 1280,
+      "path": "before/configuracoes-1280.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 31
+    },
+    {
+      "name": "configuracoes-768",
+      "width": 768,
+      "path": "before/configuracoes-768.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 32
+    },
+    {
+      "name": "configuracoes-390",
+      "width": 390,
+      "path": "before/configuracoes-390.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 32
+    },
+    {
+      "name": "privacidade-1440",
+      "width": 1440,
+      "path": "before/privacidade-1440.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 29
+    },
+    {
+      "name": "privacidade-1280",
+      "width": 1280,
+      "path": "before/privacidade-1280.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 29
+    },
+    {
+      "name": "privacidade-768",
+      "width": 768,
+      "path": "before/privacidade-768.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 29
+    },
+    {
+      "name": "privacidade-390",
+      "width": 390,
+      "path": "before/privacidade-390.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 30
+    },
+    {
+      "name": "importacoes-1440",
+      "width": 1440,
+      "path": "before/importacoes-1440.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 27
+    },
+    {
+      "name": "importacoes-1280",
+      "width": 1280,
+      "path": "before/importacoes-1280.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 27
+    },
+    {
+      "name": "importacoes-768",
+      "width": 768,
+      "path": "before/importacoes-768.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 27
+    },
+    {
+      "name": "importacoes-390",
+      "width": 390,
+      "path": "before/importacoes-390.png",
+      "overflow": false,
+      "dialogs": [],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 27
+    },
+    {
+      "name": "patient-details-1440",
+      "width": 1440,
+      "path": "before/patient-details-1440.png",
+      "overflow": false,
+      "dialogs": [
+        {
+          "contained": true
+        }
+      ],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 24
+    },
+    {
+      "name": "patient-details-1280",
+      "width": 1280,
+      "path": "before/patient-details-1280.png",
+      "overflow": false,
+      "dialogs": [
+        {
+          "contained": true
+        }
+      ],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 24
+    },
+    {
+      "name": "patient-details-768",
+      "width": 768,
+      "path": "before/patient-details-768.png",
+      "overflow": false,
+      "dialogs": [
+        {
+          "contained": true
+        }
+      ],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 24
+    },
+    {
+      "name": "patient-details-390",
+      "width": 390,
+      "path": "before/patient-details-390.png",
+      "overflow": false,
+      "dialogs": [
+        {
+          "contained": true
+        }
+      ],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 25
+    },
+    {
+      "name": "patient-edit-1440",
+      "width": 1440,
+      "path": "before/patient-edit-1440.png",
+      "overflow": false,
+      "dialogs": [
+        {
+          "contained": true
+        }
+      ],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 26
+    },
+    {
+      "name": "patient-edit-1280",
+      "width": 1280,
+      "path": "before/patient-edit-1280.png",
+      "overflow": false,
+      "dialogs": [
+        {
+          "contained": true
+        }
+      ],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 26
+    },
+    {
+      "name": "patient-edit-768",
+      "width": 768,
+      "path": "before/patient-edit-768.png",
+      "overflow": false,
+      "dialogs": [
+        {
+          "contained": true
+        }
+      ],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 26
+    },
+    {
+      "name": "patient-edit-390",
+      "width": 390,
+      "path": "before/patient-edit-390.png",
+      "overflow": false,
+      "dialogs": [
+        {
+          "contained": true
+        }
+      ],
+      "unlabelled": 0,
+      "violations": [],
+      "passes": 26
+    }
+  ],
+  "errors": [],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/me",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/me",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/notifications",
+      "query": "?channel=internal&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/notifications",
+      "query": "?channel=internal&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=20&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=20&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/me",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=20&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/me",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=20&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=20&includeOperational=true&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/notifications",
+      "query": "?channel=internal&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/notifications",
+      "query": "?channel=internal&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/plans",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/enrollments",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/professionals",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/me",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/enrollment-price-terms",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/professionals",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/me",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/plans",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/enrollments",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/enrollment-price-terms",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/plans",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/professionals",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/enrollment-price-terms",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/plans",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/enrollments",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/enrollment-price-terms",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/professionals",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/enrollments",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/enrollments",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/plans",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/enrollment-price-terms",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/group-slots",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/charges",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/payments",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/professionals",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/notifications",
+      "query": "?channel=internal&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/notifications",
+      "query": "?channel=internal&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/financial-entries",
+      "query": "?from=2026-10-01&to=2026-10-31&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/charges",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/payments",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/commissions",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/professionals",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/me",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/financial-entries",
+      "query": "?from=2026-10-01&to=2026-10-31&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/charges",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/payments",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/me",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/commissions",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/professionals",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/professionals",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/financial-entries",
+      "query": "?from=2026-10-01&to=2026-10-31&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/charges",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/payments",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/commissions",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/financial-entries",
+      "query": "?from=2026-10-01&to=2026-10-31&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/charges",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/professionals",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/commissions",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/payments",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/notifications",
+      "query": "?channel=internal&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/notifications",
+      "query": "?channel=internal&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/professionals",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/record-templates",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/professionals",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/record-templates",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/me",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/professionals",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/record-templates",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/professionals",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/me",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/record-templates",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/notifications",
+      "query": "?channel=internal&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/notifications",
+      "query": "?channel=internal&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/me",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/attendance/daily",
+      "query": "?date=2026-10-16&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/me",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/attendance/daily",
+      "query": "?date=2026-10-16&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/attendance/daily",
+      "query": "?date=2026-10-16&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/attendance/daily",
+      "query": "?date=2026-10-16&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/makeup-credits",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/notifications",
+      "query": "?channel=internal&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/makeup-credits",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/notifications",
+      "query": "?channel=internal&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/reports/annual",
+      "query": "?year=2026&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/me",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/reports/annual",
+      "query": "?year=2026&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/me",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/notifications",
+      "query": "?channel=internal&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/notifications",
+      "query": "?channel=internal&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/users",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/me",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/users",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/me",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/users",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/users",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/notifications",
+      "query": "?channel=internal&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/notifications",
+      "query": "?channel=internal&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/rooms",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/professionals",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/services",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/record-templates",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/me",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/rooms",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/record-templates",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/services",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/professionals",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/rooms",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/me",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/record-templates",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/services",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/professionals",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/rooms",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/record-templates",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/services",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/professional-profiles",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/professionals",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/rooms",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/makeup-policy",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/record-templates",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/services",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/professionals",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/makeup-policy",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/notifications",
+      "query": "?channel=internal&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/notifications",
+      "query": "?channel=internal&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/privacy/requests",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/audit",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/me",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/privacy/requests",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/audit",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/me",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/privacy/requests",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/audit",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/privacy/requests",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/audit",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/privacy/incidents",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/privacy/requests",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/audit",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/notifications",
+      "query": "?channel=internal&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/notifications",
+      "query": "?channel=internal&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/me",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/imports",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/me",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/imports",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/notifications",
+      "query": "?channel=internal&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/notifications",
+      "query": "?channel=internal&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=20&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=20&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/me",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=20&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/me",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=20&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=20&includeOperational=true&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients",
+      "query": "?page=1&pageSize=100&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/units",
+      "query": "",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/notifications",
+      "query": "?channel=internal&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/notifications",
+      "query": "?channel=internal&unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients/f2000000-0000-4000-8000-000000000003/responsibles",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients/f2000000-0000-4000-8000-000000000003/consents",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "/patients/f2000000-0000-4000-8000-000000000003/timeline",
+      "query": "?unitId=f2000000-0000-4000-8000-000000000001",
+      "body": {}
+    }
+  ]
+}

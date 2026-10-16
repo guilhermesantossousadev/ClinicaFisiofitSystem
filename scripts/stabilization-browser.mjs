@@ -14,13 +14,14 @@ export async function browserAcceptance({proxyOrigin,anonKey,account,financeAcco
  const vite=spawn(process.execPath,[resolve(uiRoot,'node_modules/vite/bin/vite.js'),'--host','127.0.0.1','--port','57435','--strictPort'],{cwd:resolve(uiRoot,'apps/portal'),env:{...process.env,VITE_SUPABASE_URL:proxyOrigin,VITE_SUPABASE_ANON_KEY:anonKey},stdio:['ignore','pipe','pipe']});children.push(vite);
  const viteLog=createWriteStream(resolve(output,'browser-vite.log'));vite.stdout.pipe(viteLog);vite.stderr.pipe(viteLog);
  const chrome=spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',['--headless=new','--no-first-run','--no-default-browser-check','--disable-extensions','--remote-debugging-address=127.0.0.1','--remote-debugging-port=57433',`--user-data-dir=${profile}`,'about:blank'],{stdio:['ignore','ignore','ignore']});children.push(chrome);
- let socket;const checks=[],network=[];let auditStage='existing acceptance';const requestStages=new Map(),inFlight=new Set();
+ let socket;const checks=[],network=[],transport=[];let auditStage='existing acceptance';const requestStages=new Map(),inFlight=new Set();
  try {
   let targets;
   for(let n=0;n<300;n++){if(vite.exitCode!==null)throw new Error('Candidate UI server exited; inspect browser-vite.log');try{targets=await(await fetch(debug+'/json/list')).json();if(targets.some(t=>t.type==='page')&&(await fetch(origin+'/sistema/')).ok)break;}catch{}await pause(100);}
   if(!targets?.some(t=>t.type==='page'))throw new Error('Native Chrome did not start');
   socket=new WebSocket(targets.find(t=>t.type==='page').webSocketDebuggerUrl);
   await new Promise((ok,fail)=>{socket.addEventListener('open',ok,{once:true});socket.addEventListener('error',fail,{once:true});});
+  socket.addEventListener('message',event=>{const message=JSON.parse(event.data);if(message.method==='Network.responseReceived'&&message.params.response.url.includes('/auth/v1/'))transport.push({path:new URL(message.params.response.url).pathname,status:message.params.response.status});if(message.method==='Network.loadingFailed')transport.push({error:message.params.errorText,cors:message.params.corsErrorStatus});});
   let sequence=0;const pending=new Map();
   socket.addEventListener('message',e=>{const m=JSON.parse(e.data);if(m.id){const p=pending.get(m.id);if(p){pending.delete(m.id);m.error?p.reject(new Error(m.error.message)):p.resolve(m.result);}}else if(m.method==='Network.requestWillBeSent'&&m.params.request.url.includes('/functions/v1/')){requestStages.set(m.params.requestId,auditStage);inFlight.add(m.params.requestId);}else if(['Network.loadingFinished','Network.loadingFailed'].includes(m.method)){inFlight.delete(m.params.requestId);}else if(m.method==='Network.responseReceived'&&m.params.response.url.includes('/functions/v1/'))network.push({path:new URL(m.params.response.url).pathname,status:m.params.response.status,startedStage:requestStages.get(m.params.requestId),responseStage:auditStage});});
   const send=(method,params={})=>new Promise((resolve,reject)=>{const id=++sequence;pending.set(id,{resolve,reject});socket.send(JSON.stringify({id,method,params}));});
@@ -92,6 +93,6 @@ export async function browserAcceptance({proxyOrigin,anonKey,account,financeAcco
   const failed=network.filter(n=>n.status>=400);if(failed.length)throw new Error(`UI made ${failed.length} failed API requests`);
   writeFileSync(resolve(output,'browser-result.json'),JSON.stringify({passed:true,checks,apiResponses:network.length,failedApiResponses:failed.length},null,2)+'\n');console.log(`Native browser acceptance PASS (${checks.length} UI checks).`);
   await send('Browser.close').catch(()=>{});
- }catch(error){writeFileSync(resolve(output,'browser-result.json'),JSON.stringify({passed:false,checks,error:String(error),failedApiResponses:network.filter(n=>n.status>=400)},null,2)+'\n');throw error;
+ }catch(error){writeFileSync(resolve(output,'browser-result.json'),JSON.stringify({passed:false,checks,error:String(error),transport,failedApiResponses:network.filter(n=>n.status>=400)},null,2)+'\n');throw error;
  }finally{socket?.close();chrome.kill('SIGTERM');vite.kill('SIGTERM');await pause(500);viteLog.end();rmSync(profile,{recursive:true,force:true});}
 }

@@ -7,6 +7,7 @@ import { TextareaField, TextField } from "../components/FormPrimitives";
 import { type Row, brl, dateKey, messageOf, useDialogFocus } from "./OperationalShared";
 
 import { useUnsavedChanges } from "../components/useUnsavedChanges";
+import { RelatedActions, useModuleState } from "../components/ModuleWorkspace";
 
 type PaymentFilter = "all" | "paid" | "open" | "unbilled";
 
@@ -17,10 +18,10 @@ function coverageLabel(row: MonthlyPaymentRow) { const format = (date: string) =
 function stateLabel(state: MonthlyPaymentRow["state"]) { return ({ paid: "✓ Pago", partial: "Parcial", overdue: "Em aberto", pending: "Em aberto", unbilled: "Sem cobrança", cancelled: "Cancelada" } as const)[state]; }
 function stateDescription(row: MonthlyPaymentRow) { if (row.state === "unbilled") return "A cobrança deste período ainda não foi criada."; if (row.state === "paid") return row.coverageFrom.slice(0, 7) === row.coverageTo.slice(0, 7) ? "Recebimento registrado para este período." : "Coberto por pagamento de período anterior."; if (row.state === "partial") return `${brl(row.balanceCents)} ainda pendente.`; return `Vencimento em ${dateLabel(row.dueAt)}.`; }
 
-export function MonthlyPayments({ data, month, onMonth, canEdit, canCorrectChargeAmounts = false, reload, onNotice, onRegisterPayment, onChangePlan }: { data: Record<string, Row[]>; month: string; onMonth: (month: string) => void; canEdit: boolean; canCorrectChargeAmounts?: boolean; reload: () => Promise<void>; onNotice: (text: string) => void; onRegisterPayment?: (row: MonthlyPaymentRow) => void; onChangePlan?: (enrollmentId: string) => void }) {
+export function MonthlyPayments({ data, patientId, month, onMonth, canEdit, canCorrectChargeAmounts = false, reload, onNotice, onRegisterPayment, onChangePlan }: { data: Record<string, Row[]>; patientId?: string; month: string; onMonth: (month: string) => void; canEdit: boolean; canCorrectChargeAmounts?: boolean; reload: () => Promise<void>; onNotice: (text: string) => void; onRegisterPayment?: (row: MonthlyPaymentRow) => void; onChangePlan?: (enrollmentId: string) => void }) {
   const [savingEnrollmentId, setSavingEnrollmentId] = useState("");
-  const [filter, setFilter] = useState<PaymentFilter>("all");
-  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useModuleState<PaymentFilter>("monthly.filter", "all");
+  const [search, setSearch] = useModuleState("monthly.search", "");
   const [confirmingRow, setConfirmingRow] = useState<MonthlyPaymentRow | null>(null);
   const [editingCharge, setEditingCharge] = useState<MonthlyPaymentRow | null>(null);
   const [editingContract, setEditingContract] = useState<MonthlyPaymentRow | null>(null);
@@ -35,7 +36,7 @@ export function MonthlyPayments({ data, month, onMonth, canEdit, canCorrectCharg
   const patients: Row[] = (data["/patients?page=1&pageSize=100"] as unknown as { items?: Row[] })?.items ?? [];
   const charges: Row[] = data["/charges"] ?? [];
   const terms = data["/enrollment-price-terms"] ?? [];
-  const rows = useMemo(() => buildMonthlyPaymentRows({ month, enrollments, patients, plans, charges, terms }), [month, enrollments, patients, plans, charges, terms]);
+  const rows = useMemo(() => buildMonthlyPaymentRows({ month, enrollments, patients, plans, charges, terms }).filter(row => !patientId || row.patientId === patientId), [month, enrollments, patients, plans, charges, terms, patientId]);
   const [operationError, setOperationError] = useState("");
   const filteredRows = rows.filter((row) => (!search.trim() || `${row.patientName} ${row.planName}`.toLocaleLowerCase("pt-BR").includes(search.trim().toLocaleLowerCase("pt-BR"))) && (filter === "all" || (filter === "paid" && row.state === "paid") || (filter === "open" && ["pending", "partial", "overdue"].includes(row.state)) || (filter === "unbilled" && row.state === "unbilled")));
   const paidCount = rows.filter((row) => row.state === "paid").length;
@@ -109,6 +110,6 @@ function PatientPlanRow({ row, canEdit, canCorrectChargeAmounts, saving, onCreat
     {(row.discountCents > 0 || row.surchargeCents > 0) && <p>Condição particular: desconto {brl(row.discountCents)} · adicional {brl(row.surchargeCents)}.</p>}
     {row.expectedAmountCents === null && <p>Preço contratado ainda não confirmado para esta vigência. Revise a condição contratual.</p>}
     <div className="patient-plan-financial"><div><span className={`plan-status payment-status-${row.state}`}>{stateLabel(row.state)}</span><small>{stateDescription(row)}</small></div><div className="patient-plan-value"><span>Devido no período</span><strong>{displayAmount}</strong><small>Recebido: {brl(row.paidCents)} · Saldo: {brl(row.balanceCents)}</small></div><div className="patient-plan-action-set">{action}{onChangePlan && <button type="button" className="btn secondary" disabled={saving} onClick={onChangePlan}>Trocar plano</button>}{canCorrectChargeAmounts && <button type="button" className="btn secondary" disabled={saving} onClick={onEditContract}>Editar condição contratual</button>}</div></div>
-    <details className="patient-plan-details"><summary>Ver detalhes <span aria-hidden="true">⌄</span></summary><div><Info label="Plano" value={row.planName} /><Info label="Cobertura" value={coverageLabel(row)} /><Info label="Vencimento" value={dateLabel(row.dueAt)} /><Info label="Cobrança" value={row.chargeId ? `#${row.chargeId}` : "Ainda não criada"} />{!row.chargeId && <Info label="Valor esperado" value={displayAmount} />}{row.chargeId && <Info label="Saldo" value={brl(row.balanceCents)} />}</div></details>
+    <details className="patient-plan-details"><summary>Ver detalhes <span aria-hidden="true">⌄</span></summary><div><Info label="Plano" value={row.planName} /><Info label="Cobertura" value={coverageLabel(row)} /><Info label="Vencimento" value={dateLabel(row.dueAt)} /><Info label="Cobrança" value={row.chargeId ? `#${row.chargeId}` : "Ainda não criada"} />{!row.chargeId && <Info label="Valor esperado" value={displayAmount} />}{row.chargeId && <Info label="Saldo" value={brl(row.balanceCents)} />}</div><RelatedActions patient={{id:row.patientId,name:row.patientName}} exclude="Matrículas" /></details>
   </article>;
 }

@@ -1,0 +1,6 @@
+{
+  "passed": false,
+  "checks": [],
+  "error": "Error: Browser assertion timed out: authenticated portal",
+  "failedApiResponses": []
+}

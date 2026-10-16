@@ -1,0 +1,112 @@
+{
+  "status": "READY_FOR_REVIEW",
+  "base": "f256de6369f98567fabaf9139658c6de8e4af517",
+  "sourceDigest": "8c69d5f72c39b1a2cda5a8533357d8041f4ed986bc7f7a7f48ecde1299cc64b9",
+  "gates": {
+    "exactBase": true,
+    "protectedPathsUnchanged": true,
+    "quality": true,
+    "baseline": true,
+    "visual": true,
+    "operational": true
+  },
+  "visualShots": {
+    "before": 118,
+    "after": 204
+  },
+  "authenticatedShots": {
+    "before": 6,
+    "after": 6
+  },
+  "visualChecks": 222,
+  "operational": [
+    {
+      "name": "repository-baseline-replay",
+      "passed": true
+    },
+    {
+      "name": "migration-existing-data-preservation",
+      "passed": true
+    },
+    {
+      "name": "202610150008_operational_stabilization.sql",
+      "passed": true
+    },
+    {
+      "name": "202610150009_patient_returning_rls.sql",
+      "passed": true
+    },
+    {
+      "name": "authorization.test.sql",
+      "passed": true,
+      "assertions": 39
+    },
+    {
+      "name": "correct_unpaid_charge_amount.test.sql",
+      "passed": true,
+      "assertions": 17
+    },
+    {
+      "name": "database.test.sql",
+      "passed": true,
+      "assertions": 19
+    },
+    {
+      "name": "enrollment_contract_amount.test.sql",
+      "passed": true,
+      "assertions": 23
+    },
+    {
+      "name": "financial_api_permissions.test.sql",
+      "passed": true,
+      "assertions": 26
+    },
+    {
+      "name": "financial_charge_status.test.sql",
+      "passed": true,
+      "assertions": 26
+    },
+    {
+      "name": "financial_enrollment_read_permissions.test.sql",
+      "passed": true,
+      "assertions": 30
+    },
+    {
+      "name": "financial_plans_release.test.sql",
+      "passed": true,
+      "assertions": 53
+    },
+    {
+      "name": "financial_reception_permissions.test.sql",
+      "passed": true,
+      "assertions": 17
+    },
+    {
+      "name": "operational_stabilization.test.sql",
+      "passed": true,
+      "assertions": 86
+    },
+    {
+      "name": "patient_enrollment_saving.test.sql",
+      "passed": true,
+      "assertions": 31
+    },
+    {
+      "name": "patient_returning_rls.test.sql",
+      "passed": true,
+      "assertions": 43
+    },
+    {
+      "name": "guarded-reconciliation-synthetic",
+      "passed": true
+    },
+    {
+      "name": "authenticated-http",
+      "passed": true,
+      "requests": 44
+    }
+  ],
+  "published": false,
+  "synthetic": true,
+  "vaultWrite": "Deferred by explicit user instruction; local handoff only"
+}

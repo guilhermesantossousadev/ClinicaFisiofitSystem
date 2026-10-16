@@ -2,9 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { TextField } from "../components/FormPrimitives";
 import { Row, messageOf, brl, MetricLite, ModuleState } from "./OperationalShared";
+import { DetailPanel, Facts, useModuleState, useWorkspace } from "../components/ModuleWorkspace";
 
 export function OperationalReports({ selectedUnitId = "" }: { selectedUnitId?: string }) {
-  const [year, setYear] = useState(new Date().getFullYear());
+  const workspace = useWorkspace();
+  const [year, setYear] = useModuleState("reports.year", new Date().getFullYear());
   const [draftYear, setDraftYear] = useState(String(year));
   const version = useRef(0);
   const [reportData, setReport] = useState<Row | null>(null);
@@ -13,6 +15,7 @@ export function OperationalReports({ selectedUnitId = "" }: { selectedUnitId?: s
   const report = reportScope === scope ? reportData : null;
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [selectedMonth, setSelectedMonth] = useState<Row | null>(null);
   async function load() {
     const request = ++version.current;
     setLoading(true);
@@ -66,6 +69,7 @@ export function OperationalReports({ selectedUnitId = "" }: { selectedUnitId?: s
             type="number"
             value={draftYear}
             required step="1"
+            min="2000" max="2100"
             onChange={(e) => setDraftYear(e.target.value)}
           />
           <button className="btn secondary" type="submit">Consultar ano</button></form>
@@ -96,6 +100,7 @@ export function OperationalReports({ selectedUnitId = "" }: { selectedUnitId?: s
         />
         <MetricLite label="Ano" value={year} />
       </div>
+      <section className="card report-explorer" aria-labelledby="report-explorer-title"><div className="table-toolbar"><div><p className="eyebrow">EXPLORAR OS MESES</p><h2 id="report-explorer-title">Receitas previstas e realizadas</h2><p>Selecione um mês para consultar receitas, despesas e resultado.</p></div><div className="report-legend"><span><i />Realizado</span><span><i />Previsto</span></div></div><div className="report-months">{(report.months ?? []).map((month: Row) => { const max = Math.max(1,...(report.months ?? []).flatMap((m: Row) => [Number(m.realizedIncomeCents),Number(m.expectedIncomeCents)])); return <button type="button" key={month.month} onClick={() => setSelectedMonth(month)} aria-label={`${monthLabel(month.month)}: receitas realizadas ${brl(month.realizedIncomeCents)}, previstas ${brl(month.expectedIncomeCents)}. Ver detalhes`}><span className="report-bars" aria-hidden="true"><i style={{height:`${Math.max(0,Number(month.realizedIncomeCents))/max*100}%`}} /><i style={{height:`${Math.max(0,Number(month.expectedIncomeCents))/max*100}%`}} /></span><strong>{monthLabel(month.month).slice(0,3)}</strong><small>{brl(month.realizedIncomeCents)}</small></button>; })}</div><p className="section-caption">Valores da API do relatório anual. A tabela abaixo mantém todos os indicadores e totais.</p></section>
       <section className="card annual-table" tabIndex={0} aria-labelledby="annual-table-title" aria-describedby="annual-table-description">
         <h2 className="sr-only" id="annual-table-title">Comparativo mensal de {year}</h2>
         <p className="annual-table-description" id="annual-table-description">Valores realizados e previstos por mês, com total anual na última coluna.</p>
@@ -123,6 +128,9 @@ export function OperationalReports({ selectedUnitId = "" }: { selectedUnitId?: s
           ))}
         </div>
       </section></>}
+      {selectedMonth && report && <DetailPanel title={`${monthLabel(selectedMonth.month)} de ${year}`} eyebrow="DETALHAMENTO DO RELATÓRIO" onClose={() => setSelectedMonth(null)}><Facts items={[["Receitas realizadas", brl(selectedMonth.realizedIncomeCents)], ["Receitas previstas", brl(selectedMonth.expectedIncomeCents)], ["Despesas realizadas", brl(selectedMonth.realizedExpenseCents)], ["Despesas previstas", brl(selectedMonth.expectedExpenseCents)], ["Resultado realizado", brl(selectedMonth.realizedIncomeCents-selectedMonth.realizedExpenseCents)]]} /><p>O resultado é a diferença entre receitas e despesas realizadas do mês selecionado.</p>{workspace?.allowed.includes('Financeiro') && <button className="btn primary" onClick={() => workspace.open('Financeiro', undefined, String(selectedMonth.month).slice(0,7))}>Abrir financeiro deste mês</button>}</DetailPanel>}
     </div>
   );
 }
+
+function monthLabel(value: string) { return new Intl.DateTimeFormat('pt-BR',{month:'long',timeZone:'UTC'}).format(new Date(`${value}T12:00:00Z`)); }
