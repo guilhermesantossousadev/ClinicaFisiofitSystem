@@ -19,7 +19,7 @@ const mediaTypes = new Map([
   [".css", ["text/css"]],
   [".html", ["text/html"]],
   [".jpg", ["image/jpeg"]],
-  [".js", ["application/javascript", "text/javascript"]],
+  [".js", ["application/javascript", "text/javascript", "application/x-javascript"]],
   [".svg", ["image/svg+xml"]],
   [".txt", ["text/plain"]],
 ]);
