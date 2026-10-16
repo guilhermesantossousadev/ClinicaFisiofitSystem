@@ -45,6 +45,7 @@ async function walkFiles(directory, prefix = "") {
   const entries = await readdir(directory, { withFileTypes: true });
   const files = [];
   for (const entry of entries) {
+    if (!prefix && entry.name === ".git") continue;
     const path = prefix ? `${prefix}/${entry.name}` : entry.name;
     if (entry.isSymbolicLink()) throw new Error(`Symlinks are not allowed in dist: ${path}`);
     if (entry.isDirectory()) files.push(...await walkFiles(resolve(directory, entry.name), path));
