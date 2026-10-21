@@ -61,5 +61,8 @@ Deno.test("plan changes and price terms keep enrollment permission gates", () =>
   assert(moduleForRolePath("/api/v1/enrollments/123/plan-change", "POST", "reception") === "enrollments", "troca exige edição de matrículas");
   assert(moduleForRolePath("/api/v1/enrollments/123/plan-change/preview", "POST", "reception") === "enrollments", "prévia mantém permissão de matrícula");
   assert(moduleForRolePath("/api/v1/enrollment-price-terms", "GET", "reception") === "enrollments", "histórico de preço exige leitura de matrícula");
-  assert(moduleForRolePath("/api/v1/payments", "POST", "reception") === "finance", "troca não libera recebimentos");
+  assert(moduleForRolePath("/api/v1/payments", "POST", "reception") === "enrollments", "recebimento operacional exige permissão de matrícula");
+  assert(moduleForRolePath("/api/v1/payments/123/reverse", "POST", "reception") === "finance", "reversão permanece financeira");
+  assert(moduleForRolePath("/api/v1/payments", "GET", "reception") === "finance", "listagem financeira permanece restrita");
+  assert(moduleForRolePath("/api/v1/financial-entries", "POST", "reception") === "finance", "lançamentos permanecem restritos");
 });

@@ -11,8 +11,12 @@ import { buildAvailablePaymentPlans } from "../../application/portal/paymentPlan
 import { SelectField, TextField } from "../components/FormPrimitives";
 import { type AgendaEnrollmentContext, Row, messageOf, statusLabel, value, cents, brl, groupSlotLabel, useDialogFocus, useResources, PlanSelect, PatientPicker, DrawerForm, ModuleState, MetricLite, OperationalTable, dateKey, localDateAtNoonIso } from "./OperationalShared";
 
-export function OperationalEnrollments({ agendaContext, onClearAgendaContext, openEnrollment = false, units = [], selectedUnitId = "", onUnitChange = () => undefined, canEdit = true, canManagePlans = true, canViewCharges = true, canViewPayments = true, canReceivePayments = true, canCorrectChargeAmounts = false, canViewPatients = true, canViewAgenda = true }: { agendaContext?: AgendaEnrollmentContext; onClearAgendaContext?: () => void; openEnrollment?: boolean; units?: Array<{ id: string; name: string }>; selectedUnitId?: string; onUnitChange?: (unitId: string) => void; canEdit?: boolean; canManagePlans?: boolean; canDeletePlans?: boolean; canViewCharges?: boolean; canViewPayments?: boolean; canReceivePayments?: boolean; canRollback?: boolean; canCorrectChargeAmounts?: boolean; canViewPatients?: boolean; canViewAgenda?: boolean }) {
+export function OperationalEnrollments({ agendaContext, onClearAgendaContext, openEnrollment = false, units = [], selectedUnitId = "", onUnitChange = () => undefined, canEdit = true, canManagePlans = true, canViewCharges = true, canViewPayments = true, canReceivePayments = true, canCreateCharges = canReceivePayments, canCorrectChargeAmounts = false, canViewPatients = true, canViewAgenda = true }: { agendaContext?: AgendaEnrollmentContext; onClearAgendaContext?: () => void; openEnrollment?: boolean; units?: Array<{ id: string; name: string }>; selectedUnitId?: string; onUnitChange?: (unitId: string) => void; canEdit?: boolean; canManagePlans?: boolean; canDeletePlans?: boolean; canViewCharges?: boolean; canViewPayments?: boolean; canReceivePayments?: boolean; canCreateCharges?: boolean; canRollback?: boolean; canCorrectChargeAmounts?: boolean; canViewPatients?: boolean; canViewAgenda?: boolean }) {
   const contextPatient = useWorkspace()?.journey?.patient;
+  const sectionFromPath = () => window.location.pathname.includes("/matriculas/historico") ? "history" : window.location.pathname.includes("/matriculas/planos") ? "catalog" : window.location.pathname.includes("/matriculas/gestao") ? "management" : "control";
+  const [section, setSection] = useModuleState<"control" | "management" | "history" | "catalog">("enrollments.section", sectionFromPath);
+  const [paymentMonth, setPaymentMonth] = useModuleState("enrollments.month", () => dateKey(new Date()).slice(0, 7));
+  const monthlyChargesPath = `/charges?month=${paymentMonth}`;
   const paths = [
     "/plans",
     "/enrollments",
@@ -21,17 +25,15 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
     "/units",
     ...(canViewAgenda ? ["/group-slots"] : []),
     "/professionals",
-    ...(canViewCharges ? ["/charges"] : []),
-    ...(canViewPayments ? ["/payments"] : []),
+    ...(canViewCharges ? [section === "control" ? monthlyChargesPath : "/charges"] : []),
+    ...(canViewPayments && section !== "control" ? ["/payments"] : []),
   ];
   const { data, loading, error, reload } = useResources(paths);
+  const monthlyData = section === "control" ? { ...data, "/charges": data[monthlyChargesPath] ?? [] } : data;
   const patients: Row[] = useMemo(() => canViewPatients ? data["/patients?page=1&pageSize=100"]?.items ?? [] : [...new Map((data["/enrollments"] ?? []).filter((row: Row) => row.patient).map((row: Row) => [row.patient.id, row.patient])).values()] as Row[], [data, canViewPatients]);
   const [notice, setNotice] = useState("");
-  const sectionFromPath = () => window.location.pathname.includes("/matriculas/historico") ? "history" : window.location.pathname.includes("/matriculas/planos") ? "catalog" : window.location.pathname.includes("/matriculas/gestao") ? "management" : "control";
-  const [section, setSection] = useModuleState<"control" | "management" | "history" | "catalog">("enrollments.section", sectionFromPath);
   const navigateSection = (next: "control" | "management" | "history" | "catalog") => { window.history.pushState({}, "", `/sistema/matriculas/${next === "catalog" ? "planos" : next === "management" ? "gestao" : next === "history" ? "historico" : "controle"}`); setSection(next); };
   useEffect(() => { const sync = () => setSection(sectionFromPath()); window.addEventListener("popstate", sync); return () => window.removeEventListener("popstate", sync); }, []);
-  const [paymentMonth, setPaymentMonth] = useModuleState("enrollments.month", () => dateKey(new Date()).slice(0, 7));
   const [selectedPatient, setSelectedPatient] = useState<Row>();
   const [selectedEnrollmentGroup, setSelectedEnrollmentGroup] = useState(agendaContext?.groupSlotId ?? "");
   const [selectedEnrollmentUnit, setSelectedEnrollmentUnit] = useState(agendaContext?.unitId ?? selectedUnitId);
@@ -137,10 +139,10 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
     }
   }
   const availablePaymentPlans = useMemo(() => buildAvailablePaymentPlans({
-    charges: (data["/charges"] ?? []).filter((row: Row) => row.coverage_from ? String(row.coverage_from).slice(0, 7) <= paymentMonth && String(row.coverage_to).slice(0, 7) >= paymentMonth : String(row.due_at).slice(0, 7) === paymentMonth),
+    charges: monthlyData["/charges"] ?? [],
     enrollments: data["/enrollments"] ?? [],
     plans: data["/plans"] ?? [],
-  }), [data, paymentMonth]);
+  }), [data, monthlyData["/charges"]]);
   const payablePatientIds = useMemo(() => [...new Set(availablePaymentPlans.map((row) => row.patientId))], [availablePaymentPlans]);
   const selectedPatientPlans = selectedPaymentPatientId
     ? availablePaymentPlans.filter((row) => row.patientId === selectedPaymentPatientId)
@@ -188,7 +190,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
       <ModuleState loading={loading} error={error} retry={reload} />
       {contextPatient && <section className="patient-workspace-heading"><div><p className="eyebrow">JORNADA DO PACIENTE</p><h2>{contextPatient.name}</h2><p>Matrícula → plano → cobrança → recebimento</p></div><RelatedActions patient={contextPatient} exclude="Matrículas" /></section>}
       {section === 'management' && <SectionIntro title="Contratação e vigência">Crie a matrícula com o plano e a turma existentes. Confira cobranças no controle mensal e consulte alterações no histórico.</SectionIntro>}
-      {section === "control" && canViewCharges && <MonthlyPayments patientId={contextPatient?.id} onChangePlan={canEdit ? setChangingEnrollmentId : undefined} data={data} month={paymentMonth} onMonth={(month) => { setPaymentMonth(month); clearPaymentPatient(); }} canEdit={canReceivePayments} canCorrectChargeAmounts={canCorrectChargeAmounts} reload={reload} onNotice={setNotice} onRegisterPayment={(row) => { setPaymentPatientPickerVersion((version) => version + 1); setSelectedPaymentPatientId(row.patientId); setSelectedPaymentChargeId(row.chargeId); setPaymentAmount((row.balanceCents / 100).toFixed(2)); requestAnimationFrame(() => { const form = document.getElementById("payment-registration"); form?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? "auto" : "smooth", block: "start" }); form?.querySelector<HTMLInputElement>('#payment-amount')?.focus({preventScroll:true}); }); }} />}
+      {section === "control" && canViewCharges && <MonthlyPayments patientId={contextPatient?.id} onChangePlan={canEdit ? setChangingEnrollmentId : undefined} data={monthlyData} month={paymentMonth} onMonth={(month) => { setPaymentMonth(month); clearPaymentPatient(); }} canEdit={canReceivePayments} canCreateCharges={canCreateCharges} canCorrectChargeAmounts={canCorrectChargeAmounts} reload={reload} onNotice={setNotice} onRegisterPayment={(row) => { setPaymentPatientPickerVersion((version) => version + 1); setSelectedPaymentPatientId(row.patientId); setSelectedPaymentChargeId(row.chargeId); setPaymentAmount((row.balanceCents / 100).toFixed(2)); requestAnimationFrame(() => { const form = document.getElementById("payment-registration"); form?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? "auto" : "smooth", block: "start" }); form?.querySelector<HTMLInputElement>('#payment-amount')?.focus({preventScroll:true}); }); }} />}
       {section === "catalog" && canManagePlans && <PlanCatalog plans={data["/plans"] ?? []} reload={reload} onNotice={setNotice} />}
       {changingEnrollmentId && <PlanChangeDialog enrollment={(data["/enrollments"] ?? []).find((e: Row) => e.id === changingEnrollmentId)!} plans={data["/plans"] ?? []} onClose={() => setChangingEnrollmentId("")} onChanged={async () => { await reload(); setNotice("Plano trocado com auditoria. Histórico financeiro preservado."); }} />}
       {section === "history" && <EnrollmentHistoryPanel rows={controlRows.filter(row => !contextPatient || (data['/enrollments'] ?? []).some((enrollment: Row) => enrollment.id === row.id && enrollment.patient_id === contextPatient.id))} charges={canViewCharges ? data["/charges"] ?? [] : []} payments={canViewPayments ? data["/payments"] ?? [] : []} />}

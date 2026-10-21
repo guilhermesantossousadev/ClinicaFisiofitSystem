@@ -8,6 +8,20 @@ const base = {
 };
 
 describe("controle mensal de pagamentos", () => {
+  it("mostra matrícula hoje expirada sem cobrança no mês em que vigorava", () => {
+    const enrollment = { ...base.enrollments[0], status: "expired", ends_at: "2026-09-30" };
+    expect(buildMonthlyPaymentRows({ ...base, enrollments: [enrollment], charges: [], month: "2026-09" })[0]).toMatchObject({ state: "unbilled", enrollmentId: enrollment.id });
+    expect(buildMonthlyPaymentRows({ ...base, enrollments: [enrollment], charges: [], month: "2026-10" })).toEqual([]);
+  });
+
+  it("respeita o início da matrícula e mantém a cobrança histórica", () => {
+    const enrollment = { ...base.enrollments[0], status: "paused", starts_at: "2026-10-01" };
+    expect(buildMonthlyPaymentRows({ ...base, enrollments: [enrollment], charges: [], month: "2026-09" })).toEqual([]);
+    const historical = { ...enrollment, starts_at: "2026-08-01", ends_at: "2026-09-30" };
+    const charge = { id: "september", enrollment_id: historical.id, amount_cents: 20000, paid_cents: 20000, status: "paid", due_at: "2026-09-05", coverage_from: "2026-09-01", coverage_to: "2026-09-30" };
+    expect(buildMonthlyPaymentRows({ ...base, enrollments: [historical], charges: [charge], month: "2026-09" })[0]).toMatchObject({ state: "paid", chargeId: "september" });
+  });
+
   it("mostra matrícula sem cobrança como pendente de lançamento no mês selecionado", () => {
     const rows = buildMonthlyPaymentRows({ ...base, charges: [], month: "2026-09" });
     expect(rows).toEqual([expect.objectContaining({ patientName: "Ana", state: "unbilled", amountCents: 20000, dueAt: "2026-09-05" })]);

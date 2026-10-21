@@ -21,7 +21,7 @@ export function buildAvailablePaymentPlans({
   plans: PaymentPlanSourceRow[];
 }): AvailablePaymentPlan[] {
   const enrollmentById = new Map(enrollments
-    .filter((row) => !row.deleted_at && row.status === "active")
+    .filter((row) => !row.deleted_at)
     .map((row) => [String(row.id), row]));
   const planById = new Map(plans
     .filter((row) => !row.deleted_at)

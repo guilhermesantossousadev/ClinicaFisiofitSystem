@@ -689,6 +689,14 @@ function listResource(table: string, order: string, ascending = true) {
       if (!(await hasUnitAccess(context, parsed))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");
       query = context.get("db").from(table).select("*,charges!inner(unit_id)").eq("clinic_id", clinicId).eq("charges.unit_id", parsed);
     }
+    if (table === "charges" && context.req.query("month")) {
+      const month = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).parse(context.req.query("month"));
+      const [year, monthNumber] = month.split("-").map(Number);
+      const from = `${month}-01`;
+      const to = new Date(Date.UTC(year, monthNumber, 0)).toISOString().slice(0, 10);
+      // A legacy charge without complete coverage belongs to its due month.
+      query = query.or(`and(coverage_from.lte.${to},coverage_to.gte.${from}),and(coverage_from.is.null,due_at.gte.${from},due_at.lte.${to}),and(coverage_to.is.null,due_at.gte.${from},due_at.lte.${to})`);
+    }
     if (unitId && table === "fiscal_documents") {
       const parsed = z.string().uuid().parse(unitId);
       if (!(await hasUnitAccess(context, parsed))) return fail(context, 403, "UNIT_FORBIDDEN", "Seu perfil não possui acesso a esta unidade.");

@@ -2,7 +2,7 @@ import { z } from "npm:zod@3.24.2";
 
 export function registerFinanceiroRoutes(app: any, dependencies: any) {
   const { financialEntrySchema, requireRoles, fail, databaseResult, hasUnitAccess, audit, createClinicResource, requireIdempotency, normalizeAnnual, listResource, validateRelatedResourceScope } = dependencies;
-  app.post("/payments", requireRoles(["admin", "manager", "finance"]), async (context: any) => {
+  app.post("/payments", requireRoles(["admin", "manager", "reception", "finance"]), async (context: any) => {
     const key = requireIdempotency(context);
     const input = z.object({
       charge_id: z.string().uuid(),

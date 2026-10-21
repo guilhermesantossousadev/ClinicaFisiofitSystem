@@ -66,7 +66,7 @@ export function buildMonthlyPaymentRows({
   const planById = new Map(plans.map((row) => [String(row.id), row]));
 
   return enrollments
-    .filter((enrollment) => !enrollment.deleted_at && (enrollment.status === "active" || charges.some((c) => String(c.enrollment_id) === String(enrollment.id) && !c.deleted_at && matchesMonth(c, month))))
+    .filter((enrollment) => !enrollment.deleted_at)
     .filter((enrollment) => !enrollment.starts_at || String(enrollment.starts_at).slice(0, 7) <= month)
     .filter((enrollment) => !enrollment.ends_at || String(enrollment.ends_at) >= monthBounds(month).from)
     .flatMap((enrollment) => {

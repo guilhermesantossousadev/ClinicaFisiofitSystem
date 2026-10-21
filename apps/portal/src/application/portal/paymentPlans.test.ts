@@ -13,7 +13,7 @@ const base = {
 };
 
 describe("planos disponíveis para recebimento", () => {
-  it("mantém somente cobranças abertas ligadas a matrículas ativas", () => {
+  it("mantém cobranças abertas ligadas a matrículas inclusive históricas", () => {
     const result = buildAvailablePaymentPlans({
       ...base,
       enrollments: [
@@ -34,7 +34,7 @@ describe("planos disponíveis para recebimento", () => {
       patientId: "patient-1",
       planName: "Mensal · 2x por semana",
       balanceCents: 15000,
-    })]);
+    }), expect.objectContaining({ chargeId: "charge-paused", patientId: "patient-1" })]);
   });
 
   it("mostra todos os meses e remove apenas cobranças duplicadas", () => {

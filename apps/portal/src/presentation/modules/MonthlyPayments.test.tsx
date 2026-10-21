@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { MonthlyPayments } from "./MonthlyPayments";
 
-function renderStatus(status: "pending" | "overdue" | "partial" | "paid", paidCents = 0) {
+function renderStatus(status: "pending" | "overdue" | "partial" | "paid", paidCents = 0, canReceive = false) {
   const data = {
     "/enrollments": [{ id: "enrollment-1", patient_id: "patient-1", plan_id: "plan-1", unit_id: "unit-1", starts_at: "2026-01-01", due_day: 5, status: "active" }],
     "/patients?page=1&pageSize=100": { items: [{ id: "patient-1", name: "Paciente sintético" }] },
@@ -14,7 +14,8 @@ function renderStatus(status: "pending" | "overdue" | "partial" | "paid", paidCe
     data: data as never,
     month: "2026-10",
     onMonth: () => undefined,
-    canEdit: false,
+    canEdit: canReceive,
+    canCreateCharges: false,
     canCorrectChargeAmounts: true,
     reload: async () => undefined,
     onNotice: () => undefined,
@@ -22,6 +23,11 @@ function renderStatus(status: "pending" | "overdue" | "partial" | "paid", paidCe
 }
 
 describe("ações financeiras da recepção no Controle de Planos", () => {
+  it("permite receber saldo sem oferecer criação geral de cobranças", () => {
+    const html = renderStatus("partial", 1000, true);
+    expect(html).toContain("Registrar recebimento");
+    expect(html).not.toContain("Criar cobrança");
+  });
   it.each(["pending", "overdue"] as const)("mostra somente correção e contrato para cobrança %s", (status) => {
     const html = renderStatus(status);
     expect(html).toContain("Corrigir cobrança");

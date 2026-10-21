@@ -486,10 +486,11 @@ test("mantém o fluxo de matrícula da recepção funcional e sem expor o financ
   ]);
   assert.match(authorization, /reception:\s*\{[^}]*enrollments:\s*"edit"/);
   assert.match(api, /app\.post\("\/enrollments", requireRoles\(\["admin", "manager", "reception", "finance"\]\)/);
-  assert.match(enrollments, /\.\.\.\(canViewCharges \? \["\/charges"\] : \[\]\)/);
+  assert.match(enrollments, /section === "control" \? monthlyChargesPath : "\/charges"/);
+  assert.match(enrollments, /canCreateCharges=\{canCreateCharges\}/);
   assert.match(enrollments, /canReceivePayments && <form/);
   assert.match(enrollments, /buildAvailablePaymentPlans/);
-  assert.match(paymentPlans, /row\.status === "active"/);
+  assert.match(paymentPlans, /!row\.deleted_at/);
   assert.match(paymentPlans, /charge\.status === "cancelled"/);
   assert.match(paymentPlans, /seenChargeIds/);
   assert.match(enrollments, /Saldo disponível/);

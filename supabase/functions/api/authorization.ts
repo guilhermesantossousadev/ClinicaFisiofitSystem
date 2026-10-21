@@ -36,11 +36,12 @@ export function moduleForPath(path: string, method = "GET"): PermissionModule | 
 }
 
 
-// Reception may use only these two domain RPCs; internal SQL authorization
-// still requires enrollment view scope. Other finance routes keep their gate.
+// Reception uses dedicated enrollment operations. The payment RPC enforces
+// enrollment permissions and checks the charge's clinic and unit.
 export function moduleForRolePath(path: string, method: string, role: Role): PermissionModule | null {
   const normalizedPath = path.replace(/^\/api\/v1(?=\/|$)/, "");
   if (role === "reception" && method === "GET" && normalizedPath === "/charges") return "enrollments";
+  if (role === "reception" && method === "POST" && normalizedPath === "/payments") return "enrollments";
   if (role === "reception" && method === "PATCH" && (
     /^\/charges\/[^/]+\/amount$/.test(normalizedPath)
     || /^\/enrollments\/[^/]+\/contract-amount$/.test(normalizedPath)
