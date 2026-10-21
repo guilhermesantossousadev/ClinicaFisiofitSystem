@@ -60,14 +60,14 @@ function digest(bytes) {
 }
 
 const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-const isV23 = manifest.candidate === "5bf7a5c5a02432dc5f32d0ec7397607f051feb87";
-if (isV23 && manifest.files?.length !== 26) {
-  throw new Error("Approved V2.3 manifest must contain 26 files (21 V2.3 build files plus 5 retained V2.2 chunks).");
+const isV23 = typeof manifest.candidate === "string";
+if (isV23 && !/^[0-9a-f]{40}$/.test(manifest.candidate)) {
+  throw new Error("Candidate manifest must identify a full commit SHA.");
 }
 if (!isV23 && manifest.sourceCommit !== "f256de6369f98567fabaf9139658c6de8e4af517") {
   throw new Error(`Unsupported distribution manifest: ${manifestPath}`);
 }
-if (!Array.isArray(manifest.files) || (isV23 && manifest.files.length !== 26) || (!isV23 && manifest.files.length !== 21)) {
+if (!Array.isArray(manifest.files) || (isV23 && manifest.files.length < 26) || (!isV23 && manifest.files.length !== 21)) {
   throw new Error(`Unexpected file count in distribution manifest: ${manifest.files?.length}`);
 }
 
@@ -75,7 +75,7 @@ const compat = isV23
   ? JSON.parse(await readFile(resolve(root, "release/hostinger/v22-compat-manifest.json"), "utf8"))
   : { files: [] };
 const expected = new Map(manifest.files.map((file) => [file.path, file]));
-if (expected.size !== manifest.files.length) throw new Error("Duplicate paths in approved V2.3 manifest.");
+if (expected.size !== manifest.files.length) throw new Error("Duplicate paths in distribution manifest.");
 if (isV23 && compat.files.length !== 5) throw new Error("V2.2 compatibility manifest must contain exactly five files.");
 
 for (const asset of compat.files) {

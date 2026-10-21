@@ -1,29 +1,29 @@
-# Graph Report - fisiofit-ui-ux-v2.3-20261016  (2026-10-16)
+# Graph Report - SistemaControleFisiofit  (2026-10-21)
 
 ## Corpus Check
-- 391 files · ~4,614,450 words
+- 423 files · ~4,684,257 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2573 nodes · 3723 edges · 180 communities (153 shown, 14 thin omitted)
-- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 33 edges (avg confidence: 0.85)
+- 3712 nodes · 8212 edges · 207 communities (179 shown, 15 thin omitted)
+- Extraction: 92% EXTRACTED · 8% INFERRED · 0% AMBIGUOUS · INFERRED: 694 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `f256de63`
+- Built from commit: `b26da3ba`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - OperationalAgenda.tsx
-- FormPrimitives.tsx
+- OperationalShared.tsx
 - Design Systems
 - Performance & Loading UX
 - Additional Important Laws
 - Data Tables & Lists
 - Accessibility & WCAG 2.2
 - Information Architecture
-- useDialogFocus
+- index-CNUCljKP.js
 - site/package.json
 - Forms & Input Design
 - AI & LLM UX Patterns
@@ -41,7 +41,7 @@
 - Canvas Apps: Objects, Performance & Patterns
 - Quick Reference Checklist
 - supabase/functions/api/index.ts
-- Nielsen's 10 Usability Heuristics
+- Core Design Principles
 - FisiofitApp.tsx
 - ui-v2/fixtures.mjs
 - Collaborative UX: Conflict Resolution & Sync
@@ -59,7 +59,7 @@
 - portal/package.json
 - compilerOptions
 - AGENDA-002 — Contratos canônicos de Scheduling e Pilates
-- homologate-stabilization.mjs
+- runtimeAcceptance
 - CONTEXT.md — Plataforma Fisiofit
 - package.json
 - portal/src/main.tsx
@@ -76,15 +76,15 @@
 - compilerOptions
 - Arquitetura do Fisiofit Platform
 - Manual de Usuário — Recepção
-- OperationalShared.tsx
+- OperationalEnrollments.tsx
 - inventory.mjs
 - Referências externas verificadas — Fisiofit V2.2
 - Release candidato — Fisiofit UI/UX V2
 - devDependencies
 - Canvas Apps: Navigation & Interaction
-- dialogFocus.ts
+- useDialogFocus
 - ui-v2/browser.mjs
-- Plataforma Fisiofit
+- Fisiofit UI/UX V2.3 — entrega para revisão
 - 15. Regras para novas implementações
 - 4. Ambientes, execução, build e deploy
 - 10. Qualidade técnica, desempenho e design system
@@ -117,14 +117,14 @@
 - Content Design Process
 - ui-v22/report.mjs
 - MonthlyPayments.tsx
-- planControl.ts
+- ze
 - 10. Cache, mensageria e processamento assíncrono
 - 8. Regras de negócio vigentes
 - 5. Mapa dos principais fluxos por perfil
 - 5. Agenda e turmas
 - 7. Matrículas, cobranças e pagamentos
 - design-system/package.json
-- homologate-financial-plans.mjs
+- error
 - Core Principles
 - Form Copy
 - SeoMetadata.tsx
@@ -160,65 +160,92 @@
 - deno.sh
 - LoginPage.tsx
 - OperationalImports.tsx
-- agendaResources.ts
+- r
 - Fechamento diferencial da homologação operacional
 - Matriz de cobertura UI V2
 - SURFACE_TREATMENT.md
 - sourceDigest
 - ui-v21/report.mjs
-- monthlyPaymentControl.ts
+- F
 - Presence & Awareness
 - Canvas Navigation
-- AuthProvider.tsx
-- Voice as a First-Class Input
-- vitest
+- portalSessionState.ts
+- OperationalImports-CaZrmfqA.js
+- push
 - review-gallery.mjs
 - FISIOFIT — REFERÊNCIAS VISUAIS PARA UI/UX V2.2
 - ADENDO OBRIGATÓRIO AO PROMPT MESTRE FISIOFIT UI/UX V2.2
-- Communication Features
-- occurrenceCancellation.test.ts
-- RTL & Bidirectional Layout
-- homologate-ui-v22.mjs
-- paymentPlans.ts
+- t
+- ct
+- parse
+- Pc
+- _l
 - financialOverview.ts
 - Fisiofit UI/UX V2.1 — entrega integrada
+- send
+- _challenge
+- authAccess.ts
+- verify-hostinger-dist.mjs
+- create
+- Plataforma Fisiofit
+- test-hostinger-transition.mjs
+- verify-hostinger-public.mjs
+- CookieConsent.tsx
+- decode
+- test-hostinger-upgrade.mjs
+- Nielsen's 10 Usability Heuristics
+- create-hostinger-manifest.mjs
+- homologate-stabilization.mjs
+- ui-v22/fixtures.mjs
+- dependencies
+- devDependencies
+- hostinger-compat.test.mjs
+- Building Trust
+- scripts
+- setLimit
+- Touch Feedback
+- Responsive Gestures
+- dirty
+- Header.tsx
+- StudiosPage.tsx
+- refinement
 
 ## God Nodes (most connected - your core abstractions)
-1. `api()` - 79 edges
-2. `messageOf()` - 61 edges
-3. `OperationalAgenda()` - 42 edges
-4. `value()` - 42 edges
-5. `confirmAction()` - 33 edges
-6. `useModuleState()` - 33 edges
-7. `useDialogFocus()` - 33 edges
-8. `useResources()` - 30 edges
-9. `CONTEXT.md — Plataforma Fisiofit` - 27 edges
-10. `TextField()` - 23 edges
+1. `ze()` - 127 edges
+2. `r()` - 115 edges
+3. `t()` - 82 edges
+4. `api()` - 79 edges
+5. `ft()` - 78 edges
+6. `n()` - 70 edges
+7. `F()` - 68 edges
+8. `a()` - 68 edges
+9. `c()` - 67 edges
+10. `S()` - 62 edges
 
 ## Surprising Connections (you probably didn't know these)
+- `save()` --indirect_call--> `path()`  [INFERRED]
+  apps/portal/src/presentation/modules/MakeupPolicy.tsx → release/hostinger/v22-compat/sistema/assets/OperationalImports-CaZrmfqA.js
 - `FisiofitApp()` --calls--> `useDialogFocus()`  [EXTRACTED]
   apps/portal/src/presentation/app/FisiofitApp.tsx → packages/design-system/src/dialogFocus.ts
-- `DecisionHost()` --calls--> `useDialogFocus()`  [EXTRACTED]
-  apps/portal/src/presentation/components/Decisions.tsx → packages/design-system/src/dialogFocus.ts
+- `submit()` --indirect_call--> `email()`  [INFERRED]
+  apps/portal/src/presentation/auth/LoginPage.tsx → release/hostinger/v22-compat/sistema/assets/OperationalImports-CaZrmfqA.js
 - `FormAccessibility()` --calls--> `useDialogFocus()`  [EXTRACTED]
   apps/portal/src/presentation/components/FormAccessibility.tsx → packages/design-system/src/dialogFocus.ts
 - `DetailPanel()` --calls--> `useDialogFocus()`  [EXTRACTED]
   apps/portal/src/presentation/components/ModuleWorkspace.tsx → packages/design-system/src/dialogFocus.ts
-- `renderStatus()` --indirect_call--> `MonthlyPayments()`  [INFERRED]
-  apps/portal/src/presentation/modules/MonthlyPayments.test.tsx → apps/portal/src/presentation/modules/MonthlyPayments.tsx
 
 ## Import Cycles
 - None detected.
 
-## Communities (180 total, 14 thin omitted)
+## Communities (207 total, 15 thin omitted)
 
 ### Community 0 - "OperationalAgenda.tsx"
 Cohesion: 0.07
-Nodes (42): WeekdayCheckboxGroup(), AgendaExceptions(), save(), addMinutesToLocalDateTime(), APPOINTMENT_STATUS, appointmentTime(), ATTENDANCE_STATUSES, AttendanceStatus (+34 more)
+Nodes (34): agendaCapabilities(), AgendaResource, agendaResourcePaths(), AgendaRole, patientsAvailableForGroup(), professionalsForUnit(), professionalUnitIds(), resourcesForUnit() (+26 more)
 
-### Community 1 - "FormPrimitives.tsx"
-Cohesion: 0.13
-Nodes (35): BaseProps, CheckboxField(), DEFAULT_WEEKDAYS, FieldLayoutProps, FormField(), FormSection(), SelectField(), TextareaField() (+27 more)
+### Community 1 - "OperationalShared.tsx"
+Cohesion: 0.10
+Nodes (48): getPortalSessionGeneration(), Decision, DecisionOptions, listeners, BaseProps, CheckboxField(), DEFAULT_WEEKDAYS, FieldLayoutProps (+40 more)
 
 ### Community 2 - "Design Systems"
 Cohesion: 0.04
@@ -244,13 +271,13 @@ Nodes (41): Accessibility & WCAG 2.2, Accessible Authentication (Enhanced) - 3.3
 Cohesion: 0.05
 Nodes (40): 2026 Trends, AI-Powered IA, Bottom Navigation (Mobile), Breadcrumbs, Card Sorting, Clarity Over Cleverness, Common IA Mistakes, Consistency (+32 more)
 
-### Community 8 - "useDialogFocus"
-Cohesion: 0.14
-Nodes (15): OccurrenceDetailsPanel(), SectionIntro(), useUnsavedChanges(), requestClose(), AgendaDialog(), PLAN_PERIODS, PlanPeriod, PlanCatalog() (+7 more)
+### Community 8 - "index-CNUCljKP.js"
+Cohesion: 0.02
+Nodes (131): add(), analytics(), appendParams(), assertFieldSize(), asStream(), binaryEncode(), bn(), Br() (+123 more)
 
 ### Community 9 - "site/package.json"
-Cohesion: 0.05
-Nodes (39): dependencies, @fisiofit/contracts, @fisiofit/design-system, lucide-react, react, react-dom, tailwindcss-animate, wouter (+31 more)
+Cohesion: 0.11
+Nodes (18): @fisiofit/contracts, @fisiofit/design-system, react, react-dom, @types/react, @types/react-dom, vite, @vitejs/plugin-react (+10 more)
 
 ### Community 10 - "Forms & Input Design"
 Cohesion: 0.05
@@ -277,16 +304,16 @@ Cohesion: 0.05
 Nodes (37): 2026 Trends, AI-Adaptive Interfaces, Applying Spacing, Color, Color Harmonies, Color Psychology, Color Theory, Colorblind-Safe Design (+29 more)
 
 ### Community 16 - "lucide-react"
-Cohesion: 0.06
-Nodes (19): applyAdvertisingConsent(), applyGoogleFontsConsent(), Consent, CookieConsent(), closeSettings(), handleKeyDown(), save(), isConsent() (+11 more)
+Cohesion: 0.11
+Nodes (5): values, services, links, services, lucide-react
 
 ### Community 17 - "Mobile UX Design"
-Cohesion: 0.05
-Nodes (36): Bottom Navigation Bar, Common Mobile Mistakes, Floating Action Button (FAB), Foldable Devices, Form Layout, Hamburger Menu, Handling Device Notches, Haptic Feedback (+28 more)
+Cohesion: 0.07
+Nodes (28): Bottom Navigation Bar, Common Mobile Mistakes, Floating Action Button (FAB), Foldable Devices, Form Layout, Hamburger Menu, Handling Device Notches, Implementation (+20 more)
 
 ### Community 18 - "api"
-Cohesion: 0.07
-Nodes (69): api(), fallbackError(), list(), getPortalSessionGeneration(), confirmAction(), InternalNotifications(), mark(), MakeupBookings() (+61 more)
+Cohesion: 0.06
+Nodes (77): api(), fallbackError(), confirmAction(), save(), mark(), MakeupPolicy(), save(), AdministrationSectionProps (+69 more)
 
 ### Community 19 - "Data Visualization & Dashboard UX"
 Cohesion: 0.06
@@ -301,8 +328,8 @@ Cohesion: 0.06
 Nodes (32): Anti-Patterns, Attention Management, Badges, Banners (Persistent), Batching & Grouping, By Purpose, By Urgency, Channel Selection Guide (+24 more)
 
 ### Community 22 - "contracts/src/index.ts"
-Cohesion: 0.09
-Nodes (27): ids, membership(), participant(), patient(), ApiEnvelope, ApiError, appointmentInputSchema, clinicalRecordInputSchema (+19 more)
+Cohesion: 0.11
+Nodes (22): membership(), participant(), patient(), ApiEnvelope, ApiError, clinicalRecordInputSchema, DataSubjectRequestKind, DataSubjectRequestStatus (+14 more)
 
 ### Community 23 - "Canvas Apps: Objects, Performance & Patterns"
 Cohesion: 0.06
@@ -316,29 +343,29 @@ Nodes (32): Accessibility, AI Interfaces, AI Interfaces, Anti-Patterns to Avoid,
 Cohesion: 0.07
 Nodes (19): adminDeletableResources, app, appointmentFields, appointmentSchema, clinicalRecordSchema, DatabaseClient, enrollmentCreateSchema, financialEntrySchema (+11 more)
 
-### Community 26 - "Nielsen's 10 Usability Heuristics"
-Cohesion: 0.07
-Nodes (29): 10. Help and Documentation, 1. Visibility of System Status, 2. Match Between System and the Real World, 3. User Control and Freedom, 4. Consistency and Standards, 5. Error Prevention, 6. Recognition Rather Than Recall, 7. Flexibility and Efficiency of Use (+21 more)
+### Community 26 - "Core Design Principles"
+Cohesion: 0.11
+Nodes (18): Clarity, Color, Consistency, Contrast, Core Design Principles, Core UX Principles & Usability Heuristics, Feedback, Hierarchy (+10 more)
 
 ### Community 27 - "FisiofitApp.tsx"
-Cohesion: 0.10
-Nodes (27): isView(), nav, NavigationItem, navModule, roleLabel, DashboardData, Patient, PermissionModule (+19 more)
+Cohesion: 0.07
+Nodes (44): isView(), nav, NavigationItem, navModule, roleLabel, DashboardData, Patient, PermissionModule (+36 more)
 
 ### Community 28 - "ui-v2/fixtures.mjs"
-Cohesion: 0.08
-Nodes (26): date, items, participants, people, room, syntheticFixture(), today, charge (+18 more)
+Cohesion: 0.12
+Nodes (15): charge, e, enrollment, group, item, month, p, p2 (+7 more)
 
 ### Community 29 - "Collaborative UX: Conflict Resolution & Sync"
 Cohesion: 0.07
 Nodes (27): Anti-Patterns, Change Attribution, Collaborative UX: Conflict Resolution & Sync, Component Locking, Concurrent Editing, Conflict Resolution Approaches, Connection Status Indicators, CRDTs (Conflict-free Replicated Data Types) (+19 more)
 
 ### Community 30 - "Emotional Design & Trust"
-Cohesion: 0.07
-Nodes (26): 1. Visceral Level — "I want it", 2. Behavioral Level — "I can use it", 3. Reflective Level — "I love it", 404 / Error Pages, Animation Character, Anti-Patterns, Blame-Free Language, Brand Personality in UI (+18 more)
+Cohesion: 0.09
+Nodes (21): 1. Visceral Level — "I want it", 2. Behavioral Level — "I can use it", 3. Reflective Level — "I love it", 404 / Error Pages, Animation Character, Anti-Patterns, Blame-Free Language, Brand Personality in UI (+13 more)
 
 ### Community 31 - "Collaborative UX: Presence & Awareness"
-Cohesion: 0.22
-Nodes (8): Anti-Patterns, Collaborative UX: Presence & Awareness, Follow Mode, Jump to User, Key Metrics, Sources, Spotlight / Presenter Mode, Viewport Coordination
+Cohesion: 0.13
+Nodes (14): Anonymous Voting, Anti-Patterns, Collaborative UX: Presence & Awareness, Communication Features, Contextual Comments (Annotations), Emoji Reactions, Follow Mode, Jump to User (+6 more)
 
 ### Community 32 - "Release integrado de estabilização — Fisiofit"
 Cohesion: 0.18
@@ -349,12 +376,12 @@ Cohesion: 0.09
 Nodes (21): compilerOptions, allowImportingTsExtensions, isolatedModules, jsx, lib, module, moduleDetection, moduleResolution (+13 more)
 
 ### Community 34 - "Internationalization & Localization"
-Cohesion: 0.13
-Nodes (14): Beyond format strings, Common Mistakes, Design for it, Forms that survive every locale, IBM's rule of thumb for expansion, Internationalization & Localization, Language Switching UX, Locale-Aware Formatting (+6 more)
+Cohesion: 0.10
+Nodes (19): Beyond format strings, Common Mistakes, Design for it, Forms that survive every locale, IBM's rule of thumb for expansion, Internationalization & Localization, Language Switching UX, Locale-Aware Formatting (+11 more)
 
 ### Community 35 - "Voice & Multimodal Input"
-Cohesion: 0.17
-Nodes (12): Accessibility Intersection, Combine voice + touch + pointer + keyboard, Common Mistakes, Cross-Device Continuity, Graceful degradation when a modality is unavailable, Modality-appropriate design per context, Multimodal Interaction, Quick Checklist (+4 more)
+Cohesion: 0.10
+Nodes (20): A complete voice interaction, end to end, Accessibility Intersection, Activation: wake words vs. push-to-talk, Combine voice + touch + pointer + keyboard, Common Mistakes, Confirmation & error recovery, Cross-Device Continuity, Discoverability (+12 more)
 
 ### Community 36 - "Auditoria e evolução de UI/UX — Fisiofit"
 Cohesion: 0.10
@@ -388,10 +415,6 @@ Nodes (15): compilerOptions, allowImportingTsExtensions, isolatedModules, lib, m
 Cohesion: 0.12
 Nodes (15): AGENDA-002 — Contratos canônicos de Scheduling e Pilates, Class e ClassSchedule, ClassOccurrence, Commands, segurança e transição, ConflictPolicy e projection, Fronteiras e leitura consolidada, Matriz de transição e strangler, Membership, roster e attendance (+7 more)
 
-### Community 44 - "homologate-stabilization.mjs"
-Cohesion: 0.12
-Nodes (8): docker(), migrations, output, psql(), results, probeExpiredFixtures(), browserAcceptance(), runtimeAcceptance()
-
 ### Community 45 - "CONTEXT.md — Plataforma Fisiofit"
 Cohesion: 0.12
 Nodes (17): 12.1 Decisões superadas, 12.2 Decisões ainda pendentes, 12. Decisões arquiteturais vigentes, 17. Referências executáveis, 18. Checklist de atualização do contexto, 19. Histórico de verdades estabelecidas — CoVe, 2026-10-15 — Release único financeiro e planos (candidato isolado), 5.1 Correção de estado anterior (+9 more)
@@ -401,8 +424,8 @@ Cohesion: 0.13
 Nodes (15): engines, node, react, react-dom, name, private, type, version (+7 more)
 
 ### Community 47 - "portal/src/main.tsx"
-Cohesion: 0.16
-Nodes (14): classifyAccessFailure(), sessionExpiredNotice, container, FisiofitApp, ProtectedApp(), rootWindow, useAuth(), OnboardingPage() (+6 more)
+Cohesion: 0.19
+Nodes (11): classifyAccessFailure(), container, FisiofitApp, ProtectedApp(), rootWindow, OnboardingPage(), submit(), appBasePath (+3 more)
 
 ### Community 48 - "scripts"
 Cohesion: 0.12
@@ -425,16 +448,16 @@ Cohesion: 0.19
 Nodes (23): CalendarEventCard(), calendarDate(), CalendarItem, CalendarPerson, CalendarSegment, calendarStatuses, calendarTime(), calendarWeek() (+15 more)
 
 ### Community 53 - "ui-v23/browser.mjs"
-Cohesion: 0.12
-Nodes (17): axe, checks, children, chrome, digest, errors, fixtures, logs (+9 more)
+Cohesion: 0.10
+Nodes (22): axe, checks, children, chrome, digest, errors, fixtures, logs (+14 more)
 
 ### Community 54 - "Manual de Usuário — Fisiofit"
 Cohesion: 0.15
 Nodes (12): Acesso comum, Administrador, Cadastros e rotinas rápidas, Financeiro, Gestor, Glossário, Manual de Usuário — Fisiofit, Navegação (+4 more)
 
 ### Community 55 - "homologate-financial-plans-http.mjs"
-Cohesion: 0.15
-Nodes (6): candidateSql, events, functions, out, runtimeEnv, userIds
+Cohesion: 0.14
+Nodes (7): duration(), candidateSql, events, functions, out, runtimeEnv, userIds
 
 ### Community 56 - "authorization.ts"
 Cohesion: 0.30
@@ -456,9 +479,9 @@ Nodes (10): Arquitetura do Fisiofit Platform, Backend Supabase, Estado de implan
 Cohesion: 0.18
 Nodes (10): 11. Glossário rápido, 1. Visão geral e responsabilidades, 4. Painel, 9. Privacidade e segurança, Atalhos, Checklist de bolso, Manual de Usuário — Recepção, Regra de ouro (+2 more)
 
-### Community 61 - "OperationalShared.tsx"
-Cohesion: 0.13
-Nodes (27): useModuleState(), dateLabel(), EditControlledPlanDialog(), EnrollmentHistoryPanel(), enrollmentStatusLabel(), OperationalEnrollments(), PlanControlTable(), monthLabel() (+19 more)
+### Community 61 - "OperationalEnrollments.tsx"
+Cohesion: 0.08
+Nodes (39): AvailablePaymentPlan, buildAvailablePaymentPlans(), PaymentPlanSourceRow, base, buildPlanControlRows(), dateKey(), dateOnly(), daysBetween() (+31 more)
 
 ### Community 62 - "inventory.mjs"
 Cohesion: 0.28
@@ -480,17 +503,17 @@ Nodes (10): devDependencies, eslint, @eslint/js, globals, react, react-dom, supa
 Cohesion: 0.15
 Nodes (12): Anti-Patterns, Canvas Apps: Navigation & Interaction, Drag and Drop, Key Metrics, Keyboard Movement, Object Manipulation, Object Selection, Selection Keyboard Shortcuts (+4 more)
 
-### Community 67 - "dialogFocus.ts"
-Cohesion: 0.32
-Nodes (7): focusable(), focusin(), inertBefore, keydown(), Layer, layers, updateInert()
+### Community 67 - "useDialogFocus"
+Cohesion: 0.18
+Nodes (14): OccurrenceDetailsPanel(), DecisionHost(), finish(), publish(), request(), AgendaDialog(), focusable(), focusin() (+6 more)
 
 ### Community 68 - "ui-v2/browser.mjs"
 Cohesion: 0.12
-Nodes (16): server, axeSource, checks, children, chrome, errors, initialDigest, logs (+8 more)
+Nodes (15): axeSource, checks, children, chrome, errors, initialDigest, logs, output (+7 more)
 
-### Community 69 - "Plataforma Fisiofit"
-Cohesion: 0.06
-Nodes (28): Alteração, Aplicação futura e rollback — proposta, não executada, Cadastro de pacientes — correção isolada de RLS, Causa comprovada, Produção: diagnóstico somente leitura, Validação, Continuidade, Handoff local — Fisiofit UI/UX V2.3 (+20 more)
+### Community 69 - "Fisiofit UI/UX V2.3 — entrega para revisão"
+Cohesion: 0.11
+Nodes (15): Continuidade, Handoff local — Fisiofit UI/UX V2.3, Limites de operação, Vault — pendência preservada, Jornadas e evidências V2.3, Compatibilidade dos nove estudos com a implementação, Decisões transversais, Fontes oficiais consultadas em 16/10/2026 (+7 more)
 
 ### Community 70 - "15. Regras para novas implementações"
 Cohesion: 0.22
@@ -549,8 +572,8 @@ Cohesion: 0.29
 Nodes (7): Buttons, Confirmation Dialogs, Empty States, Error Messages, Loading States, Success Messages, Writing for Common UI Elements
 
 ### Community 84 - "ui-v21/browser.mjs"
-Cohesion: 0.12
-Nodes (13): axeSource, checks, children, chrome, errors, initialDigest, logs, output (+5 more)
+Cohesion: 0.11
+Nodes (14): axeSource, checks, children, chrome, errors, initialDigest, logs, output (+6 more)
 
 ### Community 85 - "13. Testes e estado de verificação"
 Cohesion: 0.29
@@ -617,12 +640,12 @@ Cohesion: 0.13
 Nodes (14): after, before, captions, checks, comparison, envAfter, envBefore, equalityKeys (+6 more)
 
 ### Community 102 - "MonthlyPayments.tsx"
-Cohesion: 0.22
-Nodes (12): coverageLabel(), dateLabel(), monthLabel(), MonthlyPayments(), createCharge(), editCharge(), editContract(), nextMonth() (+4 more)
+Cohesion: 0.13
+Nodes (21): buildMonthlyPaymentRows(), matchesMonth(), monthBounds(), MonthlyPaymentRow, MonthlyPaymentSourceRow, MonthlyPaymentState, plannedCoverageEnd(), base (+13 more)
 
-### Community 103 - "planControl.ts"
-Cohesion: 0.24
-Nodes (11): buildPlanControlRows(), dateKey(), dateOnly(), daysBetween(), inferredRenewalDate(), PaymentState, PlanControlRow, PlanControlSourceRow (+3 more)
+### Community 103 - "ze"
+Cohesion: 0.08
+Nodes (163): Ae(), at(), be(), bt(), v(), y(), ce(), ct() (+155 more)
 
 ### Community 104 - "10. Cache, mensageria e processamento assíncrono"
 Cohesion: 0.33
@@ -648,9 +671,9 @@ Nodes (6): 7.1 Criar um plano, 7.2 Criar uma matrícula, 7.3 Registrar um pagame
 Cohesion: 0.15
 Nodes (12): devDependencies, @types/react, exports, ./react, react, @types/react, name, peerDependencies (+4 more)
 
-### Community 110 - "homologate-financial-plans.mjs"
-Cohesion: 0.40
-Nodes (4): docker(), output, psql(), results
+### Community 110 - "error"
+Cohesion: 0.22
+Nodes (6): error(), docker(), output, psql(), results, evidence
 
 ### Community 111 - "Core Principles"
 Cohesion: 0.40
@@ -744,17 +767,21 @@ Nodes (3): Concluído e validado, Estabilização operacional integrada — regi
 Cohesion: 0.67
 Nodes (3): overrides, react, react-dom
 
+### Community 140 - "assemble-hostinger.mjs"
+Cohesion: 0.40
+Nodes (4): compatibility, compatibilityRoot, output, root
+
 ### Community 154 - "LoginPage.tsx"
-Cohesion: 0.16
-Nodes (17): AccessFailure, ApiRequestError, AuthRequestError, loginErrorMessage(), membershipCodes, normalizeLoginEmail(), passwordUpdatedNotice, recoveryErrorMessage() (+9 more)
+Cohesion: 0.17
+Nodes (12): sessionExpiredNoticeKey, isSupabaseConfigured, passwordRecoveryRedirectUrl(), supabase, AuthContext, AuthState, useAuth(), LoginPage() (+4 more)
 
 ### Community 155 - "OperationalImports.tsx"
-Cohesion: 0.11
-Nodes (22): Decision, DecisionHost(), finish(), DecisionOptions, listeners, publish(), request(), requestText() (+14 more)
+Cohesion: 0.15
+Nodes (16): OperationalImports, requestText(), act(), markAttendance(), csvFileSchema, csvRowsSchema, entityOptions, ImportBatch (+8 more)
 
-### Community 156 - "agendaResources.ts"
-Cohesion: 0.36
-Nodes (8): agendaCapabilities(), AgendaResource, agendaResourcePaths(), AgendaRole, patientsAvailableForGroup(), professionalsForUnit(), professionalUnitIds(), resourcesForUnit()
+### Community 156 - "r"
+Cohesion: 0.05
+Nodes (137): C(), ac(), ao(), as(), at(), au(), Ba(), be() (+129 more)
 
 ### Community 157 - "Fechamento diferencial da homologação operacional"
 Cohesion: 0.25
@@ -768,9 +795,9 @@ Nodes (14): checks, evidence, operational, evidence, qualityPath, checks, cwd, e
 Cohesion: 0.18
 Nodes (10): after, before, coverage, earlier, escape(), failed, families, images (+2 more)
 
-### Community 162 - "monthlyPaymentControl.ts"
-Cohesion: 0.31
-Nodes (8): buildMonthlyPaymentRows(), matchesMonth(), monthBounds(), MonthlyPaymentRow, MonthlyPaymentSourceRow, MonthlyPaymentState, plannedCoverageEnd(), base
+### Community 162 - "F"
+Cohesion: 0.06
+Nodes (107): aa(), _acquireLock(), _adminDeletePasskey(), _adminListPasskeys(), _approveAuthorization(), _autoRefreshTokenTick(), _callRefreshToken(), _createCustomProvider() (+99 more)
 
 ### Community 163 - "Presence & Awareness"
 Cohesion: 0.25
@@ -780,17 +807,17 @@ Nodes (8): Activity Feeds, Avatar Stacks, Best Practices, Guidelines, Live Curso
 Cohesion: 0.25
 Nodes (8): Canvas Navigation, Coordinate Systems, Minimap / Overview, Pan Methods, Pan/Scroll, Zoom Controls, Zoom Levels, Zoom UI
 
-### Community 165 - "AuthProvider.tsx"
-Cohesion: 0.23
-Nodes (8): bindPortalSessionToUser(), clearPortalSessionState(), clearPortalStorage(), operationalResourceCache, AuthContext, AuthProvider(), AuthState, @supabase/supabase-js
+### Community 165 - "portalSessionState.ts"
+Cohesion: 0.43
+Nodes (5): bindPortalSessionToUser(), clearPortalSessionState(), clearPortalStorage(), operationalResourceCache, AuthProvider()
 
-### Community 166 - "Voice as a First-Class Input"
-Cohesion: 0.25
-Nodes (8): A complete voice interaction, end to end, Activation: wake words vs. push-to-talk, Confirmation & error recovery, Discoverability, Feedback: show every state, Privacy is part of voice UX, Recognition feedback in code, Voice as a First-Class Input
+### Community 166 - "OperationalImports-CaZrmfqA.js"
+Cohesion: 0.03
+Nodes (34): _addCheck(), base64(), base64url(), cidr(), cuid(), cuid2(), date(), datetime() (+26 more)
 
-### Community 167 - "vitest"
-Cohesion: 0.33
-Nodes (4): AttendanceSummaryInput, occurrenceAttendanceSummary(), renderStatus(), vitest
+### Community 167 - "push"
+Cohesion: 0.06
+Nodes (73): _cancelPendingDisconnect(), cancelRefEvent(), cancelTimeout(), catch(), clearHeartbeats(), connect(), connectionState(), connectWithFallback() (+65 more)
 
 ### Community 168 - "review-gallery.mjs"
 Cohesion: 0.29
@@ -804,17 +831,25 @@ Nodes (4): Comece aqui, Conteúdo, FISIOFIT — REFERÊNCIAS VISUAIS PARA UI/UX 
 Cohesion: 0.50
 Nodes (3): ADENDO OBRIGATÓRIO AO PROMPT MESTRE FISIOFIT UI/UX V2.2, Critério visual especial da agenda, Entrega adicional
 
-### Community 171 - "Communication Features"
-Cohesion: 0.33
-Nodes (6): Anonymous Voting, Communication Features, Contextual Comments (Annotations), Emoji Reactions, @Mentions, Threaded Comments
+### Community 171 - "t"
+Cohesion: 0.05
+Nodes (63): applyTransformOptsToQuery(), ar(), copy(), createBucket(), createIndex(), createSignedUploadUrl(), createSignedUrl(), createSignedUrls() (+55 more)
 
-### Community 173 - "RTL & Bidirectional Layout"
-Cohesion: 0.40
-Nodes (5): Mirror these — but not those, RTL & Bidirectional Layout, Set direction at the root, let it cascade, Use logical CSS properties, not physical ones, What a mirror actually looks like
+### Community 172 - "ct"
+Cohesion: 0.12
+Nodes (40): abort(), b(), c(), constructor(), ct(), A(), j(), M() (+32 more)
 
-### Community 175 - "paymentPlans.ts"
-Cohesion: 0.40
-Nodes (4): AvailablePaymentPlan, buildAvailablePaymentPlans(), PaymentPlanSourceRow, base
+### Community 173 - "parse"
+Cohesion: 0.10
+Nodes (29): ae(), be(), endsWith(), exclude(), _getCached(), _getInvalidInput(), _getOrReturnCtx(), _getType() (+21 more)
+
+### Community 174 - "Pc"
+Cohesion: 0.12
+Nodes (25): _a(), an(), bc(), build(), Cc(), channel(), Cl(), Dn() (+17 more)
+
+### Community 175 - "_l"
+Cohesion: 0.15
+Nodes (24): Al(), ca(), Dl(), ec(), El(), eo(), fc(), Fl() (+16 more)
 
 ### Community 176 - "financialOverview.ts"
 Cohesion: 0.47
@@ -824,25 +859,121 @@ Nodes (4): Charge, financialOverview(), Receipt, receiptMonth()
 Cohesion: 0.14
 Nodes (10): Famílias avaliadas, Fontes consultadas, Refinamento V2.1 — achados e decisões, Design System V2.1 — evolução da V2, Jornadas e limites da homologação V2.1, Comparação operacional e bloqueios, Evidências e reprodução, Fisiofit UI/UX V2.1 — entrega integrada (+2 more)
 
+### Community 180 - "send"
+Cohesion: 0.13
+Nodes (23): ajax(), batchSend(), canPush(), close(), closeAndRetry(), fetchRequest(), _fetchWithTimeout(), hasReceived() (+15 more)
+
+### Community 181 - "_challenge"
+Cohesion: 0.14
+Nodes (22): _authenticate(), _challenge(), _challengeAndVerify(), Cn(), Fa(), Fn(), Hi(), Ia() (+14 more)
+
+### Community 182 - "authAccess.ts"
+Cohesion: 0.13
+Nodes (17): AccessFailure, ApiRequestError, AuthRequestError, loginErrorMessage(), membershipCodes, normalizeLoginEmail(), passwordUpdatedNotice, recoveryErrorMessage() (+9 more)
+
+### Community 183 - "verify-hostinger-dist.mjs"
+Cohesion: 0.12
+Nodes (14): actualPaths, args, digest(), dist, expected, expectedPaths, extra, manifest (+6 more)
+
+### Community 184 - "create"
+Cohesion: 0.12
+Nodes (17): args(), brand(), catch(), create(), N(), default(), _e(), extract() (+9 more)
+
+### Community 185 - "Plataforma Fisiofit"
+Cohesion: 0.12
+Nodes (13): Alteração, Aplicação futura e rollback — proposta, não executada, Cadastro de pacientes — correção isolada de RLS, Causa comprovada, Produção: diagnóstico somente leitura, Validação, Ambiente local, Estrutura (+5 more)
+
+### Community 186 - "test-hostinger-transition.mjs"
+Cohesion: 0.17
+Nodes (13): args, compatManifest, digest(), expectedFile(), getVerifiedAsset(), root, safeResolve(), server (+5 more)
+
+### Community 187 - "verify-hostinger-public.mjs"
+Cohesion: 0.20
+Nodes (12): args, baseUrl, digest(), fetchPath(), fetchUrl(), intervalMs, manifest, manifestPath (+4 more)
+
+### Community 188 - "CookieConsent.tsx"
+Cohesion: 0.26
+Nodes (12): applyAdvertisingConsent(), applyGoogleFontsConsent(), Consent, CookieConsent(), closeSettings(), handleKeyDown(), save(), isConsent() (+4 more)
+
+### Community 189 - "decode"
+Cohesion: 0.24
+Nodes (13): _binaryDecode(), _binaryEncodeUserBroadcastPush(), decode(), decodeBroadcast(), decodePush(), decodeReply(), _decodeUserBroadcast(), encode() (+5 more)
+
+### Community 190 - "test-hostinger-upgrade.mjs"
+Cohesion: 0.21
+Nodes (11): args, candidateManifest, candidateRoot, digest(), expected(), getVerifiedAsset(), previousManifest, previousRoot (+3 more)
+
+### Community 191 - "Nielsen's 10 Usability Heuristics"
+Cohesion: 0.18
+Nodes (11): 10. Help and Documentation, 1. Visibility of System Status, 2. Match Between System and the Real World, 3. User Control and Freedom, 4. Consistency and Standards, 5. Error Prevention, 6. Recognition Rather Than Recall, 7. Flexibility and Efficiency of Use (+3 more)
+
+### Community 192 - "create-hostinger-manifest.mjs"
+Cohesion: 0.24
+Nodes (9): args, candidate, compatibility, digest(), dist, files, output, root (+1 more)
+
+### Community 193 - "homologate-stabilization.mjs"
+Cohesion: 0.28
+Nodes (6): docker(), migrations, output, psql(), results, probeExpiredFixtures()
+
+### Community 194 - "ui-v22/fixtures.mjs"
+Cohesion: 0.22
+Nodes (6): date, items, participants, people, room, patient
+
+### Community 195 - "dependencies"
+Cohesion: 0.25
+Nodes (8): dependencies, @fisiofit/contracts, @fisiofit/design-system, lucide-react, react, react-dom, tailwindcss-animate, wouter
+
+### Community 196 - "devDependencies"
+Cohesion: 0.25
+Nodes (8): devDependencies, autoprefixer, postcss, tailwindcss, @types/react, @types/react-dom, vite, @vitejs/plugin-react
+
+### Community 197 - "hostinger-compat.test.mjs"
+Cohesion: 0.29
+Nodes (4): compatManifest, compatRoot, root, v23Manifest
+
+### Community 198 - "Building Trust"
+Cohesion: 0.40
+Nodes (5): Building Trust, Security Indicators, Social Proof Patterns, Transparent Pricing, Trust Signals by Context
+
+### Community 199 - "scripts"
+Cohesion: 0.40
+Nodes (5): scripts, build, dev, lint, typecheck
+
+### Community 200 - "setLimit"
+Cohesion: 0.40
+Nodes (5): gt(), gte(), lt(), lte(), setLimit()
+
+### Community 201 - "Touch Feedback"
+Cohesion: 0.50
+Nodes (4): Haptic Feedback, Response Time, Touch Feedback, Visual Feedback
+
+### Community 202 - "Responsive Gestures"
+Cohesion: 0.50
+Nodes (4): Pull-to-Refresh, Responsive Gestures, Standard Mobile Gestures, Swipe Actions
+
+### Community 203 - "dirty"
+Cohesion: 0.50
+Nodes (4): dirty(), mergeArray(), mergeObjectAsync(), mergeObjectSync()
+
 ## Knowledge Gaps
-- **1531 isolated node(s):** `name`, `private`, `version`, `type`, `dev` (+1526 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 1657 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **14 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **1578 isolated node(s):** `name`, `private`, `version`, `type`, `dev` (+1573 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 1853 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **15 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `create()` connect `api` to `ui-v23/browser.mjs`?**
-  _High betweenness centrality (0.036) - this node is a cross-community bridge._
-- **Why does `api()` connect `api` to `OperationalAgenda.tsx`, `FormPrimitives.tsx`, `MonthlyPayments.tsx`, `useDialogFocus`, `OperationalImports.tsx`, `portal/src/main.tsx`, `FisiofitApp.tsx`, `OperationalShared.tsx`?**
-  _High betweenness centrality (0.025) - this node is a cross-community bridge._
-- **Why does `UX Writing & Microcopy` connect `UX Writing & Microcopy` to `Content Design Process`, `Core Principles`, `Form Copy`, `Writing for Common UI Elements`, `Testing Microcopy`, `Accessibility in Writing`, `Voice and Tone`, `AI Tools for UX Writing`, `Resources`?**
-  _High betweenness centrality (0.016) - this node is a cross-community bridge._
-- **What connects `name`, `private`, `version` to the rest of the system?**
-  _1531 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `OperationalAgenda.tsx` be split into smaller, more focused modules?**
-  _Cohesion score 0.06565656565656566 - nodes in this community are weakly interconnected._
-- **Should `FormPrimitives.tsx` be split into smaller, more focused modules?**
-  _Cohesion score 0.13425253991291727 - nodes in this community are weakly interconnected._
-- **Should `Design Systems` be split into smaller, more focused modules?**
-  _Cohesion score 0.043478260869565216 - nodes in this community are weakly interconnected._
+- **Why does `path()` connect `OperationalImports-CaZrmfqA.js` to `api`?**
+  _High betweenness centrality (0.108) - this node is a cross-community bridge._
+- **Why does `save()` connect `api` to `OperationalImports-CaZrmfqA.js`?**
+  _High betweenness centrality (0.108) - this node is a cross-community bridge._
+- **Why does `api()` connect `api` to `OperationalAgenda.tsx`, `OperationalShared.tsx`, `MonthlyPayments.tsx`, `OperationalImports.tsx`, `portal/src/main.tsx`, `FisiofitApp.tsx`, `OperationalEnrollments.tsx`?**
+  _High betweenness centrality (0.055) - this node is a cross-community bridge._
+- **Are the 54 inferred relationships involving `ze()` (e.g. with `kt()` and `at()`) actually correct?**
+  _`ze()` has 54 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 40 inferred relationships involving `r()` (e.g. with `bt()` and `fe()`) actually correct?**
+  _`r()` has 40 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 28 inferred relationships involving `t()` (e.g. with `Di()` and `dt()`) actually correct?**
+  _`t()` has 28 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 45 inferred relationships involving `ft()` (e.g. with `Ae()` and `be()`) actually correct?**
+  _`ft()` has 45 INFERRED edges - model-reasoned connections that need verification._

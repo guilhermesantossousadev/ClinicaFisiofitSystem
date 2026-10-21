@@ -52,9 +52,6 @@ jobs:
       - name: Validar site, sistema e contratos
         run: npm test
 
-      - name: Conferir todos os arquivos do pacote aprovado por hash e HTTP local
-        run: node scripts/verify-hostinger-dist.mjs --dist dist --http
-
       - name: Obter distribuição atual para comparar e preparar rollback
         uses: actions/checkout@v4
         with:
@@ -62,7 +59,7 @@ jobs:
           path: hostinger-current
           fetch-depth: 0
 
-      - name: Confirmar distribuição anterior esperada e integridade V2.2
+      - name: Confirmar distribuição anterior esperada e integridade V2.3
         id: previous
         env:
           EXPECTED_DISTRIBUTION_SHA: ${{ inputs.expected_distribution_sha }}
@@ -76,17 +73,29 @@ jobs:
             echo "hostinger-deploy changed: expected $EXPECTED_DISTRIBUTION_SHA, found $actual_sha" >&2
             exit 1
           fi
-          node scripts/verify-hostinger-dist.mjs --dist hostinger-current --manifest release/hostinger/v22-rollback-manifest.json
+          node scripts/verify-hostinger-dist.mjs --dist hostinger-current --manifest release/hostinger/v23-approved-manifest.json
           echo "sha=$actual_sha" >> "$GITHUB_OUTPUT"
 
-      - name: Simular aba V2.2 aberta durante a atualização e nova sessão V2.3
-        run: node scripts/test-hostinger-transition.mjs --v22 hostinger-current --v23 dist
+      - name: Preservar arquivos usados pelas abas já abertas
+        run: |
+          rsync -a --ignore-existing hostinger-current/assets/ dist/assets/
+          rsync -a --ignore-existing hostinger-current/sistema/assets/ dist/sistema/assets/
+
+      - name: Lacrar e conferir o novo pacote por hash e HTTP local
+        run: |
+          node scripts/create-hostinger-manifest.mjs --dist dist --output candidate-manifest.json --candidate "$GITHUB_SHA"
+          node scripts/verify-hostinger-dist.mjs --dist dist --manifest candidate-manifest.json --http
+
+      - name: Simular aba V2.3 aberta durante a atualização e nova sessão
+        run: node scripts/test-hostinger-upgrade.mjs --previous hostinger-current --candidate dist --previous-manifest release/hostinger/v23-approved-manifest.json --candidate-manifest candidate-manifest.json
 
       - name: Guardar distribuição verificada para auditoria
         uses: actions/upload-artifact@v4
         with:
           name: fisiofit-v23-distribution-${{ github.sha }}
-          path: dist/
+          path: |
+            dist/
+            candidate-manifest.json
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 14
@@ -109,18 +118,18 @@ jobs:
           PUBLISHED_SHA: ${{ steps.publish.outputs.sha }}
           PREVIOUS_SHA: ${{ steps.previous.outputs.sha }}
         run: |
-          if node scripts/verify-hostinger-public.mjs --manifest release/hostinger/v23-approved-manifest.json; then
-            echo "V2.3 verified at the production Hostinger URL."
+          if node scripts/verify-hostinger-public.mjs --manifest candidate-manifest.json; then
+            echo "Candidate verified at the production Hostinger URL."
           else
-            echo "::error::Public V2.3 verification failed; restoring the previous V2.2 distribution."
+            echo "::error::Public verification failed; restoring the previous V2.3 distribution."
             parent_sha=$(git -C hostinger-current rev-parse "${PUBLISHED_SHA}^")
             if [[ "$parent_sha" != "$PREVIOUS_SHA" ]]; then
-              echo "Published distribution parent does not equal the captured V2.2 SHA; refusing an unsafe rollback." >&2
+              echo "Published distribution parent does not equal the captured V2.3 SHA; refusing an unsafe rollback." >&2
               exit 1
             fi
             git -C hostinger-current revert --no-edit "$PUBLISHED_SHA"
             git -C hostinger-current push origin HEAD:hostinger-deploy
-            node scripts/verify-hostinger-public.mjs --manifest release/hostinger/v22-rollback-manifest.json
-            echo "V2.2 rollback is live and verified; this release run remains failed."
+            node scripts/verify-hostinger-public.mjs --manifest release/hostinger/v23-approved-manifest.json
+            echo "V2.3 rollback is live and verified; this release run remains failed."
             exit 1
           fi
