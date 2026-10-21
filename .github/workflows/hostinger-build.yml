@@ -2,13 +2,23 @@ name: Preparar publicação para a Hostinger
 
 on:
   workflow_dispatch:
+    inputs:
+      expected_distribution_sha:
+        description: SHA currently published in hostinger-deploy; deployment stops if it differs.
+        required: true
+        type: string
+      publish_distribution:
+        description: Set true only after the validation-only workflow run has passed.
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: write
 
 concurrency:
   group: hostinger-production
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -42,15 +52,75 @@ jobs:
       - name: Validar site, sistema e contratos
         run: npm test
 
-      - name: Atualizar a branch lida pela Hostinger
+      - name: Conferir todos os arquivos do pacote aprovado por hash e HTTP local
+        run: node scripts/verify-hostinger-dist.mjs --dist dist --http
+
+      - name: Obter distribuição atual para comparar e preparar rollback
+        uses: actions/checkout@v4
+        with:
+          ref: hostinger-deploy
+          path: hostinger-current
+          fetch-depth: 0
+
+      - name: Confirmar distribuição anterior esperada e integridade V2.2
+        id: previous
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EXPECTED_DISTRIBUTION_SHA: ${{ inputs.expected_distribution_sha }}
         run: |
-          cd dist
-          git init
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -b hostinger-deploy
-          git add --all
-          git commit -m "Publicação aprovada de ${GITHUB_SHA}"
-          git push --force "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" hostinger-deploy
+          if [[ ! "$EXPECTED_DISTRIBUTION_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "expected_distribution_sha must be a full commit SHA" >&2
+            exit 1
+          fi
+          actual_sha=$(git -C hostinger-current rev-parse HEAD)
+          if [[ "$actual_sha" != "$EXPECTED_DISTRIBUTION_SHA" ]]; then
+            echo "hostinger-deploy changed: expected $EXPECTED_DISTRIBUTION_SHA, found $actual_sha" >&2
+            exit 1
+          fi
+          node scripts/verify-hostinger-dist.mjs --dist hostinger-current --manifest release/hostinger/v22-rollback-manifest.json
+          echo "sha=$actual_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Simular aba V2.2 aberta durante a atualização e nova sessão V2.3
+        run: node scripts/test-hostinger-transition.mjs --v22 hostinger-current --v23 dist
+
+      - name: Guardar distribuição verificada para auditoria
+        uses: actions/upload-artifact@v4
+        with:
+          name: fisiofit-v23-distribution-${{ github.sha }}
+          path: dist/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publicar artefato verificado com commit filho (sem force)
+        if: inputs.publish_distribution
+        id: publish
+        run: |
+          rsync -a --delete --exclude='.git' dist/ hostinger-current/
+          git -C hostinger-current config user.name "github-actions[bot]"
+          git -C hostinger-current config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C hostinger-current add --all
+          git -C hostinger-current commit -m "Publish Fisiofit V2.3 from ${GITHUB_SHA}"
+          git -C hostinger-current push origin HEAD:hostinger-deploy
+          echo "sha=$(git -C hostinger-current rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Confirmar publicação pública ou restaurar V2.2 automaticamente
+        if: inputs.publish_distribution
+        env:
+          PUBLISHED_SHA: ${{ steps.publish.outputs.sha }}
+          PREVIOUS_SHA: ${{ steps.previous.outputs.sha }}
+        run: |
+          if node scripts/verify-hostinger-public.mjs --manifest release/hostinger/v23-approved-manifest.json; then
+            echo "V2.3 verified at the production Hostinger URL."
+          else
+            echo "::error::Public V2.3 verification failed; restoring the previous V2.2 distribution."
+            parent_sha=$(git -C hostinger-current rev-parse "${PUBLISHED_SHA}^")
+            if [[ "$parent_sha" != "$PREVIOUS_SHA" ]]; then
+              echo "Published distribution parent does not equal the captured V2.2 SHA; refusing an unsafe rollback." >&2
+              exit 1
+            fi
+            git -C hostinger-current revert --no-edit "$PUBLISHED_SHA"
+            git -C hostinger-current push origin HEAD:hostinger-deploy
+            node scripts/verify-hostinger-public.mjs --manifest release/hostinger/v22-rollback-manifest.json
+            echo "V2.2 rollback is live and verified; this release run remains failed."
+            exit 1
+          fi

@@ -1,0 +1,26 @@
+{
+  "sourceCommit": "f256de6369f98567fabaf9139658c6de8e4af517",
+  "files": [
+    { "path": ".htaccess", "bytes": 1887, "sha256": "5eb15fc3bfee19eae673f3f226d1710d6038965962a011226911e8538f260521" },
+    { "path": "assets/cuidado-humano-fisiofit-CiYjC99k.avif", "bytes": 123099, "sha256": "8ea64abe6e4e8dd3c071fb943e03e527c510beda9d291ed64842300e3836b9d0" },
+    { "path": "assets/fachada-fisiofit-wH25q6ZL.avif", "bytes": 179033, "sha256": "be6130f78a612e8434209041f605eb6109abebc39dfd12dca5ffe563b2456de5" },
+    { "path": "assets/hero-fisiofit-CC45rPEz.avif", "bytes": 169735, "sha256": "c9533be8fea3ef7560dfbb02124d3df92a7cc49db309f216aab324f2a98684cb" },
+    { "path": "assets/index-CxNX9I6x.css", "bytes": 27784, "sha256": "db7d0845356194a93b3bf44138201a28566df8dad5f19262ef5ac0f910cedb94" },
+    { "path": "assets/index-DFOy84LD.js", "bytes": 254046, "sha256": "0abb4334861f3a5f1d1cbc1fadc4b79d328ae030ed37f1503d3e054bb03fee1b" },
+    { "path": "assets/studio-centro-DusOto0r.avif", "bytes": 385200, "sha256": "79d72d4ddf1ceccc75aca09d2a0540f781be55fb837b6b50891c9d297cd0e765" },
+    { "path": "assets/studio-lagoa-DvChoEDi.avif", "bytes": 206002, "sha256": "98f63bb3babd65ed2eb0d93578dde6debf89c7d0f74f6f89f391eed810bd699c" },
+    { "path": "fisiofit-logo.jpg", "bytes": 54012, "sha256": "d1a56ff55135be5755b33fee90ee240795c3ee04546678ebd6266a155408734c" },
+    { "path": "index.html", "bytes": 1431, "sha256": "b88897d5aa75039bb3ef9f89ead68513d0cb964d3884bb4f40e2799a22a112c6" },
+    { "path": "og.jpg", "bytes": 160402, "sha256": "f164ab4db3d78a2ad453a616f49575736ede2cd1c525e2a04f28da779d620452" },
+    { "path": "robots.txt", "bytes": 160, "sha256": "a3d27b3ca5ce32341fa9f96f01169b521b1657c05d1860c45d1e53a6258e9e8b" },
+    { "path": "sistema/.htaccess", "bytes": 1241, "sha256": "915565b17c520e89b0b2c81b1b1f35e9fcf4b11fe13fee2fc0635ebe480ada2f" },
+    { "path": "sistema/assets/FisiofitApp-Djuk9SPi.js", "bytes": 227708, "sha256": "169247f16b38827e253cdb1ef6ab48a9fd57bbbb6ecb5fcee0d421e89b854411" },
+    { "path": "sistema/assets/index-BeexdN4s.css", "bytes": 89523, "sha256": "727bc45a56199f9c7550cc19ba1248ffb13dc9c48d303cf88fc5cda6847129d2" },
+    { "path": "sistema/assets/index-CNUCljKP.js", "bytes": 401606, "sha256": "9204764120680d43f66d21afe74979fab44f1179c5054c7f32074a048929ac89" },
+    { "path": "sistema/assets/OperationalImports-CaZrmfqA.js", "bytes": 81882, "sha256": "8733a23a4c59d9bc8c0ecddf2158a04f4243673f4733b2d4c7a4edcd08bbb82c" },
+    { "path": "sistema/assets/OperationalShared-D7CychqT.js", "bytes": 21025, "sha256": "4f3c69cbcb49d0192b09f38b13dab9a90bd1fa1ef12c1c015686967ec0211eda" },
+    { "path": "sistema/fisiofit-logo.jpg", "bytes": 54012, "sha256": "d1a56ff55135be5755b33fee90ee240795c3ee04546678ebd6266a155408734c" },
+    { "path": "sistema/index.html", "bytes": 605, "sha256": "b32bfcd59a7f31f6a8b51a066352888701b6be5d1df7d7a38c1294cab648cd8c" },
+    { "path": "sistema/logo-fisiofit.svg", "bytes": 2224, "sha256": "ab13c23f918afa0891359351d36fa60658c1d3c2c583fc368be53316c2732875" }
+  ]
+}

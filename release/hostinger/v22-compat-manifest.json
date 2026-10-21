@@ -1,0 +1,52 @@
+{
+  "sourceArchive": "rollback-v22-web.zip",
+  "sourceArchiveSha256": "3935d76592d2eba2e2090416ea6aaf45b8a6e29e81c7ea92412f27cad8b7da80",
+  "sourceManifest": "rollback-manifest.json",
+  "files": [
+    {
+      "path": "sistema/assets/index-CNUCljKP.js",
+      "mimeType": "application/javascript",
+      "bytes": 401606,
+      "sha256": "9204764120680d43f66d21afe74979fab44f1179c5054c7f32074a048929ac89",
+      "source": "release/hostinger/v22-compat/sistema/assets/index-CNUCljKP.js",
+      "origin": "Verified V2.2 rollback archive; this is the entry script referenced by the V2.2 index.html.",
+      "dependencies": ["sistema/assets/FisiofitApp-Djuk9SPi.js", "sistema/assets/OperationalShared-D7CychqT.js"]
+    },
+    {
+      "path": "sistema/assets/index-BeexdN4s.css",
+      "mimeType": "text/css",
+      "bytes": 89523,
+      "sha256": "727bc45a56199f9c7550cc19ba1248ffb13dc9c48d303cf88fc5cda6847129d2",
+      "source": "release/hostinger/v22-compat/sistema/assets/index-BeexdN4s.css",
+      "origin": "Verified V2.2 rollback archive; this is the stylesheet referenced by the V2.2 index.html.",
+      "dependencies": []
+    },
+    {
+      "path": "sistema/assets/FisiofitApp-Djuk9SPi.js",
+      "mimeType": "application/javascript",
+      "bytes": 227708,
+      "sha256": "169247f16b38827e253cdb1ef6ab48a9fd57bbbb6ecb5fcee0d421e89b854411",
+      "source": "release/hostinger/v22-compat/sistema/assets/FisiofitApp-Djuk9SPi.js",
+      "origin": "Verified V2.2 rollback archive; dynamically referenced by the V2.2 entry script.",
+      "dependencies": ["sistema/assets/OperationalImports-CaZrmfqA.js", "sistema/assets/OperationalShared-D7CychqT.js", "sistema/assets/index-BeexdN4s.css"]
+    },
+    {
+      "path": "sistema/assets/OperationalImports-CaZrmfqA.js",
+      "mimeType": "application/javascript",
+      "bytes": 81882,
+      "sha256": "8733a23a4c59d9bc8c0ecddf2158a04f4243673f4733b2d4c7a4edcd08bbb82c",
+      "source": "release/hostinger/v22-compat/sistema/assets/OperationalImports-CaZrmfqA.js",
+      "origin": "Verified V2.2 rollback archive; lazily referenced by the V2.2 application chunk.",
+      "dependencies": ["sistema/assets/OperationalShared-D7CychqT.js"]
+    },
+    {
+      "path": "sistema/assets/OperationalShared-D7CychqT.js",
+      "mimeType": "application/javascript",
+      "bytes": 21025,
+      "sha256": "4f3c69cbcb49d0192b09f38b13dab9a90bd1fa1ef12c1c015686967ec0211eda",
+      "source": "release/hostinger/v22-compat/sistema/assets/OperationalShared-D7CychqT.js",
+      "origin": "Verified V2.2 rollback archive; shared V2.2 module referenced by the entry and lazy application chunks.",
+      "dependencies": []
+    }
+  ]
+}
