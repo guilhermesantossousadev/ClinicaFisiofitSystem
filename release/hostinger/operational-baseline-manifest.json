@@ -1,5 +1,5 @@
 {
-  "candidate": "9950865be4030826aff3160a038e7966666c31aa",
+  "candidate": "2d4a1a7d83cb587173175b410e33a8984a55a0b5",
   "files": [
     {
       "path": ".htaccess",
@@ -82,9 +82,19 @@
       "sha256": "169247f16b38827e253cdb1ef6ab48a9fd57bbbb6ecb5fcee0d421e89b854411"
     },
     {
+      "path": "sistema/assets/FisiofitApp-p9D3rRuy.js",
+      "bytes": 252631,
+      "sha256": "80b2940f207836d8e5b463b14cf5b58885a2a7eaf296d4d2a4972ad1dc82c5b3"
+    },
+    {
       "path": "sistema/assets/index-BeexdN4s.css",
       "bytes": 89523,
       "sha256": "727bc45a56199f9c7550cc19ba1248ffb13dc9c48d303cf88fc5cda6847129d2"
+    },
+    {
+      "path": "sistema/assets/index-BMJJ8DQ4.js",
+      "bytes": 401598,
+      "sha256": "6154cfa09e26b93577cc8371ad8bfd6e32d6e3d49799ae8952db5330bfb59946"
     },
     {
       "path": "sistema/assets/index-C4vOjn1V.js",
@@ -117,6 +127,11 @@
       "sha256": "374a5eb8570eb3b9778dd1b91d8375805a8d293557f34133b9e45d13f232e796"
     },
     {
+      "path": "sistema/assets/OperationalImports-Bfv9U9lF.js",
+      "bytes": 84434,
+      "sha256": "a866f16e72ff580388ea23078d7af54d335ac544b46b2f50449c833a1ec6ae26"
+    },
+    {
       "path": "sistema/assets/OperationalImports-CaZrmfqA.js",
       "bytes": 81882,
       "sha256": "8733a23a4c59d9bc8c0ecddf2158a04f4243673f4733b2d4c7a4edcd08bbb82c"
@@ -132,6 +147,11 @@
       "sha256": "a40a73b992df31c5c969965821abb3390bf1cb165932732cd2cf240064832fcd"
     },
     {
+      "path": "sistema/assets/OperationalShared-CowvlOki.js",
+      "bytes": 24227,
+      "sha256": "c444c48956159f3f633611ae89306303b8a70b6a87048d4d5f6e5ef44c3503c0"
+    },
+    {
       "path": "sistema/assets/OperationalShared-D7CychqT.js",
       "bytes": 21025,
       "sha256": "4f3c69cbcb49d0192b09f38b13dab9a90bd1fa1ef12c1c015686967ec0211eda"
@@ -144,7 +164,7 @@
     {
       "path": "sistema/index.html",
       "bytes": 605,
-      "sha256": "61b03dc1e86c1aac3f3bc30834bb4fb6198ac611f06afafc4ff8526d26c3b8ef"
+      "sha256": "2d24b223687dc95e64d2138fecf4ff30e26f64a6856d2507991f6734b5cddc46"
     },
     {
       "path": "sistema/logo-fisiofit.svg",
