@@ -523,10 +523,25 @@ app.post("/enrollments/:id/plan-change", requireRoles(["admin", "manager", "rece
 });
 app.get("/enrollment-price-terms", requireRoles(["admin", "manager", "reception", "finance"]), listResource("enrollment_price_terms", "effective_from"));
 
-app.post("/enrollments/:id/rollback", requireRoles(["admin", "manager", "finance"]), async (context) => {
+app.get("/enrollments/:id/lifecycle", requireRoles(["admin", "manager", "reception", "finance"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const { data, error } = await context.get("db").rpc("inspect_enrollment_lifecycle", { p_enrollment_id: id });
+  return databaseResult(context, data, error);
+});
+
+app.post("/enrollments/:id/rollback", requireRoles(["admin", "manager", "reception", "finance"]), async (context) => {
   const id = z.string().uuid().parse(context.req.param("id"));
   const input = z.object({ reason: z.string().trim().min(10).max(1000) }).parse(await context.req.json());
   const { data, error } = await context.get("db").rpc("rollback_enrollment", { p_enrollment_id: id, p_reason: input.reason, p_request_id: context.get("requestId") });
+  return databaseResult(context, data, error);
+});
+
+app.post("/enrollments/:id/cancel", requireRoles(["admin", "manager", "reception", "finance"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const input = z.object({ effective_from: z.string().date(), reason: z.string().trim().min(10).max(1000) }).parse(await context.req.json());
+  const { data, error } = await context.get("db").rpc("cancel_enrollment", {
+    p_enrollment_id: id, p_effective_from: input.effective_from, p_reason: input.reason, p_request_id: context.get("requestId"),
+  });
   return databaseResult(context, data, error);
 });
 
@@ -941,6 +956,11 @@ function databaseResult(context: any, data: unknown, error: any, status = 200) {
       ENROLLMENT_CANCELLED: [409, "Uma matrícula cancelada não pode ser editada."],
       ENROLLMENT_HAS_PAYMENTS: [409, "Esta matrícula possui pagamentos. Preserve o histórico e crie uma nova matrícula para alterar plano ou período."],
       ENROLLMENT_MULTIPLE_CHARGES: [409, "Esta matrícula possui várias cobranças. Solicite à gestão o ajuste financeiro antes de alterar o plano ou período."],
+      ENROLLMENT_HAS_HISTORY: [409, "Esta matrícula tem pagamento, atendimento ou outro histórico vinculado. Cancele a matrícula para preservar esses registros."],
+      ROLLBACK_REASON_REQUIRED: [400, "Informe uma justificativa com pelo menos 10 caracteres para desfazer a matrícula."],
+      CANCELLATION_REASON_REQUIRED: [400, "Informe uma justificativa com pelo menos 10 caracteres para cancelar a matrícula."],
+      CANCELLATION_DATE_MUST_BE_TODAY: [400, "O cancelamento operacional deve valer a partir de hoje."],
+      ENROLLMENT_ALREADY_CANCELLED: [409, "Esta matrícula já foi cancelada."],
     };
     const known = enrollmentErrors[String(error.message)];
     if (known) return fail(context, known[0], String(error.message), known[1]);

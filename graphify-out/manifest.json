@@ -240,9 +240,9 @@
     "semantic_hash": ""
   },
   "apps/portal/src/presentation/modules/OperationalEnrollments.tsx": {
-    "mtime": 1792663887.1385515,
-    "seen": 1792665823.477916,
-    "ast_hash": "e0030438e0b9d180eacc06fc7809db22",
+    "mtime": 1792671647.7405517,
+    "seen": 1792671683.3343601,
+    "ast_hash": "1154563b205a05626e913decac67e7b1",
     "semantic_hash": ""
   },
   "apps/portal/src/presentation/modules/OperationalFinance.tsx": {
@@ -624,9 +624,9 @@
     "semantic_hash": ""
   },
   "supabase/functions/api/index.ts": {
-    "mtime": 1792663853.394226,
-    "seen": 1792665823.4916322,
-    "ast_hash": "15a6ba0ed028bd1757a60cbd3b9b92ec",
+    "mtime": 1792671123.909403,
+    "seen": 1792671481.9858692,
+    "ast_hash": "1f6df9e8df7b6c8774d72018c07e2185",
     "semantic_hash": ""
   },
   "supabase/functions/api/operational-errors.ts": {
@@ -918,9 +918,9 @@
     "semantic_hash": ""
   },
   "context.md": {
-    "mtime": 1792665802.941991,
-    "seen": 1792665823.494316,
-    "ast_hash": "8a7b2e601c897f60c2d1521808a8166c",
+    "mtime": 1792666128.426073,
+    "seen": 1792671481.9880419,
+    "ast_hash": "42e26802828abf474b3c9eab6ad28c22",
     "semantic_hash": ""
   },
   "docs/02-domain/agenda-calendar-contracts.md": {
@@ -9810,21 +9810,21 @@
     "semantic_hash": ""
   },
   "supabase/functions/api/operational-surface.ts": {
-    "mtime": 1792629320.782973,
-    "seen": 1792629968.8144152,
-    "ast_hash": "8a08dc8b3e27ea3580e0539e68064de6",
+    "mtime": 1792671123.954643,
+    "seen": 1792671481.9859142,
+    "ast_hash": "90415083192f3e6fdb636b25f0b96157",
     "semantic_hash": ""
   },
   "tests/operational-surface.test.mjs": {
-    "mtime": 1792629430.8886547,
-    "seen": 1792629968.81473,
-    "ast_hash": "d43825ac884c31fd44143ebaf18a9557",
+    "mtime": 1792671273.4268892,
+    "seen": 1792671481.986318,
+    "ast_hash": "690c83e8b6111c263d42ccefef7a91f2",
     "semantic_hash": ""
   },
   "release/hostinger/operational-baseline-manifest.json": {
-    "mtime": 1792662641.5488312,
-    "seen": 1792665823.4891021,
-    "ast_hash": "430ca102fc99b75a777fa7f5817df74e",
+    "mtime": 1792666104.7897937,
+    "seen": 1792671481.983972,
+    "ast_hash": "712301be531d279d35485b5ef1505cb9",
     "semantic_hash": ""
   }
 }

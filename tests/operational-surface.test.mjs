@@ -6,6 +6,9 @@ test("mantém abertos os passos necessários do cadastro até a chamada", () => 
   for (const [method, path] of [
     ["GET", "/api/v1/patients"], ["POST", "/api/v1/patients"],
     ["POST", "/api/v1/plans"], ["POST", "/api/v1/enrollments"],
+    ["GET", "/api/v1/enrollments/00000000-0000-4000-8000-000000000001/lifecycle"],
+    ["POST", "/api/v1/enrollments/00000000-0000-4000-8000-000000000001/rollback"],
+    ["POST", "/api/v1/enrollments/00000000-0000-4000-8000-000000000001/cancel"],
     ["GET", "/api/v1/charges"], ["POST", "/api/v1/charges"],
     ["GET", "/api/v1/payments"], ["POST", "/api/v1/payments"],
     ["POST", "/api/v1/group-slots"], ["POST", "/api/v1/classes/00000000-0000-4000-8000-000000000001/memberships"],

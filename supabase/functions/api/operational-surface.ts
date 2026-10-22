@@ -6,7 +6,7 @@ export function isOperationalRoute(path: string, method: string): boolean {
   if (method === "GET" && route === "/payments") return true;
   if (method === "POST" && route === "/payments") return true;
   if (route.startsWith("/payments/")) return false;
-  if (/^\/enrollments\/[^/]+\/rollback$/.test(route)) return false;
+  if (/^\/enrollments\/[^/]+\/(rollback|cancel|lifecycle)$/.test(route)) return true;
   if (/^\/charges\/[^/]+\/status$/.test(route)) return false;
   if (method === "DELETE" && /^\/patients\/[^/]+$/.test(route)) return false;
   if (route.startsWith("/patients/") && route.endsWith("/timeline")) return false;

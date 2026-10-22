@@ -1263,10 +1263,22 @@ to {
 .plan-control-head,
 .plan-control-row {
   display: grid;
-  grid-template-columns: 1.15fr 1.25fr 1.15fr 1fr 1.2fr 76px;
+  grid-template-columns: 1.15fr 1.25fr 1.15fr 1fr 1.2fr 250px;
   align-items: center;
   gap: 18px;
-  min-width: 1080px;
+  min-width: 1280px;
+}
+
+.plan-control-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.plan-control-actions .btn {
+  flex: 1 1 110px;
+  min-height: 44px;
+  white-space: normal;
 }
 
 .plan-control-head {
@@ -1432,6 +1444,15 @@ to {
   font-weight: 800;
   letter-spacing: .04em;
   text-transform: uppercase;
+}
+
+.plan-control-actions {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.plan-control-actions::before {
+  flex: 0 0 100%;
 }
 
 .plan-status {

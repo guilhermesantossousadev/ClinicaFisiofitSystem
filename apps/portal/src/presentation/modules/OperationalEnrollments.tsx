@@ -8,8 +8,27 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { buildPlanControlRows, renewalCopy, type PlanControlRow } from "../../application/portal/planControl";
 import { buildAvailablePaymentPlans } from "../../application/portal/paymentPlans";
-import { SelectField, TextField, WeekdayCheckboxGroup } from "../components/FormPrimitives";
+import { SelectField, TextareaField, TextField, WeekdayCheckboxGroup } from "../components/FormPrimitives";
 import { type AgendaEnrollmentContext, Row, messageOf, statusLabel, value, cents, brl, groupSlotLabel, useDialogFocus, useResources, PlanSelect, PatientPicker, DrawerForm, ModuleState, MetricLite, OperationalTable, dateKey, localDateAtNoonIso } from "./OperationalShared";
+
+type LifecycleEvidence = {
+  can_undo: boolean;
+  charge_count: number;
+  paid_cents: number;
+  payment_count: number;
+  sessions_used: number;
+  appointment_count: number;
+  clinical_record_count: number;
+  legacy_attendance_count: number;
+  occurrence_attendance_count: number;
+};
+type LifecycleAction = "cancel" | "rollback";
+function clinicToday() {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(new Date()).map((part) => [part.type, part.value]));
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
 
 export function OperationalEnrollments({ agendaContext, onClearAgendaContext, openEnrollment = false, units = [], selectedUnitId = "", onUnitChange = () => undefined, canEdit = true, canManagePlans = true, canViewCharges = true, canViewPayments = true, canReceivePayments = true, canCreateCharges = canReceivePayments, canCorrectChargeAmounts = false, canViewPatients = true, canViewAgenda = true }: { agendaContext?: AgendaEnrollmentContext; onClearAgendaContext?: () => void; openEnrollment?: boolean; units?: Array<{ id: string; name: string }>; selectedUnitId?: string; onUnitChange?: (unitId: string) => void; canEdit?: boolean; canManagePlans?: boolean; canDeletePlans?: boolean; canViewCharges?: boolean; canViewPayments?: boolean; canReceivePayments?: boolean; canCreateCharges?: boolean; canRollback?: boolean; canCorrectChargeAmounts?: boolean; canViewPatients?: boolean; canViewAgenda?: boolean }) {
   const contextPatient = useWorkspace()?.journey?.patient;
@@ -51,6 +70,8 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
   const [controlFilter, setControlFilter] = useModuleState("enrollments.filter", "all");
   const [editingControlRow, setEditingControlRow] = useState<PlanControlRow | null>(null);
   const [savingControlRow, setSavingControlRow] = useState(false);
+  const [lifecycle, setLifecycle] = useState<{ row: PlanControlRow; action: LifecycleAction; evidence?: LifecycleEvidence; error?: string } | null>(null);
+  const [savingLifecycle, setSavingLifecycle] = useState(false);
   const paymentPending = useRef(false);
   const paymentAttempt = useRef<{ payload: string; key: string }>();
   const [receivingPayment, setReceivingPayment] = useState(false);
@@ -151,6 +172,43 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
       setSavingControlRow(false);
     }
   }
+  async function openLifecycle(row: PlanControlRow, action: LifecycleAction) {
+    setLifecycle({ row, action });
+    try {
+      const { data: evidence } = await api<LifecycleEvidence>(`/enrollments/${row.id}/lifecycle`);
+      if (!evidence) throw new Error("Não foi possível conferir o histórico desta matrícula.");
+      setLifecycle((current) => current?.row.id === row.id && current.action === action ? { ...current, evidence } : current);
+    } catch (error) {
+      setLifecycle((current) => current?.row.id === row.id && current.action === action ? { ...current, error: messageOf(error) } : current);
+    }
+  }
+  async function submitLifecycle(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!lifecycle?.evidence || savingLifecycle) return;
+    const { row, action, evidence } = lifecycle;
+    if (action === "rollback" && !evidence.can_undo) return;
+    const form = new FormData(event.currentTarget);
+    const reason = value(form, "reason").trim();
+    if (reason.length < 10) return;
+    setSavingLifecycle(true);
+    try {
+      await api(`/enrollments/${row.id}/${action}`, {
+        method: "POST",
+        body: JSON.stringify(action === "cancel"
+          ? { effective_from: clinicToday(), reason }
+          : { reason }),
+      });
+      setLifecycle(null);
+      await reload();
+      setNotice(action === "cancel"
+        ? "Matrícula cancelada a partir de hoje. Confira as cobranças anteriores no Controle de Planos."
+        : "Matrícula criada por engano desfeita. Os vínculos independentes de horário foram preservados.");
+    } catch (error) {
+      setLifecycle((current) => current?.row.id === row.id ? { ...current, error: messageOf(error) } : current);
+    } finally {
+      setSavingLifecycle(false);
+    }
+  }
   const availablePaymentPlans = useMemo(() => buildAvailablePaymentPlans({
     charges: monthlyData["/charges"] ?? [],
     enrollments: data["/enrollments"] ?? [],
@@ -218,6 +276,8 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
       </div>
       <PlanControlTable
         onChangePlan={canEdit ? (row) => setChangingEnrollmentId(row.id) : undefined}
+        onCancel={canEdit ? (row) => void openLifecycle(row, "cancel") : undefined}
+        onUndo={canEdit ? (row) => void openLifecycle(row, "rollback") : undefined}
         rows={filteredControlRows}
         total={controlRows.length}
         search={controlSearch}
@@ -240,6 +300,15 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
           onSubmit={updateControlledPlan}
         />
       )}
+      {lifecycle && <EnrollmentLifecycleDialog
+        row={lifecycle.row}
+        action={lifecycle.action}
+        evidence={lifecycle.evidence}
+        error={lifecycle.error}
+        saving={savingLifecycle}
+        onClose={() => setLifecycle(null)}
+        onSubmit={submitLifecycle}
+      />}
       {(canManagePlans || canEdit) && <div className="dashboard-grid">
         {canEdit && (
         <DrawerForm title="Nova matrícula" onSubmit={enroll} openInitially={openEnrollment || Boolean(agendaContext)} onClose={onClearAgendaContext}>
@@ -352,6 +421,58 @@ function dateLabel(value: string, withTime = false) {
     : { dateStyle: "short" }).format(date);
 }
 
+function EnrollmentLifecycleDialog({
+  row, action, evidence, error, saving, onClose, onSubmit,
+}: {
+  row: PlanControlRow;
+  action: LifecycleAction;
+  evidence?: LifecycleEvidence;
+  error?: string;
+  saving: boolean;
+  onClose: () => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  const titleId = `enrollment-lifecycle-${row.id}`;
+  const dialogRef = useDialogFocus(true, () => { if (!saving) onClose(); }, !saving);
+  const undo = action === "rollback";
+  return <div className="edit-dialog-backdrop" role="presentation">
+    <section ref={dialogRef} className="edit-dialog controlled-plan-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={0}>
+      <div className="edit-dialog-header">
+        <div><p className="eyebrow">GESTÃO DA MATRÍCULA</p>
+          <h2 id={titleId}>{undo ? "Desfazer matrícula criada por engano" : "Cancelar matrícula"}</h2>
+          <p>{row.patientName} · {row.planName}</p>
+        </div>
+        <button type="button" className="dialog-close" aria-label="Fechar" onClick={onClose} disabled={saving}>×</button>
+      </div>
+      <form className="modal-form" onSubmit={onSubmit} aria-busy={saving}>
+        {!evidence && !error && <p role="status">Conferindo pagamentos, sessões e histórico vinculado…</p>}
+        {error && <p role="alert">{error}</p>}
+        {evidence && <>
+          {undo
+            ? <p>O sistema só desfaz uma matrícula sem pagamentos, atendimentos ou presença. A matrícula e suas cobranças vazias deixam de aparecer; o motivo fica na auditoria.</p>
+            : <p>O cancelamento vale a partir de hoje. Aulas e novos agendamentos deste plano são interrompidos. Não serão criadas novas cobranças. Cobranças já lançadas permanecem para conferência.</p>}
+          <dl>
+            <div><dt>Pagamentos registrados</dt><dd>{evidence.payment_count}</dd></div>
+            <div><dt>Sessões usadas</dt><dd>{evidence.sessions_used}</dd></div>
+            <div><dt>Atendimentos vinculados</dt><dd>{evidence.appointment_count}</dd></div>
+            <div><dt>Presenças vinculadas</dt><dd>{evidence.legacy_attendance_count + evidence.occurrence_attendance_count}</dd></div>
+            <div><dt>Cobranças registradas</dt><dd>{evidence.charge_count}</dd></div>
+          </dl>
+          {undo && !evidence.can_undo && <p role="alert">Há histórico vinculado. Esta matrícula não pode ser desfeita; use o cancelamento para preservar os registros.</p>}
+          {!undo && <TextField label="Data de vigência" type="date" value={clinicToday()} readOnly hint="Nesta etapa, o cancelamento operacional começa hoje." />}
+          <TextareaField name="reason" label="Motivo" minLength={10} maxLength={1000} required hint="Informe pelo menos 10 caracteres. O motivo ficará registrado na auditoria." />
+        </>}
+        <div className="edit-dialog-actions">
+          <button type="button" className="btn secondary" onClick={onClose} disabled={saving}>Voltar</button>
+          <button type="submit" className="btn danger" disabled={!evidence || saving || (undo && !evidence.can_undo)}>
+            {saving ? "Salvando…" : undo ? "Confirmar desfazimento" : "Confirmar cancelamento"}
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>;
+}
+
 function PlanControlTable({
   rows,
   total,
@@ -364,6 +485,8 @@ function PlanControlTable({
   onUnitChange,
   onEdit,
   onChangePlan,
+  onCancel,
+  onUndo,
 }: {
   rows: PlanControlRow[];
   total: number;
@@ -376,6 +499,8 @@ function PlanControlTable({
   onUnitChange: (unitId: string) => void;
   onEdit?: (row: PlanControlRow) => void;
   onChangePlan?: (row: PlanControlRow) => void;
+  onCancel?: (row: PlanControlRow) => void;
+  onUndo?: (row: PlanControlRow) => void;
 }) {
   return (
     <section className="card table-card plan-control-table" aria-labelledby="plan-control-title">
@@ -428,7 +553,10 @@ function PlanControlTable({
             <small>{row.renewsAt ? `Renovação em ${dateLabel(row.renewsAt)}` : "Defina o fim do período no cadastro"}</small>
           </div>
           <div className="plan-control-cell plan-control-actions" data-label="Ações">
-            {onChangePlan && row.enrollmentStatus === "active" && <button type="button" className="btn secondary" onClick={() => onChangePlan(row)}>Trocar plano</button>}{onEdit && <button type="button" className="btn secondary" onClick={() => onEdit(row)} aria-label={`Editar plano de ${row.patientName}`}>Editar</button>}
+            {onChangePlan && row.enrollmentStatus === "active" && <button type="button" className="btn secondary" onClick={() => onChangePlan(row)}>Trocar plano</button>}
+            {onEdit && <button type="button" className="btn secondary" onClick={() => onEdit(row)} aria-label={`Editar plano de ${row.patientName}`}>Editar</button>}
+            {onCancel && row.enrollmentStatus !== "cancelled" && <button type="button" className="btn secondary" onClick={() => onCancel(row)} aria-label={`Cancelar matrícula ${row.planName} de ${row.patientName}`}>Cancelar matrícula</button>}
+            {onUndo && <button type="button" className="btn secondary" onClick={() => onUndo(row)} aria-label={`Desfazer matrícula ${row.planName} de ${row.patientName}`}>Desfazer matrícula</button>}
           </div>
         </div>
       ))}
