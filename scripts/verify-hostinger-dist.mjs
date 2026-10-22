@@ -14,6 +14,7 @@ const option = (name, fallback) => {
 const dist = resolve(option("--dist", resolve(root, "dist")));
 const manifestPath = resolve(option("--manifest", resolve(root, "release/hostinger/v23-approved-manifest.json")));
 const verifyHttp = args.includes("--http");
+const allowRetainedAssets = args.includes("--allow-retained-assets");
 
 const mediaTypes = new Map([
   [".avif", "image/avif"],
@@ -90,7 +91,10 @@ const actualPaths = (await walkFiles(dist)).sort();
 const expectedPaths = [...expected.keys()].sort();
 const missing = expectedPaths.filter((path) => !actualPaths.includes(path));
 const extra = actualPaths.filter((path) => !expected.has(path));
-if (missing.length || extra.length) {
+const unexpectedExtra = allowRetainedAssets
+  ? extra.filter((path) => !/^(?:sistema\/)?assets\/[A-Za-z0-9_-]+-[A-Za-z0-9_-]{8}\.(?:js|css)$/.test(path))
+  : extra;
+if (missing.length || unexpectedExtra.length) {
   throw new Error(`Distribution file set mismatch. Missing: ${missing.join(", ") || "none"}; extra: ${extra.join(", ") || "none"}`);
 }
 

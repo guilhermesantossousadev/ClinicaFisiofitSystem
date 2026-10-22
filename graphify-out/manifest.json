@@ -870,9 +870,9 @@
     "semantic_hash": ""
   },
   ".github/workflows/hostinger-build.yml": {
-    "mtime": 1792630198.7755659,
-    "seen": 1792631718.0068119,
-    "ast_hash": "eab5368dbe371c2e0caf69e0396d9780",
+    "mtime": 1792662504.9879146,
+    "seen": 1792662524.028734,
+    "ast_hash": "4b8565ab87fc0799b5939e4f9693b7ea",
     "semantic_hash": ""
   },
   "ARCHITECTURE.md": {
@@ -9792,9 +9792,9 @@
     "semantic_hash": ""
   },
   "scripts/verify-hostinger-dist.mjs": {
-    "mtime": 1792606983.6576803,
-    "seen": 1792607138.325427,
-    "ast_hash": "62c67265c93ba43e82f6aeee55396e3d",
+    "mtime": 1792662504.949713,
+    "seen": 1792662524.026485,
+    "ast_hash": "309fb6b9bc33b12f766d649c1ce3b55b",
     "semantic_hash": ""
   },
   "scripts/verify-hostinger-public.mjs": {

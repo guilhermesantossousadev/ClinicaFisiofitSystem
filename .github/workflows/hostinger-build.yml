@@ -73,7 +73,7 @@ jobs:
             echo "hostinger-deploy changed: expected $EXPECTED_DISTRIBUTION_SHA, found $actual_sha" >&2
             exit 1
           fi
-          node scripts/verify-hostinger-dist.mjs --dist hostinger-current --manifest release/hostinger/operational-baseline-manifest.json
+          node scripts/verify-hostinger-dist.mjs --dist hostinger-current --manifest release/hostinger/operational-baseline-manifest.json --allow-retained-assets
           echo "sha=$actual_sha" >> "$GITHUB_OUTPUT"
 
       - name: Preservar arquivos usados pelas abas já abertas
