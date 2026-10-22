@@ -3,22 +3,14 @@ import type { PermissionModule, Role, View } from "../../domain/portal";
 export type NavigationItem = { label: View; icon: string; roles: Role[] };
 
 export const nav: NavigationItem[] = [
-  { label: "Painel", icon: "⌂", roles: ["admin", "manager", "reception", "professional", "finance"] },
-  { label: "Agenda", icon: "□", roles: ["admin", "manager", "reception", "professional"] },
-  { label: "Chamada diária", icon: "✓", roles: ["admin", "manager", "reception", "professional"] },
-  { label: "Pacientes", icon: "♙", roles: ["admin", "manager", "reception"] },
-  { label: "Matrículas", icon: "◇", roles: ["admin", "manager", "reception", "finance"] },
-  { label: "Prontuários", icon: "▤", roles: ["admin", "manager", "professional"] },
-  { label: "Financeiro", icon: "R$", roles: ["admin", "manager", "finance"] },
-  { label: "Relatórios", icon: "↗", roles: ["admin", "manager", "finance"] },
-  { label: "Importações", icon: "⇧", roles: ["admin", "manager"] },
-  { label: "Usuários", icon: "⚙", roles: ["admin", "manager"] },
-  { label: "Configurações", icon: "⌖", roles: ["admin", "manager", "reception", "finance"] },
-  { label: "Privacidade", icon: "✓", roles: ["admin", "manager"] },
+  { label: "Pacientes", icon: "♙", roles: ["admin", "manager", "reception", "professional", "finance"] },
+  { label: "Matrículas", icon: "◇", roles: ["admin", "manager", "reception", "professional", "finance"] },
+  { label: "Agenda", icon: "□", roles: ["admin", "manager", "reception", "professional", "finance"] },
+  { label: "Chamada diária", icon: "✓", roles: ["admin", "manager", "reception", "professional", "finance"] },
 ];
 
 export const roleLabel: Record<Role, string> = {
-  admin: "Administrador", manager: "Gestor", reception: "Recepção", professional: "Profissional", finance: "Financeiro",
+  admin: "Equipe", manager: "Equipe", reception: "Equipe", professional: "Equipe", finance: "Equipe",
 };
 
 export const navModule: Partial<Record<View, PermissionModule>> = {

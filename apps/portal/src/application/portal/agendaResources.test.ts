@@ -36,12 +36,12 @@ describe("recursos da agenda por unidade", () => {
     expect(patientsAvailableForGroup(patients, "centro", ["ja-na-turma"]).map((row) => row.id)).toEqual(["sem-plano"]);
   });
 
-  it("não carrega matrículas nem expõe gestão de turmas ao profissional", () => {
-    expect(agendaResourcePaths("/appointments?from=a&to=b", "professional")).not.toContain("/enrollments");
+  it("oferece a mesma gestão operacional a todos os logins ativos", () => {
+    expect(agendaResourcePaths("/appointments?from=a&to=b", "professional")).toContain("/enrollments");
     expect(agendaCapabilities("professional", true)).toEqual({
       canManageAppointments: true,
-      canManageGroups: false,
-      canViewEnrollments: false,
+      canManageGroups: true,
+      canViewEnrollments: true,
     });
   });
 

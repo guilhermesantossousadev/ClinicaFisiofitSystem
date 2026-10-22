@@ -264,7 +264,7 @@ export function OperationalPatients({ initialSearch = "", canEdit = true, canVie
         onChanged={reload}
         onNotice={setNotice}
         onOpen={(row) => { setDetailTab("summary"); void open(row); }}
-        allowDelete
+        allowDelete={false}
         canEdit={canEdit}
         total={total}
         page={page}
@@ -293,7 +293,7 @@ export function OperationalPatients({ initialSearch = "", canEdit = true, canVie
             </div>
             <div className="modal-form">
               {!detailDirty && <RelatedActions patient={{ id: selected.id, name: selected.name }} exclude="Pacientes" />}
-              <Tabs id="patient-profile" label="Seções da ficha" value={detailTab} onChange={next => void changeDetailTab(next)} items={[{value:"summary",label:"Resumo"},{value:"relationships",label:"Vínculos e histórico"},{value:"care",label:"Responsáveis e consentimentos"}]} />
+              <Tabs id="patient-profile" label="Seções da ficha" value={detailTab} onChange={next => void changeDetailTab(next)} items={[{value:"summary",label:"Resumo"},{value:"relationships",label:"Plano e turma"},{value:"care",label:"Responsáveis e consentimentos"}]} />
               <section role="tabpanel" id={`patient-profile-panel-${detailTab}`} aria-labelledby={`patient-profile-${detailTab}`} tabIndex={0}>
               {detailTab === "summary" && <><Facts items={[
                 ["Nome completo", selected.name], ["CPF", selected.cpf || "Não informado"], ["Nascimento", selected.birth_date ? new Date(`${selected.birth_date}T12:00:00`).toLocaleDateString("pt-BR") : "Não informado"],
@@ -303,7 +303,7 @@ export function OperationalPatients({ initialSearch = "", canEdit = true, canVie
               ]} />{selected.notes && <div className="clinical-narrative"><h3>Observações do cadastro</h3><p>{selected.notes}</p></div>}</>}
               {detailTab !== "summary" && <ModuleState loading={detailLoading} error={detailError} retry={() => void open(selected)} />}
               {detailTab === "relationships" && !detailLoading && !detailError && <>
-                {!canViewTimeline && <p className="empty-state">O histórico integrado é restrito ao perfil autorizado. Use as ações acima para consultar os módulos disponíveis.</p>}
+                {!canViewTimeline && <Facts items={[["Plano", selected.plan_name || "Consulte as matrículas"], ["Turma", selected.group_name || "Consulte a agenda"]]} />}
                 {canViewTimeline && <div className="patient-timeline">{([['Cobranças', 'charges'], ['Atendimentos', 'appointments'], ['Registros clínicos', 'records']] as const).map(([label, key]) => <section key={key}><h3>{label} <span className="status neutral">{detail.timeline?.[key]?.length ?? 0}</span></h3>{(detail.timeline?.[key] ?? []).map((item: Row) => <article key={item.id}><strong>{item.plans?.name || item.description || item.services?.name || (item.kind === 'assessment' ? 'Avaliação inicial' : item.kind === 'evolution' ? 'Evolução' : label)}</strong><small>{item.starts_at || item.due_at || item.created_at ? new Date(item.starts_at || `${item.due_at || item.created_at}`.slice(0,10)+'T12:00:00').toLocaleDateString('pt-BR') : 'Data não informada'}{item.status ? ` · ${item.status}` : ''}</small></article>)}{!detail.timeline?.[key]?.length && <p>Nenhum registro disponível neste histórico.</p>}</section>)}</div>}
               </>}
               {detailTab === "care" && !detailLoading && !detailError && <>

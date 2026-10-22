@@ -405,6 +405,10 @@ Papéis protegem endpoints, RLS e navegação. `profile_permissions` somente res
 
 `/health`, `/openapi.json` e `/bootstrap` precedem o middleware geral; bootstrap valida seu próprio Bearer. Os demais exigem sessão, perfil ativo, papel permitido e, quando mapeado, permissão explícita de módulo. Dashboard fica restrito a admin/manager; prontuário exclui recepção/financeiro; financeiro exclui recepção/profissional; agenda profissional é limitada ao vínculo próprio. RLS e RPCs repetem as verificações de clínica, unidade e ator. Não há rate limiting ou proteção CSRF específica. CORS aceita a origem configurada e qualquer `localhost`.
 
+### 9.5.1 Candidato operacional temporário de 21/10/2026
+
+Na branch `codex/operational-focus-20261021`, o portal mostra somente Pacientes, Matrículas e planos, Agenda, Chamada diária e Meu perfil. A API mantém autenticação e perfil ativo, atende apenas os caminhos dessas áreas e responde `FEATURE_PAUSED` nos demais módulos. A migration `202610210002_operational_focus.sql` apresenta todos os perfis ativos como recepção para as regras operacionais e libera os módulos `patients`, `enrollments` e `agenda` sem alterar os papéis nem os registros originais de `profile_permissions`. Clínica e unidade continuam limitando os dados; cobranças avulsas ficam fora das consultas e correções operacionais. Uma migration futura poderá restaurar a matriz anterior. Este estado foi validado em banco local descartável com 39 afirmações sintéticas, além de build, tipagem, lint e testes de frontend/Node. A publicação e o teste autenticado com dados reais ainda devem ser verificados antes de declarar a operação em produção concluída.
+
 ### 9.6 Privacidade e dados sensíveis
 
 O site tenta registrar o consentimento publicitário em `localStorage`, trata bloqueios de armazenamento sem interromper a navegação e só injeta Google Ads e Google Fonts após aceite. A política pública final e os dados da controladora são centralizados em `packages/contracts`. Dados clínicos/financeiros são sensíveis; logs da API incluem mensagem de erro do banco e devem ser revisados para evitar vazamento operacional.

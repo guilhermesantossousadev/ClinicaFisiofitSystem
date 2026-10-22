@@ -1,15 +1,15 @@
 export type AgendaResource = Record<string, unknown> & { id?: string };
 export type AgendaRole = "admin" | "manager" | "reception" | "professional" | "finance";
 
-export function agendaCapabilities(role: AgendaRole, canEdit: boolean) {
+export function agendaCapabilities(_role: AgendaRole, canEdit: boolean) {
   return {
     canManageAppointments: canEdit,
-    canManageGroups: canEdit && role !== "professional",
-    canViewEnrollments: ["admin", "manager", "reception"].includes(role),
+    canManageGroups: canEdit,
+    canViewEnrollments: true,
   };
 }
 
-export function agendaResourcePaths(appointmentsPath: string, role: AgendaRole) {
+export function agendaResourcePaths(appointmentsPath: string, _role: AgendaRole) {
   return [
     appointmentsPath,
     "/units",
@@ -19,7 +19,7 @@ export function agendaResourcePaths(appointmentsPath: string, role: AgendaRole) 
     "/patients?page=1&pageSize=100",
     "/group-slots",
     "/group-slot-memberships",
-    ...(["admin", "manager", "reception"].includes(role) ? ["/enrollments"] : []),
+    "/enrollments",
   ];
 }
 

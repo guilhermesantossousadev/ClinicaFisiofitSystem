@@ -5,7 +5,8 @@ import { Hono } from "npm:hono@4.7.2";
 import { cors } from "npm:hono@4.7.2/cors";
 import { createClient, type User } from "npm:@supabase/supabase-js@2.49.1";
 import { z } from "npm:zod@3.24.2";
-import { defaultPermissionsForRole, moduleForRolePath, type PermissionModule, type Role } from "./authorization.ts";
+import { defaultPermissionsForRole, type PermissionModule, type Role } from "./authorization.ts";
+import { isOperationalRoute } from "./operational-surface.ts";
 import { registerUsuariosRoutes } from "./routes/usuarios.ts";
 import { registerPrivacidadeRoutes } from "./routes/privacidade.ts";
 import { registerPacientesRoutes } from "./routes/pacientes.ts";
@@ -127,7 +128,9 @@ app.use("*", async (context, next) => {
   }
 
   context.set("user", authData.user);
-  context.set("profile", profile as Variables["profile"]);
+  // Keep the stored role and permission records intact. The active workspace
+  // presents one reception-style operational role to every signed-in user.
+  context.set("profile", { ...profile, role: "reception" } as Variables["profile"]);
   context.set("db", db);
   await next();
 });
@@ -537,6 +540,7 @@ app.post("/charges", requireRoles(["admin", "manager", "finance"]), async (conte
     installment_count: z.number().int().positive().optional(),
   }).parse(await context.req.json());
   if (input.coverage_to < input.coverage_from) return fail(context, 400, "INVALID_PERIOD", "O fim do período deve ser posterior ao início.");
+  if (!input.enrollment_id) return fail(context, 422, "ENROLLMENT_REQUIRED", "Crie a cobrança a partir de uma matrícula válida.");
   const scopeError = await validateRelatedResourceScope(context, input, { financialCharge: true });
   if (scopeError) return scopeError;
   if (input.enrollment_id) {
@@ -870,17 +874,13 @@ async function isOwnProfessional(context: Parameters<typeof ok>[0], professional
   return Boolean(ownId && ownId === professionalId);
 }
 
-function requireRoles(roles: Role[]) {
+function requireRoles(_roles: Role[]) {
   return async (context: Parameters<typeof ok>[0], next: () => Promise<void>) => {
-    if (!roles.includes(context.get("profile").role)) {
-      return fail(context, 403, "FORBIDDEN", "Seu perfil não possui permissão para esta operação.");
+    if (!isOperationalRoute(context.req.path, context.req.method)) {
+      return fail(context, 403, "FEATURE_PAUSED", "Esta área está temporariamente fora do portal operacional.");
     }
-    const module = moduleForRolePath(context.req.path, context.req.method, context.get("profile").role);
-    if (module && context.get("profile").role !== "admin") {
-      const { data, error } = await context.get("db").from("profile_permissions").select("can_view,can_edit").eq("profile_id", context.get("user").id).eq("module", module).maybeSingle();
-      const allowed = !error && Boolean(data) && (context.req.method === "GET" ? data.can_view : data.can_view && data.can_edit);
-      if (!allowed) return fail(context, 403, "MODULE_FORBIDDEN", context.req.method === "GET" ? "Seu usuário não tem acesso a este módulo." : "Seu usuário não tem permissão para editar este módulo.");
-    }
+    // The authenticated profile already passed the active-membership check.
+    // This temporary workspace gives every active login the same operations.
     await next();
   };
 }

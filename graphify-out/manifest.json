@@ -12,15 +12,15 @@
     "semantic_hash": ""
   },
   "apps/portal/src/application/portal/agendaResources.test.ts": {
-    "mtime": 1792604998.9274716,
-    "seen": 1792605686.022207,
-    "ast_hash": "31a1fb80d242f11631dac55144b4ab5c",
+    "mtime": 1792629430.8544803,
+    "seen": 1792629968.8047721,
+    "ast_hash": "ac8324ade0a34b959e22ca77baffa455",
     "semantic_hash": ""
   },
   "apps/portal/src/application/portal/agendaResources.ts": {
-    "mtime": 1792604998.9277966,
-    "seen": 1792605686.022208,
-    "ast_hash": "0de8fd823cfdf7b035b2b58adb17dea4",
+    "mtime": 1792629333.9167862,
+    "seen": 1792629968.804773,
+    "ast_hash": "5f58902ba60ad7239d65ee519390953a",
     "semantic_hash": ""
   },
   "apps/portal/src/application/portal/authAccess.ts": {
@@ -48,9 +48,9 @@
     "semantic_hash": ""
   },
   "apps/portal/src/application/portal/navigation.ts": {
-    "mtime": 1792604998.929978,
-    "seen": 1792605686.022214,
-    "ast_hash": "a1c93e0a05fa250b38472fc3cd535f5e",
+    "mtime": 1792629284.5604815,
+    "seen": 1792629968.804933,
+    "ast_hash": "7a726cde005ccdb9e5a9239fcff874a9",
     "semantic_hash": ""
   },
   "apps/portal/src/application/portal/occurrenceAttendance.test.ts": {
@@ -144,9 +144,9 @@
     "semantic_hash": ""
   },
   "apps/portal/src/presentation/app/FisiofitApp.tsx": {
-    "mtime": 1792605295.6529846,
-    "seen": 1792605686.02223,
-    "ast_hash": "f9f46d4a412f614f850222c01d85bdf3",
+    "mtime": 1792629785.5861027,
+    "seen": 1792629968.8055391,
+    "ast_hash": "06af43cd941224bca347509548d36161",
     "semantic_hash": ""
   },
   "apps/portal/src/presentation/auth/AuthProvider.tsx": {
@@ -264,9 +264,9 @@
     "semantic_hash": ""
   },
   "apps/portal/src/presentation/modules/OperationalPatients.tsx": {
-    "mtime": 1792604998.949657,
-    "seen": 1792605686.02226,
-    "ast_hash": "8624255f1f76f581bda58ec3084e6afd",
+    "mtime": 1792629785.6305554,
+    "seen": 1792629968.806667,
+    "ast_hash": "5ddb1875b4cfe1e8963b8724a009b75e",
     "semantic_hash": ""
   },
   "apps/portal/src/presentation/modules/OperationalPrivacy.tsx": {
@@ -624,9 +624,9 @@
     "semantic_hash": ""
   },
   "supabase/functions/api/index.ts": {
-    "mtime": 1792605246.2950196,
-    "seen": 1792605686.022461,
-    "ast_hash": "a53a5e181541169f0310fbdacc0e32b1",
+    "mtime": 1792629333.8108954,
+    "seen": 1792629968.8143811,
+    "ast_hash": "7875e349bd0094ece3465ef23167bc1b",
     "semantic_hash": ""
   },
   "supabase/functions/api/operational-errors.ts": {
@@ -918,9 +918,9 @@
     "semantic_hash": ""
   },
   "context.md": {
-    "mtime": 1792604998.9784782,
-    "seen": 1792605686.022505,
-    "ast_hash": "099ee62f3846fad17f6bf7846737b2b4",
+    "mtime": 1792629843.6117437,
+    "seen": 1792629968.816061,
+    "ast_hash": "08162e7d7f02f76e78d1ec9bcc61cdac",
     "semantic_hash": ""
   },
   "docs/02-domain/agenda-calendar-contracts.md": {
@@ -9807,6 +9807,18 @@
     "mtime": 1792606766.7113934,
     "seen": 1792607138.326475,
     "ast_hash": "9f40c1905e1f79cc7bd1921e24112963",
+    "semantic_hash": ""
+  },
+  "supabase/functions/api/operational-surface.ts": {
+    "mtime": 1792629320.782973,
+    "seen": 1792629968.8144152,
+    "ast_hash": "8a08dc8b3e27ea3580e0539e68064de6",
+    "semantic_hash": ""
+  },
+  "tests/operational-surface.test.mjs": {
+    "mtime": 1792629430.8886547,
+    "seen": 1792629968.81473,
+    "ast_hash": "d43825ac884c31fd44143ebaf18a9557",
     "semantic_hash": ""
   }
 }

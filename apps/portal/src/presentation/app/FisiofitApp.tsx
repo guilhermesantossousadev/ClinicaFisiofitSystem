@@ -1,4 +1,3 @@
-import { InternalNotifications } from "../modules/InternalNotifications";
 import { JourneyTrail, ModuleWorkspace, useWorkspace } from "../components/ModuleWorkspace";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { api, list } from "../../infrastructure/http/api";
@@ -23,9 +22,7 @@ import type { DashboardData, Patient, PermissionModule, Profile, Unit, View } fr
 import { isView, nav, navModule, roleLabel } from "../../application/portal/navigation";
 const OperationalImports = lazy(() => import("../modules/OperationalImports"));
 const sidebarGroups: Array<{ label: string; items: View[] }> = [
-  { label: "Operação", items: ["Painel", "Agenda", "Chamada diária", "Pacientes", "Matrículas", "Prontuários"] },
-  { label: "Gestão", items: ["Financeiro", "Relatórios", "Importações"] },
-  { label: "Administração", items: ["Usuários", "Configurações", "Privacidade"] },
+  { label: "Operação", items: ["Pacientes", "Matrículas", "Agenda", "Chamada diária"] },
 ];
 const viewIcon: Record<string, IconName> = { "Painel":"dashboard", "Agenda":"calendar", "Chamada diária":"check", "Pacientes":"patients", "Matrículas":"plans", "Prontuários":"records", "Financeiro":"finance", "Relatórios":"reports", "Importações":"imports", "Usuários":"users", "Configurações":"settings", "Privacidade":"privacy" };
 const brl = (cents: number) =>
@@ -49,12 +46,12 @@ function storeValue(key: string, value: string) {
   }
 }
 
-function canViewModule(profile: Profile, module: PermissionModule) {
-  return profile.role === "admin" || Boolean(profile.profile_permissions?.some((permission) => permission.module === module && permission.can_view));
+function canViewModule(_profile: Profile, module: PermissionModule) {
+  return ["patients", "enrollments", "agenda"].includes(module);
 }
 
-function canEditModule(profile: Profile, module: PermissionModule) {
-  return profile.role === "admin" || Boolean(profile.profile_permissions?.some((permission) => permission.module === module && permission.can_edit));
+function canEditModule(_profile: Profile, module: PermissionModule) {
+  return ["patients", "enrollments", "agenda"].includes(module);
 }
 
 function Avatar({ initials, url, className = "" }: { initials: string; url?: string; className?: string }) {
@@ -97,7 +94,7 @@ export default function FisiofitApp() {
   const [view, setView] = useState<View>(() => {
     if (window.location.pathname.includes("/matriculas/")) return "Matrículas";
     const saved = storedValue(`${storagePrefix}:view`);
-    return isView(saved) ? saved : "Painel";
+    return isView(saved) ? saved : "Pacientes";
   });
   const [profile, setProfile] = useState<Profile>({
     name: "Equipe Fisiofit",
@@ -161,7 +158,7 @@ export default function FisiofitApp() {
         const requests = [
           api<Unit[]>("/units"),
           canViewModule(loadedProfile, "dashboard") ? api<DashboardData>(`/dashboard${unit ? `?unitId=${unit}` : ""}`) : Promise.resolve({ data: null }),
-          ["admin", "manager", "reception", "professional"].includes(loadedProfile.role) && canViewModule(loadedProfile, "patients")
+          canViewModule(loadedProfile, "patients")
             ? list<Patient>("/patients?page=1&pageSize=100")
             : Promise.resolve({ data: null }),
         ] as const;
@@ -189,7 +186,7 @@ export default function FisiofitApp() {
     return () => { active = false; };
   }, [unit, loading, profile.role, profile.profile_permissions]);
   useEffect(() => {
-    if (search.trim().length < 2 || !canViewModule(profile, "patients") || profile.role === "finance") return;
+    if (search.trim().length < 2 || !canViewModule(profile, "patients")) return;
     let active = true; setPatients([]); setSearchLoading(true); setSearchError("");
     const timer = window.setTimeout(() => { void list<Patient>(`/patients?page=1&pageSize=100&search=${encodeURIComponent(search.trim())}${unit ? `&unitId=${unit}` : ""}`).then((response) => { if (active) { setPatients(response.data?.items ?? []); setSearchLoading(false); } }).catch(reason => { if (active) { setPatients([]); setSearchLoading(false); setSearchError(reason instanceof Error ? reason.message : "Não foi possível buscar pacientes."); } }); }, 220);
     return () => { active = false; window.clearTimeout(timer); };
@@ -200,7 +197,7 @@ export default function FisiofitApp() {
   );
   useEffect(() => {
     if (!loading && view !== "Meu perfil" && !visibleNav.some((item) => item.label === view)) {
-      setView(visibleNav[0]?.label ?? "Painel");
+      setView(visibleNav[0]?.label ?? "Pacientes");
     }
   }, [loading, view, visibleNav]);
   const mobilePrimaryNav = visibleNav.slice(0, 4);
@@ -296,7 +293,7 @@ export default function FisiofitApp() {
       <ModuleWorkspace key={`${storagePrefix}:${unit}`} view={view} allowed={visibleNav.map(item => item.label)} onNavigate={navigate}>
       <main className={`app-shell${sidebarCollapsed ? " sidebar-collapsed" : ""}`} aria-busy={loading}>
       <aside className="sidebar">
-        <button aria-label="Fisiofit: abrir painel" className="brand" onClick={() => navigate("Painel")}>
+        <button aria-label="Fisiofit: abrir pacientes" className="brand" onClick={() => navigate("Pacientes")}>
           <img className="brand-logo" src="/sistema/fisiofit-logo.jpg" alt="" />
           <span>
             <strong>FISIOFIT</strong>
@@ -464,7 +461,6 @@ export default function FisiofitApp() {
                 ))}
               </select></span>
             </label>
-            {!loading && ["admin", "manager", "reception", "professional"].includes(profile.role) && canViewModule(profile, "agenda") && <InternalNotifications />}
             <span className="today">
               {new Intl.DateTimeFormat("pt-BR", {
                 dateStyle: "long",
@@ -503,9 +499,9 @@ export default function FisiofitApp() {
           <Dashboard data={dashboardUnit === unit ? dashboard : null} name={profile.name} setView={navigate} loading={loading} allowedViews={visibleNav.map(item => item.label)} />
         )}{" "}
         {view === "Agenda" && <OperationalAgenda role={profile.role} canEdit={canEditModule(profile, "agenda")} onOpenPatients={() => navigate("Pacientes")} onOpenEnrollment={(context) => { setAgendaContext(context); navigate("Matrículas"); }} />}{" "}
-        {view === "Chamada diária" && <OperationalDailyAttendance canEdit={canEditModule(profile, "agenda")} canManageMakeups={["admin", "manager", "reception"].includes(profile.role)} />}{" "}
-        {view === "Pacientes" && <OperationalPatients initialSearch={patientSearch} canEdit={canEditModule(profile, "patients")} canViewEnrollments={canViewModule(profile, "enrollments")} canEditEnrollments={canEditModule(profile, "enrollments")} canViewAgenda={canViewModule(profile, "agenda")} canEditAgenda={canEditModule(profile, "agenda")} canViewTimeline={["admin", "manager"].includes(profile.role)} />}{" "}
-        {view === "Matrículas" && <OperationalEnrollments canViewPatients={profile.role !== "finance" && canViewModule(profile, "patients")} canViewAgenda={profile.role !== "finance" && canViewModule(profile, "agenda")} agendaContext={agendaContext} onClearAgendaContext={() => setAgendaContext(undefined)} units={units} selectedUnitId={unit} onUnitChange={setUnit} canEdit={canEditModule(profile, "enrollments")} canManagePlans={canEditModule(profile, "enrollments") && ["admin", "manager", "finance"].includes(profile.role)} canDeletePlans={profile.role === "admin"} canViewCharges={["admin", "manager", "finance", "reception"].includes(profile.role) && canViewModule(profile, "enrollments")} canViewPayments={["admin", "manager", "finance"].includes(profile.role) && canViewModule(profile, "finance")} canReceivePayments={profile.role === "reception" ? canViewModule(profile, "enrollments") && canEditModule(profile, "enrollments") : ["admin", "manager", "finance"].includes(profile.role) && canEditModule(profile, "finance")} canCreateCharges={["admin", "manager", "finance"].includes(profile.role) && canEditModule(profile, "finance")} canRollback={["admin", "manager", "finance"].includes(profile.role) && canEditModule(profile, "enrollments")} canCorrectChargeAmounts={profile.role === "reception" ? canViewModule(profile, "enrollments") && canEditModule(profile, "enrollments") : ["admin", "manager", "finance"].includes(profile.role) && canEditModule(profile, "finance")} />}{" "}
+        {view === "Chamada diária" && <OperationalDailyAttendance canEdit canManageMakeups />}{" "}
+        {view === "Pacientes" && <OperationalPatients initialSearch={patientSearch} canEdit canViewEnrollments canEditEnrollments canViewAgenda canEditAgenda canViewTimeline={false} />}{" "}
+        {view === "Matrículas" && <OperationalEnrollments canViewPatients canViewAgenda agendaContext={agendaContext} onClearAgendaContext={() => setAgendaContext(undefined)} units={units} selectedUnitId={unit} onUnitChange={setUnit} canEdit canManagePlans canDeletePlans={false} canViewCharges canViewPayments canReceivePayments canCreateCharges canRollback={false} canCorrectChargeAmounts />}{" "}
         {view === "Prontuários" && <OperationalRecords canEdit={canEditModule(profile, "records")} />}{" "}
         {view === "Financeiro" && <OperationalFinance canEdit={canEditModule(profile, "finance")} />}{" "}
         {view === "Relatórios" && <OperationalReports selectedUnitId={unit} />}{" "}
@@ -545,7 +541,6 @@ function ProfilePage({ profile, email, avatarUrl, avatarBusy, avatarNotice, onAv
         <dl className="profile-data-list">
           <div><dt>Nome</dt><dd>{profile.name}</dd></div>
           <div><dt>E-mail</dt><dd>{email || "Não informado"}</dd></div>
-          <div><dt>Perfil de acesso</dt><dd>{roleLabel[profile.role]}</dd></div>
         </dl>
       </section>
       <section className="card profile-actions-card" aria-labelledby="profile-actions-title">
