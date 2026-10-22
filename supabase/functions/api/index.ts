@@ -545,6 +545,27 @@ app.post("/enrollments/:id/cancel", requireRoles(["admin", "manager", "reception
   return databaseResult(context, data, error);
 });
 
+app.patch("/enrollments/:id/dates", requireRoles(["admin", "manager", "reception", "finance"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const input = z.object({
+    expected_starts_at: z.string().date(),
+    expected_ends_at: z.string().date().nullable(),
+    starts_at: z.string().date(),
+    ends_at: z.string().date().nullable(),
+    reason: z.string().trim().min(10).max(1000),
+  }).parse(await context.req.json());
+  const { data, error } = await context.get("db").rpc("correct_monthly_enrollment_dates", {
+    p_enrollment_id: id,
+    p_expected_starts_at: input.expected_starts_at,
+    p_expected_ends_at: input.expected_ends_at,
+    p_starts_at: input.starts_at,
+    p_ends_at: input.ends_at,
+    p_reason: input.reason,
+    p_request_id: context.get("requestId"),
+  });
+  return databaseResult(context, data, error);
+});
+
 app.post("/charges", requireRoles(["admin", "manager", "finance"]), async (context) => {
   const input = z.object({
     patient_id: z.string().uuid(),
@@ -961,6 +982,14 @@ function databaseResult(context: any, data: unknown, error: any, status = 200) {
       CANCELLATION_REASON_REQUIRED: [400, "Informe uma justificativa com pelo menos 10 caracteres para cancelar a matrícula."],
       CANCELLATION_DATE_MUST_BE_TODAY: [400, "O cancelamento operacional deve valer a partir de hoje."],
       ENROLLMENT_ALREADY_CANCELLED: [409, "Esta matrícula já foi cancelada."],
+      DATE_CORRECTION_REASON_REQUIRED: [400, "Informe uma justificativa com pelo menos 10 caracteres para corrigir as datas."],
+      ENROLLMENT_DATES_CONFLICT: [409, "As datas desta matrícula mudaram. Atualize a página antes de corrigir."],
+      MONTHLY_ENROLLMENT_REQUIRED: [400, "Esta correção de datas está disponível somente para matrículas mensais."],
+      START_DATE_MONTH_CONFLICT: [400, "A correção do início deve permanecer no mês original da matrícula."],
+      ENROLLMENT_DATES_UNCHANGED: [400, "Altere pelo menos uma data antes de salvar."],
+      ENROLLMENT_START_HAS_ATTENDANCE: [409, "Há aulas ou atendimentos vinculados; a data inicial precisa de revisão individual."],
+      ENROLLMENT_START_CHARGE_CONFLICT: [409, "Uma cobrança anterior impede corrigir a data inicial sem revisão financeira."],
+      ENROLLMENT_END_CHARGE_CONFLICT: [409, "A data final não pode anteceder uma cobrança já registrada."],
     };
     const known = enrollmentErrors[String(error.message)];
     if (known) return fail(context, known[0], String(error.message), known[1]);

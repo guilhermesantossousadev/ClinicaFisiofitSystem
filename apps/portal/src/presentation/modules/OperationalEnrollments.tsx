@@ -69,6 +69,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
   const [controlSearch, setControlSearch] = useModuleState("enrollments.search", "");
   const [controlFilter, setControlFilter] = useModuleState("enrollments.filter", "all");
   const [editingControlRow, setEditingControlRow] = useState<PlanControlRow | null>(null);
+  const [editingDatesRow, setEditingDatesRow] = useState<PlanControlRow | null>(null);
   const [savingControlRow, setSavingControlRow] = useState(false);
   const [lifecycle, setLifecycle] = useState<{ row: PlanControlRow; action: LifecycleAction; evidence?: LifecycleEvidence; error?: string } | null>(null);
   const [savingLifecycle, setSavingLifecycle] = useState(false);
@@ -166,6 +167,33 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
       await reload();
       setEditingControlRow(null);
       setNotice("Dados do plano atualizados.");
+    } catch (error) {
+      setNotice(messageOf(error));
+    } finally {
+      setSavingControlRow(false);
+    }
+  }
+  async function correctEnrollmentDates(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editingDatesRow || savingControlRow) return;
+    const form = new FormData(event.currentTarget);
+    const current = (data["/enrollments"] ?? []).find((row: Row) => row.id === editingDatesRow.id);
+    if (!current) return;
+    setSavingControlRow(true);
+    try {
+      await api(`/enrollments/${editingDatesRow.id}/dates`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          expected_starts_at: current.starts_at,
+          expected_ends_at: current.ends_at ?? null,
+          starts_at: value(form, "starts_at"),
+          ends_at: value(form, "ends_at") || null,
+          reason: value(form, "reason").trim(),
+        }),
+      });
+      setEditingDatesRow(null);
+      await reload();
+      setNotice("Datas da matrícula corrigidas. Confira os períodos e as cobranças no Controle de Planos.");
     } catch (error) {
       setNotice(messageOf(error));
     } finally {
@@ -280,6 +308,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
         onChangePlan={canEdit ? (row) => setChangingEnrollmentId(row.id) : undefined}
         onCancel={canEdit ? (row) => void openLifecycle(row, "cancel") : undefined}
         onUndo={canEdit ? (row) => void openLifecycle(row, "rollback") : undefined}
+        onCorrectDates={canEdit ? (row) => { setNotice(""); setEditingDatesRow(row); } : undefined}
         rows={filteredControlRows}
         total={controlRows.filter((row) => (row.enrollmentStatus === "cancelled") === (controlFilter === "archived")).length}
         search={controlSearch}
@@ -302,6 +331,14 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
           onSubmit={updateControlledPlan}
         />
       )}
+      {editingDatesRow && <EnrollmentDatesDialog
+        row={editingDatesRow}
+        endsAt={(data["/enrollments"] ?? []).find((row: Row) => row.id === editingDatesRow.id)?.ends_at ?? ""}
+        saving={savingControlRow}
+        error={notice}
+        onClose={() => setEditingDatesRow(null)}
+        onSubmit={correctEnrollmentDates}
+      />}
       {lifecycle && <EnrollmentLifecycleDialog
         row={lifecycle.row}
         action={lifecycle.action}
@@ -475,6 +512,31 @@ function EnrollmentLifecycleDialog({
   </div>;
 }
 
+function EnrollmentDatesDialog({ row, endsAt, saving, error, onClose, onSubmit }: {
+  row: PlanControlRow;
+  endsAt: string;
+  saving: boolean;
+  error: string;
+  onClose: () => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  const titleId = `enrollment-dates-${row.id}`;
+  const dialogRef = useDialogFocus(true, () => { if (!saving) onClose(); }, !saving);
+  return <div className="edit-dialog-backdrop" role="presentation">
+    <section ref={dialogRef} className="edit-dialog controlled-plan-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
+      <div className="edit-dialog-header"><div><p className="eyebrow">CORREÇÃO DE MATRÍCULA</p><h2 id={titleId}>Corrigir datas da matrícula</h2><p>{row.patientName} · {row.planName}</p></div><button type="button" className="dialog-close" aria-label="Fechar" onClick={onClose} disabled={saving}>×</button></div>
+      <form className="modal-form" onSubmit={onSubmit} aria-busy={saving}>
+        {error && <p role="alert">{error}</p>}
+        <p>Use esta correção para uma matrícula mensal antiga com datas incorretas. Os valores e recebimentos não mudam. Se o início mudar, o sistema ajusta apenas o início da cobrança correspondente e bloqueia a operação caso existam aulas ou atendimentos vinculados.</p>
+        <div className="form-row"><TextField name="starts_at" label="Início correto" type="date" defaultValue={row.startsAt} required /><TextField name="ends_at" label="Data final (opcional)" type="date" defaultValue={endsAt} hint="Deixe em branco se a matrícula mensal continua ativa." /></div>
+        <TextareaField name="reason" label="Justificativa" minLength={10} maxLength={1000} required hint="A mudança ficará registrada na auditoria." />
+        <p>Os horários da agenda permanecem como estão. Confira a agenda após salvar.</p>
+        <div className="edit-dialog-actions"><button type="button" className="btn secondary" onClick={onClose} disabled={saving}>Voltar</button><button type="submit" className="btn primary" disabled={saving}>{saving ? "Salvando…" : "Salvar correção"}</button></div>
+      </form>
+    </section>
+  </div>;
+}
+
 function PlanControlTable({
   rows,
   total,
@@ -489,6 +551,7 @@ function PlanControlTable({
   onChangePlan,
   onCancel,
   onUndo,
+  onCorrectDates,
 }: {
   rows: PlanControlRow[];
   total: number;
@@ -503,6 +566,7 @@ function PlanControlTable({
   onChangePlan?: (row: PlanControlRow) => void;
   onCancel?: (row: PlanControlRow) => void;
   onUndo?: (row: PlanControlRow) => void;
+  onCorrectDates?: (row: PlanControlRow) => void;
 }) {
   return (
     <section className="card table-card plan-control-table" aria-labelledby="plan-control-title">
@@ -558,6 +622,7 @@ function PlanControlTable({
           <div className="plan-control-cell plan-control-actions" data-label="Ações">
             {onChangePlan && row.enrollmentStatus === "active" && <button type="button" className="btn secondary" onClick={() => onChangePlan(row)}>Trocar plano</button>}
             {onEdit && row.enrollmentStatus !== "cancelled" && <button type="button" className="btn secondary" onClick={() => onEdit(row)} aria-label={`Editar plano de ${row.patientName}`}>Editar</button>}
+            {onCorrectDates && row.enrollmentStatus === "active" && row.planDurationDays === 30 && <button type="button" className="btn secondary" onClick={() => onCorrectDates(row)} aria-label={`Corrigir datas da matrícula de ${row.patientName}`}>Corrigir datas</button>}
             {onCancel && row.enrollmentStatus !== "cancelled" && <button type="button" className="btn secondary" onClick={() => onCancel(row)} aria-label={`Cancelar matrícula ${row.planName} de ${row.patientName}`}>Cancelar matrícula</button>}
             {onUndo && <button type="button" className="btn secondary" onClick={() => onUndo(row)} aria-label={`Desfazer matrícula ${row.planName} de ${row.patientName}`}>Desfazer matrícula</button>}
           </div>

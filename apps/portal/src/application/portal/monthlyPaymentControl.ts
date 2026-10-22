@@ -25,6 +25,7 @@ export type MonthlyPaymentRow = {
   contractFinalAmountCents: number | null;
   contractEffectiveFrom: string;
   enrollmentUpdatedAt: string;
+  enrollmentStartsAt: string;
 };
 
 function monthBounds(month: string) {
@@ -68,7 +69,8 @@ export function buildMonthlyPaymentRows({
   return enrollments
     .filter((enrollment) => !enrollment.deleted_at)
     .filter((enrollment) => !enrollment.starts_at || String(enrollment.starts_at).slice(0, 7) <= month)
-    .filter((enrollment) => !enrollment.ends_at || String(enrollment.ends_at) >= monthBounds(month).from)
+    .filter((enrollment) => !enrollment.ends_at || String(enrollment.ends_at) >= monthBounds(month).from
+      || charges.some((charge) => !charge.deleted_at && String(charge.enrollment_id) === String(enrollment.id) && matchesMonth(charge, month)))
     .flatMap((enrollment) => {
       const enrollmentId = String(enrollment.id);
       const patientId = String(enrollment.patient_id ?? "");
@@ -107,6 +109,7 @@ export function buildMonthlyPaymentRows({
       return {
         enrollmentId,
         enrollmentUpdatedAt: String(enrollment.updated_at ?? ""),
+        enrollmentStartsAt: String(enrollment.starts_at ?? ""),
         patientId,
         patientName: String(patient.name ?? "Paciente não encontrado"),
         planName: String(plan.name ?? "Plano não encontrado"),

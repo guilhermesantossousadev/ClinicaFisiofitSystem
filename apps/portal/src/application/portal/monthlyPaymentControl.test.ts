@@ -14,6 +14,15 @@ describe("controle mensal de pagamentos", () => {
     expect(buildMonthlyPaymentRows({ ...base, enrollments: [enrollment], charges: [], month: "2026-10" })).toEqual([]);
   });
 
+  it("mostra cobrança paga lançada após a data final antiga da matrícula", () => {
+    const enrollment = { ...base.enrollments[0], ends_at: "2026-09-10" };
+    const charge = { id: "october", enrollment_id: enrollment.id, amount_cents: 14641, paid_cents: 14641, status: "paid", due_at: "2026-10-10", coverage_from: "2026-10-01", coverage_to: "2026-10-31" };
+    expect(buildMonthlyPaymentRows({ ...base, enrollments: [enrollment], charges: [charge], month: "2026-10" })[0]).toMatchObject({
+      state: "paid", chargeId: "october", amountCents: 14641, paidCents: 14641, coverageFrom: "2026-10-01", coverageTo: "2026-10-31",
+    });
+    expect(buildMonthlyPaymentRows({ ...base, enrollments: [enrollment], charges: [charge], month: "2026-11" })).toEqual([]);
+  });
+
   it("respeita o início da matrícula e mantém a cobrança histórica", () => {
     const enrollment = { ...base.enrollments[0], status: "paused", starts_at: "2026-10-01" };
     expect(buildMonthlyPaymentRows({ ...base, enrollments: [enrollment], charges: [], month: "2026-09" })).toEqual([]);

@@ -9,6 +9,7 @@ export type PlanControlRow = {
   patientName: string;
   patientPhone: string;
   planName: string;
+  planDurationDays: number;
   sessionsUsed: number;
   sessionsIncluded: number | null;
   enrollmentStatus: string;
@@ -115,6 +116,7 @@ export function buildPlanControlRows({
         patientName: String(patient.name ?? "Paciente não encontrado"),
         patientPhone: String(patient.phone ?? ""),
         planName: String(plan.name ?? "Plano não encontrado"),
+        planDurationDays: Number(plan.duration_days ?? 0),
         sessionsUsed: Number(enrollment.sessions_used ?? 0),
         sessionsIncluded: plan.sessions_included == null ? null : Number(plan.sessions_included),
         enrollmentStatus: String(enrollment.status ?? "active"),
