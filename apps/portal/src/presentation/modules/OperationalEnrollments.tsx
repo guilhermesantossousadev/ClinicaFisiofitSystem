@@ -48,11 +48,12 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
   const [receivingPayment, setReceivingPayment] = useState(false);
   const [selectedPaymentChargeId, setSelectedPaymentChargeId] = useState("");
   const [selectedPaymentPatientId, setSelectedPaymentPatientId] = useState("");
+  const [selectedPaymentPatientName, setSelectedPaymentPatientName] = useState("");
   const [paymentPatientPickerVersion, setPaymentPatientPickerVersion] = useState(0);
   const [paymentAmount, setPaymentAmount] = useState("");
   useEffect(() => {
     setSelectedPatient(undefined); setSelectedEnrollmentUnit(selectedUnitId); setSelectedEnrollmentGroup("");
-    setSelectedPaymentPatientId(""); setSelectedPaymentChargeId(""); setPaymentAmount("");
+    setSelectedPaymentPatientId(""); setSelectedPaymentPatientName(""); setSelectedPaymentChargeId(""); setPaymentAmount("");
     setPatientPickerVersion((version) => version + 1); setPaymentPatientPickerVersion((version) => version + 1);
   }, [selectedUnitId]);
   useEffect(() => { if (contextPatient) { setSelectedPatient(contextPatient); setSection("control"); setControlSearch(""); setControlFilter("all"); } }, [contextPatient?.id]);
@@ -74,6 +75,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
       setPatientPickerVersion((version) => version + 1);
       await reload();
       setNotice("Matrícula salva com sucesso.");
+      return true;
     } catch (e) {
       setNotice(messageOf(e));
     }
@@ -104,6 +106,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
       paymentForm.reset();
       setSelectedPaymentChargeId("");
       setSelectedPaymentPatientId("");
+      setSelectedPaymentPatientName("");
       setPaymentPatientPickerVersion((version) => version + 1);
       setPaymentAmount("");
       await reload();
@@ -153,11 +156,13 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
     const patientPlans = availablePaymentPlans.filter((row) => row.patientId === patient.id);
     const onlyPlan = patientPlans.length === 1 ? patientPlans[0] : undefined;
     setSelectedPaymentPatientId(patient.id);
+    setSelectedPaymentPatientName(patient.name ?? "");
     setSelectedPaymentChargeId(onlyPlan?.chargeId ?? "");
     setPaymentAmount(onlyPlan ? (onlyPlan.balanceCents / 100).toFixed(2) : "");
   };
   const clearPaymentPatient = () => {
     setSelectedPaymentPatientId("");
+    setSelectedPaymentPatientName("");
     setSelectedPaymentChargeId("");
     setPaymentAmount("");
   };
@@ -190,7 +195,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
       <ModuleState loading={loading} error={error} retry={reload} />
       {contextPatient && <section className="patient-workspace-heading"><div><p className="eyebrow">JORNADA DO PACIENTE</p><h2>{contextPatient.name}</h2><p>Matrícula → plano → cobrança → recebimento</p></div><RelatedActions patient={contextPatient} exclude="Matrículas" /></section>}
       {section === 'management' && <SectionIntro title="Contratação e vigência">Crie a matrícula com o plano e a turma existentes. Confira cobranças no controle mensal e consulte alterações no histórico.</SectionIntro>}
-      {section === "control" && canViewCharges && <MonthlyPayments patientId={contextPatient?.id} onChangePlan={canEdit ? setChangingEnrollmentId : undefined} data={monthlyData} month={paymentMonth} onMonth={(month) => { setPaymentMonth(month); clearPaymentPatient(); }} canEdit={canReceivePayments} canCreateCharges={canCreateCharges} canCorrectChargeAmounts={canCorrectChargeAmounts} reload={reload} onNotice={setNotice} onRegisterPayment={(row) => { setPaymentPatientPickerVersion((version) => version + 1); setSelectedPaymentPatientId(row.patientId); setSelectedPaymentChargeId(row.chargeId); setPaymentAmount((row.balanceCents / 100).toFixed(2)); requestAnimationFrame(() => { const form = document.getElementById("payment-registration"); form?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? "auto" : "smooth", block: "start" }); form?.querySelector<HTMLInputElement>('#payment-amount')?.focus({preventScroll:true}); }); }} />}
+      {section === "control" && canViewCharges && <MonthlyPayments patientId={contextPatient?.id} onChangePlan={canEdit ? setChangingEnrollmentId : undefined} data={monthlyData} month={paymentMonth} onMonth={(month) => { setPaymentMonth(month); clearPaymentPatient(); }} canEdit={canReceivePayments} canCreateCharges={canCreateCharges} canCorrectChargeAmounts={canCorrectChargeAmounts} reload={reload} onNotice={setNotice} onRegisterPayment={(row) => { setPaymentPatientPickerVersion((version) => version + 1); setSelectedPaymentPatientId(row.patientId); setSelectedPaymentPatientName(row.patientName); setSelectedPaymentChargeId(row.chargeId); setPaymentAmount((row.balanceCents / 100).toFixed(2)); requestAnimationFrame(() => { const form = document.getElementById("payment-registration"); form?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? "auto" : "smooth", block: "start" }); form?.querySelector<HTMLInputElement>('#payment-amount')?.focus({preventScroll:true}); }); }} />}
       {section === "catalog" && canManagePlans && <PlanCatalog plans={data["/plans"] ?? []} reload={reload} onNotice={setNotice} />}
       {changingEnrollmentId && <PlanChangeDialog enrollment={(data["/enrollments"] ?? []).find((e: Row) => e.id === changingEnrollmentId)!} plans={data["/plans"] ?? []} onClose={() => setChangingEnrollmentId("")} onChanged={async () => { await reload(); setNotice("Plano trocado com auditoria. Histórico financeiro preservado."); }} />}
       {section === "history" && <EnrollmentHistoryPanel rows={controlRows.filter(row => !contextPatient || (data['/enrollments'] ?? []).some((enrollment: Row) => enrollment.id === row.id && enrollment.patient_id === contextPatient.id))} charges={canViewCharges ? data["/charges"] ?? [] : []} payments={canViewPayments ? data["/payments"] ?? [] : []} />}
@@ -268,7 +273,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
             rows={patients}
             remoteSearch={canViewPatients}
             defaultValue={selectedPaymentPatientId}
-            defaultLabel={patients.find((row) => row.id === selectedPaymentPatientId)?.name ?? ""}
+            defaultLabel={selectedPaymentPatientName || patients.find((row) => row.id === selectedPaymentPatientId)?.name || ""}
             allowedIds={payablePatientIds}
             onSelect={selectPaymentPatient}
             onClear={clearPaymentPatient}

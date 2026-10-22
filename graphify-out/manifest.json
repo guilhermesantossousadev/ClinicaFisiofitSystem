@@ -228,9 +228,9 @@
     "semantic_hash": ""
   },
   "apps/portal/src/presentation/modules/OperationalAgenda.tsx": {
-    "mtime": 1792604998.948233,
-    "seen": 1792605686.0222552,
-    "ast_hash": "e167dd61a9abe13c06fe79b0756cd4a2",
+    "mtime": 1792631517.5195565,
+    "seen": 1792631717.996476,
+    "ast_hash": "f9a4b46257b9a21541fbb0d6234a663e",
     "semantic_hash": ""
   },
   "apps/portal/src/presentation/modules/OperationalDailyAttendance.tsx": {
@@ -240,9 +240,9 @@
     "semantic_hash": ""
   },
   "apps/portal/src/presentation/modules/OperationalEnrollments.tsx": {
-    "mtime": 1792605293.4923465,
-    "seen": 1792605686.0222569,
-    "ast_hash": "b6cf0b451dcb8cc63b92f66b9c78d8d2",
+    "mtime": 1792631663.5579817,
+    "seen": 1792631717.996521,
+    "ast_hash": "cc2974daf3d5c0baa3945866bcda8f27",
     "semantic_hash": ""
   },
   "apps/portal/src/presentation/modules/OperationalFinance.tsx": {
@@ -294,9 +294,9 @@
     "semantic_hash": ""
   },
   "apps/portal/src/presentation/modules/OperationalShared.tsx": {
-    "mtime": 1792604998.9510305,
-    "seen": 1792605686.022264,
-    "ast_hash": "4dcfdc9a8c02bcf26f1d2722a1fe0e79",
+    "mtime": 1792631494.6740177,
+    "seen": 1792631717.996927,
+    "ast_hash": "0ad0fd1ed6be5bd320e63c526e9859e7",
     "semantic_hash": ""
   },
   "apps/portal/src/presentation/modules/OperationalUsers.tsx": {
@@ -642,9 +642,9 @@
     "semantic_hash": ""
   },
   "supabase/functions/api/routes/agenda.ts": {
-    "mtime": 1792605000.40631,
-    "seen": 1792605686.022464,
-    "ast_hash": "24809b1a941ec3fd2dd4ce17ee19a239",
+    "mtime": 1792631486.0054817,
+    "seen": 1792631718.005207,
+    "ast_hash": "cd5499f5a22639ec4d93eba80fb90e91",
     "semantic_hash": ""
   },
   "supabase/functions/api/routes/financeiro.ts": {
@@ -870,9 +870,9 @@
     "semantic_hash": ""
   },
   ".github/workflows/hostinger-build.yml": {
-    "mtime": 1792607052.11436,
-    "seen": 1792607138.328712,
-    "ast_hash": "7256793d2e0334df911eced8cf8e502e",
+    "mtime": 1792630198.7755659,
+    "seen": 1792631718.0068119,
+    "ast_hash": "eab5368dbe371c2e0caf69e0396d9780",
     "semantic_hash": ""
   },
   "ARCHITECTURE.md": {
@@ -918,9 +918,9 @@
     "semantic_hash": ""
   },
   "context.md": {
-    "mtime": 1792629843.6117437,
-    "seen": 1792629968.816061,
-    "ast_hash": "08162e7d7f02f76e78d1ec9bcc61cdac",
+    "mtime": 1792630409.404385,
+    "seen": 1792631718.007498,
+    "ast_hash": "94e736c353c4e2ad28fd37b0e30c63e3",
     "semantic_hash": ""
   },
   "docs/02-domain/agenda-calendar-contracts.md": {
@@ -9819,6 +9819,12 @@
     "mtime": 1792629430.8886547,
     "seen": 1792629968.81473,
     "ast_hash": "d43825ac884c31fd44143ebaf18a9557",
+    "semantic_hash": ""
+  },
+  "release/hostinger/operational-baseline-manifest.json": {
+    "mtime": 1792630218.213309,
+    "seen": 1792631718.0034401,
+    "ast_hash": "cd26ee1ac2c0a051b906ee69b860121a",
     "semantic_hash": ""
   }
 }

@@ -409,7 +409,7 @@ export function DrawerForm({
 }: {
   title: string;
   children: ReactNode;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void | Promise<void>;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void | boolean | Promise<void | boolean>;
   className?: string;
   openInitially?: boolean;
   onClose?: () => void;
@@ -447,8 +447,9 @@ export function DrawerForm({
       submitter.setAttribute("aria-busy", "true");
       submitter.dataset.loadingLabel = "Processando";
     }
+    let saved = false;
     try {
-      await onSubmit(event);
+      saved = (await onSubmit(event)) === true;
     } finally {
       submittingRef.current = false;
       setSubmitting(false);
@@ -457,6 +458,12 @@ export function DrawerForm({
         submitter.classList.remove("is-loading");
         submitter.removeAttribute("aria-busy");
         delete submitter.dataset.loadingLabel;
+      }
+      if (saved) {
+        dirtyRef.current = false;
+        setOpen(false);
+        onClose?.();
+        requestAnimationFrame(() => triggerRef.current?.focus());
       }
     }
   };

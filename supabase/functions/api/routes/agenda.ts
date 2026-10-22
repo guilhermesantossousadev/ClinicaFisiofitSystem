@@ -629,8 +629,12 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     if (scopeError) return scopeError;
     const db = context.get("db");
     const normalizedWeekdays = [...new Set(input.weekdays)].sort();
-    const { data: conflictingSlots, error: conflictError } = await db.from("group_slots").select("id,name,weekdays,starts_at,starts_on,ends_on")
-      .eq("clinic_id", context.get("profile").clinic_id).eq("professional_id", input.professional_id).eq("starts_at", input.starts_at).eq("active", true).is("deleted_at", null);
+    let conflictQuery = db.from("group_slots").select("id,name,weekdays,starts_at,starts_on,ends_on")
+      .eq("clinic_id", context.get("profile").clinic_id).eq("starts_at", input.starts_at).eq("active", true).is("deleted_at", null);
+    conflictQuery = input.professional_id
+      ? conflictQuery.eq("professional_id", input.professional_id)
+      : conflictQuery.eq("unit_id", input.unit_id).is("professional_id", null);
+    const { data: conflictingSlots, error: conflictError } = await conflictQuery;
     if (conflictError) return databaseResult(context, null, conflictError);
     const conflictingGroup = (conflictingSlots ?? []).find((slot: any) => groupPeriodsOverlap(slot, input) && (slot.weekdays ?? []).some((day: number) => normalizedWeekdays.includes(day)));
     if (conflictingGroup) {
@@ -702,9 +706,13 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
     const normalizedWeekdays = [...new Set(input.weekdays)].sort();
     const db = context.get("db");
     const clinicId = context.get("profile").clinic_id;
-    const { data: conflictingSlots, error: conflictError } = await db.from("group_slots")
+    let conflictQuery = db.from("group_slots")
       .select("id,name,weekdays,starts_at,starts_on,ends_on")
-      .eq("clinic_id", clinicId).eq("professional_id", input.professional_id).in("starts_at", times).eq("active", true).is("deleted_at", null);
+      .eq("clinic_id", clinicId).in("starts_at", times).eq("active", true).is("deleted_at", null);
+    conflictQuery = input.professional_id
+      ? conflictQuery.eq("professional_id", input.professional_id)
+      : conflictQuery.eq("unit_id", input.unit_id).is("professional_id", null);
+    const { data: conflictingSlots, error: conflictError } = await conflictQuery;
     if (conflictError) return databaseResult(context, null, conflictError);
     const conflictingGroup = (conflictingSlots ?? []).find((slot: any) => groupPeriodsOverlap(slot, input)
       && (slot.weekdays ?? []).some((day: number) => normalizedWeekdays.includes(day)));
