@@ -73,7 +73,7 @@ jobs:
             echo "hostinger-deploy changed: expected $EXPECTED_DISTRIBUTION_SHA, found $actual_sha" >&2
             exit 1
           fi
-          node scripts/verify-hostinger-dist.mjs --dist hostinger-current --manifest release/hostinger/v23-approved-manifest.json
+          node scripts/verify-hostinger-dist.mjs --dist hostinger-current --manifest release/hostinger/operational-baseline-manifest.json
           echo "sha=$actual_sha" >> "$GITHUB_OUTPUT"
 
       - name: Preservar arquivos usados pelas abas já abertas
@@ -87,7 +87,7 @@ jobs:
           node scripts/verify-hostinger-dist.mjs --dist dist --manifest candidate-manifest.json --http
 
       - name: Simular aba V2.3 aberta durante a atualização e nova sessão
-        run: node scripts/test-hostinger-upgrade.mjs --previous hostinger-current --candidate dist --previous-manifest release/hostinger/v23-approved-manifest.json --candidate-manifest candidate-manifest.json
+        run: node scripts/test-hostinger-upgrade.mjs --previous hostinger-current --candidate dist --previous-manifest release/hostinger/operational-baseline-manifest.json --candidate-manifest candidate-manifest.json
 
       - name: Guardar distribuição verificada para auditoria
         uses: actions/upload-artifact@v4
@@ -129,7 +129,7 @@ jobs:
             fi
             git -C hostinger-current revert --no-edit "$PUBLISHED_SHA"
             git -C hostinger-current push origin HEAD:hostinger-deploy
-            node scripts/verify-hostinger-public.mjs --manifest release/hostinger/v23-approved-manifest.json
+            node scripts/verify-hostinger-public.mjs --manifest release/hostinger/operational-baseline-manifest.json
             echo "V2.3 rollback is live and verified; this release run remains failed."
             exit 1
           fi
