@@ -82,12 +82,13 @@ export function buildPlanControlRows({
         !charge.deleted_at && charge.status !== "cancelled" && String(charge.enrollment_id) === String(enrollment.id),
       );
       const cancelledCharges = charges.filter((charge) => !charge.deleted_at && charge.status === "cancelled" && String(charge.enrollment_id) === String(enrollment.id));
+      const financialCharges = enrollmentCharges.length ? enrollmentCharges : cancelledCharges;
       const primaryCharge = [...(enrollmentCharges.length ? enrollmentCharges : cancelledCharges)].sort((a, b) =>
         String(a.created_at ?? "").localeCompare(String(b.created_at ?? "")),
       ).at(-1);
-      const amountCents = enrollmentCharges.reduce((sum, charge) => sum + Number(charge.amount_cents ?? 0), 0);
-      const paidCents = enrollmentCharges.reduce((sum, charge) => sum + Number(charge.paid_cents ?? 0), 0);
-      const paymentDates = enrollmentCharges.flatMap((charge) =>
+      const amountCents = financialCharges.reduce((sum, charge) => sum + Number(charge.amount_cents ?? 0), 0);
+      const paidCents = financialCharges.reduce((sum, charge) => sum + Number(charge.paid_cents ?? 0), 0);
+      const paymentDates = financialCharges.flatMap((charge) =>
         (paymentsByCharge.get(String(charge.id)) ?? []).map((payment) => String(payment.paid_at ?? "")),
       ).filter(Boolean).sort();
       const primaryStatus = String(primaryCharge?.status ?? "");

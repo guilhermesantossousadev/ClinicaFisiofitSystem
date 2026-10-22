@@ -1,16 +1,16 @@
 # Graph Report - SistemaControleFisiofit  (2026-10-22)
 
 ## Corpus Check
-- 431 files · ~4,690,251 words
+- 431 files · ~4,690,539 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 3725 nodes · 8234 edges · 205 communities (177 shown, 15 thin omitted)
+- 3726 nodes · 8235 edges · 213 communities (184 shown, 16 thin omitted)
 - Extraction: 92% EXTRACTED · 8% INFERRED · 0% AMBIGUOUS · INFERRED: 694 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `25ca4403`
+- Built from commit: `be839305`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -19,7 +19,7 @@
 - FormPrimitives.tsx
 - Design Systems
 - Performance & Loading UX
-- Laws of UX
+- Additional Important Laws
 - Data Tables & Lists
 - Accessibility & WCAG 2.2
 - Information Architecture
@@ -27,7 +27,7 @@
 - site/package.json
 - Forms & Input Design
 - AI & LLM UX Patterns
-- Dark Pattern Taxonomy
+- Ethical Design & Dark Patterns
 - Interaction Design
 - User Research Methods
 - Visual Design
@@ -118,7 +118,7 @@
 - Content Design Process
 - ui-v22/report.mjs
 - MonthlyPayments.tsx
-- ze
+- ft
 - 10. Cache, mensageria e processamento assíncrono
 - 8. Regras de negócio vigentes
 - 5. Mapa dos principais fluxos por perfil
@@ -168,23 +168,26 @@
 - sourceDigest
 - ui-v21/report.mjs
 - F
-- Presence & Awareness
-- Canvas Navigation
-- Building Trust
-- OperationalImports-CaZrmfqA.js
 - push
+- Canvas Navigation
+- ze
+- OperationalImports-CaZrmfqA.js
+- log
 - review-gallery.mjs
 - FISIOFIT — REFERÊNCIAS VISUAIS PARA UI/UX V2.2
 - ADENDO OBRIGATÓRIO AO PROMPT MESTRE FISIOFIT UI/UX V2.2
 - t
 - ct
 - parse
-- add
-- dc
+- ms
+- FisiofitApp-Djuk9SPi.js
 - financialOverview.ts
 - Fisiofit UI/UX V2.1 — entrega integrada
-- Handoff local — Fisiofit UI/UX V2.3
+- constructor
+- send
+- Dark Pattern Taxonomy
 - verify-hostinger-dist.mjs
+- Voice as a First-Class Input
 - Plataforma Fisiofit
 - test-hostinger-transition.mjs
 - verify-hostinger-public.mjs
@@ -200,13 +203,18 @@
 - hostinger-compat.test.mjs
 - Pc
 - scripts
-- Additional Important Laws
+- Regulatory Landscape
 - Nielsen's 10 Usability Heuristics
+- 2026 Trends
 - dirty
 - Header.tsx
 - StudiosPage.tsx
+- setLimit
 - isOperationalRoute
 - portalSessionState.ts
+- Feedback States
+- Loading States
+- refinement
 
 ## God Nodes (most connected - your core abstractions)
 1. `ze()` - 127 edges
@@ -235,7 +243,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (205 total, 15 thin omitted)
+## Communities (213 total, 16 thin omitted)
 
 ### Community 0 - "OperationalAgenda.tsx"
 Cohesion: 0.05
@@ -253,9 +261,9 @@ Nodes (45): Anatomy of a Component, Apple Human Interface Guidelines, Atlassian 
 Cohesion: 0.05
 Nodes (43): Anti-Patterns, Avoid CLS-Causing Patterns, Basic Skeleton, Blur-Up / LQIP (Low Quality Image Placeholder), Button Loading States, Connection Status, Content Layout Shift Prevention, Core Web Vitals: CLS (+35 more)
 
-### Community 4 - "Laws of UX"
-Cohesion: 0.07
-Nodes (29): Application in UX, Application in UX, Application in UX, Application in UX, Application in UX, Application in UX, Closure, Common Region (+21 more)
+### Community 4 - "Additional Important Laws"
+Cohesion: 0.05
+Nodes (41): Additional Important Laws, Aesthetic-Usability Effect, Application in UX, Application in UX, Application in UX, Application in UX, Application in UX, Application in UX (+33 more)
 
 ### Community 5 - "Data Tables & Lists"
 Cohesion: 0.05
@@ -271,7 +279,7 @@ Nodes (40): 2026 Trends, AI-Powered IA, Bottom Navigation (Mobile), Breadcrumbs,
 
 ### Community 8 - "index-CNUCljKP.js"
 Cohesion: 0.02
-Nodes (148): ajax(), an(), analytics(), appendParams(), batchSend(), bn(), Br(), bt() (+140 more)
+Nodes (97): add(), analytics(), appendParams(), asStream(), bt(), cloneRequestState(), containedBy(), createNamespace() (+89 more)
 
 ### Community 9 - "site/package.json"
 Cohesion: 0.11
@@ -285,13 +293,13 @@ Nodes (39): Accessibility Checklist, Accessibility for Errors, Addresses, Autoco
 Cohesion: 0.05
 Nodes (40): Accept / Reject / Modify, Adaptive Layouts, Agent UX, AI as a Respectful Copilot, Not an Autopilot, AI Copilot Patterns, AI-Generated Interface Elements, "AI-Generated" Labels, AI & LLM UX Patterns (+32 more)
 
-### Community 12 - "Dark Pattern Taxonomy"
-Cohesion: 0.05
-Nodes (39): 10. Privacy Zuckering, 11. Sneak into Basket, 1. Roach Motel, 2. Confirmshaming, 3. Misdirection, 4. Forced Continuity, 5. Hidden Costs, 6. Trick Questions (+31 more)
+### Community 12 - "Ethical Design & Dark Patterns"
+Cohesion: 0.10
+Nodes (20): Addictive Pattern Avoidance, Age-Appropriate Design (AADC / ICO Code), Banner Design, Button Parity, Children & Vulnerable Users, Consent Best Practices, Consent Design, Cookie / Privacy UX (+12 more)
 
 ### Community 13 - "Interaction Design"
-Cohesion: 0.05
-Nodes (39): 1. Trigger, 2026 Trends, 2. Rules, 3. Feedback, 4. Loops and Modes, Accordion/Collapse, AI-Driven Interactions, Animation Principles (+31 more)
+Cohesion: 0.08
+Nodes (26): 1. Trigger, 2. Rules, 3. Feedback, 4. Loops and Modes, Accordion/Collapse, Animation Principles, Common Mistakes, Dan Saffer's Four Components (+18 more)
 
 ### Community 14 - "User Research Methods"
 Cohesion: 0.05
@@ -358,12 +366,12 @@ Cohesion: 0.07
 Nodes (27): Anti-Patterns, Change Attribution, Collaborative UX: Conflict Resolution & Sync, Component Locking, Concurrent Editing, Conflict Resolution Approaches, Connection Status Indicators, CRDTs (Conflict-free Replicated Data Types) (+19 more)
 
 ### Community 30 - "Emotional Design & Trust"
-Cohesion: 0.09
-Nodes (21): 1. Visceral Level — "I want it", 2. Behavioral Level — "I can use it", 3. Reflective Level — "I love it", 404 / Error Pages, Animation Character, Anti-Patterns, Blame-Free Language, Brand Personality in UI (+13 more)
+Cohesion: 0.07
+Nodes (26): 1. Visceral Level — "I want it", 2. Behavioral Level — "I can use it", 3. Reflective Level — "I love it", 404 / Error Pages, Animation Character, Anti-Patterns, Blame-Free Language, Brand Personality in UI (+18 more)
 
 ### Community 31 - "Collaborative UX: Presence & Awareness"
-Cohesion: 0.13
-Nodes (14): Anonymous Voting, Anti-Patterns, Collaborative UX: Presence & Awareness, Communication Features, Contextual Comments (Annotations), Emoji Reactions, Follow Mode, Jump to User (+6 more)
+Cohesion: 0.09
+Nodes (22): Activity Feeds, Anonymous Voting, Anti-Patterns, Avatar Stacks, Best Practices, Collaborative UX: Presence & Awareness, Communication Features, Contextual Comments (Annotations) (+14 more)
 
 ### Community 32 - "Release integrado de estabilização — Fisiofit"
 Cohesion: 0.18
@@ -378,8 +386,8 @@ Cohesion: 0.10
 Nodes (19): Beyond format strings, Common Mistakes, Design for it, Forms that survive every locale, IBM's rule of thumb for expansion, Internationalization & Localization, Language Switching UX, Locale-Aware Formatting (+11 more)
 
 ### Community 35 - "Voice & Multimodal Input"
-Cohesion: 0.10
-Nodes (20): A complete voice interaction, end to end, Accessibility Intersection, Activation: wake words vs. push-to-talk, Combine voice + touch + pointer + keyboard, Common Mistakes, Confirmation & error recovery, Cross-Device Continuity, Discoverability (+12 more)
+Cohesion: 0.17
+Nodes (12): Accessibility Intersection, Combine voice + touch + pointer + keyboard, Common Mistakes, Cross-Device Continuity, Graceful degradation when a modality is unavailable, Modality-appropriate design per context, Multimodal Interaction, Quick Checklist (+4 more)
 
 ### Community 36 - "Auditoria e evolução de UI/UX — Fisiofit"
 Cohesion: 0.10
@@ -415,7 +423,7 @@ Nodes (15): AGENDA-002 — Contratos canônicos de Scheduling e Pilates, Class e
 
 ### Community 45 - "CONTEXT.md — Plataforma Fisiofit"
 Cohesion: 0.11
-Nodes (18): 12.1 Decisões superadas, 12.2 Decisões ainda pendentes, 12. Decisões arquiteturais vigentes, 17. Referências executáveis, 18. Checklist de atualização do contexto, 19. Histórico de verdades estabelecidas — CoVe, 2026-10-15 — Release único financeiro e planos (candidato isolado), 5.1 Correção de estado anterior (+10 more)
+Nodes (19): 12.1 Decisões superadas, 12.2 Decisões ainda pendentes, 12. Decisões arquiteturais vigentes, 17. Referências executáveis, 18. Checklist de atualização do contexto, 19. Histórico de verdades estabelecidas — CoVe, 2026-10-15 — Release único financeiro e planos (candidato isolado), 5.1 Correção de estado anterior (+11 more)
 
 ### Community 46 - "package.json"
 Cohesion: 0.13
@@ -510,8 +518,8 @@ Cohesion: 0.12
 Nodes (15): axeSource, checks, children, chrome, errors, initialDigest, logs, output (+7 more)
 
 ### Community 69 - "Fisiofit UI/UX V2.3 — entrega para revisão"
-Cohesion: 0.17
-Nodes (10): Compatibilidade dos nove estudos com a implementação, Decisões transversais, Fontes oficiais consultadas em 16/10/2026, Referências e matriz de implementação V2.3, Base, proteção e escopo, Evidências, Fisiofit UI/UX V2.3 — entrega para revisão, Limites e pendências (+2 more)
+Cohesion: 0.11
+Nodes (15): Continuidade, Handoff local — Fisiofit UI/UX V2.3, Limites de operação, Vault — pendência preservada, Jornadas e evidências V2.3, Compatibilidade dos nove estudos com a implementação, Decisões transversais, Fontes oficiais consultadas em 16/10/2026 (+7 more)
 
 ### Community 70 - "15. Regras para novas implementações"
 Cohesion: 0.22
@@ -630,8 +638,8 @@ Cohesion: 0.29
 Nodes (5): commit, output, sha256, sql, summary
 
 ### Community 99 - "decode"
-Cohesion: 0.20
-Nodes (15): assertFieldSize(), _binaryDecode(), binaryEncode(), _binaryEncodeUserBroadcastPush(), decode(), decodeBroadcast(), decodePush(), decodeReply() (+7 more)
+Cohesion: 0.10
+Nodes (29): assertFieldSize(), _binaryDecode(), binaryEncode(), _binaryEncodeUserBroadcastPush(), Cn(), da(), decode(), decodeBroadcast() (+21 more)
 
 ### Community 100 - "Content Design Process"
 Cohesion: 0.33
@@ -645,9 +653,9 @@ Nodes (14): after, before, captions, checks, comparison, envAfter, envBefore, eq
 Cohesion: 0.10
 Nodes (26): buildMonthlyPaymentRows(), matchesMonth(), monthBounds(), MonthlyPaymentRow, MonthlyPaymentSourceRow, MonthlyPaymentState, plannedCoverageEnd(), base (+18 more)
 
-### Community 103 - "ze"
-Cohesion: 0.08
-Nodes (166): Ae(), at(), be(), bt(), v(), y(), ce(), ct() (+158 more)
+### Community 103 - "ft"
+Cohesion: 0.16
+Nodes (65): v(), y(), u(), fe(), ft(), d(), Ee(), f() (+57 more)
 
 ### Community 104 - "10. Cache, mensageria e processamento assíncrono"
 Cohesion: 0.33
@@ -674,8 +682,8 @@ Cohesion: 0.15
 Nodes (12): devDependencies, @types/react, exports, ./react, react, @types/react, name, peerDependencies (+4 more)
 
 ### Community 110 - "create"
-Cohesion: 0.15
-Nodes (14): args(), brand(), catch(), create(), N(), default(), extract(), nullable() (+6 more)
+Cohesion: 0.12
+Nodes (17): args(), brand(), catch(), create(), N(), default(), _e(), extract() (+9 more)
 
 ### Community 111 - "Core Principles"
 Cohesion: 0.40
@@ -782,8 +790,8 @@ Cohesion: 0.11
 Nodes (22): OperationalImports, Decision, DecisionHost(), finish(), DecisionOptions, listeners, publish(), request() (+14 more)
 
 ### Community 156 - "r"
-Cohesion: 0.05
-Nodes (117): ac(), at(), B(), Ba(), be(), bi(), Bo(), _c() (+109 more)
+Cohesion: 0.07
+Nodes (108): C(), ac(), as(), B(), Ba(), be(), bi(), Bo() (+100 more)
 
 ### Community 157 - "Fechamento diferencial da homologação operacional"
 Cohesion: 0.25
@@ -798,28 +806,28 @@ Cohesion: 0.18
 Nodes (10): after, before, coverage, earlier, escape(), failed, families, images (+2 more)
 
 ### Community 162 - "F"
-Cohesion: 0.05
-Nodes (108): aa(), _acquireLock(), _adminDeletePasskey(), _adminListPasskeys(), _approveAuthorization(), _authenticate(), _autoRefreshTokenTick(), _callRefreshToken() (+100 more)
+Cohesion: 0.06
+Nodes (104): aa(), _acquireLock(), _adminDeletePasskey(), _adminListPasskeys(), _approveAuthorization(), _authenticate(), _autoRefreshTokenTick(), _callRefreshToken() (+96 more)
 
-### Community 163 - "Presence & Awareness"
-Cohesion: 0.25
-Nodes (8): Activity Feeds, Avatar Stacks, Best Practices, Guidelines, Live Cursors, Presence & Awareness, Typing Indicators, When Cursors Become Too Many
+### Community 163 - "push"
+Cohesion: 0.07
+Nodes (47): at(), Br(), cancelRefEvent(), cancelTimeout(), connectWithFallback(), contains(), ct(), destroy() (+39 more)
 
 ### Community 164 - "Canvas Navigation"
 Cohesion: 0.25
 Nodes (8): Canvas Navigation, Coordinate Systems, Minimap / Overview, Pan Methods, Pan/Scroll, Zoom Controls, Zoom Levels, Zoom UI
 
-### Community 165 - "Building Trust"
-Cohesion: 0.40
-Nodes (5): Building Trust, Security Indicators, Social Proof Patterns, Transparent Pricing, Trust Signals by Context
+### Community 165 - "ze"
+Cohesion: 0.09
+Nodes (44): Ae(), be(), ce(), ct(), _e(), De(), it(), je() (+36 more)
 
 ### Community 166 - "OperationalImports-CaZrmfqA.js"
-Cohesion: 0.02
-Nodes (39): _addCheck(), base64(), base64url(), cidr(), cuid(), cuid2(), date(), datetime() (+31 more)
+Cohesion: 0.03
+Nodes (34): _addCheck(), base64(), base64url(), cidr(), cuid(), cuid2(), date(), datetime() (+26 more)
 
-### Community 167 - "push"
-Cohesion: 0.06
-Nodes (68): asStream(), _cancelPendingDisconnect(), cancelRefEvent(), cancelTimeout(), clearHeartbeats(), connect(), connectionState(), connectWithFallback() (+60 more)
+### Community 167 - "log"
+Cohesion: 0.09
+Nodes (46): _cancelPendingDisconnect(), canPush(), clearHeartbeats(), connect(), connectionState(), disconnect(), filterBindings(), flushSendBuffer() (+38 more)
 
 ### Community 168 - "review-gallery.mjs"
 Cohesion: 0.29
@@ -835,23 +843,23 @@ Nodes (3): ADENDO OBRIGATÓRIO AO PROMPT MESTRE FISIOFIT UI/UX V2.2, Critério v
 
 ### Community 171 - "t"
 Cohesion: 0.06
-Nodes (60): applyTransformOptsToQuery(), ar(), copy(), createBucket(), createIndex(), createSignedUploadUrl(), createSignedUrl(), createSignedUrls() (+52 more)
+Nodes (61): applyTransformOptsToQuery(), ar(), copy(), createBucket(), createIndex(), createSignedUploadUrl(), createSignedUrl(), createSignedUrls() (+53 more)
 
 ### Community 172 - "ct"
-Cohesion: 0.13
-Nodes (38): abort(), b(), c(), constructor(), ct(), A(), j(), M() (+30 more)
+Cohesion: 0.12
+Nodes (40): abort(), b(), c(), constructor(), ct(), A(), j(), M() (+32 more)
 
 ### Community 173 - "parse"
-Cohesion: 0.09
-Nodes (33): ae(), be(), _e(), endsWith(), exclude(), ge(), _getCached(), _getInvalidInput() (+25 more)
+Cohesion: 0.10
+Nodes (29): ae(), be(), endsWith(), exclude(), _getCached(), _getInvalidInput(), _getOrReturnCtx(), _getType() (+21 more)
 
-### Community 174 - "add"
-Cohesion: 0.09
-Nodes (43): add(), ao(), as(), au(), bl(), delete(), eq(), es() (+35 more)
+### Community 174 - "ms"
+Cohesion: 0.08
+Nodes (53): Al(), ao(), au(), bl(), ca(), createUser(), delete(), deleteUser() (+45 more)
 
-### Community 175 - "dc"
-Cohesion: 0.11
-Nodes (34): Z(), Al(), ca(), dc(), Dl(), ec(), El(), eo() (+26 more)
+### Community 175 - "FisiofitApp-Djuk9SPi.js"
+Cohesion: 0.16
+Nodes (53): at(), bt(), dt(), et(), G(), ge(), he(), N() (+45 more)
 
 ### Community 176 - "financialOverview.ts"
 Cohesion: 0.47
@@ -861,13 +869,25 @@ Nodes (4): Charge, financialOverview(), Receipt, receiptMonth()
 Cohesion: 0.14
 Nodes (10): Famílias avaliadas, Fontes consultadas, Refinamento V2.1 — achados e decisões, Design System V2.1 — evolução da V2, Jornadas e limites da homologação V2.1, Comparação operacional e bloqueios, Evidências e reprodução, Fisiofit UI/UX V2.1 — entrega integrada (+2 more)
 
-### Community 182 - "Handoff local — Fisiofit UI/UX V2.3"
-Cohesion: 0.29
-Nodes (5): Continuidade, Handoff local — Fisiofit UI/UX V2.3, Limites de operação, Vault — pendência preservada, Jornadas e evidências V2.3
+### Community 180 - "constructor"
+Cohesion: 0.10
+Nodes (30): bn(), catch(), clone(), constructor(), execute(), finally(), getChannel(), getPromise() (+22 more)
+
+### Community 181 - "send"
+Cohesion: 0.16
+Nodes (19): ajax(), batchSend(), close(), closeAndRetry(), fetchRequest(), _fetchWithTimeout(), hasReceived(), httpSend() (+11 more)
+
+### Community 182 - "Dark Pattern Taxonomy"
+Cohesion: 0.17
+Nodes (12): 10. Privacy Zuckering, 11. Sneak into Basket, 1. Roach Motel, 2. Confirmshaming, 3. Misdirection, 4. Forced Continuity, 5. Hidden Costs, 6. Trick Questions (+4 more)
 
 ### Community 183 - "verify-hostinger-dist.mjs"
 Cohesion: 0.12
 Nodes (15): actualPaths, allowRetainedAssets, args, digest(), dist, expected, expectedPaths, extra (+7 more)
+
+### Community 184 - "Voice as a First-Class Input"
+Cohesion: 0.25
+Nodes (8): A complete voice interaction, end to end, Activation: wake words vs. push-to-talk, Confirmation & error recovery, Discoverability, Feedback: show every state, Privacy is part of voice UX, Recognition feedback in code, Voice as a First-Class Input
 
 ### Community 185 - "Plataforma Fisiofit"
 Cohesion: 0.12
@@ -922,33 +942,49 @@ Cohesion: 0.29
 Nodes (4): compatManifest, compatRoot, root, v23Manifest
 
 ### Community 198 - "Pc"
-Cohesion: 0.13
-Nodes (23): _a(), bc(), build(), Cc(), Cl(), Dn(), generateLink(), Il() (+15 more)
+Cohesion: 0.12
+Nodes (25): _a(), an(), bc(), build(), Cc(), channel(), Cl(), Dn() (+17 more)
 
 ### Community 199 - "scripts"
 Cohesion: 0.40
 Nodes (5): scripts, build, dev, lint, typecheck
 
-### Community 200 - "Additional Important Laws"
-Cohesion: 0.17
-Nodes (12): Additional Important Laws, Aesthetic-Usability Effect, Doherty Threshold, Law of Common Region, Law of Prägnanz, Mere Exposure Effect, Occam's Razor, Pareto Principle (80/20 Rule) (+4 more)
+### Community 200 - "Regulatory Landscape"
+Cohesion: 0.29
+Nodes (7): California CPRA, COPPA (US Children's Privacy), EU Digital Fairness Act (Upcoming), EU Digital Services Act (DSA), FTC (United States), GDPR (EU), Regulatory Landscape
 
 ### Community 201 - "Nielsen's 10 Usability Heuristics"
 Cohesion: 0.18
 Nodes (11): 10. Help and Documentation, 1. Visibility of System Status, 2. Match Between System and the Real World, 3. User Control and Freedom, 4. Consistency and Standards, 5. Error Prevention, 6. Recognition Rather Than Recall, 7. Flexibility and Efficiency of Use (+3 more)
 
+### Community 202 - "2026 Trends"
+Cohesion: 0.40
+Nodes (5): 2026 Trends, AI-Driven Interactions, Functional Motion (motion earns its keep), Giving Users Control Over Motion, Voice + Multimodal
+
 ### Community 203 - "dirty"
-Cohesion: 0.33
-Nodes (6): dirty(), mergeArray(), mergeObjectAsync(), mergeObjectSync(), a(), refine()
+Cohesion: 0.50
+Nodes (4): dirty(), mergeArray(), mergeObjectAsync(), mergeObjectSync()
+
+### Community 206 - "setLimit"
+Cohesion: 0.40
+Nodes (5): gt(), gte(), lt(), lte(), setLimit()
 
 ### Community 208 - "portalSessionState.ts"
 Cohesion: 0.43
 Nodes (5): bindPortalSessionToUser(), clearPortalSessionState(), clearPortalStorage(), operationalResourceCache, AuthProvider()
 
+### Community 209 - "Feedback States"
+Cohesion: 0.50
+Nodes (4): Button States, Feedback States, Form Field States, System States
+
+### Community 211 - "Loading States"
+Cohesion: 0.50
+Nodes (4): Loading States, Progress Indicators, Skeleton Screens, Spinner Guidelines
+
 ## Knowledge Gaps
-- **1584 isolated node(s):** `name`, `private`, `version`, `type`, `dev` (+1579 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 1859 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **15 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **1585 isolated node(s):** `name`, `private`, `version`, `type`, `dev` (+1580 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 1860 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **16 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_

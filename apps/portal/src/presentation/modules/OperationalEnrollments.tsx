@@ -201,7 +201,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
       setLifecycle(null);
       await reload();
       setNotice(action === "cancel"
-        ? "Matrícula cancelada a partir de hoje. Confira as cobranças anteriores no Controle de Planos."
+        ? "Matrícula encerrada a partir de hoje e arquivada. Consulte-a em Situação > Arquivadas; pagamentos anteriores continuam no Histórico."
         : "Matrícula criada por engano desfeita. Os vínculos independentes de horário foram preservados.");
     } catch (error) {
       setLifecycle((current) => current?.row.id === row.id ? { ...current, error: messageOf(error) } : current);
@@ -245,10 +245,12 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
     const search = controlSearch.trim().toLocaleLowerCase("pt-BR");
     return controlRows.filter((row) => {
       const matchesSearch = !search || `${row.patientName} ${row.patientPhone} ${row.planName}`.toLocaleLowerCase("pt-BR").includes(search);
-      const matchesFilter = controlFilter === "all"
-        || (controlFilter === "due-soon" && row.renewalState === "due-soon")
-        || (controlFilter === "expired" && row.renewalState === "expired")
-        || (controlFilter === "active" && row.enrollmentStatus === "active");
+      const archived = row.enrollmentStatus === "cancelled";
+      const matchesFilter = controlFilter === "archived" ? archived
+        : !archived && (controlFilter === "all"
+          || (controlFilter === "due-soon" && row.renewalState === "due-soon")
+          || (controlFilter === "expired" && row.renewalState === "expired")
+          || (controlFilter === "active" && row.enrollmentStatus === "active"));
       return matchesSearch && matchesFilter && (!contextPatient || (data['/enrollments'] ?? []).some((enrollment: Row) => enrollment.id === row.id && enrollment.patient_id === contextPatient.id));
     });
   }, [controlFilter, controlRows, controlSearch, contextPatient?.id]);
@@ -279,7 +281,7 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
         onCancel={canEdit ? (row) => void openLifecycle(row, "cancel") : undefined}
         onUndo={canEdit ? (row) => void openLifecycle(row, "rollback") : undefined}
         rows={filteredControlRows}
-        total={controlRows.length}
+        total={controlRows.filter((row) => (row.enrollmentStatus === "cancelled") === (controlFilter === "archived")).length}
         search={controlSearch}
         filter={controlFilter}
         onSearch={setControlSearch}
@@ -450,7 +452,7 @@ function EnrollmentLifecycleDialog({
         {evidence && <>
           {undo
             ? <p>O sistema só desfaz uma matrícula sem pagamentos, atendimentos ou presença. A matrícula e suas cobranças vazias deixam de aparecer; o motivo fica na auditoria.</p>
-            : <p>O cancelamento vale a partir de hoje. Aulas e novos agendamentos deste plano são interrompidos. Não serão criadas novas cobranças. Cobranças já lançadas permanecem para conferência.</p>}
+            : <p>O encerramento vale a partir de hoje e arquiva a matrícula na lista de trabalho. Aulas e novos agendamentos deste plano são interrompidos. Não serão criadas novas cobranças. Pagamentos e cobranças anteriores permanecem no histórico.</p>}
           <dl>
             <div><dt>Pagamentos registrados</dt><dd>{evidence.payment_count}</dd></div>
             <div><dt>Sessões usadas</dt><dd>{evidence.sessions_used}</dd></div>
@@ -513,10 +515,11 @@ function PlanControlTable({
         <div className="plan-control-filters">
           <TextField fieldClassName="plan-control-filter-field plan-control-search-field" label="Buscar" type="search" placeholder="Paciente ou plano" value={search} onChange={(event) => onSearch(event.target.value)} />
           <SelectField fieldClassName="plan-control-filter-field" label="Situação" value={filter} onChange={(event) => onFilter(event.target.value)}>
-            <option value="all">Todos</option>
+            <option value="all">Em acompanhamento</option>
             <option value="due-soon">Renovam em até 7 dias</option>
             <option value="expired">Planos vencidos</option>
             <option value="active">Matrículas ativas</option>
+            <option value="archived">Arquivadas</option>
           </SelectField>
           <SelectField fieldClassName="plan-control-filter-field" label="Clínica" value={selectedUnitId} onChange={(event) => onUnitChange(event.target.value)}>
             <option value="">Todas as clínicas</option>
@@ -554,7 +557,7 @@ function PlanControlTable({
           </div>
           <div className="plan-control-cell plan-control-actions" data-label="Ações">
             {onChangePlan && row.enrollmentStatus === "active" && <button type="button" className="btn secondary" onClick={() => onChangePlan(row)}>Trocar plano</button>}
-            {onEdit && <button type="button" className="btn secondary" onClick={() => onEdit(row)} aria-label={`Editar plano de ${row.patientName}`}>Editar</button>}
+            {onEdit && row.enrollmentStatus !== "cancelled" && <button type="button" className="btn secondary" onClick={() => onEdit(row)} aria-label={`Editar plano de ${row.patientName}`}>Editar</button>}
             {onCancel && row.enrollmentStatus !== "cancelled" && <button type="button" className="btn secondary" onClick={() => onCancel(row)} aria-label={`Cancelar matrícula ${row.planName} de ${row.patientName}`}>Cancelar matrícula</button>}
             {onUndo && <button type="button" className="btn secondary" onClick={() => onUndo(row)} aria-label={`Desfazer matrícula ${row.planName} de ${row.patientName}`}>Desfazer matrícula</button>}
           </div>

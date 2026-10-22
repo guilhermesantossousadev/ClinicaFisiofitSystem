@@ -45,6 +45,17 @@ describe("controle de planos", () => {
     expect(rows[0]).toMatchObject({ chargeId: "charge-1", paymentState: "cancelled" });
   });
 
+  it("mostra recebimentos históricos mesmo quando a cobrança foi cancelada", () => {
+    const rows = buildPlanControlRows({
+      ...base,
+      enrollments: [{ ...base.enrollments[0], status: "cancelled" }],
+      charges: [{ id: "charge-1", enrollment_id: "enrollment-1", amount_cents: 26600, paid_cents: 22000, status: "cancelled" }],
+      payments: [{ charge_id: "charge-1", amount_cents: 22000, paid_at: "2026-08-02T12:00:00Z" }],
+    });
+
+    expect(rows[0]).toMatchObject({ paymentState: "cancelled", amountCents: 26600, paidCents: 22000, lastPaidAt: "2026-08-02T12:00:00Z" });
+  });
+
   it("usa o paciente e o plano associados à matrícula mesmo fora da página de pacientes", () => {
     const rows = buildPlanControlRows({
       enrollments: [{
