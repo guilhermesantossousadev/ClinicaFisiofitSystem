@@ -29,6 +29,8 @@ insert into public.payments(id,clinic_id,charge_id,amount_cents,method,paid_at,i
   values(pg_temp.id(70),pg_temp.id(10),pg_temp.id(61),14641,'pix','2026-10-13','synthetic-historical-charge');
 set local role authenticated;
 select set_config('request.jwt.claim.sub',pg_temp.id(1)::text,true);
+select is((public.preview_historical_monthly_charge(pg_temp.id(50),'2026-09-01')->>'coverage_from')::date,
+  date '2026-09-11','preview shows the first uncovered day');
 select throws_ok($$select public.create_historical_monthly_charge(
   pg_temp.id(50),'2026-09-01','2026-09-01',14600,
   'Synthetic coverage must not overlap August',gen_random_uuid())$$,
@@ -48,6 +50,8 @@ select is((select amount_cents from public.charges where id=pg_temp.id(61)),1464
   'October charge amount is preserved');
 select is((select amount_cents from public.payments where id=pg_temp.id(70)),14641,
   'October payment is preserved');
+select is((public.preview_historical_monthly_charge(pg_temp.id(50),'2026-09-01')->>'already_charged')::boolean,
+  true,'preview detects the newly created September charge');
 select throws_ok($$select public.create_historical_monthly_charge(
   pg_temp.id(50),'2026-09-01','2026-09-11',14600,
   'Synthetic duplicate September attempt',gen_random_uuid())$$,

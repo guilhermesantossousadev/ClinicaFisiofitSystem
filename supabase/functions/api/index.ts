@@ -585,6 +585,16 @@ app.post("/enrollments/:id/historical-charge", requireRoles(["admin", "manager",
   return databaseResult(context, data, error, 201);
 });
 
+app.get("/enrollments/:id/historical-charge-window", requireRoles(["admin", "manager", "reception", "finance"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const month = z.string().regex(/^\d{4}-\d{2}$/).parse(context.req.query("month"));
+  const { data, error } = await context.get("db").rpc("preview_historical_monthly_charge", {
+    p_enrollment_id: id,
+    p_month: `${month}-01`,
+  });
+  return databaseResult(context, data, error);
+});
+
 app.post("/charges", requireRoles(["admin", "manager", "finance"]), async (context) => {
   const input = z.object({
     patient_id: z.string().uuid(),
