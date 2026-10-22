@@ -548,8 +548,8 @@ function EnrollmentDatesDialog({ row, endsAt, saving, error, onClose, onSubmit }
       <div className="edit-dialog-header"><div><p className="eyebrow">CORREÇÃO DE MATRÍCULA</p><h2 id={titleId}>Corrigir datas da matrícula</h2><p>{row.patientName} · {row.planName}</p></div><button type="button" className="dialog-close" aria-label="Fechar" onClick={onClose} disabled={saving}>×</button></div>
       <form className="modal-form" onSubmit={onSubmit} aria-busy={saving}>
         {error && <p role="alert">{error}</p>}
-        <p>Use esta correção para uma matrícula mensal antiga com datas incorretas. Os valores e recebimentos não mudam. Se o início mudar, o sistema ajusta apenas o início da cobrança correspondente e bloqueia a operação caso existam aulas ou atendimentos vinculados.</p>
-        <div className="form-row"><TextField name="starts_at" label="Início correto" type="date" defaultValue={row.startsAt} required /><TextField name="ends_at" label="Data final (opcional)" type="date" defaultValue={endsAt} hint="Deixe em branco se a matrícula mensal continua ativa." /></div>
+        <p>{row.planDurationDays > 30 ? `Informe o início correto e o último dia de cobertura dos ${row.planDurationDays} dias. A correção exige uma única cobrança integralmente recebida, sem aulas ou atendimentos anteriores; o pagamento permanece intacto.` : "Use esta correção para uma matrícula mensal antiga com datas incorretas. Os valores e recebimentos não mudam. Se o início mudar, o sistema ajusta apenas o início da cobrança correspondente e bloqueia a operação caso existam aulas ou atendimentos vinculados."}</p>
+        <div className="form-row"><TextField name="starts_at" label="Início correto" type="date" defaultValue={row.startsAt} required /><TextField name="ends_at" label={row.planDurationDays > 30 ? "Último dia da cobertura" : "Data final (opcional)"} type="date" defaultValue={endsAt} required={row.planDurationDays > 30} hint={row.planDurationDays > 30 ? "O plano deve cobrir exatamente 90 ou 180 dias." : "Deixe em branco se a matrícula mensal continua ativa."} /></div>
         <TextareaField name="reason" label="Justificativa" minLength={10} maxLength={1000} required hint="A mudança ficará registrada na auditoria." />
         <p>Os horários da agenda permanecem como estão. Confira a agenda após salvar.</p>
         <div className="edit-dialog-actions"><button type="button" className="btn secondary" onClick={onClose} disabled={saving}>Voltar</button><button type="submit" className="btn primary" disabled={saving}>{saving ? "Salvando…" : "Salvar correção"}</button></div>
@@ -643,7 +643,7 @@ function PlanControlTable({
           <div className="plan-control-cell plan-control-actions" data-label="Ações">
             {onChangePlan && row.enrollmentStatus === "active" && <button type="button" className="btn secondary" onClick={() => onChangePlan(row)}>Trocar plano</button>}
             {onEdit && row.enrollmentStatus !== "cancelled" && <button type="button" className="btn secondary" onClick={() => onEdit(row)} aria-label={`Editar plano de ${row.patientName}`}>Editar</button>}
-            {onCorrectDates && row.enrollmentStatus === "active" && row.planDurationDays === 30 && <button type="button" className="btn secondary" onClick={() => onCorrectDates(row)} aria-label={`Corrigir datas da matrícula de ${row.patientName}`}>Corrigir datas</button>}
+            {onCorrectDates && row.enrollmentStatus === "active" && [30, 90, 180].includes(row.planDurationDays) && <button type="button" className="btn secondary" onClick={() => onCorrectDates(row)} aria-label={`Corrigir datas da matrícula de ${row.patientName}`}>Corrigir datas</button>}
             {onCancel && row.enrollmentStatus !== "cancelled" && <button type="button" className="btn secondary" onClick={() => onCancel(row)} aria-label={`Cancelar matrícula ${row.planName} de ${row.patientName}`}>Cancelar matrícula</button>}
             {onUndo && <button type="button" className="btn secondary" onClick={() => onUndo(row)} aria-label={`Desfazer matrícula ${row.planName} de ${row.patientName}`}>Desfazer matrícula</button>}
           </div>
@@ -700,11 +700,11 @@ function EditControlledPlanDialog({
         <form className="modal-form controlled-plan-form" onSubmit={(event) => void onSubmit(event)} onInput={() => setDirty(true)} aria-busy={saving}>
           {notice && <Notice message={notice} />}
           <SelectField name="plan_id" label="Plano contratado" defaultValue={row.planId} disabled>
-            {plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} · {brl(Number(plan.price_cents ?? 0))}</option>)}
+            {plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} · {brl(plan.id === row.planId && row.contractFinalAmountCents !== null ? row.contractFinalAmountCents : Number(plan.price_cents ?? 0))}</option>)}
           </SelectField>
           <div className="form-row">
             <TextField name="starts_at" label="Início do plano" type="date" value={row.startsAt} readOnly />
-            <TextField name="ends_at" label="Data de renovação" type="date" value={endsAt} readOnly />
+            <TextField name="ends_at" label="Último dia de cobertura" type="date" value={endsAt} readOnly />
           </div>
           <div className="form-row">
             <TextField name="sessions_used" label="Sessões utilizadas" type="number" min="0" defaultValue={row.sessionsUsed} required hint={row.sessionsIncluded == null ? "Quantidade já utilizada pelo paciente." : `O plano inclui ${row.sessionsIncluded} sessões.`} />

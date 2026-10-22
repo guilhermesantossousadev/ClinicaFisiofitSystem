@@ -8,6 +8,7 @@ export type MonthlyPaymentRow = {
   patientName: string;
   planName: string;
   planKind: string;
+  planDurationDays: number;
   unitId: string;
   dueAt: string;
   /** Null means the enrollment has no determinable commercial amount. */
@@ -137,6 +138,7 @@ export function buildMonthlyPaymentRows({
         patientName: String(patient.name ?? "Paciente não encontrado"),
         planName: String(plan.name ?? "Plano não encontrado"),
         planKind: String(plan.kind ?? ""),
+        planDurationDays: Number(plan.duration_days ?? 0),
         unitId: String(enrollment.unit_id ?? ""),
         dueAt: String(charge?.due_at ?? `${month}-${String(Math.min(Math.max(Number(enrollment.due_day ?? 1), 1), 28)).padStart(2, "0")}`),
         amountCents,

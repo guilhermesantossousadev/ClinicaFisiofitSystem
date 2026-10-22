@@ -1,5 +1,5 @@
 {
-  "candidate": "0f1b4ec584cd33689b882fbe072369a0490ae75a",
+  "candidate": "934e29a8f0c58beb5184b77eeb2f656a50c409cc",
   "files": [
     {
       "path": ".htaccess",
@@ -122,6 +122,11 @@
       "sha256": "dc6c93d1f616dea456883c526741fe135b9dfca5e87a299eff1877d5d6fd4352"
     },
     {
+      "path": "sistema/assets/FisiofitApp-DWZJkrUc.js",
+      "bytes": 270045,
+      "sha256": "8b0bee1a3174bfe1012957deb4af734c17eb7b40b78a0510bfa02c786c35b49c"
+    },
+    {
       "path": "sistema/assets/FisiofitApp-P0uC21zt.js",
       "bytes": 259760,
       "sha256": "7cb1abc4f391bef1ac572ed896ab33cfc47a918d8cdf936c33c21965eccb3a5d"
@@ -160,6 +165,11 @@
       "path": "sistema/assets/index-C4vOjn1V.js",
       "bytes": 401604,
       "sha256": "bb2ef312cc4686ca4cbbbe12ca395a0e1be15a7f7f41724a6b9b90fc9209eefc"
+    },
+    {
+      "path": "sistema/assets/index-C7o99IxC.js",
+      "bytes": 401598,
+      "sha256": "770788324a60552aea5404552c1bdc72dfe0a03577cfec30ff092997cf273c24"
     },
     {
       "path": "sistema/assets/index-CgjR4tUL.js",
@@ -237,6 +247,11 @@
       "sha256": "e4b25bc73d68bbfd9643cb81af2e9b377b6b10f68e194a2eb3b4f19a635cb1b3"
     },
     {
+      "path": "sistema/assets/OperationalImports-C9QFZrw0.js",
+      "bytes": 84434,
+      "sha256": "286e72fd630e9d2c5149f1beb8090609c818b34c239baf9d200024c61d17a695"
+    },
+    {
       "path": "sistema/assets/OperationalImports-CaZrmfqA.js",
       "bytes": 81882,
       "sha256": "8733a23a4c59d9bc8c0ecddf2158a04f4243673f4733b2d4c7a4edcd08bbb82c"
@@ -302,6 +317,11 @@
       "sha256": "cba3651ae2a28f2a52f88a7d1a4b580943059b881a89b00a2960ffb0d9fe6539"
     },
     {
+      "path": "sistema/assets/OperationalShared-C5WpP4cl.js",
+      "bytes": 24319,
+      "sha256": "d551e0729843d65776442ceaebd966cbda7eaa5fc54843f0a40890fd133fa459"
+    },
+    {
       "path": "sistema/assets/OperationalShared-CEVtmTyB.js",
       "bytes": 24319,
       "sha256": "432a68cd4965bef2ff2605534e1cd4d87ffe3e0bce1dfe8d5fc8c372e9c43e2c"
@@ -349,7 +369,7 @@
     {
       "path": "sistema/index.html",
       "bytes": 605,
-      "sha256": "e2c4a765a1345a718488261431f7e83117a8fdda76a8d78aa47ac51e5f8a928b"
+      "sha256": "fa0027d8980f0e026e8b7748e9e09c4e8f5241a266514e7d88187094bb7fd0f5"
     },
     {
       "path": "sistema/logo-fisiofit.svg",

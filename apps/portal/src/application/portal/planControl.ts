@@ -10,6 +10,7 @@ export type PlanControlRow = {
   patientPhone: string;
   planName: string;
   planDurationDays: number;
+  contractFinalAmountCents: number | null;
   sessionsUsed: number;
   sessionsIncluded: number | null;
   enrollmentStatus: string;
@@ -37,6 +38,12 @@ function inferredRenewalDate(startsAt: string, durationDays: number) {
   if (!startsAt || !durationDays) return "";
   const date = dateOnly(startsAt);
   date.setDate(date.getDate() + durationDays);
+  return dateKey(date);
+}
+
+function dayAfter(lastCoverageDay: string) {
+  const date = dateOnly(lastCoverageDay);
+  date.setDate(date.getDate() + 1);
   return dateKey(date);
 }
 
@@ -99,8 +106,8 @@ export function buildPlanControlRows({
             ? "paid"
             : paidCents > 0 ? "partial" : primaryStatus === "overdue" ? "overdue" : "pending";
       const startsAt = String(enrollment.starts_at ?? "");
-      const renewsAt = String(enrollment.ends_at ?? "")
-        || inferredRenewalDate(startsAt, Number(plan.duration_days ?? 0));
+      const endsAt = String(enrollment.ends_at ?? "");
+      const renewsAt = endsAt ? dayAfter(endsAt) : inferredRenewalDate(startsAt, Number(plan.duration_days ?? 0));
       const daysToRenewal = renewsAt ? daysBetween(today, renewsAt) : null;
       const renewalState: RenewalState = daysToRenewal == null
         ? "unknown"
@@ -117,6 +124,7 @@ export function buildPlanControlRows({
         patientPhone: String(patient.phone ?? ""),
         planName: String(plan.name ?? "Plano não encontrado"),
         planDurationDays: Number(plan.duration_days ?? 0),
+        contractFinalAmountCents: enrollment.contract_amount_cents == null ? null : Number(enrollment.contract_amount_cents) - Number(enrollment.discount_cents ?? 0) + Number(enrollment.surcharge_cents ?? 0),
         sessionsUsed: Number(enrollment.sessions_used ?? 0),
         sessionsIncluded: plan.sessions_included == null ? null : Number(plan.sessions_included),
         enrollmentStatus: String(enrollment.status ?? "active"),

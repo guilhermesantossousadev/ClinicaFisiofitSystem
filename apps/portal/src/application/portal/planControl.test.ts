@@ -30,8 +30,8 @@ describe("controle de planos", () => {
       today: new Date(2026, 7, 16),
     });
 
-    expect(rows[0]).toMatchObject({ daysToRenewal: -6, renewalState: "expired", paymentState: "partial" });
-    expect(renewalCopy(rows[0].daysToRenewal)).toBe("Vencido há 6 dias");
+    expect(rows[0]).toMatchObject({ renewsAt: "2026-08-11", daysToRenewal: -5, renewalState: "expired", paymentState: "partial" });
+    expect(renewalCopy(rows[0].daysToRenewal)).toBe("Vencido há 5 dias");
   });
 
   it("preserva o status cancelado e expõe a cobrança editável", () => {
