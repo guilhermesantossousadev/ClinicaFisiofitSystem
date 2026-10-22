@@ -1,5 +1,5 @@
 {
-  "candidate": "238450e983b4d8006e2380754bb85185f780529d",
+  "candidate": "f85f2ab6c66e44273292449e03cbb6d8c9a0980c",
   "files": [
     {
       "path": ".htaccess",
@@ -65,6 +65,11 @@
       "path": "sistema/.htaccess",
       "bytes": 1241,
       "sha256": "915565b17c520e89b0b2c81b1b1f35e9fcf4b11fe13fee2fc0635ebe480ada2f"
+    },
+    {
+      "path": "sistema/assets/FisiofitApp-BNdeFfQD.js",
+      "bytes": 260096,
+      "sha256": "bf4fad2b64045b082469841e821a3ec0d9b759647a6f2de322be6dce410c9002"
     },
     {
       "path": "sistema/assets/FisiofitApp-CHcA_rto.js",
@@ -137,6 +142,11 @@
       "sha256": "9204764120680d43f66d21afe74979fab44f1179c5054c7f32074a048929ac89"
     },
     {
+      "path": "sistema/assets/index-DCdLmFW7.js",
+      "bytes": 401598,
+      "sha256": "f75d17d4d35df6f90b5a3aa6b1255e87d3d8c126671f9441a406f826f14c0cb6"
+    },
+    {
       "path": "sistema/assets/index-DueEo_Zy.css",
       "bytes": 98453,
       "sha256": "2e31721b2f5194f7639958ce6fbb2b9de2d59283a67fa4347fd5e414a6210e64"
@@ -182,6 +192,11 @@
       "sha256": "9807c7a6bd12a82934f0b6f46a28b0f0adddc368ead2eab9039c6375d5b7a3d3"
     },
     {
+      "path": "sistema/assets/OperationalImports-ddPZ97zS.js",
+      "bytes": 84434,
+      "sha256": "4ae240f55123339b715df2527989746a2d0ad3bf54d3a38cb27f7b31febe73f3"
+    },
+    {
       "path": "sistema/assets/OperationalImports-DTUhTzsJ.js",
       "bytes": 84437,
       "sha256": "a40a73b992df31c5c969965821abb3390bf1cb165932732cd2cf240064832fcd"
@@ -200,6 +215,11 @@
       "path": "sistema/assets/OperationalShared-AKpuYnpE.js",
       "bytes": 24319,
       "sha256": "e6b4c3d86bf413a258bb1662d3db47358f741f9f16c83e2a6a863f995d584960"
+    },
+    {
+      "path": "sistema/assets/OperationalShared-B81-RB2Q.js",
+      "bytes": 24319,
+      "sha256": "57337494cf68dc33cf1ea7e66d8fa112827a6c905710267ef323bbe5f62d86ee"
     },
     {
       "path": "sistema/assets/OperationalShared-CHOnzznc.js",
@@ -229,7 +249,7 @@
     {
       "path": "sistema/index.html",
       "bytes": 605,
-      "sha256": "899b64d71aa544e38fbdc6a3f37daa8955488832dfd675079233bbed8ab3f39b"
+      "sha256": "a6fe71c75aa90a5f411a3d6e3951f913ffbae6f8605098c00c404963d1cba163"
     },
     {
       "path": "sistema/logo-fisiofit.svg",
