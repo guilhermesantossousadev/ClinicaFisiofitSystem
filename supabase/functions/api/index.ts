@@ -595,6 +595,27 @@ app.get("/enrollments/:id/historical-charge-window", requireRoles(["admin", "man
   return databaseResult(context, data, error);
 });
 
+app.patch("/charges/:id/coverage", requireRoles(["admin", "manager", "reception", "finance"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const input = z.object({
+    expected_coverage_from: z.string().date().nullable(),
+    expected_coverage_to: z.string().date().nullable(),
+    coverage_from: z.string().date(),
+    coverage_to: z.string().date(),
+    reason: z.string().trim().min(10).max(1000),
+  }).parse(await context.req.json());
+  const { data, error } = await context.get("db").rpc("correct_legacy_charge_coverage", {
+    p_charge_id: id,
+    p_expected_from: input.expected_coverage_from,
+    p_expected_to: input.expected_coverage_to,
+    p_coverage_from: input.coverage_from,
+    p_coverage_to: input.coverage_to,
+    p_reason: input.reason,
+    p_request_id: context.get("requestId"),
+  });
+  return databaseResult(context, data, error);
+});
+
 app.post("/charges", requireRoles(["admin", "manager", "finance"]), async (context) => {
   const input = z.object({
     patient_id: z.string().uuid(),
@@ -1021,6 +1042,10 @@ function databaseResult(context: any, data: unknown, error: any, status = 200) {
       ENROLLMENT_END_CHARGE_CONFLICT: [409, "A data final não pode anteceder uma cobrança já registrada."],
       INVALID_HISTORICAL_CHARGE: [400, "Informe mês anterior, valor positivo e justificativa para a cobrança histórica."],
       HISTORICAL_COVERAGE_START_CONFLICT: [409, "O início deve ser o primeiro dia ainda não coberto pela cobrança anterior."],
+      INVALID_COVERAGE_CORRECTION: [400, "Informe as datas de cobertura e uma justificativa válida."],
+      COVERAGE_CORRECTION_UNAVAILABLE: [409, "Esta cobrança não permite corrigir a cobertura."],
+      CHARGE_COVERAGE_CONFLICT: [409, "A cobertura desta cobrança mudou. Atualize a página antes de corrigir."],
+      COVERAGE_ALREADY_SET: [409, "Esta cobrança já possui cobertura registrada."],
     };
     const known = enrollmentErrors[String(error.message)];
     if (known) return fail(context, known[0], String(error.message), known[1]);
