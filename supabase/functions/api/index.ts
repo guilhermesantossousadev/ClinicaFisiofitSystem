@@ -443,11 +443,15 @@ const enrollmentCreateSchema = z.object({
   plan_id: z.string().uuid("Selecione um plano válido."),
   unit_id: z.string().uuid("Selecione uma unidade válida."),
   group_slot_id: z.string().uuid().optional(),
+  weekdays: z.array(z.number().int().min(1).max(5)).min(1).max(5).optional(),
   starts_at: z.string().date("Informe uma data inicial válida."),
   ends_at: z.string().date().optional(),
   due_day: z.number().int().min(1).max(31).optional(),
   discount_cents: z.number().int().nonnegative().default(0),
   surcharge_cents: z.number().int().nonnegative().default(0),
+}).refine((input) => Boolean(input.group_slot_id) === Boolean(input.weekdays), {
+  message: "Escolha os dias do paciente ao selecionar um horário.",
+  path: ["weekdays"],
 });
 app.post("/enrollments", requireRoles(["admin", "manager", "reception", "finance"]), async (context) => {
   const input = enrollmentCreateSchema.parse(await context.req.json());

@@ -74,7 +74,7 @@ const messages: Record<string, [number, string]> = {
   ],
   "INVALID_MEMBERSHIP_WEEKDAYS": [
     422,
-    "Os dias do paciente devem pertencer à grade vigente da turma."
+    "Escolha dias em que este horário está disponível na data de início do paciente."
   ],
   "INVALID_MEMBERSHIP_PERIOD": [
     422,

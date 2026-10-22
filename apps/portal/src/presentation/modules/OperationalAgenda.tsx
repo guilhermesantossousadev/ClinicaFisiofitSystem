@@ -17,6 +17,7 @@ import { CheckboxField, FormSection, SelectField, TextareaField, TextField, Week
 import { type AgendaEnrollmentContext, Row, Unit, messageOf, value, isoLocal, localDateTime, dateKey, weekdaysLabel, useResources, Select, PatientPicker, DrawerForm, ModuleState, EditableOperationalTable } from "./OperationalShared";
 
 const FIXED_GROUP_TIMES = Array.from({ length: 15 }, (_, index) => `${String(index + 6).padStart(2, "0")}:00`);
+const OPEN_WEEKDAYS = [1, 2, 3, 4, 5];
 
 type Notice = { type: "success" | "error" | "warning" | "info"; message: string };
 type GroupConflict = { message: string; group?: { name?: string; weekdays?: number[]; startsAt?: string; startsOn?: string | null; endsOn?: string | null } };
@@ -63,7 +64,7 @@ function conflictFrom(error: unknown): GroupConflict | null {
   const apiError = errorDetails(error);
   if (apiError?.code !== "GROUP_SLOT_CONFLICT") return null;
   return {
-    message: "Já existe outra turma nesta unidade para o mesmo dia e horário. Escolha outro dia, horário ou ajuste o período de vigência.",
+    message: "Já existe um horário nesta unidade. Abra o horário existente para adicionar dias ou escolha outra hora.",
     group: apiError.details?.conflictingGroup,
   };
 }
@@ -121,8 +122,8 @@ function GroupMemberForm({
   return (
     <form className="group-member-form" onSubmit={onSubmit} aria-label={`Adicionar paciente à turma ${slotName}`}>
       <FormSection legend="Adicionar paciente à turma">
-        <p className="form-instructions"><strong>Dias da turma:</strong> {weekdaysLabel(slotWeekdays)}. Escolha os dias em que este paciente participará.</p>
-        <WeekdayCheckboxGroup name="weekdays" label="Dias em que o paciente vem" defaultValue={slotWeekdays.map(String)} availableValues={slotWeekdays.map(String)} maxSelections={slotWeekdays.length} required />
+        <p className="form-instructions"><strong>Dias disponíveis neste horário:</strong> {weekdaysLabel(slotWeekdays)}. Marque apenas os dias em que este paciente virá.</p>
+        <WeekdayCheckboxGroup name="weekdays" label="Dias em que o paciente vem" availableValues={slotWeekdays.map(String)} maxSelections={slotWeekdays.length} required />
         <div className="form-row">
           <PatientPicker
             name="patient_id"
@@ -188,7 +189,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
   const [appointmentPickerVersion, setAppointmentPickerVersion] = useState(0);
   const [calendarAppointmentUnitId, setCalendarAppointmentUnitId] = useState("");
   const [selectedGroupCell, setSelectedGroupCell] = useState<{ slot: Row; day: Date; unitName: string } | null>(null);
-  const [editingMembership, setEditingMembership] = useState<{ member: Row; slot: Row } | null>(null);
+  const [editingMembership, setEditingMembership] = useState<{ member: Row; slot: Row; effectiveFrom: string } | null>(null);
   const [savingMembershipWeekdays, setSavingMembershipWeekdays] = useState(false);
   const [canonicalMembers, setCanonicalMembers] = useState<Row[]>([]);
   const [selectedOccurrence, setSelectedOccurrence] = useModuleState<CalendarItem | null>("agenda.occurrence", null);
@@ -400,6 +401,12 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
     const current = dateKey(date);
     return current >= start && current <= end && (!member.weekdays || member.weekdays.includes(date.getDay()));
   });
+  const currentMembersForSlot = (slotId: string) => groupMembers.filter((member) => {
+    const today = clinicToday();
+    return member.group_slot_id === slotId && member.status === "active"
+      && !member.deleted_at && String(member.starts_at ?? "").slice(0, 10) <= today
+      && (!member.ends_at || String(member.ends_at).slice(0, 10) >= today);
+  });
   const slotsForDay = (unitId: string, day: Date) => fixedSlots.map((slot) => {
     const version = (slot.schedule_versions ?? []).find((v: Row) => v.effective_from <= dateKey(day) && (!v.effective_to || dateKey(day) < v.effective_to));
     return version ? { ...slot, starts_at: version.start_time, weekdays: version.weekdays.map((d: string) => LEGACY_DAY_BY_CLASS_WEEKDAY[d]), professional_id: version.planned_professional_id, starts_on: version.effective_from, ends_on: version.effective_to ? shiftDate(version.effective_to, -1) : null } : slot;
@@ -432,7 +439,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
           professional_id: value(form, "professional_id") || undefined,
           service_id: value(form, "service_id") || undefined,
           name: value(form, "name"),
-          weekdays: form.getAll("weekdays").map(Number),
+          weekdays: OPEN_WEEKDAYS,
           starts_at: value(form, "starts_at"),
           starts_on: value(form, "starts_on") || undefined,
           ends_on: value(form, "ends_on") || undefined,
@@ -441,7 +448,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
         }),
       });
       formElement.reset();
-      success("Turma criada no horário fixo.");
+      success("Horário criado. Escolha os dias de cada paciente ao adicioná-lo.");
       await reloadAgenda();
       return true;
     } catch (actionError) {
@@ -468,7 +475,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
           professional_id: value(form, "professional_id") || undefined,
           service_id: value(form, "service_id") || undefined,
           name_prefix: value(form, "name_prefix"),
-          weekdays: form.getAll("weekdays").map(Number),
+          weekdays: OPEN_WEEKDAYS,
           first_time: value(form, "first_time"),
           last_time: value(form, "last_time"),
           interval_minutes: Number(value(form, "interval_minutes")),
@@ -618,7 +625,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
     try {
       await api(`/class-memberships/${editingMembership.member.class_membership_id}`, {
         method: "PATCH",
-        body: JSON.stringify({ weekdays: weekdays.map((day) => CLASS_WEEKDAY_BY_LEGACY_DAY[day]) }),
+        body: JSON.stringify({ effectiveFrom: value(new FormData(event.currentTarget), "effective_from"), weekdays: weekdays.map((day) => CLASS_WEEKDAY_BY_LEGACY_DAY[day]) }),
       });
       setEditingMembership(null);
       success("Dias da matrícula atualizados.");
@@ -646,7 +653,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
     setEditGroupConflict(null);
     setSavingGroup(true);
     try {
-      const response = await api<Row>(`/group-slots/${slot.id}`, {
+      await api<Row>(`/group-slots/${slot.id}`, {
         method: "PATCH",
         body: JSON.stringify({
           name: value(form, "name"),
@@ -663,11 +670,8 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
           active: value(form, "active") === "true",
         }),
       });
-      const updatedSlot = response.data ?? slot;
-      setSelectedGroupCell((current) => current
-        ? { ...current, slot: { ...current.slot, ...updatedSlot } }
-        : current);
-      success("Turma atualizada.");
+      setSelectedGroupCell(null);
+      success("Horário atualizado. Os dias já escolhidos para cada paciente foram preservados.");
       await reloadAgenda();
     } catch (actionError) {
       const conflict = conflictFrom(actionError);
@@ -768,7 +772,10 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
         const selectedMembers = selectedGroupCell.slot.class_id
           ? canonicalMembers.filter((member) => {
             const current = dateKey(selectedGroupCell.day);
-            return member.effective_from <= current && (!member.effective_to || current < member.effective_to);
+            const day = selectedGroupCell.day.getDay();
+            const allowedDays: string[] = member.weekdays ?? (selectedGroupCell.slot.weekdays ?? []).map((weekday: number) => CLASS_WEEKDAY_BY_LEGACY_DAY[weekday]);
+            return member.effective_from <= current && (!member.effective_to || current < member.effective_to)
+              && allowedDays.includes(CLASS_WEEKDAY_BY_LEGACY_DAY[day]);
           })
           : membersForSlot(selectedGroupCell.slot.id, selectedGroupCell.day);
         const capacity = Number(selectedGroupCell.slot.capacity ?? 7);
@@ -788,7 +795,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
             </div>
             <div className="group-members-drawer-body">
               {canManageGroups && <form key={`${selectedGroupCell.slot.id}-${selectedGroupCell.slot.updated_at ?? "current"}`} className="modal-form group-edit-form" onSubmit={(event) => void updateGroup(event, selectedGroupCell.slot)} aria-busy={savingGroup}>
-                <div className="group-edit-heading"><div><h3>Editar turma</h3><p>Altere os dias, horário e responsável desta turma.</p></div><span>{selectedGroupCell.unitName}</span></div>
+                <div className="group-edit-heading"><div><h3>Editar horário</h3><p>Para receber pacientes na sexta, marque sexta como dia disponível. Os dias de cada paciente são definidos separadamente.</p></div><span>{selectedGroupCell.unitName}</span></div>
                 <TextField name="name" label="Nome da turma" defaultValue={selectedGroupCell.slot.name} required disabled={savingGroup} />
                 <div className="form-row">
                   <SelectField name="professional_id" label="Fisioterapeuta responsável" defaultValue={selectedGroupCell.slot.professional_id ?? ""} disabled={savingGroup} hint="Você pode atribuir ou trocar o responsável a qualquer momento.">
@@ -804,7 +811,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
                   <option value="">Nenhum</option>
                   {(data["/services"] ?? []).filter((service: Row) => service.active !== false || service.id === selectedGroupCell.slot.service_id).map((service: Row) => <option key={service.id} value={service.id}>{service.name}</option>)}
                 </SelectField>
-                <WeekdayCheckboxGroup label="Dias da turma" defaultValue={(selectedGroupCell.slot.weekdays ?? []).map(String)} maxSelections={5} required disabled={savingGroup} error={editGroupConflict?.message} onSelectionChange={() => setEditGroupConflict(null)} />
+                <WeekdayCheckboxGroup label="Dias em que o horário está disponível" defaultValue={(selectedGroupCell.slot.weekdays ?? []).map(String)} maxSelections={5} required disabled={savingGroup} error={editGroupConflict?.message} onSelectionChange={() => setEditGroupConflict(null)} />
                 <div className="form-row">
                   <SelectField name="starts_at" label="Horário fixo" defaultValue={String(selectedGroupCell.slot.starts_at ?? "").slice(0, 5)} required disabled={savingGroup} error={editGroupConflict?.message} onChange={() => setEditGroupConflict(null)}>
                     <option value="">Selecione</option>
@@ -818,7 +825,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
                   <TextField name="ends_on" label="Fim do período (opcional)" type="date" defaultValue={selectedGroupCell.slot.ends_on ?? ""} disabled={savingGroup} onChange={() => setEditGroupConflict(null)} />
                 </div>
                 <div className="form-row">
-                  <TextField name="effective_from" label="Aplicar mudança a partir de" type="date" defaultValue={clinicToday()} min={clinicToday()} required /><TextField name="capacity" label="Capacidade de referência" type="number" min="1" defaultValue={capacity} required disabled={savingGroup} />
+                  <TextField name="effective_from" label="Aplicar mudança a partir de" type="date" defaultValue={clinicToday()} min={clinicToday()} required /><TextField name="capacity" label="Capacidade de referência por dia" type="number" min="1" defaultValue={capacity} required disabled={savingGroup} />
                   <SelectField name="active" label="Situação" defaultValue={selectedGroupCell.slot.active === false ? "false" : "true"} required disabled={savingGroup}>
                     <option value="true">Ativa</option><option value="false">Inativa</option>
                   </SelectField>
@@ -828,20 +835,22 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
               </form>}
               {full && <div className="capacity-alert" role="status"><strong>Turma lotada</strong><span>Não há vagas disponíveis para adicionar mais pacientes.</span></div>}
               <h3>Pacientes inscritos</h3>
-              {selectedMembers.length ? <ul className="group-members-drawer-list">{selectedMembers.map((member) => <li key={member.id}><div><span>{member.patients?.name ?? "Paciente"}</span><small>{member.patients?.phone ?? ""}</small></div>{canManageGroups && <div className="row-actions">{(member.class_membership_id || selectedGroupCell.slot.class_id) && <button type="button" className="btn secondary" onClick={() => setEditingMembership({ member: { ...member, class_membership_id: member.class_membership_id ?? member.id, class_membership_weekdays: member.class_membership_weekdays ?? member.weekdays }, slot: selectedGroupCell.slot })}>Editar dias</button>}{!selectedGroupCell.slot.class_id && <button type="button" className="action-delete" onClick={() => void removeGroupMember(member.id)}>Retirar da turma</button>}</div>}</li>)}</ul> : <p className="empty-state">Nenhum paciente está inscrito nesta turma.</p>}
+              {selectedMembers.length ? <ul className="group-members-drawer-list">{selectedMembers.map((member) => <li key={member.id}><div><span>{member.patients?.name ?? "Paciente"}</span><small>{member.patients?.phone ?? ""}</small></div>{canManageGroups && <div className="row-actions">{(member.class_membership_id || selectedGroupCell.slot.class_id) && <button type="button" className="btn secondary" onClick={() => setEditingMembership({ member: { ...member, class_membership_id: member.class_membership_id ?? member.id, class_membership_weekdays: member.class_membership_weekdays ?? member.weekdays }, slot: selectedGroupCell.slot, effectiveFrom: dateKey(selectedGroupCell.day) < clinicToday() ? clinicToday() : dateKey(selectedGroupCell.day) })}>Editar dias</button>}{!selectedGroupCell.slot.class_id && <button type="button" className="action-delete" onClick={() => void removeGroupMember(member.id)}>Retirar da turma</button>}</div>}</li>)}</ul> : <p className="empty-state">Nenhum paciente está inscrito nesta turma.</p>}
               {canManageGroups && <GroupMemberForm slotName={selectedGroupCell.slot.name} availablePatients={availablePatients} allowedPatientIds={availablePatientIds} selectedDate={dateKey(selectedGroupCell.day)} slotWeekdays={selectedGroupCell.slot.weekdays ?? []} full={full} onSubmit={(event) => void addGroupMember(event, selectedGroupCell.slot.id)} />}
             </div>
         </AgendaDialog>;
       })()}
       {editingMembership && (() => {
-        const scheduleWeekdays = (editingMembership.slot.weekdays ?? []).map(Number);
+        const version = (editingMembership.slot.schedule_versions ?? []).find((schedule: Row) => schedule.effective_from <= editingMembership.effectiveFrom && (!schedule.effective_to || editingMembership.effectiveFrom < schedule.effective_to));
+        const scheduleWeekdays = version ? (version.weekdays ?? []).map((day: string) => LEGACY_DAY_BY_CLASS_WEEKDAY[day]) : (editingMembership.slot.weekdays ?? []).map(Number);
         const explicitWeekdays = editingMembership.member.class_membership_weekdays as string[] | null;
-        const selectedWeekdays = explicitWeekdays?.map((weekday) => String(LEGACY_DAY_BY_CLASS_WEEKDAY[weekday])) ?? scheduleWeekdays.map(String);
+        const selectedWeekdays: string[] = explicitWeekdays?.map((weekday) => String(LEGACY_DAY_BY_CLASS_WEEKDAY[weekday])) ?? scheduleWeekdays.map(String);
         return <AgendaDialog labelId="membership-weekdays-title" className="calendar-edit-modal" onClose={() => { if (!savingMembershipWeekdays) setEditingMembership(null); }}>
           <div className="modal-head"><div><p className="eyebrow">MATRÍCULA · DIAS DE PARTICIPAÇÃO</p><h2 id="membership-weekdays-title">Editar dias</h2></div><button type="button" onClick={() => setEditingMembership(null)} disabled={savingMembershipWeekdays} aria-label="Fechar">×</button></div>
           <form className="modal-form" onSubmit={updateClassMembershipWeekdays} aria-busy={savingMembershipWeekdays}>
-            <p className="form-instructions">Dias disponíveis da turma: <strong>{weekdaysLabel(scheduleWeekdays)}</strong>. Escolha ao menos um dia para este paciente.</p>
-            <WeekdayCheckboxGroup name="weekdays" label="Dias em que o paciente vem" defaultValue={selectedWeekdays} availableValues={scheduleWeekdays.map(String)} maxSelections={scheduleWeekdays.length} required disabled={savingMembershipWeekdays} />
+            <p className="form-instructions">Dias disponíveis neste horário: <strong>{weekdaysLabel(scheduleWeekdays)}</strong>. Escolha apenas os dias deste paciente.</p>
+            <TextField name="effective_from" label="Aplicar a partir de" type="date" value={editingMembership.effectiveFrom} onChange={(event) => setEditingMembership((current) => current ? { ...current, effectiveFrom: event.target.value } : current)} min={clinicToday()} required disabled={savingMembershipWeekdays} />
+            <WeekdayCheckboxGroup key={`${editingMembership.effectiveFrom}-${scheduleWeekdays.join(",")}`} name="weekdays" label="Dias em que o paciente vem" defaultValue={selectedWeekdays.filter((day) => scheduleWeekdays.map(String).includes(day))} availableValues={scheduleWeekdays.map(String)} maxSelections={scheduleWeekdays.length} required disabled={savingMembershipWeekdays} />
             <div className="modal-actions"><button type="button" className="btn secondary" disabled={savingMembershipWeekdays} onClick={() => setEditingMembership(null)}>Cancelar</button><button type="submit" className="btn primary" disabled={savingMembershipWeekdays}>{savingMembershipWeekdays ? "Salvando…" : "Salvar dias"}</button></div>
           </form>
         </AgendaDialog>;
@@ -861,11 +870,11 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
         </AgendaDialog>
       )}
       {(canManageGroups || canManageAppointments) && <div className="dashboard-grid">
-        {canManageGroups && <DrawerForm title="Nova turma em horário fixo" onSubmit={createGroup}>
-          <p className="form-instructions">O horário permanece fixo. Turmas diferentes podem usar o mesmo horário quando seus dias não se sobrepõem.</p>
+        {canManageGroups && <DrawerForm title="Novo horário" onSubmit={createGroup}>
+          <p className="form-instructions">O horário fica disponível de segunda a sexta. Os dias de presença são escolhidos para cada paciente.</p>
           <fieldset>
             <legend>Identificação e responsável</legend>
-            <TextField name="name" label="Nome da turma" placeholder="Ex.: Lagoa · Seg/Qua 07h" required />
+            <TextField name="name" label="Nome do horário" placeholder="Ex.: Pilates · 07h" required />
             <div className="form-row">
               <SelectField name="unit_id" label="Unidade" value={newGroupUnitId} onChange={(event) => { setNewGroupUnitId(event.target.value); setCreateGroupConflict(null); }} required><option value="">Selecione</option>{units.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}</SelectField>
               <SelectField name="professional_id" label="Fisioterapeuta responsável" defaultValue="" hint="Se preferir, crie a turma agora e defina o responsável depois.">
@@ -880,8 +889,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
             {newGroupUnitId && !professionalsForUnit(professionals, newGroupUnitId).length && <p className="form-field-hint" role="status">Nenhum fisioterapeuta está vinculado a esta unidade. A turma poderá ser criada e receber um responsável depois.</p>}
           </fieldset>
           <fieldset>
-            <legend>Dias e horário fixo</legend>
-            <WeekdayCheckboxGroup label="Dias da turma" required maxSelections={5} error={createGroupConflict?.message} onSelectionChange={() => setCreateGroupConflict(null)} />
+            <legend>Horário disponível de segunda a sexta</legend>
             <div className="form-row">
               <SelectField name="starts_at" label="Horário fixo" required defaultValue="" error={createGroupConflict?.message} onChange={() => setCreateGroupConflict(null)}>
                 <option value="">Selecione</option>
@@ -896,13 +904,13 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
             <TextField name="capacity" label="Capacidade de referência" type="number" min="1" defaultValue="7" required />
           </fieldset>
           {createGroupConflict && <GroupConflictAlert conflict={createGroupConflict} />}
-          <button className="btn primary" disabled={!newGroupUnitId || Boolean(createGroupConflict)}>{createGroupConflict ? "Ajuste o horário para continuar" : "Criar turma"}</button>
+          <button className="btn primary" disabled={!newGroupUnitId || Boolean(createGroupConflict)}>{createGroupConflict ? "Ajuste o horário para continuar" : "Criar horário"}</button>
         </DrawerForm>}
         {canManageGroups && <DrawerForm title="Criar grade de horários" onSubmit={createBulkGroups}>
-          <p className="form-instructions">Disponível para administração, gestão e recepção. Cria várias turmas de uma só vez, mantendo os mesmos dias, responsável, duração e capacidade.</p>
+          <p className="form-instructions">Cria vários horários de segunda a sexta. Cada paciente terá seus próprios dias de frequência.</p>
           <fieldset>
             <legend>Identificação e responsável</legend>
-            <TextField name="name_prefix" label="Nome base das turmas" placeholder="Ex.: Pilates · Seg/Qua" hint="O horário será acrescentado automaticamente a cada nome." required />
+            <TextField name="name_prefix" label="Nome base dos horários" placeholder="Ex.: Pilates" hint="O horário será acrescentado automaticamente a cada nome." required />
             <div className="form-row">
               <SelectField name="unit_id" label="Unidade" value={newBulkGroupUnitId} onChange={(event) => { setNewBulkGroupUnitId(event.target.value); setCreateBulkGroupConflict(null); }} required><option value="">Selecione</option>{units.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}</SelectField>
               <SelectField name="professional_id" label="Fisioterapeuta responsável" defaultValue="" hint="As turmas podem ser criadas agora e receber o responsável depois.">
@@ -917,8 +925,7 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
             {newBulkGroupUnitId && !professionalsForUnit(professionals, newBulkGroupUnitId).length && <p className="form-field-hint" role="status">Nenhum fisioterapeuta está vinculado a esta unidade. A grade poderá ser criada e receber responsáveis depois.</p>}
           </fieldset>
           <fieldset>
-            <legend>Dias e faixa de horários</legend>
-            <WeekdayCheckboxGroup label="Dias das turmas" required maxSelections={5} error={createBulkGroupConflict?.message} onSelectionChange={() => setCreateBulkGroupConflict(null)} />
+            <legend>Faixa de horários de segunda a sexta</legend>
             <div className="form-row">
               <SelectField name="first_time" label="Primeiro horário" value={bulkFirstTime} onChange={(event) => { setBulkFirstTime(event.target.value); setCreateBulkGroupConflict(null); }} required>{FIXED_GROUP_TIMES.map((time) => <option key={time} value={time}>{time}</option>)}</SelectField>
               <SelectField name="last_time" label="Último horário" value={bulkLastTime} onChange={(event) => { setBulkLastTime(event.target.value); setCreateBulkGroupConflict(null); }} required>{FIXED_GROUP_TIMES.map((time) => <option key={time} value={time}>{time}</option>)}</SelectField>
@@ -1008,11 +1015,11 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
           <div className="table-toolbar"><div><p className="eyebrow">ALOCAÇÃO</p><h2 id="group-allocation-title">Alunos por turma</h2><p className="form-instructions">Cada turma possui dias, horário fixo e fisioterapeuta próprios.</p></div>{canManageGroups && <button type="button" className="btn secondary" onClick={onOpenPatients}>Cadastrar paciente</button>}</div>
         <div className="group-allocation-grid">
           {(data["/group-slots"] ?? []).filter((group: Row) => group.active !== false).map((group: Row) => {
-            const members = groupMembers.filter((member) => member.group_slot_id === group.id);
+            const members = currentMembersForSlot(group.id);
             return <article className="group-allocation-card" key={group.id}>
-              <div><strong>{group.name}</strong><span>{weekdaysLabel(group.weekdays)} · {String(group.starts_at).slice(0, 5)} · {members.length}/{group.capacity ?? 7} vagas ocupadas</span></div>
+              <div><strong>{group.name}</strong><span>{weekdaysLabel(group.weekdays)} · {String(group.starts_at).slice(0, 5)} · {members.length} paciente(s) vinculados · referência de {group.capacity ?? 7} por dia</span></div>
               <div className="group-members-heading"><h3>Pacientes inscritos</h3><span>{members.length === 0 ? "Nenhum paciente nesta turma" : `${members.length} inscrito(s)`}</span></div>
-              <ul aria-label={`Pacientes inscritos na turma ${group.name}`}>{members.map((member) => <li key={member.id}><span>{member.patients?.name ?? "Paciente"}</span>{canManageGroups && <button type="button" onClick={() => void removeGroupMember(member.id)} aria-label={`Remover ${member.patients?.name ?? "paciente"} da turma`}>Remover</button>}</li>)}</ul>
+              <ul aria-label={`Pacientes inscritos na turma ${group.name}`}>{members.map((member) => <li key={member.id}><span>{member.patients?.name ?? "Paciente"}</span>{canManageGroups && <button type="button" onClick={() => setEditingMembership({ member: { ...member, class_membership_id: member.class_membership_id ?? member.id, class_membership_weekdays: member.class_membership_weekdays ?? member.weekdays }, slot: group, effectiveFrom: clinicToday() })}>Editar dias</button>}{canManageGroups && <button type="button" onClick={() => void removeGroupMember(member.id)} aria-label={`Remover ${member.patients?.name ?? "paciente"} da turma`}>Remover</button>}</li>)}</ul>
             </article>;
           })}
         </div>
@@ -1021,11 +1028,11 @@ export function OperationalAgenda({ onOpenPatients, onOpenEnrollment: _onOpenEnr
         title="Turmas em horários fixos"
         resource="group-slots"
         rows={(data["/group-slots"] ?? []).map((row: Row) => {
-          const members = groupMembers.filter((member: Row) => member.group_slot_id === row.id);
+          const members = currentMembersForSlot(row.id);
           return {
             ...row,
             weekdays_label: weekdaysLabel(row.weekdays),
-            allocation: `${members.length}/${row.capacity ?? 7} · ${members.map((member: Row) => member.patients?.name).filter(Boolean).join(", ") || "Sem alunos"}`,
+            allocation: `${members.length} paciente(s) vinculados · ${members.map((member: Row) => member.patients?.name).filter(Boolean).join(", ") || "Sem alunos"}`,
           };
         })}
         fields={["name", "weekdays_label", "starts_at", "duration_minutes", "capacity", "allocation", "active"]}

@@ -8,7 +8,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../infrastructure/http/api";
 import { buildPlanControlRows, renewalCopy, type PlanControlRow } from "../../application/portal/planControl";
 import { buildAvailablePaymentPlans } from "../../application/portal/paymentPlans";
-import { SelectField, TextField } from "../components/FormPrimitives";
+import { SelectField, TextField, WeekdayCheckboxGroup } from "../components/FormPrimitives";
 import { type AgendaEnrollmentContext, Row, messageOf, statusLabel, value, cents, brl, groupSlotLabel, useDialogFocus, useResources, PlanSelect, PatientPicker, DrawerForm, ModuleState, MetricLite, OperationalTable, dateKey, localDateAtNoonIso } from "./OperationalShared";
 
 export function OperationalEnrollments({ agendaContext, onClearAgendaContext, openEnrollment = false, units = [], selectedUnitId = "", onUnitChange = () => undefined, canEdit = true, canManagePlans = true, canViewCharges = true, canViewPayments = true, canReceivePayments = true, canCreateCharges = canReceivePayments, canCorrectChargeAmounts = false, canViewPatients = true, canViewAgenda = true }: { agendaContext?: AgendaEnrollmentContext; onClearAgendaContext?: () => void; openEnrollment?: boolean; units?: Array<{ id: string; name: string }>; selectedUnitId?: string; onUnitChange?: (unitId: string) => void; canEdit?: boolean; canManagePlans?: boolean; canDeletePlans?: boolean; canViewCharges?: boolean; canViewPayments?: boolean; canReceivePayments?: boolean; canCreateCharges?: boolean; canRollback?: boolean; canCorrectChargeAmounts?: boolean; canViewPatients?: boolean; canViewAgenda?: boolean }) {
@@ -36,6 +36,14 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
   useEffect(() => { const sync = () => setSection(sectionFromPath()); window.addEventListener("popstate", sync); return () => window.removeEventListener("popstate", sync); }, []);
   const [selectedPatient, setSelectedPatient] = useState<Row>();
   const [selectedEnrollmentGroup, setSelectedEnrollmentGroup] = useState(agendaContext?.groupSlotId ?? "");
+  const [selectedEnrollmentStart, setSelectedEnrollmentStart] = useState(agendaContext?.startsAt ?? dateKey(new Date()));
+  const enrollmentGroupId = agendaContext?.groupSlotId ?? selectedEnrollmentGroup;
+  const enrollmentGroup = (data["/group-slots"] ?? []).find((slot: Row) => slot.id === enrollmentGroupId);
+  const enrollmentSchedule = (enrollmentGroup?.schedule_versions ?? []).find((schedule: Row) =>
+    schedule.effective_from <= selectedEnrollmentStart && (!schedule.effective_to || selectedEnrollmentStart < schedule.effective_to));
+  const enrollmentGroupWeekdays: number[] = enrollmentSchedule
+    ? (enrollmentSchedule.weekdays ?? []).map((day: string) => ({ monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5 } as Record<string, number>)[day]).filter(Boolean)
+    : (enrollmentGroup?.weekdays ?? []);
   const [selectedEnrollmentUnit, setSelectedEnrollmentUnit] = useState(agendaContext?.unitId ?? selectedUnitId);
   const [patientPickerVersion, setPatientPickerVersion] = useState(0);
   const [changingEnrollmentId, setChangingEnrollmentId] = useState("");
@@ -64,9 +72,11 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
     const patientId = value(form, "patient_id");
     const planId = value(form, "plan_id");
     try {
+      const weekdays = form.getAll("weekdays").map(Number);
+      if (value(form, "group_slot_id") && weekdays.length === 0) throw new Error("Selecione os dias em que o paciente vem.");
       await api<Row>("/enrollments", {
         method: "POST",
-        body: JSON.stringify({ patient_id: patientId, plan_id: planId, unit_id: value(form, "unit_id"), group_slot_id: value(form, "group_slot_id") || undefined, starts_at: value(form, "starts_at"), ends_at: value(form, "ends_at") || undefined, due_day: Number(value(form, "due_day")), discount_cents: cents(value(form, "discount") || "0"), surcharge_cents: 0 }),
+        body: JSON.stringify({ patient_id: patientId, plan_id: planId, unit_id: value(form, "unit_id"), group_slot_id: value(form, "group_slot_id") || undefined, weekdays: weekdays.length ? weekdays : undefined, starts_at: value(form, "starts_at"), ends_at: value(form, "ends_at") || undefined, due_day: Number(value(form, "due_day")), discount_cents: cents(value(form, "discount") || "0"), surcharge_cents: 0 }),
       });
       formElement.reset();
       setSelectedPatient(undefined);
@@ -240,12 +250,13 @@ export function OperationalEnrollments({ agendaContext, onClearAgendaContext, op
             <PlanSelect rows={data["/plans"] ?? []} />
           </div>
           {selectedPatient && <div className="agenda-context-summary" role="status"><strong>Paciente selecionado</strong><span>{selectedPatient.name}{selectedPatient.phone ? ` · ${selectedPatient.phone}` : ""}{selectedPatient.cpf ? ` · CPF ${selectedPatient.cpf}` : ""}</span></div>}
-          {agendaContext ? <div className="agenda-context-summary" role="status"><input type="hidden" name="unit_id" value={agendaContext.unitId} /><input type="hidden" name="group_slot_id" value={agendaContext.groupSlotId} /><strong>{agendaContext.groupName ?? "Turma selecionada"}</strong><span>{agendaContext.unitName ?? "Unidade selecionada"} · turma escolhida na Agenda</span><button type="button" onClick={onClearAgendaContext}>Trocar turma</button></div> : <div className="form-row"><SelectField name="unit_id" label="Unidade" required value={selectedEnrollmentUnit} onChange={(event) => { setSelectedEnrollmentUnit(event.target.value); setSelectedEnrollmentGroup(""); }}><option value="">Selecione</option>{(data["/units"] ?? []).map((unit: Row) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}</SelectField><SelectField name="group_slot_id" label="Turma (opcional)" value={selectedEnrollmentGroup} disabled={!selectedEnrollmentUnit} onChange={(event) => setSelectedEnrollmentGroup(event.target.value)}><option value="">{selectedEnrollmentUnit ? "Nenhuma" : "Selecione a unidade primeiro"}</option>{(data["/group-slots"] ?? []).filter((slot: Row) => slot.unit_id === selectedEnrollmentUnit && slot.active !== false).map((slot: Row) => { const professional = (data["/professionals"] ?? []).find((row: Row) => row.id === slot.professional_id); return <option key={slot.id} value={slot.id}>{groupSlotLabel(slot, professional?.name)}</option>; })}</SelectField></div>}
+          {agendaContext ? <div className="agenda-context-summary" role="status"><input type="hidden" name="unit_id" value={agendaContext.unitId} /><input type="hidden" name="group_slot_id" value={agendaContext.groupSlotId} /><strong>{agendaContext.groupName ?? "Horário selecionado"}</strong><span>{agendaContext.unitName ?? "Unidade selecionada"} · horário escolhido na Agenda</span><button type="button" onClick={onClearAgendaContext}>Trocar horário</button></div> : <div className="form-row"><SelectField name="unit_id" label="Unidade" required value={selectedEnrollmentUnit} onChange={(event) => { setSelectedEnrollmentUnit(event.target.value); setSelectedEnrollmentGroup(""); }}><option value="">Selecione</option>{(data["/units"] ?? []).map((unit: Row) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}</SelectField><SelectField name="group_slot_id" label="Horário (opcional)" value={selectedEnrollmentGroup} disabled={!selectedEnrollmentUnit} onChange={(event) => setSelectedEnrollmentGroup(event.target.value)}><option value="">{selectedEnrollmentUnit ? "Nenhum" : "Selecione a unidade primeiro"}</option>{(data["/group-slots"] ?? []).filter((slot: Row) => slot.unit_id === selectedEnrollmentUnit && slot.active !== false).map((slot: Row) => { const professional = (data["/professionals"] ?? []).find((row: Row) => row.id === slot.professional_id); return <option key={slot.id} value={slot.id}>{groupSlotLabel(slot, professional?.name)}</option>; })}</SelectField></div>}
           {!agendaContext && selectedEnrollmentGroup && (() => { const slot = (data["/group-slots"] ?? []).find((row: Row) => row.id === selectedEnrollmentGroup); return slot ? <div className="agenda-context-summary" role="status"><strong>Turma escolhida</strong><span>{groupSlotLabel(slot)}</span></div> : null; })()}
             <div className="form-row">
-              <TextField id="enrollment-starts-at" name="starts_at" label="Início" type="date" defaultValue={agendaContext?.startsAt} readOnly={Boolean(agendaContext)} required />
+              <TextField id="enrollment-starts-at" name="starts_at" label="Início" type="date" defaultValue={agendaContext?.startsAt} onChange={(event) => setSelectedEnrollmentStart(event.target.value)} readOnly={Boolean(agendaContext)} required />
               <TextField id="enrollment-ends-at" name="ends_at" label="Fim do período" type="date" />
             </div>
+            {enrollmentGroup && <div className="enrollment-patient-days"><p className="form-instructions">Escolha os dias em que este paciente virá às {String(enrollmentGroup.starts_at).slice(0, 5)}. Ele aparecerá na agenda e na chamada somente nesses dias.</p><WeekdayCheckboxGroup key={`${enrollmentGroupId}-${enrollmentGroupWeekdays.join(",")}`} name="weekdays" label="Dias do paciente" availableValues={enrollmentGroupWeekdays.map(String)} maxSelections={5} required /><p className="form-field-hint">Confira se o plano cobre a frequência escolhida.</p></div>}
             <div className="form-row">
               <TextField id="enrollment-due-day" name="due_day" label="Dia do vencimento" type="number" min="1" max="31" required />
           </div>

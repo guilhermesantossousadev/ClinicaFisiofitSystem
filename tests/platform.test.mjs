@@ -129,19 +129,20 @@ test("salva avaliações e apresenta os campos clínicos corretos", async () => 
   assert.doesNotMatch(recordsForm, /name="conduct" label="Conduta inicial"/);
 });
 
-test("mantém turmas distintas por dias dentro dos horários fixos", async () => {
+test("permite escolher dias por paciente no mesmo horário", async () => {
   const [agenda, enrollments, agendaRoute, migration] = await Promise.all([
     readFile(new URL("../apps/portal/src/presentation/modules/OperationalAgenda.tsx", import.meta.url), "utf8"),
     readFile(new URL("../apps/portal/src/presentation/modules/OperationalEnrollments.tsx", import.meta.url), "utf8"),
     readFile(new URL("../supabase/functions/api/routes/agenda.ts", import.meta.url), "utf8"),
-    readFile(new URL("../supabase/migrations/202608230001_group_based_fixed_schedule.sql", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/202610220001_flexible_patient_schedule.sql", import.meta.url), "utf8"),
   ]);
 
-  assert.match(agenda, /Nova turma em horário fixo/);
-  assert.match(agenda, /weekdays: form\.getAll\("weekdays"\)\.map\(Number\)/);
+  assert.match(agenda, /OPEN_WEEKDAYS = \[1, 2, 3, 4, 5\]/);
+  assert.match(agenda, /Dias em que o paciente vem/);
+  assert.match(agenda, /allowedDays\.includes\(CLASS_WEEKDAY_BY_LEGACY_DAY\[day\]\)/);
   assert.doesNotMatch(agenda, /updateGroupMember/);
-  assert.match(enrollments, /label="Turma \(opcional\)"/);
-  assert.doesNotMatch(enrollments, /form\.getAll\("weekdays"\)/);
+  assert.match(enrollments, /label="Horário \(opcional\)"/);
+  assert.match(enrollments, /form\.getAll\("weekdays"\)/);
   assert.match(agendaRoute, /GROUP_SLOT_CONFLICT/);
   assert.match(agendaRoute, /conflictingGroup:/);
   assert.match(agendaRoute, /Já existe outra turma nesta unidade para o mesmo dia e horário/);
@@ -150,7 +151,9 @@ test("mantém turmas distintas por dias dentro dos horários fixos", async () =>
   assert.match(agendaRoute, /input\.weekdays\.map/);
   assert.doesNotMatch(agendaRoute, /Os horários são fixos e não podem ser cadastrados/);
   assert.match(migration, /sync_membership_weekdays_from_group/);
-  assert.match(migration, /name ~\* '\^Horário fixo'/);
+  assert.match(migration, /if new\.weekdays is null then/);
+  assert.match(migration, /drop trigger if exists group_slot_propagate_weekdays/);
+  assert.match(migration, /prepare_flexible_group_change/);
 });
 
 test("permite à administração, gestão e recepção gerenciar a grade de horários", async () => {
@@ -236,7 +239,7 @@ test("suporta frequência semanal por membership sem inventar dias no legado", a
   assert.match(portal, /Selecione ao menos um dia para o paciente/);
   assert.match(portal, /Editar dias/);
   assert.match(portal, /class_membership_weekdays as string\[\] \| null/);
-  assert.match(portal, /const selectedWeekdays = explicitWeekdays\?\.map[\s\S]*\?\? scheduleWeekdays\.map\(String\)/);
+  assert.match(portal, /const selectedWeekdays: string\[\] = explicitWeekdays\?\.map[\s\S]*\?\? scheduleWeekdays\.map\(String\)/);
   assert.match(portal, /savingMembershipWeekdays/);
   assert.match(portal, /`\/class-memberships\/\$\{editingMembership\.member\.class_membership_id\}`/);
   assert.match(apiIndex, /operational_group_memberships/);

@@ -228,9 +228,9 @@
     "semantic_hash": ""
   },
   "apps/portal/src/presentation/modules/OperationalAgenda.tsx": {
-    "mtime": 1792631517.5195565,
-    "seen": 1792631717.996476,
-    "ast_hash": "f9a4b46257b9a21541fbb0d6234a663e",
+    "mtime": 1792665784.5755217,
+    "seen": 1792665823.477859,
+    "ast_hash": "9b590296f690ec875daa25bd139e4086",
     "semantic_hash": ""
   },
   "apps/portal/src/presentation/modules/OperationalDailyAttendance.tsx": {
@@ -240,9 +240,9 @@
     "semantic_hash": ""
   },
   "apps/portal/src/presentation/modules/OperationalEnrollments.tsx": {
-    "mtime": 1792631663.5579817,
-    "seen": 1792631717.996521,
-    "ast_hash": "cc2974daf3d5c0baa3945866bcda8f27",
+    "mtime": 1792663887.1385515,
+    "seen": 1792665823.477916,
+    "ast_hash": "e0030438e0b9d180eacc06fc7809db22",
     "semantic_hash": ""
   },
   "apps/portal/src/presentation/modules/OperationalFinance.tsx": {
@@ -624,15 +624,15 @@
     "semantic_hash": ""
   },
   "supabase/functions/api/index.ts": {
-    "mtime": 1792629333.8108954,
-    "seen": 1792629968.8143811,
-    "ast_hash": "7875e349bd0094ece3465ef23167bc1b",
+    "mtime": 1792663853.394226,
+    "seen": 1792665823.4916322,
+    "ast_hash": "15a6ba0ed028bd1757a60cbd3b9b92ec",
     "semantic_hash": ""
   },
   "supabase/functions/api/operational-errors.ts": {
-    "mtime": 1792605000.4055877,
-    "seen": 1792605686.022462,
-    "ast_hash": "912a31d8cba0662d15fbd8d8b771080e",
+    "mtime": 1792664066.288036,
+    "seen": 1792665823.491634,
+    "ast_hash": "6667a1cb304182a5e9ee2275feb91794",
     "semantic_hash": ""
   },
   "supabase/functions/api/patient-schema.ts": {
@@ -642,9 +642,9 @@
     "semantic_hash": ""
   },
   "supabase/functions/api/routes/agenda.ts": {
-    "mtime": 1792631486.0054817,
-    "seen": 1792631718.005207,
-    "ast_hash": "cd5499f5a22639ec4d93eba80fb90e91",
+    "mtime": 1792664522.5796607,
+    "seen": 1792665823.491745,
+    "ast_hash": "27fa27b00f0c15204d644bf6064597ac",
     "semantic_hash": ""
   },
   "supabase/functions/api/routes/financeiro.ts": {
@@ -690,9 +690,9 @@
     "semantic_hash": ""
   },
   "tests/platform.test.mjs": {
-    "mtime": 1792605631.4999933,
-    "seen": 1792605686.022471,
-    "ast_hash": "64bc764027ba730c191f7eb097fb0359",
+    "mtime": 1792665712.7717006,
+    "seen": 1792665823.492217,
+    "ast_hash": "50d71e3e4bb26ef1e006c386122652cf",
     "semantic_hash": ""
   },
   ".agents/skills/ux-designer/README.md": {
@@ -918,9 +918,9 @@
     "semantic_hash": ""
   },
   "context.md": {
-    "mtime": 1792630409.404385,
-    "seen": 1792631718.007498,
-    "ast_hash": "94e736c353c4e2ad28fd37b0e30c63e3",
+    "mtime": 1792665802.941991,
+    "seen": 1792665823.494316,
+    "ast_hash": "8a7b2e601c897f60c2d1521808a8166c",
     "semantic_hash": ""
   },
   "docs/02-domain/agenda-calendar-contracts.md": {
@@ -9822,9 +9822,9 @@
     "semantic_hash": ""
   },
   "release/hostinger/operational-baseline-manifest.json": {
-    "mtime": 1792630218.213309,
-    "seen": 1792631718.0034401,
-    "ast_hash": "cd26ee1ac2c0a051b906ee69b860121a",
+    "mtime": 1792662641.5488312,
+    "seen": 1792665823.4891021,
+    "ast_hash": "430ca102fc99b75a777fa7f5817df74e",
     "semantic_hash": ""
   }
 }

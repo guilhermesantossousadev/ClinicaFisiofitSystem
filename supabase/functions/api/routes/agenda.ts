@@ -256,18 +256,21 @@ export function registerAgendaRoutes(app: any, dependencies: any) {
 
   app.patch("/class-memberships/:id", requireRoles(["admin", "manager", "reception"]), async (context: any) => {
     const membershipId = z.string().uuid().parse(context.req.param("id"));
-    const input = z.object({ weekdays: z.array(z.enum(["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"])).min(1).max(7) }).strict().parse(await context.req.json());
+    const input = z.object({ effectiveFrom: z.string().date().optional(), weekdays: z.array(z.enum(["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"])).min(1).max(7) }).strict().parse(await context.req.json());
     const db = context.get("db");
     const { data: membership, error: membershipError } = await db.from("class_memberships").select("id,class_id,effective_from").eq("id", membershipId).eq("clinic_id", context.get("profile").clinic_id).maybeSingle();
     if (membershipError || !membership) return databaseResult(context, null, membershipError);
     const targetClass = await getManagedClass(context, membership.class_id);
     if (targetClass instanceof Response) return targetClass;
-    const { data: schedule, error: scheduleError } = await db.from("class_schedules").select("weekdays").eq("class_id", membership.class_id).eq("clinic_id", context.get("profile").clinic_id).lte("effective_from", membership.effective_from).or(`effective_to.is.null,effective_to.gt.${membership.effective_from}`).order("effective_from", { ascending: false }).limit(1).maybeSingle();
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+    const effectiveFrom = input.effectiveFrom ?? today;
+    if (effectiveFrom < today) return fail(context, 422, "SCHEDULE_HISTORY_IMMUTABLE", "Os dias anteriores não podem ser alterados.");
+    const { data: schedule, error: scheduleError } = await db.from("class_schedules").select("weekdays").eq("class_id", membership.class_id).eq("clinic_id", context.get("profile").clinic_id).lte("effective_from", effectiveFrom).or(`effective_to.is.null,effective_to.gt.${effectiveFrom}`).order("effective_from", { ascending: false }).limit(1).maybeSingle();
     if (scheduleError || !schedule) return fail(context, 422, "CLASS_SCHEDULE_NOT_FOUND", "Não há schedule vigente para esta matrícula.");
     if (new Set(input.weekdays).size !== input.weekdays.length || !input.weekdays.every((day) => schedule.weekdays.includes(day))) return fail(context, 422, "INVALID_MEMBERSHIP_WEEKDAYS", "Os dias do paciente devem pertencer à grade da turma.");
     const { data: member, error: memberError } = await db.from("class_memberships").select("patient_id,enrollment_id,effective_to").eq("id", membershipId).single();
     if (memberError) return databaseResult(context, null, memberError);
-    const { data, error } = await db.rpc("save_operational_membership", { p_group_id: membership.class_id, p_patient_id: member.patient_id, p_from: new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date()), p_to: member.effective_to, p_weekdays: input.weekdays, p_enrollment_id: member.enrollment_id, p_id: membershipId });
+    const { data, error } = await db.rpc("save_operational_membership", { p_group_id: membership.class_id, p_patient_id: member.patient_id, p_from: effectiveFrom, p_to: member.effective_to, p_weekdays: input.weekdays, p_enrollment_id: member.enrollment_id, p_id: membershipId });
     return classScheduleDatabaseResult(context, data ? { ...data, effectiveWeekdays: data.weekdays } : data, error);
   });
 
