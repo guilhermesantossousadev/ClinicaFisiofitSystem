@@ -566,6 +566,25 @@ app.patch("/enrollments/:id/dates", requireRoles(["admin", "manager", "reception
   return databaseResult(context, data, error);
 });
 
+app.post("/enrollments/:id/historical-charge", requireRoles(["admin", "manager", "reception", "finance"]), async (context) => {
+  const id = z.string().uuid().parse(context.req.param("id"));
+  const input = z.object({
+    month: z.string().regex(/^\d{4}-\d{2}$/),
+    coverage_from: z.string().date(),
+    amount_cents: z.number().int().positive(),
+    reason: z.string().trim().min(10).max(1000),
+  }).parse(await context.req.json());
+  const { data, error } = await context.get("db").rpc("create_historical_monthly_charge", {
+    p_enrollment_id: id,
+    p_month: `${input.month}-01`,
+    p_coverage_from: input.coverage_from,
+    p_amount_cents: input.amount_cents,
+    p_reason: input.reason,
+    p_request_id: context.get("requestId"),
+  });
+  return databaseResult(context, data, error, 201);
+});
+
 app.post("/charges", requireRoles(["admin", "manager", "finance"]), async (context) => {
   const input = z.object({
     patient_id: z.string().uuid(),
@@ -990,6 +1009,8 @@ function databaseResult(context: any, data: unknown, error: any, status = 200) {
       ENROLLMENT_START_HAS_ATTENDANCE: [409, "Há aulas ou atendimentos vinculados; a data inicial precisa de revisão individual."],
       ENROLLMENT_START_CHARGE_CONFLICT: [409, "Uma cobrança anterior impede corrigir a data inicial sem revisão financeira."],
       ENROLLMENT_END_CHARGE_CONFLICT: [409, "A data final não pode anteceder uma cobrança já registrada."],
+      INVALID_HISTORICAL_CHARGE: [400, "Informe mês anterior, valor positivo e justificativa para a cobrança histórica."],
+      HISTORICAL_COVERAGE_START_CONFLICT: [409, "O início deve ser o primeiro dia ainda não coberto pela cobrança anterior."],
     };
     const known = enrollmentErrors[String(error.message)];
     if (known) return fail(context, known[0], String(error.message), known[1]);
