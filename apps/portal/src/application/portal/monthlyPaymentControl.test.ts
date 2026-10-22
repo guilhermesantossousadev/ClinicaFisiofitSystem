@@ -108,6 +108,19 @@ describe("controle mensal de pagamentos", () => {
     expect(rows[0]).toMatchObject({ state: "paid", chargeId: "charge-quarter", balanceCents: 0 });
   });
 
+  it("mostra os dias restantes quando a cobrança inicial cobre só o começo do mês", () => {
+    const rows = buildMonthlyPaymentRows({
+      ...base,
+      month: "2026-09",
+      plans: [{ ...base.plans[0], duration_days: 30 }],
+      enrollments: [{ ...base.enrollments[0], starts_at: "2026-08-11", contract_amount_cents: null }],
+      charges: [{ id: "august", enrollment_id: "enrollment-1", amount_cents: 14641, paid_cents: 14641, status: "paid", due_at: "2026-08-10", coverage_from: "2026-08-11", coverage_to: "2026-09-10" }],
+    });
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toMatchObject({ state: "paid", chargeId: "august", coverageTo: "2026-09-10" });
+    expect(rows[1]).toMatchObject({ state: "unbilled", chargeId: "", amountCents: null, coverageFrom: "2026-09-11", coverageTo: "2026-09-30" });
+  });
+
   it("usa o valor persistido corrigido para totais e saldo, sem alterar outra matrícula ou mês", () => {
     const rows = buildMonthlyPaymentRows({
       month: "2026-09",

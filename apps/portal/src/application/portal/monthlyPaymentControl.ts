@@ -34,6 +34,12 @@ function monthBounds(month: string) {
   return { from: `${month}-01`, to: `${month}-${String(lastDay).padStart(2, "0")}` };
 }
 
+function nextDay(day: string) {
+  const date = new Date(`${day}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
 function plannedCoverageEnd(month: string, durationDays: unknown) {
   const months = Math.max(1, Math.round(Number(durationDays ?? 30) / 30));
   const start = new Date(`${month}-01T12:00:00`);
@@ -94,7 +100,24 @@ export function buildMonthlyPaymentRows({
       const plannedFrom = `${month}-01` < enrollmentStart ? enrollmentStart : `${month}-01`;
       const plannedTo = plannedCoverageEnd(month, plan.duration_days) > enrollmentEnd ? enrollmentEnd : plannedCoverageEnd(month, plan.duration_days);
 
-      return (visibleCharges.length ? visibleCharges : [undefined]).map((charge) => {
+      // A paid charge from a prior month may cover only the first days of this
+      // month. Keep that snapshot visible and show the remaining days separately.
+      const activeCoverageEnds = activeCharges
+        .filter((charge) => charge.coverage_from && charge.coverage_to)
+        .map((charge) => String(charge.coverage_to));
+      const latestCoverageEnd = activeCoverageEnds.sort().at(-1);
+      const uncoveredFrom = Number(plan.duration_days ?? 0) === 30
+        && activeCharges.length > 0
+        && activeCoverageEnds.length === activeCharges.length
+        && latestCoverageEnd && latestCoverageEnd < plannedTo
+        ? nextDay(latestCoverageEnd)
+        : "";
+      const showUnbilledRemainder = uncoveredFrom && uncoveredFrom <= plannedTo;
+      const rowsForMonth = visibleCharges.length
+        ? showUnbilledRemainder ? [...visibleCharges, undefined] : visibleCharges
+        : [undefined];
+
+      return rowsForMonth.map((charge) => {
       // A persisted charge is a financial snapshot and always takes precedence.
       // Do not turn an unknown or invalid expected amount into zero.
       const amountCents = charge ? Number(charge.amount_cents) : expectedAmount === null || expectedAmount < 0 ? null : expectedAmount;
@@ -120,7 +143,7 @@ export function buildMonthlyPaymentRows({
         paidCents,
         balanceCents,
         chargeId: String(charge?.id ?? ""),
-        coverageFrom: String(charge?.coverage_from ?? plannedFrom),
+        coverageFrom: String(charge?.coverage_from ?? (showUnbilledRemainder ? uncoveredFrom : plannedFrom)),
         coverageTo: String(charge?.coverage_to ?? plannedTo),
         state,
         expectedAmountCents: expectedAmount,
